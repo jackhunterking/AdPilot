@@ -955,7 +955,7 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
                 <Button
                   size="sm"
                   onClick={onAddPayment}
-                  disabled={!sdkReady || paymentStatus === 'opening' || paymentStatus === 'processing' || !summary?.adminConnected || !summary?.userAppConnected}
+                  disabled={!sdkReady || paymentStatus === 'opening' || paymentStatus === 'processing' || !summary?.adAccount?.id}
                   className="h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
                 >
                   {paymentStatus === 'opening' || paymentStatus === 'processing' ? 'Opening...' : 'Add Payment'}

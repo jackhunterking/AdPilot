@@ -436,14 +436,13 @@ async function fetchBusinessUsersWithRoles(
 
       if (!res.ok) {
         const errorText = await res.text();
-        metaLogger.logApiCallError({
-          context: CONTEXT,
-          operation: `Fetch business users (${t.edge})`,
+        // Use debug instead of error - these fallback attempts are expected
+        metaLogger.debug(CONTEXT, `Fetch business users (${t.edge}) - edge not available (expected for some business types)`, {
           endpoint: t.url,
           duration,
           statusCode: res.status,
-          error: errorText,
-          metadata: { businessId, edge: t.edge },
+          businessId,
+          edge: t.edge,
         });
         continue;
       }
@@ -476,7 +475,10 @@ async function fetchBusinessUsersWithRoles(
     }
   }
 
-  metaLogger.warn(CONTEXT, 'All edges returned no business users', { businessId });
+  metaLogger.info(CONTEXT, 'Business user edges not available - will rely on Ad Account roles only', {
+    businessId,
+    note: 'This is normal for some Meta business types'
+  });
   return [];
 }
 
