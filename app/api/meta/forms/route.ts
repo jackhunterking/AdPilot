@@ -31,27 +31,61 @@ async function getAuthorizedContext(
     }
   | { error: Response }
 > {
+  console.log('[MetaForms getAuthorizedContext] Starting authorization')
+
   const { searchParams } = new URL(req.url)
   const campaignId = searchParams.get('campaignId')
+
+  console.log('[MetaForms getAuthorizedContext] Request params:', {
+    campaignId,
+    hasClientTokens: !!clientTokens,
+    clientPageId: clientTokens?.pageId,
+    hasClientPageAccessToken: !!clientTokens?.pageAccessToken,
+    clientPageAccessTokenLength: clientTokens?.pageAccessToken?.length,
+  })
+
   if (!campaignId) {
+    console.error('[MetaForms getAuthorizedContext] Missing campaignId')
     return { error: NextResponse.json({ error: 'campaignId required' }, { status: 400 }) }
   }
 
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+  if (!user) {
+    console.error('[MetaForms getAuthorizedContext] Not authenticated')
+    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+  }
+
+  console.log('[MetaForms getAuthorizedContext] User authenticated:', { userId: user.id })
 
   const { data: campaign } = await supabaseServer
     .from('campaigns')
     .select('id,user_id')
     .eq('id', campaignId)
     .maybeSingle()
+
+  console.log('[MetaForms getAuthorizedContext] Campaign lookup:', {
+    campaignId,
+    found: !!campaign,
+    userIdMatch: campaign?.user_id === user.id,
+  })
+
   if (!campaign || campaign.user_id !== user.id) {
+    console.error('[MetaForms getAuthorizedContext] Campaign not found or unauthorized')
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 
   // 1. Try Supabase first (existing behavior)
+  console.log('[MetaForms getAuthorizedContext] Checking Supabase for connection')
   const conn = await getConnectionWithToken({ campaignId })
+
+  console.log('[MetaForms getAuthorizedContext] Supabase connection result:', {
+    hasConn: !!conn,
+    hasSelectedPageId: !!conn?.selected_page_id,
+    hasSelectedPageAccessToken: !!conn?.selected_page_access_token,
+    hasLongLivedUserToken: !!conn?.long_lived_user_token,
+    selectedPageId: conn?.selected_page_id,
+  })
 
   let pageId: string = ''
   let pageAccessToken: string = ''
@@ -59,45 +93,67 @@ async function getAuthorizedContext(
   let source: 'supabase' | 'localStorage' | 'derived' = 'supabase'
 
   if (conn?.selected_page_id && conn?.long_lived_user_token) {
+    console.log('[MetaForms getAuthorizedContext] Supabase has data - using it')
     // Supabase has data - use it
     pageId = conn.selected_page_id
     longToken = conn.long_lived_user_token
 
     // Try to get page access token from stored value or derive it
     if (conn.selected_page_access_token) {
+      console.log('[MetaForms getAuthorizedContext] Using stored page access token from Supabase')
       pageAccessToken = conn.selected_page_access_token
       source = 'supabase'
     } else {
+      console.log('[MetaForms getAuthorizedContext] No stored page token - deriving from long-lived token')
       // Derive from long-lived token
       const pages = await fetchPagesWithTokens({ token: longToken })
+      console.log('[MetaForms getAuthorizedContext] Fetched pages:', {
+        count: pages.length,
+        pageIds: pages.map(p => p.id),
+      })
       const match = pages.find(p => p.id === pageId) || null
       pageAccessToken = match?.access_token || ''
       source = pageAccessToken ? 'derived' : 'supabase'
+      console.log('[MetaForms getAuthorizedContext] Derive result:', {
+        found: !!match,
+        hasToken: !!pageAccessToken,
+        source,
+      })
     }
   } else {
+    console.log('[MetaForms getAuthorizedContext] Supabase empty - attempting localStorage fallback')
     // 2. Supabase empty - fall back to client-provided tokens
     if (clientTokens?.pageId && clientTokens?.pageAccessToken) {
+      console.log('[MetaForms getAuthorizedContext] Using client-provided tokens from localStorage')
       pageId = clientTokens.pageId
       pageAccessToken = clientTokens.pageAccessToken
       longToken = conn?.long_lived_user_token || '' // May still be in Supabase
       source = 'localStorage'
 
-      console.log('[Meta Forms] Using localStorage fallback:', {
+      console.log('[MetaForms getAuthorizedContext] localStorage fallback successful:', {
         campaignId,
         pageId,
         hasToken: !!pageAccessToken,
+        tokenLength: pageAccessToken.length,
       })
+    } else {
+      console.error('[MetaForms getAuthorizedContext] No client tokens provided for fallback')
     }
   }
 
   // 3. Validate we have what we need
   if (!pageId || !pageAccessToken) {
-    console.error('[Meta Forms] Missing tokens:', {
+    console.error('[MetaForms getAuthorizedContext] Final validation FAILED - missing tokens:', {
       campaignId,
       hasSupabaseConn: !!conn,
+      supabaseConnKeys: conn ? Object.keys(conn) : [],
       hasClientTokens: !!(clientTokens?.pageId && clientTokens?.pageAccessToken),
-      pageId: !!pageId,
-      pageAccessToken: !!pageAccessToken,
+      clientTokensKeys: clientTokens ? Object.keys(clientTokens) : [],
+      finalPageId: pageId,
+      finalPageIdExists: !!pageId,
+      finalPageAccessToken: !!pageAccessToken,
+      finalPageAccessTokenLength: pageAccessToken?.length || 0,
+      source,
     })
     return {
       error: NextResponse.json({
@@ -107,28 +163,51 @@ async function getAuthorizedContext(
     }
   }
 
-  console.log('[Meta Forms] Using tokens from:', source, {
+  console.log('[MetaForms getAuthorizedContext] Authorization SUCCESS - using tokens from:', source, {
     campaignId,
     pageId,
     hasLongToken: !!longToken,
+    pageAccessTokenLength: pageAccessToken.length,
+    pageAccessTokenPreview: pageAccessToken.slice(0, 6) + '...' + pageAccessToken.slice(-4),
   })
 
   return { userId: user.id, campaignId, pageId, longToken, pageAccessToken, source }
 }
 
 export async function GET(req: NextRequest) {
+  console.log('[MetaForms GET] Request received')
+
   try {
     // Extract optional client tokens from query params (fallback for localStorage)
     const { searchParams } = new URL(req.url)
     const clientPageId = searchParams.get('pageId')
     const clientPageToken = searchParams.get('pageAccessToken')
 
+    console.log('[MetaForms GET] Query params:', {
+      hasPageId: !!clientPageId,
+      pageId: clientPageId,
+      hasPageAccessToken: !!clientPageToken,
+      pageAccessTokenLength: clientPageToken?.length,
+    })
+
     const clientTokens = clientPageId && clientPageToken
       ? { pageId: clientPageId, pageAccessToken: clientPageToken }
       : undefined
 
+    console.log('[MetaForms GET] Client tokens for fallback:', {
+      hasClientTokens: !!clientTokens,
+    })
+
     const ctx = await getAuthorizedContext(req, clientTokens)
-    if ('error' in ctx) return ctx.error
+    if ('error' in ctx) {
+      console.error('[MetaForms GET] Authorization failed')
+      return ctx.error
+    }
+
+    console.log('[MetaForms GET] Authorization successful:', {
+      source: ctx.source,
+      pageId: ctx.pageId,
+    })
 
     const gv = getGraphVersion()
     const url = `https://graph.facebook.com/${gv}/${encodeURIComponent(ctx.pageId)}/leadgen_forms?fields=id,name,created_time&limit=100`
@@ -163,8 +242,14 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  console.log('[MetaForms POST] Request received')
+
   try {
     const bodyUnknown: unknown = await req.json().catch(() => ({}))
+    console.log('[MetaForms POST] Body parsed:', {
+      hasBody: !!bodyUnknown,
+      bodyKeys: bodyUnknown && typeof bodyUnknown === 'object' ? Object.keys(bodyUnknown) : [],
+    })
     const b = (bodyUnknown && typeof bodyUnknown === 'object' && bodyUnknown !== null)
       ? (bodyUnknown as {
           name?: string
@@ -176,13 +261,40 @@ export async function POST(req: NextRequest) {
         })
       : {}
 
+    console.log('[MetaForms POST] Extracted from body:', {
+      hasName: !!b.name,
+      hasPrivacyPolicy: !!b.privacyPolicy,
+      hasQuestions: Array.isArray(b.questions),
+      hasThankYouPage: !!b.thankYouPage,
+      hasPageId: !!b.pageId,
+      pageId: b.pageId,
+      hasPageAccessToken: !!b.pageAccessToken,
+      pageAccessTokenLength: b.pageAccessToken?.length,
+    })
+
     // Extract optional client tokens from body (fallback for localStorage)
     const clientTokens = b.pageId && b.pageAccessToken
       ? { pageId: b.pageId, pageAccessToken: b.pageAccessToken }
       : undefined
 
+    console.log('[MetaForms POST] Client tokens for fallback:', {
+      hasClientTokens: !!clientTokens,
+      pageId: clientTokens?.pageId,
+      hasPageAccessToken: !!clientTokens?.pageAccessToken,
+      pageAccessTokenLength: clientTokens?.pageAccessToken?.length,
+    })
+
     const ctx = await getAuthorizedContext(req, clientTokens)
-    if ('error' in ctx) return ctx.error
+    if ('error' in ctx) {
+      console.error('[MetaForms POST] Authorization failed, returning error')
+      return ctx.error
+    }
+
+    console.log('[MetaForms POST] Authorization successful, proceeding with form creation:', {
+      source: ctx.source,
+      pageId: ctx.pageId,
+      hasPageAccessToken: !!ctx.pageAccessToken,
+    })
 
     const name = typeof b.name === 'string' && b.name.trim().length > 0 ? b.name.trim() : ''
     const privacyPolicy = (b.privacyPolicy && typeof b.privacyPolicy === 'object') ? b.privacyPolicy : {}

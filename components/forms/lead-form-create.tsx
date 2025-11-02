@@ -87,47 +87,103 @@ export function LeadFormCreate({
   }
 
   const createForm = async () => {
-    if (!campaign?.id) return
-    if (Object.keys(errors).length > 0) return
+    if (!campaign?.id) {
+      console.error('[LeadFormCreate] No campaign ID')
+      return
+    }
+    if (Object.keys(errors).length > 0) {
+      console.error('[LeadFormCreate] Validation errors:', errors)
+      return
+    }
 
     // Get connection from localStorage for fallback
     const connection = metaStorage.getConnection(campaign.id)
 
+    console.log('[LeadFormCreate] Starting form creation:', {
+      campaignId: campaign.id,
+      hasConnection: !!connection,
+      connectionKeys: connection ? Object.keys(connection) : [],
+      pageId: connection?.selected_page_id,
+      hasPageAccessToken: !!connection?.selected_page_access_token,
+      pageAccessTokenLength: connection?.selected_page_access_token?.length,
+    })
+
+    // Log the full connection object (with token redacted)
+    if (connection) {
+      const redactedConnection = { ...connection }
+      if (redactedConnection.selected_page_access_token) {
+        const token = redactedConnection.selected_page_access_token
+        redactedConnection.selected_page_access_token =
+          token.length > 10 ? `${token.slice(0, 6)}...${token.slice(-4)}` : '[SHORT_TOKEN]'
+      }
+      if (redactedConnection.long_lived_user_token) {
+        const token = redactedConnection.long_lived_user_token
+        redactedConnection.long_lived_user_token =
+          token.length > 10 ? `${token.slice(0, 6)}...${token.slice(-4)}` : '[SHORT_TOKEN]'
+      }
+      console.log('[LeadFormCreate] Connection details:', redactedConnection)
+    } else {
+      console.error('[LeadFormCreate] No connection found in localStorage for campaign:', campaign.id)
+    }
+
     setIsSubmitting(true)
     setServerError(null)
+
+    const requestBody = {
+      campaignId: campaign.id,
+      pageId: connection?.selected_page_id,
+      pageAccessToken: connection?.selected_page_access_token,
+      name: formName,
+      privacyPolicy: { url: privacyUrl, link_text: privacyLinkText },
+      questions: [{ type: "FULL_NAME" }, { type: "EMAIL" }, { type: "PHONE" }],
+      thankYouPage: {
+        title: thankYouTitle,
+        body: thankYouMessage,
+        button_text: thankYouButtonText,
+        button_type: "VIEW_WEBSITE",
+        button_url: thankYouButtonUrl,
+      },
+    }
+
+    console.log('[LeadFormCreate] Request body (tokens redacted):', {
+      ...requestBody,
+      pageAccessToken: requestBody.pageAccessToken
+        ? `${requestBody.pageAccessToken.slice(0, 6)}...${requestBody.pageAccessToken.slice(-4)}`
+        : undefined,
+    })
 
     const res = await fetch("/api/meta/forms", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        campaignId: campaign.id,
-        pageId: connection?.selected_page_id,
-        pageAccessToken: connection?.selected_page_access_token,
-        name: formName,
-        privacyPolicy: { url: privacyUrl, link_text: privacyLinkText },
-        questions: [{ type: "FULL_NAME" }, { type: "EMAIL" }, { type: "PHONE" }],
-        thankYouPage: {
-          title: thankYouTitle,
-          body: thankYouMessage,
-          button_text: thankYouButtonText,
-          button_type: "VIEW_WEBSITE",
-          button_url: thankYouButtonUrl,
-        },
-      }),
+      body: JSON.stringify(requestBody),
     })
     const json: unknown = await res.json()
+
+    console.log('[LeadFormCreate] API response:', {
+      status: res.status,
+      ok: res.ok,
+      response: json,
+    })
+
     if (!res.ok) {
       const apiMsg = (json as { error?: string })?.error || "Failed to create form"
+      console.error('[LeadFormCreate] API error:', {
+        status: res.status,
+        error: apiMsg,
+        fullResponse: json,
+      })
       setServerError(apiMsg)
       setIsSubmitting(false)
       return
     }
     const id = (json as { id?: string }).id
     if (!id) {
+      console.error('[LeadFormCreate] No ID returned:', json)
       setServerError("Form was created but no ID returned. Please try again.")
       setIsSubmitting(false)
       return
     }
+    console.log('[LeadFormCreate] Form created successfully:', { id, name: formName })
     onConfirm({ id, name: formName })
     setIsSubmitting(false)
   }

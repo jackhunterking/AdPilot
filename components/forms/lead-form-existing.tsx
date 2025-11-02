@@ -42,10 +42,21 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
 
   useEffect(() => {
     const fetchForms = async () => {
-      if (!campaign?.id) return
+      if (!campaign?.id) {
+        console.log('[LeadFormExisting] No campaign ID')
+        return
+      }
 
       // Get connection from localStorage for fallback
       const connection = metaStorage.getConnection(campaign.id)
+
+      console.log('[LeadFormExisting] Fetching forms:', {
+        campaignId: campaign.id,
+        hasConnection: !!connection,
+        pageId: connection?.selected_page_id,
+        hasPageAccessToken: !!connection?.selected_page_access_token,
+        pageAccessTokenLength: connection?.selected_page_access_token?.length,
+      })
 
       setIsLoading(true)
       setError(null)
@@ -59,12 +70,27 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
           url.searchParams.set('pageAccessToken', connection.selected_page_access_token)
         }
 
+        console.log('[LeadFormExisting] Request URL (token redacted):', {
+          url: url.toString().replace(/pageAccessToken=[^&]+/, 'pageAccessToken=[REDACTED]'),
+          hasPageId: url.searchParams.has('pageId'),
+          hasPageAccessToken: url.searchParams.has('pageAccessToken'),
+        })
+
         const res = await fetch(url.toString())
         const json: unknown = await res.json()
+
+        console.log('[LeadFormExisting] API response:', {
+          status: res.status,
+          ok: res.ok,
+          response: json,
+        })
+
         if (!res.ok) throw new Error((json as { error?: string }).error || 'Failed to load forms')
         const data = (json as { forms?: LeadForm[] }).forms
         setForms(Array.isArray(data) ? data : [])
+        console.log('[LeadFormExisting] Forms loaded:', { count: Array.isArray(data) ? data.length : 0 })
       } catch (e) {
+        console.error('[LeadFormExisting] Fetch error:', e)
         setError(e instanceof Error ? e.message : 'Failed to load forms')
         setForms([])
       } finally {
@@ -84,10 +110,21 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
   const filteredForms = useMemo(() => forms.filter((f) => (f.name || '').toLowerCase().includes(searchQuery.toLowerCase())), [forms, searchQuery])
 
   const requestPreview = async (id: string) => {
-    if (!campaign?.id) return
+    if (!campaign?.id) {
+      console.log('[LeadFormExisting] No campaign ID for preview')
+      return
+    }
 
     // Get connection from localStorage for fallback
     const connection = metaStorage.getConnection(campaign.id)
+
+    console.log('[LeadFormExisting] Requesting preview:', {
+      formId: id,
+      campaignId: campaign.id,
+      hasConnection: !!connection,
+      pageId: connection?.selected_page_id,
+      hasPageAccessToken: !!connection?.selected_page_access_token,
+    })
 
     try {
       const url = new URL(`/api/meta/instant-forms/${encodeURIComponent(id)}`, window.location.origin)
@@ -99,8 +136,21 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
         url.searchParams.set('pageAccessToken', connection.selected_page_access_token)
       }
 
+      console.log('[LeadFormExisting] Preview request URL (token redacted):', {
+        url: url.toString().replace(/pageAccessToken=[^&]+/, 'pageAccessToken=[REDACTED]'),
+        hasPageId: url.searchParams.has('pageId'),
+        hasPageAccessToken: url.searchParams.has('pageAccessToken'),
+      })
+
       const res = await fetch(url.toString())
       const json: unknown = await res.json()
+
+      console.log('[LeadFormExisting] Preview response:', {
+        status: res.status,
+        ok: res.ok,
+        response: json,
+      })
+
       if (!res.ok) throw new Error((json as { error?: string }).error || 'Failed to load form detail')
       const detail = json as {
         id: string

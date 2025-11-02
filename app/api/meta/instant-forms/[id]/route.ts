@@ -11,17 +11,34 @@ import { createServerClient, supabaseServer } from '@/lib/supabase/server'
 import { getConnectionWithToken, fetchPagesWithTokens, getGraphVersion } from '@/lib/meta/service'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  console.log('[MetaInstantForms GET] Request received')
+
   try {
     const { id: formId } = await params
-    if (!formId) return NextResponse.json({ error: 'Form id required' }, { status: 400 })
+    if (!formId) {
+      console.error('[MetaInstantForms GET] Missing form ID')
+      return NextResponse.json({ error: 'Form id required' }, { status: 400 })
+    }
 
     const { searchParams } = new URL(req.url)
     const campaignId = searchParams.get('campaignId')
-    if (!campaignId) return NextResponse.json({ error: 'campaignId required' }, { status: 400 })
+    if (!campaignId) {
+      console.error('[MetaInstantForms GET] Missing campaignId')
+      return NextResponse.json({ error: 'campaignId required' }, { status: 400 })
+    }
 
     // Extract optional client tokens from query params (fallback for localStorage)
     const clientPageId = searchParams.get('pageId')
     const clientPageToken = searchParams.get('pageAccessToken')
+
+    console.log('[MetaInstantForms GET] Request params:', {
+      formId,
+      campaignId,
+      hasClientPageId: !!clientPageId,
+      clientPageId,
+      hasClientPageToken: !!clientPageToken,
+      clientPageTokenLength: clientPageToken?.length,
+    })
 
     const supabase = await createServerClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -90,14 +107,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }, { status: 400 })
     }
 
-    console.log('[Meta Instant Forms] Using tokens from:', source, {
+    console.log('[MetaInstantForms GET] Token resolution SUCCESS - using tokens from:', source, {
       campaignId,
       formId,
       pageId,
+      pageAccessTokenLength: pageAccessToken.length,
+      pageAccessTokenPreview: pageAccessToken.slice(0, 6) + '...' + pageAccessToken.slice(-4),
     })
 
     const gv = getGraphVersion()
     const url = `https://graph.facebook.com/${gv}/${encodeURIComponent(formId)}?fields=id,name,questions{type},privacy_policy_url`
+
+    console.log('[MetaInstantForms GET] Calling Meta Graph API:', {
+      endpoint: url.replace(/access_token=[^&]+/, 'access_token=[REDACTED]'),
+      formId,
+    })
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${pageAccessToken}` },
       cache: 'no-store',
