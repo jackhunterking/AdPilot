@@ -10,7 +10,7 @@
  */
 
 import { Button } from "@/components/ui/button"
-import { Link2, CreditCard, AlertTriangle } from "lucide-react"
+import { Link2, CreditCard, AlertTriangle, Building2, Facebook, Instagram as InstagramIcon, Wallet, FacebookIcon } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { buildBusinessLoginUrl, generateRandomState } from "@/lib/meta/login"
@@ -820,7 +820,10 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
             <div className="space-y-1.5">
               {summary.business?.id && (
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Business:</span>
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5" />
+                    Business:
+                  </span>
                   <span className="font-medium text-green-700 dark:text-green-300">
                     {summary.business.name || summary.business.id}
                   </span>
@@ -829,7 +832,10 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
               
               {summary.page?.id && (
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Page:</span>
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <FacebookIcon className="h-3.5 w-3.5" />
+                    Facebook Page:
+                  </span>
                   <span className="font-medium text-green-700 dark:text-green-300">
                     {summary.page.name || summary.page.id}
                   </span>
@@ -837,7 +843,10 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
               )}
               {summary.instagram?.id && (
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Instagram:</span>
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <InstagramIcon className="h-3.5 w-3.5" />
+                    Instagram:
+                  </span>
                   <span className="font-medium text-green-700 dark:text-green-300">
                     @{summary.instagram.username || summary.instagram.id}
                   </span>
@@ -845,71 +854,15 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
               )}
               {summary.adAccount?.id && (
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Ad Account:</span>
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <Wallet className="h-3.5 w-3.5" />
+                    Ad Account:
+                  </span>
                   <span className="font-medium text-green-700 dark:text-green-300">
                     {summary.adAccount.name || summary.adAccount.id}
                   </span>
                 </div>
               )}
-            </div>
-          </div>
-        )}
-
-        {/* Connect as Admin Section - MOVED OUTSIDE green card */}
-        {summary?.business?.id && summary?.adAccount?.id && (
-          <div className="rounded-md border p-3 space-y-2 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-blue-900 dark:text-blue-200">Admin Access Required</div>
-              {summary?.adminConnected && summary?.userAppConnected ? (
-                <span className="text-[11px] px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200">✓ Ready</span>
-              ) : (
-                <span className="text-[11px] px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200">Setup Required</span>
-              )}
-            </div>
-
-            <div className="text-xs text-blue-700 dark:text-blue-300">
-              To add payment methods, you need Business Admin or Finance Editor permissions.
-            </div>
-
-            <div className="flex flex-col gap-2">
-              {/* Admin Verification Status */}
-              <div className="flex items-center justify-between text-xs">
-                <span>1. Admin permissions verified:</span>
-                {summary?.adminConnected ? (
-                  <span className="text-green-700 dark:text-green-300 font-medium">✓ Verified</span>
-                ) : (
-                  <Button size="sm" disabled={!enabled || verifyingAdmin} onClick={onVerifyAdmin} className="h-7 px-3">
-                    {verifyingAdmin ? 'Verifying…' : 'Verify Admin Access'}
-                  </Button>
-                )}
-              </div>
-
-              {/* User App Connection Status */}
-              <div className="flex items-center justify-between text-xs">
-                <span>2. User app connected:</span>
-                {summary?.userAppConnected ? (
-                  <span className="text-green-700 dark:text-green-300 font-medium">✓ Connected</span>
-                ) : (
-                  <Button size="sm" variant="outline" disabled={!enabled} onClick={onUserLogin} className="h-7 px-3">
-                    Login with Facebook (User Access)
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Helpful Links */}
-            <div className="flex items-center gap-3 text-xs pt-1">
-              <a
-                href={summary?.business?.id ? `https://business.facebook.com/settings/people/?business_id=${summary.business.id}` : 'https://business.facebook.com/settings/people'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline text-blue-700 dark:text-blue-300"
-              >
-                Business Settings →
-              </a>
-              <Button size="sm" variant="ghost" disabled={!enabled || loading} onClick={onConnect} className="h-6 px-2 text-xs">
-                Reconnect as Different User
-              </Button>
             </div>
           </div>
         )}
