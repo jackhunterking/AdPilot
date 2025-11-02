@@ -52,7 +52,7 @@ export function normalizeUrlForMeta(input: string): NormalizeUrlResult {
     if (parts.length < 2) {
       return { normalized: candidate, valid: false, reason: "tld" }
     }
-    const tld = parts[parts.length - 1]
+    const tld = parts[parts.length - 1] ?? ""
     if (!/^[a-z0-9-]{2,}$/i.test(tld)) {
       return { normalized: candidate, valid: false, reason: "tld" }
     }
