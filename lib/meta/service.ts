@@ -281,6 +281,7 @@ export async function getConnectionPublic(args: { campaignId: string }): Promise
   selected_business_name: string | null
   selected_page_id: string | null
   selected_page_name: string | null
+  selected_page_access_token: string | null
   selected_ig_user_id: string | null
   selected_ig_username: string | null
   selected_ad_account_id: string | null
@@ -294,7 +295,7 @@ export async function getConnectionPublic(args: { campaignId: string }): Promise
 } | null> {
   const { data, error } = await supabaseServer
     .from('campaign_meta_connections')
-    .select('selected_business_id,selected_business_name,selected_page_id,selected_page_name,selected_ig_user_id,selected_ig_username,selected_ad_account_id,selected_ad_account_name,ad_account_payment_connected,admin_connected,admin_checked_at,admin_business_role,admin_ad_account_role,user_app_connected')
+    .select('selected_business_id,selected_business_name,selected_page_id,selected_page_name,selected_page_access_token,selected_ig_user_id,selected_ig_username,selected_ad_account_id,selected_ad_account_name,ad_account_payment_connected,admin_connected,admin_checked_at,admin_business_role,admin_ad_account_role,user_app_connected')
     .eq('campaign_id', args.campaignId)
     .maybeSingle()
   if (error) {
@@ -349,7 +350,7 @@ export async function getConnectionWithToken(args: { campaignId: string }): Prom
 } & NonNullable<Awaited<ReturnType<typeof getConnectionPublic>>> | null> {
   const { data, error } = await supabaseServer
     .from('campaign_meta_connections')
-    .select('selected_business_id,selected_business_name,selected_page_id,selected_page_name,selected_ig_user_id,selected_ig_username,selected_ad_account_id,selected_ad_account_name,ad_account_payment_connected,admin_connected,admin_checked_at,admin_business_role,admin_ad_account_role,user_app_connected,long_lived_user_token,user_app_token,user_app_token_expires_at')
+    .select('selected_business_id,selected_business_name,selected_page_id,selected_page_name,selected_page_access_token,selected_ig_user_id,selected_ig_username,selected_ad_account_id,selected_ad_account_name,ad_account_payment_connected,admin_connected,admin_checked_at,admin_business_role,admin_ad_account_role,user_app_connected,long_lived_user_token,user_app_token,user_app_token_expires_at')
     .eq('campaign_id', args.campaignId)
     .maybeSingle()
   if (error) {
