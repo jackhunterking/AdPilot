@@ -361,15 +361,15 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
     if (!enabled || !adAccountId || !campaign?.id) return
 
     // Gate by admin verification if required
-    if (requireAdmin && summary?.adminConnected === false) {
-      const bId = summary?.business?.id
-      window.alert(
-        'Admin access required to add a payment method. Please verify admin access first.\n\n' +
-        'You may need Business Admin or Finance Editor on the Business and Ad Account.\n' +
-        'Use "Verify Admin Access" or reconnect with an admin-enabled Facebook account.'
-      )
-      return
-    }
+    // if (requireAdmin && summary?.adminConnected === false) {
+    //   const bId = summary?.business?.id
+    //   window.alert(
+    //     'Admin access required to add a payment method. Please verify admin access first.\n\n' +
+    //     'You may need Business Admin or Finance Editor on the Business and Ad Account.\n' +
+    //     'Use "Verify Admin Access" or reconnect with an admin-enabled Facebook account.'
+    //   )
+    //   return
+    // }
 
     // Check SDK readiness
     const fb = (typeof window !== 'undefined' ? (window as unknown as { FB?: unknown }).FB : null) as unknown as { ui?: (params: Record<string, unknown>, cb: (response: AdsPaymentResponse) => void) => void } | null
