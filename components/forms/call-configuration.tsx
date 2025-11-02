@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useGoal } from "@/lib/context/goal-context"
 import { Phone, Check, AlertCircle } from "lucide-react"
 import { COUNTRY_CALLING_CODES } from "@/lib/meta/country-codes"
+import { normalizePhoneForMeta } from "@/lib/utils/normalize"
 
 export function CallConfiguration() {
   const { setFormData, goalState } = useGoal()
@@ -25,19 +26,11 @@ export function CallConfiguration() {
   const [countryCode, setCountryCode] = useState(goalState.formData?.countryCode || "+1")
   const [error, setError] = useState("")
 
-  const e164 = useMemo(() => new RegExp(/^\+?[1-9]\d{1,14}$/), [])
-
-  const fullPhone = useMemo(() => {
-    const trimmed = phoneNumber.replace(/\s|\-|\(|\)/g, "")
-    const cc = countryCode.startsWith("+") ? countryCode : `+${countryCode}`
-    // If user already typed with country code, avoid double prefixing
-    if (trimmed.startsWith("+")) return trimmed
-    return `${cc}${trimmed}`
-  }, [phoneNumber, countryCode])
+  const normalized = useMemo(() => normalizePhoneForMeta(phoneNumber, countryCode), [phoneNumber, countryCode])
+  const fullPhone = normalized.e164
 
   const handleSave = () => {
-    // Validate E.164
-    if (!e164.test(fullPhone)) {
+    if (!normalized.valid) {
       setError("Enter a valid phone in international format (e.g., +15551234567)")
       return
     }

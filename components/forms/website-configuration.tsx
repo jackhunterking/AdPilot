@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { useGoal } from "@/lib/context/goal-context"
 import { Globe, Check, AlertCircle, Link } from "lucide-react"
+import { normalizeUrlForMeta } from "@/lib/utils/normalize"
 
 export function WebsiteConfiguration() {
   const { setFormData, goalState } = useGoal()
@@ -23,36 +24,8 @@ export function WebsiteConfiguration() {
   const [displayLink, setDisplayLink] = useState(goalState.formData?.displayLink || "")
   const [error, setError] = useState("")
 
-  const finalUrl = useMemo(() => {
-    const value = websiteUrl.trim()
-    if (!value) return ""
-    const hasScheme = /^https?:\/\//i.test(value)
-    const normalized = hasScheme ? value : `https://${value}`
-    try {
-      const url = new URL(normalized)
-      return url.toString()
-    } catch {
-      return normalized
-    }
-  }, [websiteUrl])
-
-  // Strict validation: must be a well-formed URL with a hostname that
-  // includes a dot and a TLD with length >= 2. This prevents inputs like
-  // "renoassi" from being considered valid until a real domain is provided.
-  const validateUrl = (url: string) => {
-    try {
-      const parsed = new URL(url)
-      const host = parsed.hostname
-      if (!host || /\s/.test(host)) return false
-      const parts = host.split(".")
-      if (parts.length < 2) return false
-      const tld = parts[parts.length - 1]
-      if (!tld || !/^[a-z0-9-]{2,}$/i.test(tld)) return false
-      return true
-    } catch {
-      return false
-    }
-  }
+  const norm = useMemo(() => normalizeUrlForMeta(websiteUrl), [websiteUrl])
+  const finalUrl = norm.normalized
 
   const handleSave = () => {
     if (!websiteUrl) {
@@ -60,7 +33,7 @@ export function WebsiteConfiguration() {
       return
     }
 
-    if (!validateUrl(finalUrl)) {
+    if (!norm.valid) {
       setError("Please enter a valid website address")
       return
     }
@@ -95,7 +68,7 @@ export function WebsiteConfiguration() {
               setError("")
             }}
           />
-          <p className="text-xs text-muted-foreground">Full destination URL where clicks will land.</p>
+          <p className="text-xs text-muted-foreground">Full destination URL where clicks will land. If you enter just a domain, we’ll use https.</p>
         </div>
 
         <div className="space-y-2">
@@ -121,7 +94,7 @@ export function WebsiteConfiguration() {
           </div>
         )}
 
-        {finalUrl && validateUrl(finalUrl) && !error && (
+        {finalUrl && norm.valid && !error && (
           <div className="flex items-start gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
             <Check className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
             <p className="text-sm text-green-600">Valid URL format</p>
@@ -131,7 +104,7 @@ export function WebsiteConfiguration() {
 
       <Button
         onClick={handleSave}
-        disabled={!validateUrl(finalUrl)}
+        disabled={!norm.valid}
         className="w-full bg-blue-600 hover:bg-blue-700"
       >
         <Check className="h-4 w-4 mr-2" />
