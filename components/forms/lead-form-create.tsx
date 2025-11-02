@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { Info } from "lucide-react"
+import { metaStorage } from "@/lib/meta/storage"
 
 interface FieldDef { id: string; type: "full_name" | "email" | "phone"; label: string; required: boolean }
 
@@ -89,6 +90,9 @@ export function LeadFormCreate({
     if (!campaign?.id) return
     if (Object.keys(errors).length > 0) return
 
+    // Get connection from localStorage for fallback
+    const connection = metaStorage.getConnection(campaign.id)
+
     setIsSubmitting(true)
     setServerError(null)
 
@@ -97,6 +101,8 @@ export function LeadFormCreate({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         campaignId: campaign.id,
+        pageId: connection?.selected_page_id,
+        pageAccessToken: connection?.selected_page_access_token,
         name: formName,
         privacyPolicy: { url: privacyUrl, link_text: privacyLinkText },
         questions: [{ type: "FULL_NAME" }, { type: "EMAIL" }, { type: "PHONE" }],

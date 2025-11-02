@@ -17,13 +17,17 @@ interface LeadFormSummary {
   created_time?: string
 }
 
-async function getAuthorizedContext(req: NextRequest): Promise<
+async function getAuthorizedContext(
+  req: NextRequest,
+  clientTokens?: { pageId?: string; pageAccessToken?: string }
+): Promise<
   | {
       userId: string
       campaignId: string
       pageId: string
       longToken: string
       pageAccessToken: string
+      source: 'supabase' | 'localStorage' | 'derived'
     }
   | { error: Response }
 > {
@@ -46,29 +50,84 @@ async function getAuthorizedContext(req: NextRequest): Promise<
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 
+  // 1. Try Supabase first (existing behavior)
   const conn = await getConnectionWithToken({ campaignId })
-  if (!conn) return { error: NextResponse.json({ error: 'Meta connection not found' }, { status: 400 }) }
 
-  const longToken = conn.long_lived_user_token || ''
-  const pageId = conn.selected_page_id || ''
-  if (!longToken || !pageId) {
-    return { error: NextResponse.json({ error: 'Page not selected or token missing' }, { status: 400 }) }
+  let pageId: string = ''
+  let pageAccessToken: string = ''
+  let longToken: string = ''
+  let source: 'supabase' | 'localStorage' | 'derived' = 'supabase'
+
+  if (conn?.selected_page_id && conn?.long_lived_user_token) {
+    // Supabase has data - use it
+    pageId = conn.selected_page_id
+    longToken = conn.long_lived_user_token
+
+    // Try to get page access token from stored value or derive it
+    if (conn.selected_page_access_token) {
+      pageAccessToken = conn.selected_page_access_token
+      source = 'supabase'
+    } else {
+      // Derive from long-lived token
+      const pages = await fetchPagesWithTokens({ token: longToken })
+      const match = pages.find(p => p.id === pageId) || null
+      pageAccessToken = match?.access_token || ''
+      source = pageAccessToken ? 'derived' : 'supabase'
+    }
+  } else {
+    // 2. Supabase empty - fall back to client-provided tokens
+    if (clientTokens?.pageId && clientTokens?.pageAccessToken) {
+      pageId = clientTokens.pageId
+      pageAccessToken = clientTokens.pageAccessToken
+      longToken = conn?.long_lived_user_token || '' // May still be in Supabase
+      source = 'localStorage'
+
+      console.log('[Meta Forms] Using localStorage fallback:', {
+        campaignId,
+        pageId,
+        hasToken: !!pageAccessToken,
+      })
+    }
   }
 
-  // Derive Page access token via user token
-  const pages = await fetchPagesWithTokens({ token: longToken })
-  const match = pages.find(p => p.id === pageId) || null
-  const pageAccessToken = match?.access_token || ''
-  if (!pageAccessToken) {
-    return { error: NextResponse.json({ error: 'Missing page access token' }, { status: 400 }) }
+  // 3. Validate we have what we need
+  if (!pageId || !pageAccessToken) {
+    console.error('[Meta Forms] Missing tokens:', {
+      campaignId,
+      hasSupabaseConn: !!conn,
+      hasClientTokens: !!(clientTokens?.pageId && clientTokens?.pageAccessToken),
+      pageId: !!pageId,
+      pageAccessToken: !!pageAccessToken,
+    })
+    return {
+      error: NextResponse.json({
+        error: 'No Meta connection found. Please connect Meta first.',
+        details: 'Missing page ID or access token'
+      }, { status: 400 })
+    }
   }
 
-  return { userId: user.id, campaignId, pageId, longToken, pageAccessToken }
+  console.log('[Meta Forms] Using tokens from:', source, {
+    campaignId,
+    pageId,
+    hasLongToken: !!longToken,
+  })
+
+  return { userId: user.id, campaignId, pageId, longToken, pageAccessToken, source }
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const ctx = await getAuthorizedContext(req)
+    // Extract optional client tokens from query params (fallback for localStorage)
+    const { searchParams } = new URL(req.url)
+    const clientPageId = searchParams.get('pageId')
+    const clientPageToken = searchParams.get('pageAccessToken')
+
+    const clientTokens = clientPageId && clientPageToken
+      ? { pageId: clientPageId, pageAccessToken: clientPageToken }
+      : undefined
+
+    const ctx = await getAuthorizedContext(req, clientTokens)
     if ('error' in ctx) return ctx.error
 
     const gv = getGraphVersion()
@@ -105,9 +164,6 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const ctx = await getAuthorizedContext(req)
-    if ('error' in ctx) return ctx.error
-
     const bodyUnknown: unknown = await req.json().catch(() => ({}))
     const b = (bodyUnknown && typeof bodyUnknown === 'object' && bodyUnknown !== null)
       ? (bodyUnknown as {
@@ -115,8 +171,18 @@ export async function POST(req: NextRequest) {
           privacyPolicy?: { url?: string; link_text?: string }
           questions?: Array<{ type?: string }>
           thankYouPage?: { title?: string; body?: string; button_text?: string; button_type?: string; button_url?: string }
+          pageId?: string
+          pageAccessToken?: string
         })
       : {}
+
+    // Extract optional client tokens from body (fallback for localStorage)
+    const clientTokens = b.pageId && b.pageAccessToken
+      ? { pageId: b.pageId, pageAccessToken: b.pageAccessToken }
+      : undefined
+
+    const ctx = await getAuthorizedContext(req, clientTokens)
+    if ('error' in ctx) return ctx.error
 
     const name = typeof b.name === 'string' && b.name.trim().length > 0 ? b.name.trim() : ''
     const privacyPolicy = (b.privacyPolicy && typeof b.privacyPolicy === 'object') ? b.privacyPolicy : {}

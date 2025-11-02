@@ -19,6 +19,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const campaignId = searchParams.get('campaignId')
     if (!campaignId) return NextResponse.json({ error: 'campaignId required' }, { status: 400 })
 
+    // Extract optional client tokens from query params (fallback for localStorage)
+    const clientPageId = searchParams.get('pageId')
+    const clientPageToken = searchParams.get('pageAccessToken')
+
     const supabase = await createServerClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -32,15 +36,65 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // 1. Try Supabase first (existing behavior)
     const conn = await getConnectionWithToken({ campaignId })
-    if (!conn || !conn.long_lived_user_token || !conn.selected_page_id) {
-      return NextResponse.json({ error: 'Page not selected or token missing' }, { status: 400 })
+
+    let pageId: string = ''
+    let pageAccessToken: string = ''
+    let source: 'supabase' | 'localStorage' | 'derived' = 'supabase'
+
+    if (conn?.selected_page_id && conn?.long_lived_user_token) {
+      // Supabase has data - use it
+      pageId = conn.selected_page_id
+
+      // Try to get page access token from stored value or derive it
+      if (conn.selected_page_access_token) {
+        pageAccessToken = conn.selected_page_access_token
+        source = 'supabase'
+      } else {
+        // Derive from long-lived token
+        const pages = await fetchPagesWithTokens({ token: conn.long_lived_user_token })
+        const match = pages.find(p => p.id === pageId) || null
+        pageAccessToken = match?.access_token || ''
+        source = pageAccessToken ? 'derived' : 'supabase'
+      }
+    } else {
+      // 2. Supabase empty - fall back to client-provided tokens
+      if (clientPageId && clientPageToken) {
+        pageId = clientPageId
+        pageAccessToken = clientPageToken
+        source = 'localStorage'
+
+        console.log('[Meta Instant Forms] Using localStorage fallback:', {
+          campaignId,
+          formId,
+          pageId,
+          hasToken: !!pageAccessToken,
+        })
+      }
     }
 
-    const pages = await fetchPagesWithTokens({ token: conn.long_lived_user_token })
-    const match = pages.find(p => p.id === conn.selected_page_id) || null
-    const pageAccessToken = match?.access_token || ''
-    if (!pageAccessToken) return NextResponse.json({ error: 'Missing page access token' }, { status: 400 })
+    // 3. Validate we have what we need
+    if (!pageId || !pageAccessToken) {
+      console.error('[Meta Instant Forms] Missing tokens:', {
+        campaignId,
+        formId,
+        hasSupabaseConn: !!conn,
+        hasClientTokens: !!(clientPageId && clientPageToken),
+        pageId: !!pageId,
+        pageAccessToken: !!pageAccessToken,
+      })
+      return NextResponse.json({
+        error: 'No Meta connection found. Please connect Meta first.',
+        details: 'Missing page ID or access token'
+      }, { status: 400 })
+    }
+
+    console.log('[Meta Instant Forms] Using tokens from:', source, {
+      campaignId,
+      formId,
+      pageId,
+    })
 
     const gv = getGraphVersion()
     const url = `https://graph.facebook.com/${gv}/${encodeURIComponent(formId)}?fields=id,name,questions{type},privacy_policy_url`

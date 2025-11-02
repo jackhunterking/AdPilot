@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { FileText, Search, Calendar, Check, Info } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCampaignContext } from "@/lib/context/campaign-context"
+import { metaStorage } from "@/lib/meta/storage"
 
 interface LeadForm { id: string; name: string; created_time?: string }
 
@@ -42,10 +43,23 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
   useEffect(() => {
     const fetchForms = async () => {
       if (!campaign?.id) return
+
+      // Get connection from localStorage for fallback
+      const connection = metaStorage.getConnection(campaign.id)
+
       setIsLoading(true)
       setError(null)
       try {
-        const res = await fetch(`/api/meta/forms?campaignId=${encodeURIComponent(campaign.id)}`)
+        const url = new URL('/api/meta/forms', window.location.origin)
+        url.searchParams.set('campaignId', campaign.id)
+        if (connection?.selected_page_id) {
+          url.searchParams.set('pageId', connection.selected_page_id)
+        }
+        if (connection?.selected_page_access_token) {
+          url.searchParams.set('pageAccessToken', connection.selected_page_access_token)
+        }
+
+        const res = await fetch(url.toString())
         const json: unknown = await res.json()
         if (!res.ok) throw new Error((json as { error?: string }).error || 'Failed to load forms')
         const data = (json as { forms?: LeadForm[] }).forms
@@ -71,8 +85,21 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
 
   const requestPreview = async (id: string) => {
     if (!campaign?.id) return
+
+    // Get connection from localStorage for fallback
+    const connection = metaStorage.getConnection(campaign.id)
+
     try {
-      const res = await fetch(`/api/meta/instant-forms/${encodeURIComponent(id)}?campaignId=${encodeURIComponent(campaign.id)}`)
+      const url = new URL(`/api/meta/instant-forms/${encodeURIComponent(id)}`, window.location.origin)
+      url.searchParams.set('campaignId', campaign.id)
+      if (connection?.selected_page_id) {
+        url.searchParams.set('pageId', connection.selected_page_id)
+      }
+      if (connection?.selected_page_access_token) {
+        url.searchParams.set('pageAccessToken', connection.selected_page_access_token)
+      }
+
+      const res = await fetch(url.toString())
       const json: unknown = await res.json()
       if (!res.ok) throw new Error((json as { error?: string }).error || 'Failed to load form detail')
       const detail = json as {
