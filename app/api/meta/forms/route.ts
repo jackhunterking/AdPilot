@@ -255,7 +255,7 @@ export async function POST(req: NextRequest) {
           name?: string
           privacyPolicy?: { url?: string; link_text?: string }
           questions?: Array<{ type?: string }>
-          thankYouPage?: { title?: string; body?: string; button_text?: string; button_type?: string; button_url?: string }
+          thankYouPage?: { title?: string; body?: string; button_text?: string; button_type?: string; website_url?: string }
           pageId?: string
           pageAccessToken?: string
         })
@@ -312,7 +312,16 @@ export async function POST(req: NextRequest) {
     const name = typeof b.name === 'string' && b.name.trim().length > 0 ? b.name.trim() : ''
     const privacyPolicy = (b.privacyPolicy && typeof b.privacyPolicy === 'object') ? b.privacyPolicy : {}
     const questions = Array.isArray(b.questions) ? b.questions : []
-    const thankYouPage = (b.thankYouPage && typeof b.thankYouPage === 'object') ? b.thankYouPage : {}
+    const thankYouPageRaw = (b.thankYouPage && typeof b.thankYouPage === 'object') ? b.thankYouPage : {}
+    const thankYouPage = (() => {
+      const t: Record<string, unknown> = { ...thankYouPageRaw }
+      // Sanitize legacy key if present
+      if ((t as { button_url?: string }).button_url && !(t as { website_url?: string }).website_url) {
+        t.website_url = (t as { button_url?: string }).button_url
+        delete (t as { button_url?: string }).button_url
+      }
+      return t
+    })()
 
     if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 })
     const ppUrl = typeof privacyPolicy.url === 'string' ? privacyPolicy.url : ''

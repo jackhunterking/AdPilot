@@ -141,7 +141,7 @@ export function LeadFormCreate({
         body: thankYouMessage,
         button_text: thankYouButtonText,
         button_type: "VIEW_WEBSITE",
-        button_url: thankYouButtonUrl,
+        website_url: thankYouButtonUrl,
       },
     }
 
