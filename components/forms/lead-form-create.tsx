@@ -151,8 +151,7 @@ export function LeadFormCreate({
         ? `${requestBody.pageAccessToken.slice(0, 6)}...${requestBody.pageAccessToken.slice(-4)}`
         : undefined,
     })
-
-    const res = await fetch("/api/meta/forms", {
+    const res = await fetch(`/api/meta/forms?campaignId=${encodeURIComponent(campaign.id)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),

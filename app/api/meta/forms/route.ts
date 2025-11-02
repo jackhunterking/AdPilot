@@ -243,7 +243,6 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   console.log('[MetaForms POST] Request received')
-
   try {
     const bodyUnknown: unknown = await req.json().catch(() => ({}))
     console.log('[MetaForms POST] Body parsed:', {
@@ -252,6 +251,7 @@ export async function POST(req: NextRequest) {
     })
     const b = (bodyUnknown && typeof bodyUnknown === 'object' && bodyUnknown !== null)
       ? (bodyUnknown as {
+          campaignId?: string
           name?: string
           privacyPolicy?: { url?: string; link_text?: string }
           questions?: Array<{ type?: string }>
@@ -284,7 +284,20 @@ export async function POST(req: NextRequest) {
       pageAccessTokenLength: clientTokens?.pageAccessToken?.length,
     })
 
-    const ctx = await getAuthorizedContext(req, clientTokens)
+    // Derive campaignId from query or body (backward compatible)
+    const queryCampaignId = new URL(req.url).searchParams.get('campaignId') || ''
+    const bodyCampaignId = typeof b.campaignId === 'string' ? b.campaignId : ''
+    const derivedCampaignId = queryCampaignId || bodyCampaignId
+    if (!derivedCampaignId) {
+      return NextResponse.json({ error: 'campaignId required (query or body)' }, { status: 400 })
+    }
+
+    // Ensure getAuthorizedContext sees campaignId in the URL (it reads search params)
+    const u = new URL(req.url)
+    u.searchParams.set('campaignId', derivedCampaignId)
+    const reqWithCampaign = new NextRequest(u.toString(), { headers: req.headers })
+
+    const ctx = await getAuthorizedContext(reqWithCampaign, clientTokens)
     if ('error' in ctx) {
       console.error('[MetaForms POST] Authorization failed, returning error')
       return ctx.error
