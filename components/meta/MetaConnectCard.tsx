@@ -46,6 +46,11 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
   const [summary, setSummary] = useState<Summary | null>(null)
   const [sdkReady, setSdkReady] = useState(false)
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'opening' | 'processing' | 'error' | 'success'>('idle')
+  const [capability, setCapability] = useState<{
+    hasFinance: boolean
+    hasManage: boolean
+    hasFunding: boolean
+  } | null>(null)
   const requireAdmin = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_META_REQUIRE_ADMIN === 'true' : false
   const [verifyingAdmin, setVerifyingAdmin] = useState(false)
   const [accountValidation, setAccountValidation] = useState<{
@@ -136,6 +141,26 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
   }, [enabled, campaign?.id])
 
   useEffect(() => { void hydrate() }, [hydrate])
+
+  // Fetch payment capability when ad account is selected
+  useEffect(() => {
+    const run = async () => {
+      if (!enabled || !campaign?.id || !summary?.adAccount?.id) return
+      try {
+        const res = await fetch(`/api/meta/payments/capability?campaignId=${encodeURIComponent(campaign.id)}`, { cache: 'no-store' })
+        if (!res.ok) return
+        const json = await res.json() as { hasFinance?: boolean; hasManage?: boolean; hasFunding?: boolean }
+        setCapability({
+          hasFinance: Boolean(json?.hasFinance),
+          hasManage: Boolean(json?.hasManage),
+          hasFunding: Boolean(json?.hasFunding),
+        })
+      } catch {
+        // ignore
+      }
+    }
+    void run()
+  }, [enabled, campaign?.id, summary?.adAccount?.id])
 
   // SDK Readiness Detection
   useEffect(() => {
@@ -867,7 +892,7 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
           </div>
         )}
 
-        {summary?.adAccount && !summary?.paymentConnected ? (
+        {summary?.adAccount && !(summary?.paymentConnected || capability?.hasFunding) ? (
           <div className="mt-2 rounded-md bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 p-3 space-y-3">
             {/* Show account validation status */}
             {validatingAccount && (
@@ -908,7 +933,7 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
                 <Button
                   size="sm"
                   onClick={onAddPayment}
-                  disabled={!sdkReady || paymentStatus === 'opening' || paymentStatus === 'processing' || !summary?.adAccount?.id}
+                  disabled={!sdkReady || paymentStatus === 'opening' || paymentStatus === 'processing' || !summary?.adAccount?.id || !(capability?.hasFinance && capability?.hasManage)}
                   className="h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
                 >
                   {paymentStatus === 'opening' || paymentStatus === 'processing' ? 'Opening...' : 'Add Payment'}
@@ -929,7 +954,7 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
               </a>
             </div>
           </div>
-        ) : summary?.paymentConnected ? (
+        ) : (summary?.paymentConnected || capability?.hasFunding) ? (
           <div className="flex items-center justify-between rounded-md border p-3">
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-green-600 dark:text-green-400" />

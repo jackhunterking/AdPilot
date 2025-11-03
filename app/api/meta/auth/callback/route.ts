@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { createServerClient } from '@/lib/supabase/server'
 import {
   exchangeCodeForTokens,
   fetchUserId,
@@ -66,6 +67,43 @@ export async function GET(req: NextRequest) {
     } catch (err) {
       metaLogger.error('MetaCallback', 'Token exchange failed', err as Error);
       return NextResponse.redirect(`${origin}/${campaignId}?meta=token_exchange_failed`);
+    }
+
+    // Persist token for current user (new canonical table)
+    try {
+      const supabase = await createServerClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        metaLogger.error('MetaCallback', 'No authenticated user in callback context')
+        return NextResponse.redirect(`${origin}/?meta=unauthorized`)
+      }
+
+      // Approximate expiry (Meta long-lived user token ~60 days)
+      const approxExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString()
+
+      const appId = process.env.NEXT_PUBLIC_FB_APP_ID || 'unknown'
+
+      // Prefer one row per user+app+token_type; conflict on user_id for simplicity
+      const upsertRes = await supabase
+        .from('meta_tokens')
+        .upsert({
+          user_id: user.id,
+          app_id: appId,
+          token: longToken!,
+          token_type: 'user',
+          expires_at: approxExpiresAt,
+          scopes: [],
+        }, { onConflict: 'user_id' })
+
+      if (upsertRes.error) {
+        metaLogger.error('MetaCallback', 'Failed to upsert meta_tokens', upsertRes.error)
+        // Continue, but mark in URL for client to show a warning
+      } else {
+        metaLogger.info('MetaCallback', 'meta_tokens upserted for user')
+      }
+    } catch (e) {
+      metaLogger.error('MetaCallback', 'Exception persisting meta_tokens', e as Error)
+      // Continue to bridge
     }
 
     // If this is a user app callback, return user token data

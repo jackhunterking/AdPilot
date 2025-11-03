@@ -214,6 +214,120 @@ export type Database = {
           },
         ]
       }
+      ,
+      meta_tokens: {
+        Row: {
+          app_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          scopes: string[] | null
+          token: string
+          token_type: Database["public"]["Enums"]["meta_token_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          scopes?: string[] | null
+          token: string
+          token_type: Database["public"]["Enums"]["meta_token_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          scopes?: string[] | null
+          token?: string
+          token_type?: Database["public"]["Enums"]["meta_token_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ,
+      meta_connections: {
+        Row: {
+          id: string
+          user_id: string
+          business_id: string
+          business_name: string | null
+          page_id: string | null
+          page_name: string | null
+          ad_account_id: string | null
+          ad_account_name: string | null
+          currency: string | null
+          has_funding: boolean
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          business_id: string
+          business_name?: string | null
+          page_id?: string | null
+          page_name?: string | null
+          ad_account_id?: string | null
+          ad_account_name?: string | null
+          currency?: string | null
+          has_funding?: boolean
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          business_id?: string
+          business_name?: string | null
+          page_id?: string | null
+          page_name?: string | null
+          ad_account_id?: string | null
+          ad_account_name?: string | null
+          currency?: string | null
+          has_funding?: boolean
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ,
+      meta_asset_snapshots: {
+        Row: {
+          id: string
+          user_id: string
+          business_json: Json | null
+          pages_json: Json | null
+          ad_accounts_json: Json | null
+          captured_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          business_json?: Json | null
+          pages_json?: Json | null
+          ad_accounts_json?: Json | null
+          captured_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          business_json?: Json | null
+          pages_json?: Json | null
+          ad_accounts_json?: Json | null
+          captured_at?: string
+        }
+        Relationships: []
+      }
       creative_plans: {
         Row: {
           id: string
@@ -596,6 +710,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      meta_token_type: ["system", "user"],
+    },
   },
 } as const
