@@ -5,9 +5,7 @@
  *  - Business Manager assets: https://developers.facebook.com/docs/marketing-api/businessmanager/asset-management
  */
 
-import dynamic from 'next/dynamic'
-
-const BusinessWizard = dynamic(() => import('@/components/meta/business-wizard/Wizard'), { ssr: false })
+import BusinessWizard from '@/components/meta/business-wizard/Wizard'
 
 export default function MetaSetupPage() {
   return (
