@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { getBusinessBillingUrl, getAdAccountBillingUrl } from '@/lib/meta/payments'
+import { getBusinessBillingUrl, getAdAccountBillingUrl } from '@/lib/meta/payment-urls'
 
 type Biz = { id: string; name?: string }
 type Page = { id: string; name?: string }
