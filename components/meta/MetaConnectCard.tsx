@@ -729,7 +729,7 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
                 <Button
                   size="sm"
                   onClick={onAddPayment}
-                  disabled={paymentStatus === 'opening' || paymentStatus === 'processing' || !summary?.adAccount?.id || !(capability?.hasFinance && capability?.hasManage)}
+                  disabled={paymentStatus === 'opening' || paymentStatus === 'processing' || !summary?.adAccount?.id}
                   className="h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
                 >
                   {paymentStatus === 'processing' ? 'Verifying...' : paymentStatus === 'opening' ? 'Opening...' : 'Add Payment'}
