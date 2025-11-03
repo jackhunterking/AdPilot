@@ -12,13 +12,13 @@ export async function GET(_req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const [{ data: tokenRow }, { data: connRow }] = await Promise.all([
-    supabase.from('meta_tokens').select('access_token,expires_at,last_validated_at').eq('user_id', user.id).maybeSingle(),
+    supabase.from('meta_tokens').select('token,expires_at').eq('user_id', user.id).maybeSingle(),
     supabase.from('meta_connections').select('business_id,page_id,ad_account_id,has_funding,status').eq('user_id', user.id).maybeSingle(),
   ])
 
   const ready = Boolean(tokenRow && connRow?.business_id && connRow?.ad_account_id && connRow?.has_funding)
   return NextResponse.json({
-    hasToken: Boolean(tokenRow?.access_token),
+    hasToken: Boolean(tokenRow?.token),
     hasSelection: Boolean(connRow?.business_id && connRow?.ad_account_id),
     hasFunding: Boolean(connRow?.has_funding),
     status: connRow?.status || (tokenRow ? 'connected' : 'disconnected'),

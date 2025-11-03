@@ -223,7 +223,7 @@ export type Database = {
           id: string
           scopes: string[] | null
           token: string
-          token_type: Database["public"]["Enums"]["meta_token_type"]
+          token_type: "system" | "user"
           updated_at: string
           user_id: string
         }
@@ -234,7 +234,7 @@ export type Database = {
           id?: string
           scopes?: string[] | null
           token: string
-          token_type: Database["public"]["Enums"]["meta_token_type"]
+          token_type: "system" | "user"
           updated_at?: string
           user_id: string
         }
@@ -245,7 +245,7 @@ export type Database = {
           id?: string
           scopes?: string[] | null
           token?: string
-          token_type?: Database["public"]["Enums"]["meta_token_type"]
+          token_type?: "system" | "user"
           updated_at?: string
           user_id?: string
         }
