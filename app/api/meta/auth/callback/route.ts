@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
       const supabase = await createServerClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        metaLogger.error('MetaCallback', 'No authenticated user in callback context')
+        metaLogger.error('MetaCallback', 'No authenticated user in callback context', new Error('unauthorized'))
         return NextResponse.redirect(`${origin}/?meta=unauthorized`)
       }
 
