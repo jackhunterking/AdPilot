@@ -48,6 +48,37 @@ export function PreviewPanel() {
   const [isEditingBudget, setIsEditingBudget] = useState(false)
   const [budgetInputValue, setBudgetInputValue] = useState(budgetState.dailyBudget.toString())
   
+  // Memoized Meta connection completion check - reacts to campaign state and budget state changes
+  const isMetaConnectionComplete = useMemo(() => {
+    // Check database state first
+    const states = campaign?.campaign_states as Database['public']['Tables']['campaign_states']['Row'] | null | undefined
+    const metaConnectData = (states as unknown as { meta_connect_data?: { status?: string } } | null | undefined)?.meta_connect_data
+    const serverConnected = Boolean(metaConnectData?.status === 'connected' || metaConnectData?.status === 'selected_assets')
+    
+    // Check budget state
+    const budgetConnected = budgetState.isConnected === true
+    
+    // Check localStorage as fallback (for immediate UI updates before server sync)
+    let localStorageConnected = false
+    if (campaign?.id && typeof window !== 'undefined') {
+      try {
+        const connectionData = metaStorage.getConnection(campaign.id)
+        if (connectionData) {
+          const summary = metaStorage.getConnectionSummary(campaign.id)
+          localStorageConnected = Boolean(
+            summary?.status === 'connected' || 
+            summary?.status === 'selected_assets' ||
+            (summary?.adAccount?.id && summary?.business?.id)
+          )
+        }
+      } catch {
+        // Ignore localStorage errors
+      }
+    }
+    
+    return serverConnected || budgetConnected || localStorageConnected
+  }, [campaign?.campaign_states, campaign?.id, budgetState.isConnected])
+  
   // Listen for image edit events from AI chat (always mounted)
   useEffect(() => {
     const handleImageEdited = (event: Event) => {
@@ -773,37 +804,6 @@ export function PreviewPanel() {
       </div>
     </div>
   )
-
-  // Memoized Meta connection completion check - reacts to campaign state and budget state changes
-  const isMetaConnectionComplete = useMemo(() => {
-    // Check database state first
-    const states = campaign?.campaign_states as Database['public']['Tables']['campaign_states']['Row'] | null | undefined
-    const metaConnectData = (states as unknown as { meta_connect_data?: { status?: string } } | null | undefined)?.meta_connect_data
-    const serverConnected = Boolean(metaConnectData?.status === 'connected' || metaConnectData?.status === 'selected_assets')
-    
-    // Check budget state
-    const budgetConnected = budgetState.isConnected === true
-    
-    // Check localStorage as fallback (for immediate UI updates before server sync)
-    let localStorageConnected = false
-    if (campaign?.id && typeof window !== 'undefined') {
-      try {
-        const connectionData = metaStorage.getConnection(campaign.id)
-        if (connectionData) {
-          const summary = metaStorage.getConnectionSummary(campaign.id)
-          localStorageConnected = Boolean(
-            summary?.status === 'connected' || 
-            summary?.status === 'selected_assets' ||
-            (summary?.adAccount?.id && summary?.business?.id)
-          )
-        }
-      } catch {
-        // Ignore localStorage errors
-      }
-    }
-    
-    return serverConnected || budgetConnected || localStorageConnected
-  }, [campaign?.campaign_states, campaign?.id, budgetState.isConnected])
 
   const steps = [
     {
