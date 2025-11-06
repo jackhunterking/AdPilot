@@ -143,24 +143,6 @@ export const adCopyVariations: AdCopyVariation[] = [
     primaryText: "Join the revolution. Experience the difference that quality and expertise can make in your journey to success.",
     description: "Special offer for new customers - Act now",
     headline: "Your Success Starts Here"
-  },
-  {
-    id: "copy_4",
-    primaryText: "Elevate your performance with tools trusted by industry leaders. See why top companies choose us for their growth.",
-    description: "Book a demo today and get exclusive access",
-    headline: "Trusted by Industry Leaders"
-  },
-  {
-    id: "copy_5",
-    primaryText: "Unlock your potential with solutions that deliver real, measurable results. Stop settling for less and start achieving more.",
-    description: "Join now and receive a special welcome bonus",
-    headline: "Unlock Your Potential"
-  },
-  {
-    id: "copy_6",
-    primaryText: "Experience excellence like never before. Our comprehensive approach ensures you get the results you deserve, every time.",
-    description: "Limited spots available - Reserve yours today",
-    headline: "Excellence Delivered"
   }
 ]
 

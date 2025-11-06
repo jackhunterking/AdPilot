@@ -133,7 +133,7 @@ export function AdCopySelectionCanvas() {
 
     let cancelled = false
     setIsGenerating(true)
-    setGenerationMessage("Writing 6 ad copy variations…")
+    setGenerationMessage("Writing 3 ad copy variations…")
     ;(async () => {
       try {
         const selectedImg = (selectedImageIndex != null && adContent?.imageVariations)
@@ -151,7 +151,7 @@ export function AdCopySelectionCanvas() {
         })
         if (!res.ok) throw new Error(await res.text())
         const data = await res.json()
-        if (!cancelled && data?.variations?.length === 6) {
+        if (!cancelled && data?.variations?.length === 3) {
           setCustomCopyVariations(data.variations)
         }
       } catch (e) {
@@ -508,7 +508,7 @@ export function AdCopySelectionCanvas() {
         </div>
       </div>
 
-      {/* 3x2 Grid of Ad Copy Variations */}
+      {/* Grid of Ad Copy Variations */}
       <div className="grid grid-cols-3 gap-4 max-w-6xl mx-auto">
         {activeFormat === "feed" && activeVariations.map((_, index) => renderFeedAdCopyCard(index))}
         {activeFormat === "story" && activeVariations.map((_, index) => renderStoryAdCopyCard(index))}
@@ -525,7 +525,7 @@ export function AdCopySelectionCanvas() {
       <div className="text-center py-6">
         <p className="text-sm text-muted-foreground">
           {isGenerating 
-            ? "Writing 6 ad copy variations…"
+            ? "Writing 3 ad copy variations…"
             : adCopyState.selectedCopyIndex !== null 
               ? `Copy variation ${adCopyState.selectedCopyIndex + 1} selected - Click Next to continue`
               : "Select an ad copy variation to continue"}

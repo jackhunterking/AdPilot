@@ -300,9 +300,6 @@ export function PreviewPanel() {
     { gradient: "from-blue-600 via-blue-500 to-cyan-500", title: "Variation 1" },
     { gradient: "from-purple-600 via-purple-500 to-pink-500", title: "Variation 2" },
     { gradient: "from-green-600 via-green-500 to-emerald-500", title: "Variation 3" },
-    { gradient: "from-orange-600 via-orange-500 to-yellow-500", title: "Variation 4" },
-    { gradient: "from-indigo-600 via-indigo-500 to-blue-500", title: "Variation 5" },
-    { gradient: "from-rose-600 via-rose-500 to-red-500", title: "Variation 6" },
   ]
 
   // Render single Feed ad mockup

@@ -699,7 +699,7 @@ Otherwise, make intelligent style AND FORMAT assumptions based on:
 
 **CALL generateImage TOOL when:**
 - NO editing context active (user is NOT editing a specific variation)
-- User wants to create 6 NEW variations from scratch
+- User wants to create 3 NEW variations from scratch
 - Has OFFER + business context (even without style specification)
 - Goal type is set + offer is clear
 - User confirms after answering the comprehensive question
@@ -790,7 +790,7 @@ Follow the CreativePlan (formats, overlays, and constraints) when available. Def
 **Style:** Professional, platform-native visuals. Avoid AI-looking artifacts. Use people/no-people and text density based on plan.
 **Edge Safety:** Keep edges clean; avoid placing critical content near edges. Do not draw frames, borders, crop marks, or labels.
 **Defaults when no plan:** Provide diverse styles and include at least one text-only typographic option and one no-people image when offers exist. Respect copy limits (primary ≤125, headline ≤40, description ≤30).
-**Variations:** Generate 6 unique variations with distinct styles/angles.
+**Variations:** Generate 3 unique variations with distinct styles/angles.
 
 1. **Classic & Professional** - Hero shot with balanced lighting, editorial magazine style
 2. **Lifestyle & Authentic** - Natural, candid moment with warm golden hour feel

@@ -7,7 +7,7 @@ import { AUTO_SAVE_CONFIGS } from "@/lib/types/auto-save"
 
 interface AdContent {
   imageUrl?: string // Legacy single image support
-  imageVariations?: string[] // Array of 6 variation URLs
+  imageVariations?: string[] // Array of 3 variation URLs
   baseImageUrl?: string // Original base image
   headline: string
   body: string
@@ -43,7 +43,7 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
   const [isPublished, setIsPublished] = useState(false)
   const [selectedCreativeVariation, setSelectedCreativeVariation] = useState<CreativeVariation | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
-  const [loadingVariations] = useState<boolean[]>([false, false, false, false, false, false])
+  const [loadingVariations] = useState<boolean[]>([false, false, false])
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null)
 
   // CRITICAL: Memoize state to prevent unnecessary recreations
