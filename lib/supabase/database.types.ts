@@ -275,6 +275,41 @@ export type Database = {
           },
         ]
       }
+      creative_plans: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          plan: Json
+          status: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          plan: Json
+          status?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          plan?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creative_plans_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creative_variants: {
         Row: {
           asset_id: string | null
