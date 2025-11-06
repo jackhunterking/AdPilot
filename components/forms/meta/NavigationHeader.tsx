@@ -1,8 +1,8 @@
 /**
- * Feature: Meta Instant Forms Navigation Header - EXACT Facebook Implementation
- * Purpose: Header navigation matching Facebook's exact HTML with scale: 0.9
+ * Feature: Meta Instant Forms Navigation Header - Vertical Layout
+ * Purpose: Stacked navigation with title on top, arrows below
  * References:
- *  - Facebook HTML: display: flex; justify-content: space-between; scale: 0.9
+ *  - User screenshots: Title and navigation stacked vertically, not side-by-side
  */
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -23,20 +23,27 @@ export function NavigationHeader({
   onNext,
 }: NavigationHeaderProps) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '16px 20px',
-        marginBottom: '16px',
-      }}
-    >
-      <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#050505', margin: 0 }}>
+    <div style={{ textAlign: 'center', padding: '16px 0', marginBottom: '20px' }}>
+      <h2
+        style={{
+          fontSize: '22px',
+          fontWeight: 600,
+          color: '#050505',
+          margin: 0,
+          marginBottom: '16px',
+        }}
+      >
         {title}
       </h2>
-      
-      <nav style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '20px',
+        }}
+      >
         <button
           type="button"
           onClick={onPrev}
@@ -53,11 +60,18 @@ export function NavigationHeader({
         >
           <ChevronLeft size={24} color="#1877F2" strokeWidth={2} />
         </button>
-        
-        <span style={{ fontSize: '14px', color: '#65676B' }}>
+
+        <span
+          style={{
+            fontSize: '14px',
+            color: '#65676B',
+            minWidth: '60px',
+            textAlign: 'center',
+          }}
+        >
           {currentStep} of {totalSteps}
         </span>
-        
+
         <button
           type="button"
           onClick={onNext}
@@ -74,8 +88,7 @@ export function NavigationHeader({
         >
           <ChevronRight size={24} color="#1877F2" strokeWidth={2} />
         </button>
-      </nav>
+      </div>
     </div>
   )
 }
-

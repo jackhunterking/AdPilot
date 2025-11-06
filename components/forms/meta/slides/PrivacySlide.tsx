@@ -19,7 +19,7 @@ export function PrivacySlide({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
       {/* Content */}
-      <div style={{ flex: 1, padding: '20px 0' }}>
+      <div style={{ flex: 1, padding: '20px 0', marginBottom: '24px' }}>
         <h2
           style={{
             fontSize: '24px',
@@ -80,12 +80,12 @@ export function PrivacySlide({
       <div
         style={{
           marginTop: 'auto',
-          padding: '20px',
+          padding: '20px 24px',
           backgroundColor: '#F7F8FA',
           borderRadius: '0 0 12px 12px',
-          marginLeft: '-24px',
-          marginRight: '-24px',
-          marginBottom: '-24px',
+          marginLeft: '-28px',
+          marginRight: '-28px',
+          marginBottom: '-28px',
         }}
       >
         {/* Progress bar */}

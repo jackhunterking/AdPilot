@@ -95,19 +95,21 @@ export function IntroSlide({
       <div
         style={{
           marginTop: 'auto',
-          padding: '20px',
+          padding: '20px 24px',
           backgroundColor: '#F7F8FA',
           borderRadius: '0 0 12px 12px',
-          marginLeft: '-24px',
-          marginRight: '-24px',
-          marginBottom: '-24px',
+          marginLeft: '-28px',
+          marginRight: '-28px',
+          marginBottom: '-28px',
         }}
       >
         <button
           type="button"
           onClick={onContinue}
           style={{
-            width: '100%',
+            width: '85%',
+            maxWidth: '400px',
+            margin: '0 auto',
             height: '48px',
             backgroundColor: '#1877F2',
             borderRadius: '8px',

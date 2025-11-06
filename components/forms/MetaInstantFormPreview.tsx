@@ -88,8 +88,10 @@ export function MetaInstantFormPreview({
         style={{
           backgroundColor: '#F0F2F5',
           borderRadius: '12px',
-          padding: '24px',
+          padding: '28px',
           minHeight: '600px',
+          maxWidth: '500px',
+          margin: '0 auto',
           display: 'flex',
           flexDirection: 'column',
         }}
