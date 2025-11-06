@@ -26,7 +26,7 @@ import type { Database } from "@/lib/supabase/database.types"
 import { metaStorage } from "@/lib/meta/storage"
 import { CollapsibleSection } from "@/components/launch/collapsible-section"
 import { SectionEditModal } from "@/components/launch/section-edit-modal"
-import { PublishSection } from "@/components/launch/publish-section"
+import { PublishBudgetCard } from "@/components/launch/publish-budget-card"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const mockAdAccounts = [
@@ -929,24 +929,17 @@ export function PreviewPanel() {
 
       {/* Right: Collapsible sections with modals */}
       <div className="flex flex-col gap-6 max-w-3xl mx-auto">
-        {/* Publish Section and Budget Section - Side by side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <PublishSection
-            allStepsComplete={allStepsComplete}
-            completedCount={completedCount}
-            totalSteps={totalSteps}
-            isPublished={isPublished}
-            onPublish={handlePublish}
-          />
-          {/* Budget Section - Inline expandable */}
-          <CollapsibleSection
-            title="Budget"
-            icon={DollarSign}
-            isComplete={isComplete()}
-            summaryContent={budgetSummaryContent}
-            editContent={<BudgetSchedule />}
-          />
-        </div>
+        {/* Combined Publish and Budget Card */}
+        <PublishBudgetCard
+          allStepsComplete={allStepsComplete}
+          completedCount={completedCount}
+          totalSteps={totalSteps}
+          isPublished={isPublished}
+          onPublish={handlePublish}
+          budgetSummaryContent={budgetSummaryContent}
+          isBudgetComplete={isComplete()}
+          budgetEditContent={<BudgetSchedule />}
+        />
 
         {/* Meta Connect Section */}
         <CollapsibleSection
