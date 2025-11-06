@@ -104,6 +104,120 @@ export type Database = {
           },
         ]
       }
+      campaign_meta_connections: {
+        Row: {
+          ad_account_payment_connected: boolean
+          admin_ad_account_raw_json: Json | null
+          admin_ad_account_role: string | null
+          admin_ad_account_users_json: Json | null
+          admin_business_raw_json: Json | null
+          admin_business_role: string | null
+          admin_business_users_json: Json | null
+          admin_checked_at: string | null
+          admin_connected: boolean
+          campaign_id: string
+          created_at: string
+          fb_user_id: string | null
+          id: string
+          long_lived_user_token: string | null
+          selected_ad_account_id: string | null
+          selected_ad_account_name: string | null
+          selected_business_id: string | null
+          selected_business_name: string | null
+          selected_ig_user_id: string | null
+          selected_ig_username: string | null
+          selected_page_access_token: string | null
+          selected_page_id: string | null
+          selected_page_name: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_app_connected: boolean
+          user_app_fb_user_id: string | null
+          user_app_token: string | null
+          user_app_token_expires_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ad_account_payment_connected?: boolean
+          admin_ad_account_raw_json?: Json | null
+          admin_ad_account_role?: string | null
+          admin_ad_account_users_json?: Json | null
+          admin_business_raw_json?: Json | null
+          admin_business_role?: string | null
+          admin_business_users_json?: Json | null
+          admin_checked_at?: string | null
+          admin_connected?: boolean
+          campaign_id: string
+          created_at?: string
+          fb_user_id?: string | null
+          id?: string
+          long_lived_user_token?: string | null
+          selected_ad_account_id?: string | null
+          selected_ad_account_name?: string | null
+          selected_business_id?: string | null
+          selected_business_name?: string | null
+          selected_ig_user_id?: string | null
+          selected_ig_username?: string | null
+          selected_page_access_token?: string | null
+          selected_page_id?: string | null
+          selected_page_name?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_app_connected?: boolean
+          user_app_fb_user_id?: string | null
+          user_app_token?: string | null
+          user_app_token_expires_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ad_account_payment_connected?: boolean
+          admin_ad_account_raw_json?: Json | null
+          admin_ad_account_role?: string | null
+          admin_ad_account_users_json?: Json | null
+          admin_business_raw_json?: Json | null
+          admin_business_role?: string | null
+          admin_business_users_json?: Json | null
+          admin_checked_at?: string | null
+          admin_connected?: boolean
+          campaign_id?: string
+          created_at?: string
+          fb_user_id?: string | null
+          id?: string
+          long_lived_user_token?: string | null
+          selected_ad_account_id?: string | null
+          selected_ad_account_name?: string | null
+          selected_business_id?: string | null
+          selected_business_name?: string | null
+          selected_ig_user_id?: string | null
+          selected_ig_username?: string | null
+          selected_page_access_token?: string | null
+          selected_page_id?: string | null
+          selected_page_name?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_app_connected?: boolean
+          user_app_fb_user_id?: string | null
+          user_app_token?: string | null
+          user_app_token_expires_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_meta_connections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_meta_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_states: {
         Row: {
           ad_copy_data: Json | null
@@ -697,6 +811,81 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      meta_asset_snapshots: {
+        Row: {
+          ad_accounts_json: Json | null
+          business_json: Json | null
+          captured_at: string
+          id: string
+          pages_json: Json | null
+          user_id: string
+        }
+        Insert: {
+          ad_accounts_json?: Json | null
+          business_json?: Json | null
+          captured_at?: string
+          id?: string
+          pages_json?: Json | null
+          user_id: string
+        }
+        Update: {
+          ad_accounts_json?: Json | null
+          business_json?: Json | null
+          captured_at?: string
+          id?: string
+          pages_json?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      meta_connections: {
+        Row: {
+          ad_account_id: string | null
+          ad_account_name: string | null
+          business_id: string
+          business_name: string | null
+          created_at: string
+          currency: string | null
+          has_funding: boolean
+          id: string
+          page_id: string | null
+          page_name: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ad_account_id?: string | null
+          ad_account_name?: string | null
+          business_id: string
+          business_name?: string | null
+          created_at?: string
+          currency?: string | null
+          has_funding?: boolean
+          id?: string
+          page_id?: string | null
+          page_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ad_account_id?: string | null
+          ad_account_name?: string | null
+          business_id?: string
+          business_name?: string | null
+          created_at?: string
+          currency?: string | null
+          has_funding?: boolean
+          id?: string
+          page_id?: string | null
+          page_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       meta_tokens: {
         Row: {
