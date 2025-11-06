@@ -69,10 +69,15 @@ export function mapGraphAPIFormToMetaForm(
     .map((q, i) => mapQuestion(q, i))
     .filter((f): f is MetaInstantFormField => f !== null)
 
-  // Extract privacy policy
+  // Extract privacy policy with fallback defaults
+  // Note: privacy_policy field is not queried from Graph API for older forms compatibility
+  // Use defaults if privacy_policy is missing or incomplete
+  const defaultPrivacyUrl = 'https://adpilot.studio/general-privacy-policy'
+  const defaultPrivacyLinkText = 'Privacy Policy'
+  
   const privacy = {
-    url: graphForm.privacy_policy?.url || '',
-    linkText: graphForm.privacy_policy?.link_text || 'Privacy Policy',
+    url: graphForm.privacy_policy?.url || defaultPrivacyUrl,
+    linkText: graphForm.privacy_policy?.link_text || defaultPrivacyLinkText,
   }
 
   // Extract thank you page

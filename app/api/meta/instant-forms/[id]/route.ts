@@ -117,7 +117,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     })
 
     const gv = getGraphVersion()
-    const url = `https://graph.facebook.com/${gv}/${encodeURIComponent(formId)}?fields=id,name,questions{type,key,label},privacy_policy{url,link_text},thank_you_page{title,body,button_text,website_url}`
+    // Note: privacy_policy field removed from query to avoid errors with older forms
+    // Privacy policy will be set to defaults in the mapper if missing
+    const url = `https://graph.facebook.com/${gv}/${encodeURIComponent(formId)}?fields=id,name,questions{type,key,label},thank_you_page{title,body,button_text,website_url}`
 
     console.log('[MetaInstantForms GET] Calling Meta Graph API:', {
       endpoint: url.replace(/access_token=[^&]+/, 'access_token=[REDACTED]'),
@@ -130,20 +132,50 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const json: unknown = await res.json().catch(() => ({}))
     if (!res.ok) {
-      const msg = (json && typeof json === 'object' && json !== null && (json as { error?: { message?: string } }).error?.message)
-        || 'Failed to load form detail'
-      return NextResponse.json({ error: msg }, { status: 502 })
+      const errorObj = json && typeof json === 'object' && json !== null ? json as { error?: { message?: string; code?: number; type?: string } } : null
+      const errorMessage = errorObj?.error?.message || 'Failed to load form detail'
+      const errorCode = errorObj?.error?.code
+      const errorType = errorObj?.error?.type
+      
+      console.error('[MetaInstantForms GET] Graph API error:', {
+        status: res.status,
+        errorMessage,
+        errorCode,
+        errorType,
+        formId,
+      })
+      
+      // Provide more helpful error messages
+      if (errorCode === 100) {
+        return NextResponse.json({
+          error: 'Form data format not supported. This form may be using an older format.',
+          details: errorMessage,
+        }, { status: 502 })
+      }
+      
+      return NextResponse.json({ error: errorMessage }, { status: 502 })
     }
 
     // Validate with zod schema
     const parseResult = GraphAPILeadgenFormSchema.safeParse(json)
     if (!parseResult.success) {
-      console.error('[MetaInstantForms GET] Invalid response from Graph API:', parseResult.error)
+      console.error('[MetaInstantForms GET] Invalid response from Graph API:', {
+        formId,
+        errors: parseResult.error.issues,
+        responseData: json,
+      })
       return NextResponse.json({
         error: 'Invalid form data received from Meta',
         details: parseResult.error.issues,
       }, { status: 502 })
     }
+    
+    console.log('[MetaInstantForms GET] Successfully fetched form:', {
+      formId: parseResult.data.id,
+      hasQuestions: Array.isArray(parseResult.data.questions) && parseResult.data.questions.length > 0,
+      hasPrivacyPolicy: !!parseResult.data.privacy_policy,
+      hasThankYouPage: !!parseResult.data.thank_you_page,
+    })
 
     return NextResponse.json(parseResult.data)
   } catch (error) {
