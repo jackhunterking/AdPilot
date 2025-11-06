@@ -27,6 +27,7 @@ import { metaStorage } from "@/lib/meta/storage"
 import { CollapsibleSection } from "@/components/launch/collapsible-section"
 import { SectionEditModal } from "@/components/launch/section-edit-modal"
 import { PublishSection } from "@/components/launch/publish-section"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const mockAdAccounts = [
   { id: "act_123456789", name: "Main Business Account", currency: "USD" },
@@ -461,30 +462,20 @@ export function PreviewPanel() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
             </svg>
           </div>
-          {(() => {
-            const variations = getActiveVariations()
-            const copy = adCopyState.selectedCopyIndex != null ? variations[adCopyState.selectedCopyIndex] : undefined
-            if (!copy) {
-              return (
-                <p className="text-xs line-clamp-2">
-                  <span className="font-semibold">Your Brand</span>{" "}
-                  {adContent?.body || "Your ad caption goes here..."}
-                </p>
-              )
-            }
-            return (
-              <>
-                <p className="text-xs line-clamp-3"><span className="font-semibold">Your Brand</span> {copy.primaryText}</p>
-                <div className="bg-muted rounded-lg p-2.5 space-y-1">
-                  <p className="text-xs font-bold line-clamp-1">{copy.headline}</p>
-                  <p className="text-[10px] text-muted-foreground line-clamp-2">{copy.description}</p>
-                  <Button size="sm" className="w-full mt-1.5 h-7 text-[10px] bg-[#4B73FF] hover:bg-[#3d5fd9]" disabled>
-                    {adContent?.cta || 'Learn More'}
-                  </Button>
-                </div>
-              </>
-            )
-          })()}
+          {/* Primary Text with Skeleton */}
+          <p className="text-xs line-clamp-3">
+            <span className="font-semibold">Your Brand</span>{" "}
+            <Skeleton className="inline-block h-3 w-32" />
+          </p>
+
+          {/* Headline & Description with Skeletons */}
+          <div className="bg-muted rounded-lg p-2.5 space-y-1">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-2.5 w-full" />
+            <Button size="sm" className="w-full mt-1.5 h-7 text-[10px] bg-[#4B73FF] hover:bg-[#3d5fd9]" disabled>
+              {adContent?.cta || 'Learn More'}
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -585,57 +576,23 @@ export function PreviewPanel() {
           </div>
         </div>
 
-        {(() => {
-          const variations = getActiveVariations()
-          const copy = adCopyState.selectedCopyIndex != null ? variations[adCopyState.selectedCopyIndex] : undefined
-          const hints: string[] = []
-          if (copy) {
-            const ptLen = copy.primaryText?.length || 0
-            const hlLen = copy.headline?.length || 0
-            const dsLen = copy.description?.length || 0
-            if (ptLen > 110) hints.push('Primary text near 125-char limit')
-            if (hlLen > 35) hints.push('Headline near 40-char limit')
-            if (dsLen > 26) hints.push('Description near 30-char limit')
-            if (copy.overlay?.density && copy.overlay.density !== 'text-only') {
-              hints.push('Check text contrast against background')
-            }
-          }
-          return (
-            <div className="absolute bottom-6 left-0 right-0 px-3 z-10 space-y-2">
-              {copy ? (
-                <>
-                  {copy.overlay?.density === 'text-only' ? (
-                    <div className="bg-black/60 rounded-md p-3">
-                      <p className="text-white font-bold text-sm text-center">
-                        {copy.overlay?.headline || copy.overlay?.offer || copy.headline}
-                      </p>
-                      {copy.overlay?.body ? (
-                        <p className="text-white/90 text-xs mt-1 text-center">{copy.overlay.body}</p>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <>
-                      <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
-                        <p className="text-white text-xs line-clamp-2 font-medium">{copy.primaryText}</p>
-                      </div>
-                      <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
-                        <p className="text-white font-bold text-xs line-clamp-1">{copy.headline}</p>
-                      </div>
-                    </>
-                  )}
-                </>
-              ) : null}
-              <div className="bg-white/20 backdrop-blur-sm rounded-full py-2 px-4 text-center">
-                <p className="text-white font-semibold text-xs truncate">{adContent?.cta || 'Learn More'}</p>
-              </div>
-              {hints.length > 0 && (
-                <div className="text-[10px] text-white/80 text-center">
-                  {hints.join(' • ')}
-                </div>
-              )}
-            </div>
-          )
-        })()}
+        {/* Primary Text & Headline with Skeletons */}
+        <div className="absolute bottom-6 left-0 right-0 px-3 z-10 space-y-2">
+          {/* Primary Text Skeleton */}
+          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
+            <Skeleton className="h-3 w-full bg-white/30" />
+          </div>
+          
+          {/* Headline Skeleton */}
+          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
+            <Skeleton className="h-3 w-24 bg-white/30" />
+          </div>
+          
+          {/* CTA Button */}
+          <div className="bg-white/20 backdrop-blur-sm rounded-full py-2 px-4 text-center">
+            <p className="text-white font-semibold text-xs truncate">{adContent?.cta || 'Learn More'}</p>
+          </div>
+        </div>
 
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
           <p className="text-white text-xs font-bold opacity-50">{variation.title}</p>
