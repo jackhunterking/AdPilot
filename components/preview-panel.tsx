@@ -511,10 +511,7 @@ export function PreviewPanel() {
           <div className="flex items-center justify-between px-2 py-1" style={{ paddingLeft: '8px', paddingRight: '8px', paddingTop: '4px', paddingBottom: '4px' }}>
             {/* Left Side - Reactions */}
             <div className="flex items-center gap-1.5">
-              <div className="relative flex items-center">
-                <ThumbsUp className="h-4 w-4 text-[#1877F2]" style={{ width: '16px', height: '16px' }} />
-                <Heart className="h-4 w-4 text-[#F02849] absolute -left-1" style={{ width: '16px', height: '16px', left: '-4px' }} />
-              </div>
+              <ThumbsUp className="h-4 w-4 text-[#1877F2]" style={{ width: '16px', height: '16px' }} />
               <p className="text-[#050505]" style={{ fontSize: '13px', fontWeight: 400 }}>Oliver, Sofia and 28 others</p>
             </div>
             
@@ -671,10 +668,9 @@ export function PreviewPanel() {
 
         {/* Bottom Ad Copy/Engagement Section - Dark Background */}
         <div className="absolute bottom-0 left-0 right-0 z-20 bg-[#242526]">
-          {/* Information Text with Icon - Skeleton Loaders */}
-          <div className="flex items-start gap-2 px-3 pt-3 pb-2" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '12px', paddingBottom: '8px' }}>
-            <AlertTriangle className="h-4 w-4 text-white flex-shrink-0 mt-0.5" style={{ width: '16px', height: '16px' }} />
-            <div className="flex-1 space-y-1">
+          {/* Information Text - Skeleton Loaders */}
+          <div className="px-3 pt-3 pb-2" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '12px', paddingBottom: '8px' }}>
+            <div className="space-y-1">
               {/* Primary Text Skeleton */}
               <Skeleton className="h-3.5 w-full bg-white/30" style={{ height: '14px' }} />
               {/* Description Skeleton */}
