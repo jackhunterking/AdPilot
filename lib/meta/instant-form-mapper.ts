@@ -57,7 +57,12 @@ function mapQuestion(
  * Convert Graph API leadgen_form to MetaInstantForm
  */
 export function mapGraphAPIFormToMetaForm(
-  graphForm: GraphAPILeadgenForm
+  graphForm: GraphAPILeadgenForm,
+  pageData?: {
+    pageId?: string
+    pageName?: string
+    pageProfilePicture?: string
+  }
 ): MetaInstantForm {
   // Map questions to fields (filter out null results)
   const fields: MetaInstantFormField[] = (graphForm.questions || [])
@@ -86,6 +91,10 @@ export function mapGraphAPIFormToMetaForm(
     privacy,
     fields,
     thankYou,
+    pageId: pageData?.pageId,
+    pageName: pageData?.pageName,
+    pageProfilePicture: pageData?.pageProfilePicture,
+    introHeadline: graphForm.name || 'Headline text',
   }
 }
 
@@ -109,7 +118,12 @@ export interface BuilderState {
 }
 
 export function mapBuilderStateToMetaForm(
-  state: BuilderState
+  state: BuilderState,
+  pageData?: {
+    pageId?: string
+    pageName?: string
+    pageProfilePicture?: string
+  }
 ): MetaInstantForm {
   // Map builder field types to our types
   const typeMap: Record<string, MetaInstantFormFieldType> = {
@@ -144,6 +158,10 @@ export function mapBuilderStateToMetaForm(
     },
     fields,
     thankYou,
+    pageId: pageData?.pageId,
+    pageName: pageData?.pageName,
+    pageProfilePicture: pageData?.pageProfilePicture,
+    introHeadline: state.formName,
   }
 }
 

@@ -28,42 +28,39 @@ const FIELD_PLACEHOLDERS = {
 } as const
 
 export function Field({ type, label, placeholder }: FieldProps) {
-  const { dimensions, colors, radii, typography } = metaFormTokens
+  const { colors, typography, spacing } = metaFormTokens
   const Icon = FIELD_ICONS[type]
   const placeholderText = placeholder || FIELD_PLACEHOLDERS[type]
 
   return (
-    <div className="w-full">
+    <div className="w-full" style={{ marginBottom: spacing['2xl'] }}>
       {/* Label */}
       <label
-        className="block font-normal mb-2"
+        className="block font-normal"
         style={{
           fontSize: typography.fontSize.base,
           color: colors.text.primary,
           lineHeight: typography.lineHeight.normal,
+          marginBottom: spacing.md,
         }}
       >
         {label}
       </label>
 
-      {/* Input field */}
+      {/* Input field with bottom border only */}
       <div
         className="relative flex items-center"
         style={{
-          height: dimensions.input.height,
-          backgroundColor: colors.surface,
-          borderRadius: radii.input,
-          border: `1px solid ${colors.border.default}`,
-          paddingLeft: dimensions.input.paddingX,
-          paddingRight: dimensions.input.paddingX,
+          paddingBottom: spacing.md,
+          borderBottom: `1px solid ${colors.border.default}`,
         }}
       >
         {/* Icon */}
         <Icon
-          size={18}
+          size={20}
           style={{
             color: colors.text.tertiary,
-            marginRight: 12,
+            marginRight: spacing.md,
             flexShrink: 0,
           }}
         />

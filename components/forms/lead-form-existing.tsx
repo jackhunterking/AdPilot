@@ -41,6 +41,7 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [forms, setForms] = useState<LeadForm[]>([])
+  const [pageProfilePicture, setPageProfilePicture] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     const fetchForms = async () => {
@@ -129,6 +130,7 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
     })
 
     try {
+      // Fetch form details
       const url = new URL(`/api/meta/instant-forms/${encodeURIComponent(id)}`, window.location.origin)
       url.searchParams.set('campaignId', campaign.id)
       if (connection?.selected_page_id) {
@@ -155,8 +157,40 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
 
       if (!res.ok) throw new Error((json as { error?: string }).error || 'Failed to load form detail')
       
+      // Fetch page profile picture if we have page data
+      let profilePicture: string | undefined = pageProfilePicture
+      if (connection?.selected_page_id && !profilePicture) {
+        try {
+          const pictureUrl = new URL('/api/meta/page-picture', window.location.origin)
+          pictureUrl.searchParams.set('campaignId', campaign.id)
+          pictureUrl.searchParams.set('pageId', connection.selected_page_id)
+          if (connection.selected_page_access_token) {
+            pictureUrl.searchParams.set('pageAccessToken', connection.selected_page_access_token)
+          }
+
+          const pictureRes = await fetch(pictureUrl.toString())
+          const pictureJson: unknown = await pictureRes.json()
+          if (
+            pictureRes.ok &&
+            pictureJson &&
+            typeof pictureJson === 'object' &&
+            'pictureUrl' in pictureJson &&
+            typeof pictureJson.pictureUrl === 'string'
+          ) {
+            profilePicture = pictureJson.pictureUrl
+            setPageProfilePicture(profilePicture)
+          }
+        } catch (e) {
+          console.warn('[LeadFormExisting] Failed to fetch page picture:', e)
+        }
+      }
+
       // Use mapper to convert Graph API response to our format
-      const metaForm = mapGraphAPIFormToMetaForm(json as GraphAPILeadgenForm)
+      const metaForm = mapGraphAPIFormToMetaForm(json as GraphAPILeadgenForm, {
+        pageId: connection?.selected_page_id,
+        pageName: connection?.selected_page_name || undefined,
+        pageProfilePicture: profilePicture,
+      })
 
       // Convert to legacy PreviewData format for parent callback
       const fields: PreviewData['fields'] = metaForm.fields.map((f) => ({

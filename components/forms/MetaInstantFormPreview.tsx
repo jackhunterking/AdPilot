@@ -1,8 +1,8 @@
 /**
  * Feature: Meta Instant Forms Preview (Orchestrator)
- * Purpose: Stage orchestrator producing pixel-perfect 3-stage form flow
+ * Purpose: Stage orchestrator producing pixel-perfect 5-stage form flow
  * References:
- *  - Meta Instant Forms UI: Multi-stage form flow
+ *  - Meta Instant Forms UI: Multi-stage form flow with centered cards
  *  - Meta Business Help: https://www.facebook.com/business/help/1611070512241988
  */
 
@@ -11,10 +11,12 @@
 import { useState, useEffect } from 'react'
 import { Frame } from './meta/Frame'
 import { Header } from './meta/Header'
-import { Progress } from './meta/Progress'
+import { Card } from './meta/Card'
+import { Intro } from './meta/Intro'
 import { Field } from './meta/Field'
 import { PrimaryButton } from './meta/PrimaryButton'
 import { Privacy } from './meta/Privacy'
+import { PrivacyReview } from './meta/PrivacyReview'
 import { ThankYou } from './meta/ThankYou'
 import { metaFormTokens } from './meta/tokens'
 import type { MetaInstantForm } from '@/lib/types/meta-instant-form'
@@ -29,14 +31,14 @@ export function MetaInstantFormPreview({
   showThankYou = false,
 }: MetaInstantFormPreviewProps) {
   const [stage, setStage] = useState(1)
-  const totalStages = 3
+  const totalStages = 5
 
   const { spacing } = metaFormTokens
 
   // Reset stage when form changes or showThankYou changes
   useEffect(() => {
     if (showThankYou) {
-      setStage(4) // Thank you is stage 4
+      setStage(5) // Thank you is stage 5
     } else {
       setStage(1)
     }
@@ -68,6 +70,10 @@ export function MetaInstantFormPreview({
   // Stage definitions
   const stages = [
     {
+      title: 'Intro',
+      fields: [],
+    },
+    {
       title: 'Prefill information',
       fields: [emailField, fullNameField].filter(Boolean),
     },
@@ -76,33 +82,20 @@ export function MetaInstantFormPreview({
       fields: [phoneField].filter(Boolean),
     },
     {
-      title: 'Review',
+      title: 'Privacy review',
+      fields: [],
+    },
+    {
+      title: 'Message for leads',
       fields: [],
     },
   ]
-
-  // Thank you screen (stage 4)
-  if (showThankYou || stage === 4) {
-    return (
-      <Frame>
-        <ThankYou
-          title={form.thankYou?.title || 'Thanks for your interest!'}
-          body={form.thankYou?.body}
-          ctaText={form.thankYou?.ctaText}
-          ctaUrl={form.thankYou?.ctaUrl}
-        />
-      </Frame>
-    )
-  }
 
   const currentStage = stages[stage - 1]
 
   return (
     <Frame>
-      {/* Progress bar */}
-      <Progress currentStep={stage} totalSteps={totalStages} />
-
-      {/* Header with navigation */}
+      {/* Header with navigation - shown on all stages */}
       <Header
         title={currentStage?.title || 'Form'}
         currentStep={stage}
@@ -111,107 +104,78 @@ export function MetaInstantFormPreview({
         onNext={handleNext}
       />
 
-      {/* Form content */}
-      <div
-        className="px-4"
-        style={{
-          paddingTop: spacing['2xl'],
-          paddingBottom: spacing['3xl'],
-        }}
-      >
-        {/* Form name as heading */}
-        <h1
-          className="font-semibold mb-1"
-          style={{
-            fontSize: metaFormTokens.typography.fontSize.lg,
-            color: metaFormTokens.colors.text.primary,
-            marginBottom: spacing.md,
-          }}
-        >
-          {form.name}
-        </h1>
-
-        {/* Stage-specific content */}
-        {stage === 3 ? (
-          // Review stage: Show summary
-          <div className="space-y-4">
-            <p
+      {/* Stage-specific content */}
+      {stage === 1 ? (
+        // Stage 1: Intro
+        <Card showBack={false} showClose={true}>
+          <Intro
+            pageProfilePicture={form.pageProfilePicture}
+            pageName={form.pageName}
+            headline={form.introHeadline || form.name}
+            onContinue={handleNext}
+          />
+        </Card>
+      ) : stage === 2 || stage === 3 ? (
+        // Stage 2: Prefill information (Email + Full Name)
+        // Stage 3: Contact information (Phone)
+        <Card showBack={true} showClose={true} onBack={handlePrev}>
+          <div className="px-6 py-8">
+            {/* Form name as heading */}
+            <h1
+              className="font-semibold mb-6"
               style={{
-                fontSize: metaFormTokens.typography.fontSize.base,
-                color: metaFormTokens.colors.text.secondary,
-                lineHeight: metaFormTokens.typography.lineHeight.relaxed,
-                marginBottom: spacing.xl,
+                fontSize: metaFormTokens.typography.fontSize.lg,
+                color: metaFormTokens.colors.text.primary,
               }}
             >
-              Please review your information before submitting.
-            </p>
+              {form.name}
+            </h1>
 
-            {/* Summary of all fields */}
-            <div
-              className="rounded-lg p-4 space-y-3"
-              style={{
-                backgroundColor: metaFormTokens.colors.surface,
-                border: `1px solid ${metaFormTokens.colors.border.light}`,
-                borderRadius: metaFormTokens.radii.card,
-              }}
-            >
-              {form.fields.map((field) => (
-                <div key={field.id} className="flex justify-between">
-                  <span
-                    style={{
-                      fontSize: metaFormTokens.typography.fontSize.base,
-                      color: metaFormTokens.colors.text.secondary,
-                    }}
-                  >
-                    {field.label}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: metaFormTokens.typography.fontSize.base,
-                      color: metaFormTokens.colors.text.tertiary,
-                    }}
-                  >
-                    {field.type === 'EMAIL'
-                      ? 'user@example.com'
-                      : field.type === 'FULL_NAME'
-                        ? 'John Doe'
-                        : '+1 (555) 123-4567'}
-                  </span>
-                </div>
-              ))}
+            {/* Fields */}
+            <div className="space-y-4">
+              {currentStage?.fields.map((field) =>
+                field ? (
+                  <Field key={field.id} type={field.type} label={field.label} />
+                ) : null
+              )}
             </div>
-
-            {/* Submit button */}
-            <div style={{ marginTop: spacing['3xl'] }}>
-              <PrimaryButton>Submit</PrimaryButton>
-            </div>
-          </div>
-        ) : (
-          // Field stages: Show input fields
-          <div className="space-y-4">
-            {currentStage?.fields.map((field) =>
-              field ? (
-                <Field key={field.id} type={field.type} label={field.label} />
-              ) : null
-            )}
 
             {/* Continue button */}
             {currentStage && currentStage.fields.length > 0 && (
               <div style={{ marginTop: spacing['3xl'] }}>
-                <PrimaryButton>Continue</PrimaryButton>
+                <PrimaryButton onClick={handleNext}>Continue</PrimaryButton>
               </div>
             )}
-          </div>
-        )}
 
-        {/* Privacy text at bottom */}
-        <div style={{ marginTop: spacing['3xl'] }}>
-          <Privacy
-            linkText={form.privacy.linkText}
-            url={form.privacy.url}
+            {/* Privacy text at bottom */}
+            <div style={{ marginTop: spacing['3xl'] }}>
+              <Privacy linkText={form.privacy.linkText} url={form.privacy.url} />
+            </div>
+          </div>
+        </Card>
+      ) : stage === 4 ? (
+        // Stage 4: Privacy Review
+        <Card showBack={true} showClose={true} onBack={handlePrev}>
+          <PrivacyReview
+            pageName={form.pageName}
+            privacyUrl={form.privacy.url}
+            onSubmit={handleNext}
           />
-        </div>
-      </div>
+        </Card>
+      ) : (
+        // Stage 5: Thank You
+        <Card showBack={false} showClose={true}>
+          <ThankYou
+            title={form.thankYou?.title || 'Thanks, you\'re all set.'}
+            body={
+              form.thankYou?.body ||
+              'You can visit our website or exit the form now.'
+            }
+            ctaText={form.thankYou?.ctaText || 'View website'}
+            ctaUrl={form.thankYou?.ctaUrl}
+          />
+        </Card>
+      )}
     </Frame>
   )
 }

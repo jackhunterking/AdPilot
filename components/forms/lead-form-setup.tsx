@@ -8,13 +8,15 @@
  *  - Supabase (server auth, not used directly here): https://supabase.com/docs/guides/auth/server/nextjs
  */
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { MetaInstantFormPreview } from "@/components/forms/MetaInstantFormPreview"
 import { LeadFormCreate } from "@/components/forms/lead-form-create"
 import { LeadFormExisting } from "@/components/forms/lead-form-existing"
 import { cn } from "@/lib/utils"
 import { useGoal } from "@/lib/context/goal-context"
+import { useCampaignContext } from "@/lib/context/campaign-context"
+import { metaStorage } from "@/lib/meta/storage"
 import { mapBuilderStateToMetaForm } from "@/lib/meta/instant-form-mapper"
 
 interface SelectedFormData {
@@ -29,6 +31,7 @@ interface LeadFormSetupProps {
 
 export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupProps) {
   const { goalState } = useGoal()
+  const { campaign } = useCampaignContext()
   const hasSavedForm = !!goalState.formData?.id
   const [tab, setTab] = useState<"create" | "existing">(hasSavedForm ? "existing" : "create")
   const [selectedFormId, setSelectedFormId] = useState<string | null>(goalState.formData?.id ?? null)
@@ -49,20 +52,77 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
   const [thankYouButtonText, setThankYouButtonText] = useState<string>("View website")
   const [thankYouButtonUrl, setThankYouButtonUrl] = useState<string>("")
 
+  // Page data for preview
+  const [pageProfilePicture, setPageProfilePicture] = useState<string | undefined>(undefined)
+  const [pageData, setPageData] = useState<{
+    pageId?: string
+    pageName?: string
+  }>({})
+
   const mockFields = useMemo(() => fields.map(f => ({ ...f })), [fields])
+
+  // Fetch page data on mount
+  useEffect(() => {
+    if (!campaign?.id) return
+
+    const connection = metaStorage.getConnection(campaign.id)
+    if (!connection) return
+
+    setPageData({
+      pageId: connection.selected_page_id || undefined,
+      pageName: connection.selected_page_name || undefined,
+    })
+
+    // Fetch page profile picture
+    const fetchPagePicture = async () => {
+      if (!connection.selected_page_id) return
+
+      try {
+        const url = new URL('/api/meta/page-picture', window.location.origin)
+        url.searchParams.set('campaignId', campaign.id)
+        url.searchParams.set('pageId', connection.selected_page_id)
+        if (connection.selected_page_access_token) {
+          url.searchParams.set('pageAccessToken', connection.selected_page_access_token)
+        }
+
+        const res = await fetch(url.toString())
+        const json: unknown = await res.json()
+        if (
+          res.ok &&
+          json &&
+          typeof json === 'object' &&
+          'pictureUrl' in json &&
+          typeof json.pictureUrl === 'string'
+        ) {
+          setPageProfilePicture(json.pictureUrl)
+        }
+      } catch (e) {
+        console.warn('[LeadFormSetup] Failed to fetch page picture:', e)
+      }
+    }
+
+    fetchPagePicture()
+  }, [campaign?.id])
 
   // Convert builder state to MetaInstantForm for preview
   const previewForm = useMemo(() => {
-    return mapBuilderStateToMetaForm({
-      formName,
-      privacyUrl,
-      privacyLinkText,
-      fields,
-      thankYouTitle,
-      thankYouMessage,
-      thankYouButtonText,
-      thankYouButtonUrl,
-    })
+    return mapBuilderStateToMetaForm(
+      {
+        formName,
+        privacyUrl,
+        privacyLinkText,
+        fields,
+        thankYouTitle,
+        thankYouMessage,
+        thankYouButtonText,
+        thankYouButtonUrl,
+      },
+      {
+        pageId: pageData.pageId,
+        pageName: pageData.pageName,
+        pageProfilePicture,
+      }
+    )
   }, [
     formName,
     privacyUrl,
@@ -72,6 +132,9 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
     thankYouMessage,
     thankYouButtonText,
     thankYouButtonUrl,
+    pageData.pageId,
+    pageData.pageName,
+    pageProfilePicture,
   ])
 
   const tabs = [

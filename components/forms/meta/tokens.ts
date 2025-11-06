@@ -131,6 +131,20 @@ export const metaFormTokens = {
     normal: '200ms ease-in-out',
     slow: '300ms ease-in-out',
   },
+
+  // Card layout
+  card: {
+    maxWidth: 480,
+    padding: 24,
+    shadow: '0 2px 12px rgba(0,0,0,0.08)',
+    borderRadius: 16,
+  },
+
+  // Intro screen
+  intro: {
+    profilePictureSize: 80,
+    profilePictureBorder: 2,
+  },
 } as const
 
 export type MetaFormTokens = typeof metaFormTokens

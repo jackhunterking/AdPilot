@@ -33,6 +33,10 @@ export interface MetaInstantForm {
   privacy: MetaInstantFormPrivacy
   fields: MetaInstantFormField[]
   thankYou?: MetaInstantFormThankYou
+  pageId?: string
+  pageName?: string
+  pageProfilePicture?: string
+  introHeadline?: string
 }
 
 /**
