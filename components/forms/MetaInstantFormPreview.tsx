@@ -1,21 +1,20 @@
 /**
- * Feature: Meta Instant Forms Preview - EXACT Facebook Implementation
- * Purpose: Complete orchestrator matching Facebook's exact HTML structure
+ * Feature: Meta Instant Forms Preview - Final Correct Implementation
+ * Purpose: Preview matching user screenshots with navigation outside, no scrolling, proper buttons
  * References:
- *  - Facebook HTML files with exact DOM structure
- *  - All spacing, sizing, and positioning matches Facebook exactly
+ *  - User screenshots showing exact layout requirements
+ *  - Navigation outside gray container
+ *  - Slides toggle with display (not transform)
  */
 
 'use client'
 
 import { useState, useEffect } from 'react'
-import { OuterContainer } from './meta/OuterContainer'
 import { NavigationHeader } from './meta/NavigationHeader'
 import { IntroSlide } from './meta/slides/IntroSlide'
 import { ContactSlide } from './meta/slides/ContactSlide'
 import { PrivacySlide } from './meta/slides/PrivacySlide'
 import { ThankYouSlide } from './meta/slides/ThankYouSlide'
-import { metaFormTokens } from './meta/tokens'
 import type { MetaInstantForm } from '@/lib/types/meta-instant-form'
 
 interface MetaInstantFormPreviewProps {
@@ -29,8 +28,6 @@ export function MetaInstantFormPreview({
 }: MetaInstantFormPreviewProps) {
   const [stage, setStage] = useState(1)
   const totalStages = 4
-
-  const { slider } = metaFormTokens
 
   // Reset stage when form changes or showThankYou changes
   useEffect(() => {
@@ -65,7 +62,7 @@ export function MetaInstantFormPreview({
   const phoneField = form.fields.find((f) => f.type === 'PHONE')
   const contactFields = [emailField, fullNameField, phoneField].filter(Boolean) as typeof form.fields
 
-  // Stage definitions - EXACT from Facebook
+  // Stage definitions
   const stages = [
     { title: 'Intro' },
     { title: 'Prefill information' },
@@ -76,8 +73,8 @@ export function MetaInstantFormPreview({
   const currentStage = stages[stage - 1]
 
   return (
-    <OuterContainer>
-      {/* Navigation Header - OUTSIDE slider */}
+    <div>
+      {/* Navigation - OUTSIDE gray container */}
       <NavigationHeader
         title={currentStage?.title || 'Form'}
         currentStep={stage}
@@ -86,41 +83,72 @@ export function MetaInstantFormPreview({
         onNext={handleNext}
       />
 
-      {/* Horizontal Slider Container */}
-      <div style={{ position: 'relative' }}>
-        {/* Slides wrapper - EXACT display: flex with transform */}
+      {/* Gray Container - ONLY form content */}
+      <div
+        style={{
+          backgroundColor: '#F0F2F5',
+          borderRadius: '12px',
+          padding: '24px',
+          minHeight: '600px',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* Slide 1: Intro - display toggle, NOT transform */}
         <div
           style={{
-            display: 'flex',
-            transform: `translateX(-${slider.slidePositions[stage - 1]}px)`,  // EXACT: 0, -324, -648, -972
-            transition: `transform ${slider.transitionDuration} ease-in-out`,
+            display: stage === 1 ? 'flex' : 'none',
+            flexDirection: 'column',
+            flex: 1,
           }}
         >
-          {/* Slide 1: Intro - NO white card */}
           <IntroSlide
             pageProfilePicture={form.pageProfilePicture}
             pageName={form.pageName}
             headline={form.introHeadline || form.name}
             onContinue={handleNext}
           />
+        </div>
 
-          {/* Slide 2: Contact Information - WITH white card */}
-          <ContactSlide
-            fields={contactFields}
-            onContinue={handleNext}
-          />
+        {/* Slide 2: Contact Information */}
+        <div
+          style={{
+            display: stage === 2 ? 'flex' : 'none',
+            flexDirection: 'column',
+            flex: 1,
+          }}
+        >
+          <ContactSlide fields={contactFields} onContinue={handleNext} />
+        </div>
 
-          {/* Slide 3: Privacy Review - NO white card */}
+        {/* Slide 3: Privacy Review */}
+        <div
+          style={{
+            display: stage === 3 ? 'flex' : 'none',
+            flexDirection: 'column',
+            flex: 1,
+          }}
+        >
           <PrivacySlide
             pageName={form.pageName}
             privacyUrl={form.privacy.url}
             onSubmit={handleNext}
           />
+        </div>
 
-          {/* Slide 4: Thank You - NO white card */}
+        {/* Slide 4: Thank You */}
+        <div
+          style={{
+            display: stage === 4 ? 'flex' : 'none',
+            flexDirection: 'column',
+            flex: 1,
+          }}
+        >
           <ThankYouSlide
-            title={form.thankYou?.title || 'Thanks, you\'re all set.'}
-            body={form.thankYou?.body || 'You can visit our website or exit the form now.'}
+            title={form.thankYou?.title || "Thanks, you're all set."}
+            body={
+              form.thankYou?.body || 'You can visit our website or exit the form now.'
+            }
             ctaText={form.thankYou?.ctaText || 'View website'}
             ctaUrl={form.thankYou?.ctaUrl}
             pageProfilePicture={form.pageProfilePicture}
@@ -128,6 +156,6 @@ export function MetaInstantFormPreview({
           />
         </div>
       </div>
-    </OuterContainer>
+    </div>
   )
 }

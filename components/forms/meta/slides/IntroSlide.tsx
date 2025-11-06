@@ -1,17 +1,14 @@
 /**
- * Feature: Meta Instant Forms Intro Slide - EXACT Facebook Implementation
- * Purpose: Intro slide with NO white card - flat against gray background
+ * Feature: Meta Instant Forms Intro Slide
+ * Purpose: Intro slide with profile, headline, and Continue button at bottom
  * References:
- *  - Facebook HTML: height: 480px, margin-top: 70px (profile), 100px (content)
- *  - NO white card wrapper - everything flat on gray background
+ *  - User screenshots: NO close button, button at bottom with arrow
  */
 
 'use client'
 
 import { useState, useEffect } from 'react'
 import { User, ArrowRight } from 'lucide-react'
-import { Icon } from '../Icon'
-import { metaFormTokens } from '../tokens'
 
 interface IntroSlideProps {
   pageProfilePicture?: string
@@ -26,7 +23,6 @@ export function IntroSlide({
   headline,
   onContinue,
 }: IntroSlideProps) {
-  const { slideHeights, spacing, typography, colors, button } = metaFormTokens
   const [imageError, setImageError] = useState(false)
 
   useEffect(() => {
@@ -36,30 +32,26 @@ export function IntroSlide({
   const showFallback = !pageProfilePicture || imageError
 
   return (
-    <div style={{ width: '324px', flexShrink: 0 }}>
-      {/* Main content - EXACT height: 480px */}
-      <div style={{ height: `${slideHeights.intro}px` }}>
-        {/* Close button top-right */}
-        <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
-          <Icon type="close" />
-        </div>
-        
-        {/* Profile picture - EXACT margin-top: 70px */}
-        <div style={{ marginTop: `${spacing.profileTop}px`, display: 'flex', justifyContent: 'center' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+      {/* Content */}
+      <div style={{ flex: 1 }}>
+        <div style={{ marginTop: '70px', textAlign: 'center' }}>
+          {/* Profile picture */}
           <div
             style={{
-              width: '80px',
-              height: '80px',
+              width: '100px',
+              height: '100px',
               borderRadius: '50%',
               overflow: 'hidden',
-              backgroundColor: showFallback ? '#F0F2F5' : 'transparent',
+              margin: '0 auto',
+              backgroundColor: showFallback ? '#E4E6EB' : 'transparent',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
             {showFallback ? (
-              <User size={40} color="#8A8D91" strokeWidth={1.5} />
+              <User size={48} color="#8A8D91" strokeWidth={1.5} />
             ) : (
               <img
                 src={pageProfilePicture}
@@ -69,58 +61,71 @@ export function IntroSlide({
               />
             )}
           </div>
-        </div>
-        
-        {/* Content - EXACT margin-top: 100px */}
-        <div style={{ marginTop: `${spacing.contentBelowProfile}px`, textAlign: 'center', padding: '0 24px' }}>
-          {pageName && (
-            <div style={{
-              fontSize: `${typography.fontSize.base}px`,
-              color: colors.text.secondary,
-              marginBottom: '8px',
-            }}>
-              {pageName}
-            </div>
-          )}
-          
-          <div style={{
-            fontSize: `${typography.fontSize.xl}px`,
-            fontWeight: typography.fontWeight.semibold,
-            color: colors.text.primary,
-          }}>
-            {headline}
+
+          {/* Page name & headline */}
+          <div style={{ marginTop: '40px', padding: '0 20px' }}>
+            {pageName && (
+              <p
+                style={{
+                  fontSize: '16px',
+                  color: '#65676B',
+                  marginBottom: '16px',
+                  fontWeight: 400,
+                }}
+              >
+                {pageName}
+              </p>
+            )}
+
+            <h1
+              style={{
+                fontSize: '24px',
+                fontWeight: 700,
+                color: '#050505',
+                margin: 0,
+              }}
+            >
+              {headline}
+            </h1>
           </div>
         </div>
       </div>
-      
-      {/* Continue button - OUTSIDE main content div */}
-      <div role="none" style={{ padding: `0 ${spacing.slideMargin}px` }}>
-        <div
+
+      {/* Button area - pushed to bottom */}
+      <div
+        style={{
+          marginTop: 'auto',
+          padding: '20px',
+          backgroundColor: '#F7F8FA',
+          borderRadius: '0 0 12px 12px',
+          marginLeft: '-24px',
+          marginRight: '-24px',
+          marginBottom: '-24px',
+        }}
+      >
+        <button
+          type="button"
           onClick={onContinue}
           style={{
+            width: '100%',
+            height: '48px',
+            backgroundColor: '#1877F2',
+            borderRadius: '8px',
+            color: '#FFFFFF',
+            fontSize: '16px',
+            fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-around',
-            backgroundColor: button.backgroundColor,
-            borderRadius: `${button.borderRadius}px`,
-            padding: '10px 24px',
-            height: `${button.height}px`,
+            justifyContent: 'center',
+            gap: '8px',
+            border: 'none',
             cursor: 'pointer',
           }}
         >
-          <div style={{
-            color: button.color,
-            fontSize: `${typography.fontSize.base}px`,
-            fontWeight: typography.fontWeight.semibold,
-          }}>
-            Continue
-          </div>
-          <div>
-            <Icon type="arrow" color="#FFFFFF" />
-          </div>
-        </div>
+          <span>Continue</span>
+          <ArrowRight size={20} strokeWidth={2} />
+        </button>
       </div>
     </div>
   )
 }
-

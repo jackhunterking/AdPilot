@@ -1,14 +1,11 @@
 /**
- * Feature: Meta Instant Forms Contact Slide - EXACT Facebook Implementation
- * Purpose: Contact slide with WHITE CARD wrapper - exact Facebook structure
+ * Feature: Meta Instant Forms Contact Slide
+ * Purpose: Contact slide with white card and Continue button at bottom
  * References:
- *  - Facebook HTML: white card at margin-top: 100px, padding: 0 20px on fields
- *  - Progress bar and button OUTSIDE white card
+ *  - User screenshots: NO close button, white card, progress bar, button at bottom
  */
 
 import { Info } from 'lucide-react'
-import { Icon } from '../Icon'
-import { metaFormTokens } from '../tokens'
 import type { MetaInstantFormField } from '@/lib/types/meta-instant-form'
 
 interface ContactSlideProps {
@@ -17,62 +14,62 @@ interface ContactSlideProps {
 }
 
 export function ContactSlide({ fields, onContinue }: ContactSlideProps) {
-  const { slideHeights, spacing, typography, colors, card, button, progressBar } = metaFormTokens
-
   return (
-    <div style={{ transform: 'translateX(0px)', left: '324px', width: '324px', flexShrink: 0 }}>
-      <div>
-        {/* Close button top-right */}
-        <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
-          <Icon type="close" />
-        </div>
-        
-        {/* White card - EXACT margin-top: 100px */}
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+      {/* Content */}
+      <div style={{ flex: 1 }}>
+        {/* White card */}
         <div
           style={{
-            marginTop: `${spacing.contentBelowProfile}px`,  // EXACT: 100px
-            margin: `${spacing.contentBelowProfile}px ${spacing.slideMargin}px 0`,
-            backgroundColor: card.backgroundColor,
-            borderRadius: `${card.borderRadius}px`,
-            boxShadow: card.boxShadow,
-            padding: `${card.padding}px`,
+            backgroundColor: '#FFFFFF',
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
           }}
         >
           {/* Heading with info icon */}
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
-            <div style={{
-              fontSize: `${typography.fontSize.lg}px`,
-              fontWeight: typography.fontWeight.semibold,
-              color: colors.text.primary,
-            }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              marginBottom: '20px',
+              gap: '8px',
+            }}
+          >
+            <h3
+              style={{
+                fontSize: '20px',
+                fontWeight: 600,
+                color: '#050505',
+                margin: 0,
+              }}
+            >
               Contact information
-            </div>
-            <div style={{ marginLeft: '8px' }}>
-              <Icon type="info" color={colors.text.secondary} />
-            </div>
+            </h3>
+            <Info size={18} color="#65676B" />
           </div>
-          
-          {/* Fields - EXACT padding: 0 20px (padding/horiz-20) */}
-          <div style={{ padding: `0 ${spacing.horizontalPadding}px` }}>
-            {fields.map((field, index) => (
-              <div key={field.id} style={{ marginBottom: index < fields.length - 1 ? '16px' : '0' }}>
-                <div style={{
-                  fontSize: `${typography.fontSize.base}px`,
-                  color: colors.text.primary,
-                  marginBottom: '4px',
-                }}>
+
+          {/* Fields */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {fields.map((field) => (
+              <div key={field.id}>
+                <div
+                  style={{
+                    fontSize: '14px',
+                    color: '#050505',
+                    marginBottom: '8px',
+                    fontWeight: 500,
+                  }}
+                >
                   {field.label}
                 </div>
-                <div style={{
-                  borderBottom: `1px solid ${colors.border.divider}`,
-                  paddingBottom: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}>
-                  <span style={{
-                    color: colors.text.tertiary,
-                    fontSize: `${typography.fontSize.base}px`,
-                  }}>
+                <div
+                  style={{
+                    borderBottom: '1px solid #DADDE1',
+                    paddingBottom: '12px',
+                  }}
+                >
+                  <span style={{ color: '#8A8D91', fontSize: '16px' }}>
                     Enter your answer.
                   </span>
                 </div>
@@ -81,56 +78,68 @@ export function ContactSlide({ fields, onContinue }: ContactSlideProps) {
           </div>
         </div>
       </div>
-      
-      {/* Progress bar - OUTSIDE white card */}
-      <div role="none" style={{ marginTop: '16px', padding: `0 ${spacing.slideMargin}px` }}>
+
+      {/* Button area with progress bar */}
+      <div
+        style={{
+          marginTop: 'auto',
+          padding: '20px',
+          backgroundColor: '#F7F8FA',
+          borderRadius: '0 0 12px 12px',
+          marginLeft: '-24px',
+          marginRight: '-24px',
+          marginBottom: '-24px',
+        }}
+      >
+        {/* Progress bar */}
         <div
           role="progressbar"
           aria-valuemax={100}
           aria-valuemin={0}
           aria-valuenow={50}
+          style={{ marginBottom: '16px' }}
         >
-          <div style={{
-            height: `${progressBar.height}px`,
-            backgroundColor: progressBar.trackColor,
-            borderRadius: '2px',
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              width: '100%',
-              height: '100%',
-              backgroundColor: progressBar.fillColor,
-              transform: 'translateX(-50%)',  // EXACT: -50% for 50%
-              transition: 'transform 300ms ease-in-out',
-            }} />
+          <div
+            style={{
+              height: '4px',
+              backgroundColor: '#E4E6EB',
+              borderRadius: '2px',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                width: '50%',
+                height: '100%',
+                backgroundColor: '#1877F2',
+                transition: 'width 300ms ease-in-out',
+              }}
+            />
           </div>
         </div>
-        
-        {/* Continue button - OUTSIDE white card */}
-        <div
+
+        {/* Continue button */}
+        <button
+          type="button"
           onClick={onContinue}
           style={{
-            marginTop: '12px',
-            backgroundColor: button.backgroundColor,
-            borderRadius: `${button.borderRadius}px`,
-            padding: '10px 24px',
-            height: `${button.height}px`,
+            width: '100%',
+            height: '48px',
+            backgroundColor: '#1877F2',
+            borderRadius: '8px',
+            color: '#FFFFFF',
+            fontSize: '16px',
+            fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            border: 'none',
             cursor: 'pointer',
           }}
         >
-          <div style={{
-            color: button.color,
-            fontSize: `${typography.fontSize.base}px`,
-            fontWeight: typography.fontWeight.semibold,
-          }}>
-            Continue
-          </div>
-        </div>
+          Continue
+        </button>
       </div>
     </div>
   )
 }
-

@@ -1,17 +1,14 @@
 /**
- * Feature: Meta Instant Forms Thank You Slide - EXACT Facebook Implementation
- * Purpose: Thank you slide with NO white card - flat against gray background
+ * Feature: Meta Instant Forms Thank You Slide
+ * Purpose: Thank you slide with View website button at bottom
  * References:
- *  - Facebook HTML: height: 488px, margin-top: 70px (profile), 100px (content)
- *  - NO white card wrapper
+ *  - User screenshots: NO close button, "View website" button, NO progress bar
  */
 
 'use client'
 
 import { useState, useEffect } from 'react'
 import { User, Info } from 'lucide-react'
-import { Icon } from '../Icon'
-import { metaFormTokens } from '../tokens'
 
 interface ThankYouSlideProps {
   title: string
@@ -30,7 +27,6 @@ export function ThankYouSlide({
   pageProfilePicture,
   pageName,
 }: ThankYouSlideProps) {
-  const { slideHeights, spacing, typography, colors, button } = metaFormTokens
   const [imageError, setImageError] = useState(false)
 
   useEffect(() => {
@@ -40,30 +36,26 @@ export function ThankYouSlide({
   const showFallback = !pageProfilePicture || imageError
 
   return (
-    <div style={{ transform: 'translateX(0px)', left: '972px', width: '324px', flexShrink: 0 }}>
-      {/* Main content - EXACT height: 488px (different from other slides!) */}
-      <div style={{ height: `${slideHeights.thankYou}px` }}>
-        {/* Close button top-right */}
-        <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
-          <Icon type="close" />
-        </div>
-        
-        {/* Profile - EXACT margin-top: 70px */}
-        <div style={{ marginTop: `${spacing.profileTop}px`, display: 'flex', justifyContent: 'center' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+      {/* Content */}
+      <div style={{ flex: 1, textAlign: 'center' }}>
+        <div style={{ marginTop: '70px' }}>
+          {/* Profile picture */}
           <div
             style={{
-              width: '80px',
-              height: '80px',
+              width: '100px',
+              height: '100px',
               borderRadius: '50%',
               overflow: 'hidden',
-              backgroundColor: showFallback ? '#F0F2F5' : 'transparent',
+              margin: '0 auto',
+              backgroundColor: showFallback ? '#E4E6EB' : 'transparent',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
             {showFallback ? (
-              <User size={40} color="#8A8D91" strokeWidth={1.5} />
+              <User size={48} color="#8A8D91" strokeWidth={1.5} />
             ) : (
               <img
                 src={pageProfilePicture}
@@ -73,80 +65,96 @@ export function ThankYouSlide({
               />
             )}
           </div>
-        </div>
-        
-        {/* Content - EXACT margin-top: 100px */}
-        <div style={{ marginTop: `${spacing.contentBelowProfile}px`, textAlign: 'center', padding: `0 ${spacing.slideMargin}px` }}>
-          {pageName && (
-            <div style={{
-              fontSize: `${typography.fontSize.base}px`,
-              color: colors.text.secondary,
-              marginBottom: '8px',
-            }}>
-              {pageName}
+
+          {/* Content below profile */}
+          <div style={{ marginTop: '40px', padding: '0 20px' }}>
+            {pageName && (
+              <p
+                style={{
+                  fontSize: '16px',
+                  color: '#65676B',
+                  marginBottom: '12px',
+                  fontWeight: 400,
+                }}
+              >
+                {pageName}
+              </p>
+            )}
+
+            <h2
+              style={{
+                fontSize: '22px',
+                fontWeight: 700,
+                color: '#050505',
+                marginBottom: '12px',
+              }}
+            >
+              {title}
+            </h2>
+
+            {body && (
+              <p
+                style={{
+                  fontSize: '15px',
+                  color: '#65676B',
+                  marginBottom: '16px',
+                  lineHeight: 1.4,
+                }}
+              >
+                {body}
+              </p>
+            )}
+
+            <div
+              style={{
+                fontSize: '13px',
+                color: '#8A8D91',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+              }}
+            >
+              <Info size={14} color="#8A8D91" />
+              You successfully submitted your responses.
             </div>
-          )}
-          
-          <div style={{
-            fontSize: `${typography.fontSize.lg}px`,
-            fontWeight: typography.fontWeight.semibold,
-            color: colors.text.primary,
-            marginBottom: '12px',
-          }}>
-            {title}
-          </div>
-          
-          {body && (
-            <div style={{
-              fontSize: `${typography.fontSize.base}px`,
-              color: colors.text.secondary,
-              marginBottom: '12px',
-              lineHeight: typography.lineHeight.normal,
-            }}>
-              {body}
-            </div>
-          )}
-          
-          <div style={{
-            fontSize: `${typography.fontSize.sm}px`,
-            color: colors.text.tertiary,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '4px',
-          }}>
-            <Info size={12} color={colors.text.tertiary} />
-            You successfully submitted your responses.
           </div>
         </div>
       </div>
-      
-      {/* View website button - OUTSIDE content */}
-      <div role="none" style={{ padding: `0 ${spacing.slideMargin}px` }}>
-        <div
+
+      {/* Button area - NO progress bar on thank you slide */}
+      <div
+        style={{
+          marginTop: 'auto',
+          padding: '20px',
+          backgroundColor: '#F7F8FA',
+          borderRadius: '0 0 12px 12px',
+          marginLeft: '-24px',
+          marginRight: '-24px',
+          marginBottom: '-24px',
+        }}
+      >
+        <button
+          type="button"
           onClick={() => ctaUrl && window.open(ctaUrl, '_blank')}
           style={{
-            marginTop: '12px',
-            backgroundColor: button.backgroundColor,
-            borderRadius: `${button.borderRadius}px`,
-            padding: '10px 24px',
-            height: `${button.height}px`,
+            width: '100%',
+            height: '48px',
+            backgroundColor: '#1877F2',
+            borderRadius: '8px',
+            color: '#FFFFFF',
+            fontSize: '16px',
+            fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            border: 'none',
             cursor: 'pointer',
           }}
         >
-          <div style={{
-            color: button.color,
-            fontSize: `${typography.fontSize.base}px`,
-            fontWeight: typography.fontWeight.semibold,
-          }}>
-            {ctaText || 'View website'}
-          </div>
-        </div>
+          {ctaText || 'View website'}
+        </button>
       </div>
     </div>
   )
 }
-

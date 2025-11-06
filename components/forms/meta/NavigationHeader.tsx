@@ -28,16 +28,15 @@ export function NavigationHeader({
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        scale: '0.9',  // EXACT from Facebook
-        width: '100%',
-        padding: '12px 16px',
+        padding: '16px 20px',
+        marginBottom: '16px',
       }}
     >
-      <span style={{ fontSize: '17px', fontWeight: 600, color: '#050505' }}>
+      <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#050505', margin: 0 }}>
         {title}
-      </span>
+      </h2>
       
-      <nav style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <nav style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <button
           type="button"
           onClick={onPrev}
@@ -45,14 +44,17 @@ export function NavigationHeader({
             background: 'transparent',
             border: 'none',
             cursor: 'pointer',
-            padding: '4px',
+            padding: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
           aria-label="Previous"
         >
-          <ChevronLeft size={20} color="#1877F2" strokeWidth={2} />
+          <ChevronLeft size={24} color="#1877F2" strokeWidth={2} />
         </button>
         
-        <span style={{ fontSize: '11px', color: '#65676B' }}>
+        <span style={{ fontSize: '14px', color: '#65676B' }}>
           {currentStep} of {totalSteps}
         </span>
         
@@ -63,11 +65,14 @@ export function NavigationHeader({
             background: 'transparent',
             border: 'none',
             cursor: 'pointer',
-            padding: '4px',
+            padding: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
           aria-label="Next"
         >
-          <ChevronRight size={20} color="#1877F2" strokeWidth={2} />
+          <ChevronRight size={24} color="#1877F2" strokeWidth={2} />
         </button>
       </nav>
     </div>

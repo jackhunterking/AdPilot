@@ -1,13 +1,9 @@
 /**
- * Feature: Meta Instant Forms Privacy Slide - EXACT Facebook Implementation
- * Purpose: Privacy slide with NO white card - flat against gray background
+ * Feature: Meta Instant Forms Privacy Slide
+ * Purpose: Privacy slide with Submit button at bottom
  * References:
- *  - Facebook HTML: height: 480px, margin-top: 100px, NO white card
- *  - Progress bar and button OUTSIDE main content
+ *  - User screenshots: NO close button, Submit button (not Continue)
  */
-
-import { Icon } from '../Icon'
-import { metaFormTokens } from '../tokens'
 
 interface PrivacySlideProps {
   pageName?: string
@@ -20,102 +16,127 @@ export function PrivacySlide({
   privacyUrl,
   onSubmit,
 }: PrivacySlideProps) {
-  const { slideHeights, spacing, typography, colors, button, progressBar } = metaFormTokens
-
   return (
-    <div style={{ transform: 'translateX(0px)', left: '648px', width: '324px', flexShrink: 0 }}>
-      {/* Main content - EXACT height: 480px */}
-      <div style={{ height: `${slideHeights.privacy}px` }}>
-        {/* Close button top-right */}
-        <div style={{ position: 'absolute', top: '16px', right: '16px' }}>
-          <Icon type="close" />
-        </div>
-        
-        {/* Content - EXACT margin-top: 100px, NO white card */}
-        <div style={{ marginTop: `${spacing.contentBelowProfile}px`, padding: `0 ${spacing.slideMargin}px` }}>
-          <div style={{
-            fontSize: `${typography.fontSize.lg}px`,
-            fontWeight: typography.fontWeight.semibold,
-            color: colors.text.primary,
-            marginBottom: '8px',
-          }}>
-            Privacy policy
-          </div>
-          
-          <div style={{
-            fontSize: `${typography.fontSize.base}px`,
-            color: colors.text.secondary,
-            lineHeight: typography.lineHeight.normal,
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+      {/* Content */}
+      <div style={{ flex: 1, padding: '20px 0' }}>
+        <h2
+          style={{
+            fontSize: '24px',
+            fontWeight: 700,
+            color: '#050505',
             marginBottom: '16px',
-          }}>
-            By clicking Submit, you agree to send your info to {pageName || 'this page'} who agrees to 
-            use it according to their privacy policy. Facebook will also use it subject to our 
-            Data Policy, including to auto-fill forms for ads.
-          </div>
-          
-          <div style={{ marginBottom: '12px' }}>
-            <span style={{ color: colors.link, fontSize: `${typography.fontSize.base}px` }}>
-              <span>View Facebook Data Policy.</span>
-            </span>
-          </div>
-          
-          <div>
-            <span style={{ color: colors.link, fontSize: `${typography.fontSize.base}px` }}>
-              <span>Visit {pageName || 'this page'}&apos;s Privacy Policy.</span>
-            </span>
-          </div>
+          }}
+        >
+          Privacy policy
+        </h2>
+
+        <p
+          style={{
+            fontSize: '15px',
+            color: '#65676B',
+            lineHeight: 1.5,
+            marginBottom: '20px',
+          }}
+        >
+          By clicking Submit, you agree to send your info to{' '}
+          {pageName || 'this page'} who agrees to use it according to their
+          privacy policy. Facebook will also use it subject to our Data Policy,
+          including to auto-fill forms for ads.
+        </p>
+
+        <div style={{ marginBottom: '12px' }}>
+          <a
+            href="https://www.facebook.com/privacy/policy/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: '#1877F2',
+              fontSize: '15px',
+              textDecoration: 'none',
+            }}
+          >
+            View Facebook Data Policy.
+          </a>
+        </div>
+
+        <div>
+          <a
+            href={privacyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: '#1877F2',
+              fontSize: '15px',
+              textDecoration: 'none',
+            }}
+          >
+            Visit {pageName || 'this page'}&apos;s Privacy Policy.
+          </a>
         </div>
       </div>
-      
-      {/* Progress bar - 100%, OUTSIDE content */}
-      <div role="none" style={{ marginTop: '16px', padding: `0 ${spacing.slideMargin}px` }}>
+
+      {/* Button area with progress bar */}
+      <div
+        style={{
+          marginTop: 'auto',
+          padding: '20px',
+          backgroundColor: '#F7F8FA',
+          borderRadius: '0 0 12px 12px',
+          marginLeft: '-24px',
+          marginRight: '-24px',
+          marginBottom: '-24px',
+        }}
+      >
+        {/* Progress bar */}
         <div
           role="progressbar"
           aria-valuemax={100}
           aria-valuemin={0}
           aria-valuenow={100}
+          style={{ marginBottom: '16px' }}
         >
-          <div style={{
-            height: `${progressBar.height}px`,
-            backgroundColor: progressBar.trackColor,
-            borderRadius: '2px',
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              width: '100%',
-              height: '100%',
-              backgroundColor: progressBar.fillColor,
-              transform: 'translateX(0%)',  // EXACT: 0% for 100%
-              transition: 'transform 300ms ease-in-out',
-            }} />
+          <div
+            style={{
+              height: '4px',
+              backgroundColor: '#E4E6EB',
+              borderRadius: '2px',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                backgroundColor: '#1877F2',
+                transition: 'width 300ms ease-in-out',
+              }}
+            />
           </div>
         </div>
-        
+
         {/* Submit button */}
-        <div
+        <button
+          type="button"
           onClick={onSubmit}
           style={{
-            marginTop: '12px',
-            backgroundColor: button.backgroundColor,
-            borderRadius: `${button.borderRadius}px`,
-            padding: '10px 24px',
-            height: `${button.height}px`,
+            width: '100%',
+            height: '48px',
+            backgroundColor: '#1877F2',
+            borderRadius: '8px',
+            color: '#FFFFFF',
+            fontSize: '16px',
+            fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            border: 'none',
             cursor: 'pointer',
           }}
         >
-          <div style={{
-            color: button.color,
-            fontSize: `${typography.fontSize.base}px`,
-            fontWeight: typography.fontWeight.semibold,
-          }}>
-            Submit
-          </div>
-        </div>
+          Submit
+        </button>
       </div>
     </div>
   )
 }
-
