@@ -148,9 +148,8 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
   ])
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-6 py-8 max-w-full">
-        <div className="grid lg:grid-cols-2 gap-8 w-full">
+    <div className="container mx-auto px-6 py-8 max-w-full">
+      <div className="grid lg:grid-cols-2 gap-8 w-full">
           {/* Left Panel - Form Selection/Creation */}
           <div className="space-y-6">
             <Tabs value={tab} onValueChange={(v) => setTab(v as "create" | "existing")} className="w-full">
@@ -254,12 +253,11 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
           </div>
         </div>
 
-        {/* Change Goal Button */}
-        <div className="flex justify-center mt-8">
-          <Button variant="outline" size="lg" className="h-12 px-8" onClick={onChangeGoal}>
-            Change Goal
-          </Button>
-        </div>
+      {/* Change Goal Button */}
+      <div className="flex justify-center mt-8">
+        <Button variant="outline" size="lg" className="h-12 px-8" onClick={onChangeGoal}>
+          Change Goal
+        </Button>
       </div>
     </div>
   )
