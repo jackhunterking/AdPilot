@@ -929,14 +929,24 @@ export function PreviewPanel() {
 
       {/* Right: Collapsible sections with modals */}
       <div className="flex flex-col gap-6 max-w-3xl mx-auto">
-        {/* Publish Section - Prominent at top */}
-        <PublishSection
-          allStepsComplete={allStepsComplete}
-          completedCount={completedCount}
-          totalSteps={totalSteps}
-          isPublished={isPublished}
-          onPublish={handlePublish}
-        />
+        {/* Publish Section and Budget Section - Side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <PublishSection
+            allStepsComplete={allStepsComplete}
+            completedCount={completedCount}
+            totalSteps={totalSteps}
+            isPublished={isPublished}
+            onPublish={handlePublish}
+          />
+          {/* Budget Section - Inline expandable */}
+          <CollapsibleSection
+            title="Budget"
+            icon={DollarSign}
+            isComplete={isComplete()}
+            summaryContent={budgetSummaryContent}
+            editContent={<BudgetSchedule />}
+          />
+        </div>
 
         {/* Meta Connect Section */}
         <CollapsibleSection
@@ -972,15 +982,6 @@ export function PreviewPanel() {
           isComplete={goalState.status === "completed"}
           summaryContent={goalSummaryContent}
           onEdit={() => setGoalModalOpen(true)}
-        />
-
-        {/* Budget Section - Inline expandable */}
-        <CollapsibleSection
-          title="Budget"
-          icon={DollarSign}
-          isComplete={isComplete()}
-          summaryContent={budgetSummaryContent}
-          editContent={<BudgetSchedule />}
         />
 
         {/* Edit Modals */}

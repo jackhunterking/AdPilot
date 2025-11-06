@@ -36,9 +36,23 @@ export function CollapsibleSection({
 }: CollapsibleSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen)
 
+  const handleOpenChange = (open: boolean) => {
+    if (editContent) {
+      setIsOpen(open)
+    }
+  }
+
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className={cn("rounded-lg border border-border bg-card", className)}>
-      <CollapsibleTrigger className="w-full">
+    <Collapsible open={isOpen} onOpenChange={handleOpenChange} className={cn("rounded-lg border border-border bg-card", className)}>
+      <CollapsibleTrigger 
+        className={cn("w-full", !editContent && "cursor-default")} 
+        onClick={(e) => {
+          if (!editContent) {
+            e.preventDefault()
+            e.stopPropagation()
+          }
+        }}
+      >
         <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className={cn(
@@ -80,10 +94,12 @@ export function CollapsibleSection({
                 Edit
               </Button>
             )}
-            <ChevronDown className={cn(
-              "h-4 w-4 text-muted-foreground transition-transform",
-              isOpen && "rotate-180"
-            )} />
+            {editContent && (
+              <ChevronDown className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform",
+                isOpen && "rotate-180"
+              )} />
+            )}
           </div>
         </div>
       </CollapsibleTrigger>
