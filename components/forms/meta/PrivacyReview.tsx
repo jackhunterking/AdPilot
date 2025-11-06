@@ -1,46 +1,46 @@
 /**
- * Feature: Meta Instant Forms Privacy Review Screen
- * Purpose: Dedicated stage showing privacy policy information before submission
+ * Feature: Meta Instant Forms Privacy Review - PIXEL PERFECT
+ * Purpose: Privacy review slide - NO white card, EXACT Facebook layout
  * References:
- *  - Meta Instant Forms UI: Privacy review screen
- *  - Meta Business Help: https://www.facebook.com/business/help/1611070512241988
+ *  - Facebook HTML: margin-top 100px, no white card wrapper, progress at 100%
  */
 
 'use client'
 
-import { Info } from 'lucide-react'
 import { metaFormTokens } from './tokens'
 import { PrimaryButton } from './PrimaryButton'
-import { CloseButton } from './CloseButton'
 import { ProgressBar } from './ProgressBar'
 
 interface PrivacyReviewProps {
   pageName?: string
   privacyUrl: string
   onSubmit?: () => void
-  onClose?: () => void
 }
 
 export function PrivacyReview({
   pageName,
   privacyUrl,
   onSubmit,
-  onClose,
 }: PrivacyReviewProps) {
-  const { colors, typography, spacing } = metaFormTokens
+  const { dimensions, slider, spacing, colors, typography } = metaFormTokens
 
   return (
-    <div className="relative flex flex-col" style={{ height: '480px' }}>
-      <CloseButton onClick={onClose} />
-      
-      <div className="flex-1 px-6 py-8" style={{ marginTop: '70px' }}>
+    <div
+      style={{
+        height: `${dimensions.slideHeights.privacy}px`,  // EXACT: 480px
+        position: 'relative',
+        padding: `0 ${slider.cardMargin}px`,
+      }}
+    >
+      {/* Content - EXACT margin-top: 100px */}
+      <div style={{ marginTop: `${spacing.contentBelowProfile}px` }}>
         {/* Heading */}
         <h2
-          className="font-semibold mb-4"
           style={{
-            fontSize: typography.fontSize.lg,
+            fontSize: `${typography.fontSize.lg}px`,  // EXACT: 18px
+            fontWeight: typography.fontWeight.semibold,  // EXACT: 600
             color: colors.text.primary,
-            lineHeight: typography.lineHeight.tight,
+            marginBottom: '16px',
           }}
         >
           Privacy policy
@@ -48,11 +48,11 @@ export function PrivacyReview({
 
         {/* Privacy text */}
         <p
-          className="mb-6"
           style={{
-            fontSize: typography.fontSize.base,
+            fontSize: `${typography.fontSize.base}px`,  // EXACT: 14px
             color: colors.text.secondary,
-            lineHeight: typography.lineHeight.relaxed,
+            lineHeight: typography.lineHeight.normal,
+            marginBottom: '16px',
           }}
         >
           By clicking Submit, you agree to send your info to {pageName || 'this page'} who agrees to
@@ -61,47 +61,56 @@ export function PrivacyReview({
         </p>
 
         {/* Links */}
-        <div className="space-y-3 mb-8">
+        <div style={{ marginBottom: '20px' }}>
           <a
             href="https://www.facebook.com/privacy/policy/"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-start gap-2 transition-opacity hover:opacity-70"
             style={{
-              fontSize: typography.fontSize.base,
+              fontSize: `${typography.fontSize.base}px`,
               color: colors.link,
               textDecoration: 'none',
+              display: 'block',
+              marginBottom: '12px',
             }}
           >
-            <span>View Facebook Data Policy.</span>
+            View Facebook Data Policy.
           </a>
 
           <a
             href={privacyUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-start gap-2 transition-opacity hover:opacity-70"
             style={{
-              fontSize: typography.fontSize.base,
+              fontSize: `${typography.fontSize.base}px`,
               color: colors.link,
               textDecoration: 'none',
+              display: 'block',
             }}
           >
-            <span>Visit {pageName || 'this page'}&apos;s Privacy Policy.</span>
+            Visit {pageName || 'this page'}&apos;s Privacy Policy.
           </a>
         </div>
       </div>
 
-      {/* Bottom section with progress and button */}
-      <div className="mt-auto">
-        <div className="px-6 mb-4">
-          <ProgressBar progress={100} />
-        </div>
-        <div className="px-6 pb-6">
-          <PrimaryButton onClick={onSubmit}>Submit</PrimaryButton>
-        </div>
+      {/* Progress bar - 100% */}
+      <div style={{ marginTop: '20px' }}>
+        <ProgressBar progress={100} />
+      </div>
+
+      {/* Submit button */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: `${spacing.buttonBottom}px`,
+          left: `${slider.cardMargin}px`,
+          right: `${slider.cardMargin}px`,
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+      >
+        <PrimaryButton onClick={onSubmit}>Submit</PrimaryButton>
       </div>
     </div>
   )
 }
-

@@ -1,127 +1,109 @@
 /**
- * Feature: Meta Instant Forms Design Tokens
- * Purpose: Pixel-perfect design tokens derived from Meta's Instant Forms UI
+ * Feature: Meta Instant Forms Design Tokens - PIXEL PERFECT
+ * Purpose: Exact design tokens extracted from Facebook's actual CSS
  * References:
  *  - Meta Business Help Instant Forms: https://www.facebook.com/business/help/1611070512241988
- *  - Facebook Brand Guidelines: Typography (San Francisco iOS, Roboto Android)
+ *  - Facebook CSS: ._8duj, ._81-n, and other classes from Meta Business Suite files
  */
 
 export const metaFormTokens = {
-  // Colors - Meta Instant Forms palette
+  // Colors - EXACT from Facebook
   colors: {
-    background: '#F7F8FA', // Light gray background
-    backgroundDark: '#18191A', // Dark mode background
-    surface: '#FFFFFF', // Card/input surfaces
+    background: '#F0F2F5',  // Light gray background (exact from Facebook)
+    surface: '#FFFFFF',
     text: {
-      primary: '#050505', // Primary text
-      secondary: '#65676B', // Secondary text
-      tertiary: '#8A8D91', // Tertiary/placeholder
-      inverse: '#FFFFFF', // White text on dark
+      primary: '#050505',
+      secondary: '#65676B',
+      tertiary: '#8A8D91',
     },
     border: {
-      default: '#DADDE1', // Input/card borders
-      light: '#E4E6EB', // Lighter borders
+      default: 'rgba(0,0,0,0.1)',  // 0.5px solid
+      divider: '#DADDE1',
     },
     button: {
-      primary: '#1877F2', // Meta blue CTA
+      primary: '#1877F2',
       primaryHover: '#166FE5',
-      primaryActive: '#1364D6',
     },
-    link: '#1877F2', // Links match button blue
-    progress: {
-      track: '#E4E6EB',
-      fill: '#1877F2',
-    },
-    statusBar: {
-      time: '#050505',
-      icons: '#050505',
-    },
+    link: '#1877F2',
   },
 
-  // Border radius
+  // Border radius - EXACT from Facebook CSS
   radii: {
-    card: 12, // Card container radius
-    input: 10, // Input field radius
-    button: 10, // Button radius
-    progress: 4, // Progress bar radius
-    frame: 40, // Device frame radius
+    card: 12,  // ._8duj uses 12px
+    button: 12,  // ._81-n uses 12px
+    profile: '50%',  // Circular
   },
 
-  // Spacing scale (px)
+  // Shadows - EXACT from Facebook CSS
+  shadows: {
+    card: '0 1px 2px rgba(0,0,0,0.3)',  // ._8duj: box-shadow: 0 1px 2px #0000004d
+    button: '0 1px 3px rgba(0,0,0,0.3)',  // ._81-n: box-shadow: 0 1px 3px #0000004d
+  },
+
+  // Horizontal slider - EXACT dimensions
+  slider: {
+    slideWidth: 324,  // Each slide width including spacing
+    cardWidth: 320,   // ._8duj: width: 320px
+    cardMargin: 12,   // ._8duj: margin: 0 12px
+    transitionDuration: '300ms',
+  },
+
+  // Progress bar - EXACT from Facebook
+  progressBar: {
+    height: 4,  // Facebook uses 4px (NOT 3px)
+    trackColor: '#E4E6EB',
+    fillColor: '#1877F2',
+  },
+
+  // Critical spacing from Facebook's HTML
   spacing: {
-    xs: 4,
-    sm: 6,
-    md: 8,
-    lg: 12,
-    xl: 16,
-    '2xl': 20,
-    '3xl': 24,
-    '4xl': 32,
+    profileTop: 70,      // margin-top: 70px for profile image
+    contentBelowProfile: 100,  // margin-top: 100px for content below profile
+    cardPadding: 20,     // padding inside white card
+    fieldMargin: 20,     // margin-bottom between fields
+    buttonBottom: 24,    // bottom spacing for buttons
   },
 
-  // Typography
+  // Component dimensions - EXACT from Facebook
+  dimensions: {
+    container: {
+      width: 360,  // Overall container width
+    },
+    button: {
+      height: 34,  // ._81-n: height: 34px (NOT 48px!)
+      width: 300,  // ._81-n: width: 300px
+    },
+    slideHeights: {
+      intro: 480,
+      contact: 480,
+      privacy: 480,
+      thankYou: 488,
+    },
+    profile: {
+      size: 80,  // Profile picture 80x80
+    },
+  },
+
+  // Typography - EXACT from Facebook
   typography: {
-    // Font families (system fonts for native feel)
-    fontFamily: {
-      ios: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", sans-serif',
-      android: 'Roboto, "Helvetica Neue", Arial, sans-serif',
-      web: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-    },
-    // Font sizes
     fontSize: {
-      xs: 11, // Status bar, small labels
-      sm: 13, // Secondary text, privacy
-      base: 15, // Input labels, body text
-      lg: 17, // Headers, stage titles
-      xl: 20, // Thank you title
+      xs: 11,    // Tiny text
+      sm: 12,    // Small text
+      base: 14,  // Body text (default)
+      md: 16,    // Subheading
+      lg: 18,    // Heading (Contact information, etc.)
+      xl: 20,    // Large heading (Headline text)
     },
-    // Font weights
     fontWeight: {
       normal: 400,
       medium: 500,
       semibold: 600,
+      bold: 700,
     },
-    // Line heights
     lineHeight: {
       tight: 1.2,
       normal: 1.4,
       relaxed: 1.6,
-    },
-    // Letter spacing
-    letterSpacing: {
-      tight: '-0.01em',
-      normal: '0',
-      wide: '0.01em',
-    },
-  },
-
-  // Component-specific dimensions
-  dimensions: {
-    frame: {
-      width: 360, // Device width
-      height: 780, // Device height
-      border: 8, // Frame border width
-    },
-    statusBar: {
-      height: 32, // Status bar height with notch
-      notchWidth: 120,
-      notchHeight: 28,
-    },
-    header: {
-      height: 56, // Header container height
-      iconSize: 20, // Back chevron size
-    },
-    progress: {
-      height: 3, // Progress bar height
-    },
-    input: {
-      height: 44, // Input field height
-      paddingX: 16,
-      paddingY: 12,
-    },
-    button: {
-      height: 48, // Primary button height
-      paddingX: 24,
     },
   },
 
@@ -132,25 +114,11 @@ export const metaFormTokens = {
     slow: '300ms ease-in-out',
   },
 
-  // Horizontal slider
-  slider: {
-    slideWidth: 324,
-    transitionDuration: '300ms',
-  },
-
-  // Progress bar
-  progressBar: {
-    height: 3,
-    trackColor: '#E4E6EB',
-    fillColor: '#1877F2',
-  },
-
   // Intro screen
   intro: {
     profilePictureSize: 80,
-    profilePictureBorder: 2,
+    profilePictureBorder: 0,  // No border on profile
   },
 } as const
 
 export type MetaFormTokens = typeof metaFormTokens
-

@@ -1,8 +1,8 @@
 /**
- * Feature: Meta Instant Forms Input Field
- * Purpose: Pixel-perfect input field replica (disabled for preview)
+ * Feature: Meta Instant Forms Input Field - PIXEL PERFECT
+ * Purpose: Input field with bottom border only - EXACT Facebook styling
  * References:
- *  - Meta Instant Forms UI: Input field styling
+ *  - Facebook HTML: Bottom border only, exact spacing
  */
 
 import { Mail, User, Phone } from 'lucide-react'
@@ -22,9 +22,9 @@ const FIELD_ICONS = {
 } as const
 
 const FIELD_PLACEHOLDERS = {
-  FULL_NAME: 'Enter your answer',
-  EMAIL: 'Enter your answer',
-  PHONE: 'Enter your answer',
+  FULL_NAME: 'Enter your answer.',
+  EMAIL: 'Enter your answer.',
+  PHONE: 'Enter your answer.',
 } as const
 
 export function Field({ type, label, placeholder }: FieldProps) {
@@ -33,15 +33,15 @@ export function Field({ type, label, placeholder }: FieldProps) {
   const placeholderText = placeholder || FIELD_PLACEHOLDERS[type]
 
   return (
-    <div className="w-full" style={{ marginBottom: spacing['2xl'] }}>
+    <div style={{ marginBottom: `${spacing.fieldMargin}px` }}>
       {/* Label */}
       <label
-        className="block font-normal"
         style={{
-          fontSize: typography.fontSize.base,
+          display: 'block',
+          fontSize: `${typography.fontSize.base}px`,
           color: colors.text.primary,
-          lineHeight: typography.lineHeight.normal,
-          marginBottom: spacing.md,
+          marginBottom: '8px',
+          fontWeight: typography.fontWeight.normal,
         }}
       >
         {label}
@@ -49,10 +49,11 @@ export function Field({ type, label, placeholder }: FieldProps) {
 
       {/* Input field with bottom border only */}
       <div
-        className="relative flex items-center"
         style={{
-          paddingBottom: spacing.md,
-          borderBottom: `1px solid ${colors.border.default}`,
+          display: 'flex',
+          alignItems: 'center',
+          paddingBottom: '8px',
+          borderBottom: `1px solid ${colors.border.divider}`,  // Bottom border only
         }}
       >
         {/* Icon */}
@@ -60,16 +61,15 @@ export function Field({ type, label, placeholder }: FieldProps) {
           size={20}
           style={{
             color: colors.text.tertiary,
-            marginRight: spacing.md,
+            marginRight: '8px',
             flexShrink: 0,
           }}
         />
 
         {/* Placeholder text */}
         <span
-          className="flex-1"
           style={{
-            fontSize: typography.fontSize.base,
+            fontSize: `${typography.fontSize.base}px`,
             color: colors.text.tertiary,
             lineHeight: typography.lineHeight.normal,
           }}
@@ -80,4 +80,3 @@ export function Field({ type, label, placeholder }: FieldProps) {
     </div>
   )
 }
-

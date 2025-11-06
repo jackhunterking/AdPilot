@@ -1,14 +1,13 @@
 /**
- * Feature: Meta Instant Forms Thank You Screen
- * Purpose: Completion screen with title, body, and optional CTA
+ * Feature: Meta Instant Forms Thank You Screen - PIXEL PERFECT
+ * Purpose: Completion screen - NO white card, EXACT Facebook layout
  * References:
- *  - Meta Instant Forms UI: Thank you page after submission
+ *  - Facebook HTML: profile at 70px, content at 100px, height 488px
  */
 
 import { User } from 'lucide-react'
 import { metaFormTokens } from './tokens'
 import { PrimaryButton } from './PrimaryButton'
-import { CloseButton } from './CloseButton'
 import { useState, useEffect } from 'react'
 
 interface ThankYouProps {
@@ -18,7 +17,6 @@ interface ThankYouProps {
   ctaUrl?: string
   pageProfilePicture?: string
   pageName?: string
-  onClose?: () => void
 }
 
 export function ThankYou({ 
@@ -28,9 +26,8 @@ export function ThankYou({
   ctaUrl,
   pageProfilePicture,
   pageName,
-  onClose
 }: ThankYouProps) {
-  const { colors, typography, spacing, intro } = metaFormTokens
+  const { dimensions, spacing, colors, typography, intro, slider } = metaFormTokens
   const [imageError, setImageError] = useState(false)
 
   useEffect(() => {
@@ -40,90 +37,109 @@ export function ThankYou({
   const showFallback = !pageProfilePicture || imageError
 
   return (
-    <div className="relative flex flex-col items-center text-center px-6 py-8" style={{ height: '488px' }}>
-      <CloseButton onClick={onClose} />
-      
-      {/* Profile Picture */}
-      <div
-        className="rounded-full overflow-hidden flex items-center justify-center mb-4"
-        style={{
-          width: intro.profilePictureSize,
-          height: intro.profilePictureSize,
-          border: `${intro.profilePictureBorder}px solid ${colors.border.light}`,
-          backgroundColor: showFallback ? colors.background : 'transparent',
-          marginTop: '70px',
-        }}
-      >
-        {showFallback ? (
-          <User
-            size={40}
-            style={{ color: colors.text.tertiary }}
-            strokeWidth={1.5}
-          />
-        ) : (
-          <img
-            src={pageProfilePicture}
-            alt={pageName || 'Page profile'}
-            className="w-full h-full object-cover"
-            onError={() => setImageError(true)}
-          />
-        )}
+    <div
+      style={{
+        height: `${dimensions.slideHeights.thankYou}px`,  // EXACT: 488px
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        textAlign: 'center',
+        padding: `0 ${slider.cardMargin}px`,
+      }}
+    >
+      {/* Profile Picture - EXACT margin-top: 70px */}
+      <div style={{ marginTop: `${spacing.profileTop}px` }}>
+        <div
+          style={{
+            width: `${intro.profilePictureSize}px`,
+            height: `${intro.profilePictureSize}px`,
+            borderRadius: '50%',
+            overflow: 'hidden',
+            backgroundColor: showFallback ? colors.background : 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {showFallback ? (
+            <User size={40} style={{ color: colors.text.tertiary }} strokeWidth={1.5} />
+          ) : (
+            <img
+              src={pageProfilePicture}
+              alt={pageName || 'Page profile'}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={() => setImageError(true)}
+            />
+          )}
+        </div>
       </div>
 
-      {/* Page Name */}
-      {pageName && (
-        <p
-          className="font-normal mb-4"
+      {/* Content - EXACT margin-top: 100px from profile */}
+      <div style={{ marginTop: `${spacing.contentBelowProfile}px` }}>
+        {/* Page Name */}
+        {pageName && (
+          <p
+            style={{
+              fontSize: `${typography.fontSize.base}px`,
+              color: colors.text.secondary,
+              marginBottom: '8px',
+              fontWeight: typography.fontWeight.normal,
+            }}
+          >
+            {pageName}
+          </p>
+        )}
+
+        {/* Title */}
+        <h2
           style={{
-            fontSize: typography.fontSize.base,
-            color: colors.text.secondary,
+            fontSize: `${typography.fontSize.lg}px`,  // EXACT: 18px
+            fontWeight: typography.fontWeight.semibold,
+            color: colors.text.primary,
+            marginBottom: '12px',
+          }}
+        >
+          {title}
+        </h2>
+
+        {/* Body text */}
+        {body && (
+          <p
+            style={{
+              fontSize: `${typography.fontSize.base}px`,
+              color: colors.text.secondary,
+              marginBottom: '12px',
+              lineHeight: typography.lineHeight.normal,
+            }}
+          >
+            {body}
+          </p>
+        )}
+
+        {/* Success message */}
+        <p
+          style={{
+            fontSize: `${typography.fontSize.xs}px`,  // EXACT: 11px
+            color: colors.text.tertiary,
             lineHeight: typography.lineHeight.normal,
           }}
         >
-          {pageName}
+          ℹ️ You successfully submitted your responses.
         </p>
-      )}
+      </div>
 
-      {/* Title */}
-      <h2
-        className="font-semibold mb-3"
+      {/* View website button at bottom */}
+      <div
         style={{
-          fontSize: typography.fontSize.lg,
-          color: colors.text.primary,
-          lineHeight: typography.lineHeight.tight,
+          position: 'absolute',
+          bottom: `${spacing.buttonBottom}px`,
+          left: `${slider.cardMargin}px`,
+          right: `${slider.cardMargin}px`,
+          display: 'flex',
+          justifyContent: 'center',
         }}
       >
-        {title}
-      </h2>
-
-      {/* Body text */}
-      {body && (
-        <p
-          className="mb-6"
-          style={{
-            fontSize: typography.fontSize.base,
-            color: colors.text.secondary,
-            lineHeight: typography.lineHeight.relaxed,
-          }}
-        >
-          {body}
-        </p>
-      )}
-
-      {/* Success message */}
-      <p
-        className="text-xs mb-8"
-        style={{
-          fontSize: typography.fontSize.xs,
-          color: colors.text.tertiary,
-          lineHeight: typography.lineHeight.normal,
-        }}
-      >
-        ℹ️ You successfully submitted your responses.
-      </p>
-
-      {/* CTA button */}
-      <div className="w-full max-w-xs mt-auto">
         <PrimaryButton onClick={() => ctaUrl && window.open(ctaUrl, '_blank')}>
           {ctaText || 'View website'}
         </PrimaryButton>
@@ -131,4 +147,3 @@ export function ThankYou({
     </div>
   )
 }
-

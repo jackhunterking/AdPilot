@@ -1,9 +1,8 @@
 /**
- * Feature: Meta Instant Forms Intro Screen
- * Purpose: First stage showing page profile, name, and form headline
+ * Feature: Meta Instant Forms Intro Screen - PIXEL PERFECT
+ * Purpose: First stage with profile picture and headline - EXACT Facebook layout
  * References:
- *  - Meta Instant Forms UI: Intro/welcome screen
- *  - Meta Graph API Page Picture: https://developers.facebook.com/docs/graph-api/reference/profile-picture-source/
+ *  - Facebook HTML: margin-top 70px for profile, 100px for content
  */
 
 'use client'
@@ -12,14 +11,12 @@ import { useState, useEffect } from 'react'
 import { User } from 'lucide-react'
 import { metaFormTokens } from './tokens'
 import { PrimaryButton } from './PrimaryButton'
-import { CloseButton } from './CloseButton'
 
 interface IntroProps {
   pageProfilePicture?: string
   pageName?: string
   headline: string
   onContinue?: () => void
-  onClose?: () => void
 }
 
 export function Intro({
@@ -27,12 +24,10 @@ export function Intro({
   pageName,
   headline,
   onContinue,
-  onClose,
 }: IntroProps) {
-  const { intro, colors, typography, spacing } = metaFormTokens
+  const { dimensions, spacing, colors, typography, intro } = metaFormTokens
   const [imageError, setImageError] = useState(false)
 
-  // Reset image error state when picture URL changes
   useEffect(() => {
     setImageError(false)
   }, [pageProfilePicture])
@@ -40,67 +35,87 @@ export function Intro({
   const showFallback = !pageProfilePicture || imageError
 
   return (
-    <div className="relative flex flex-col items-center text-center px-6 py-8" style={{ height: '480px' }}>
-      <CloseButton onClick={onClose} />
-      
-      {/* Profile Picture */}
-      <div
-        className="rounded-full overflow-hidden flex items-center justify-center mb-4"
-        style={{
-          width: intro.profilePictureSize,
-          height: intro.profilePictureSize,
-          border: `${intro.profilePictureBorder}px solid ${colors.border.light}`,
-          backgroundColor: showFallback ? colors.background : 'transparent',
-          marginTop: '70px',
-        }}
-      >
-        {showFallback ? (
-          <User
-            size={40}
-            style={{ color: colors.text.tertiary }}
-            strokeWidth={1.5}
-          />
-        ) : (
-          <img
-            src={pageProfilePicture}
-            alt={pageName || 'Page profile'}
-            className="w-full h-full object-cover"
-            onError={() => setImageError(true)}
-          />
-        )}
-      </div>
-
-      {/* Page Name */}
-      {pageName && (
-        <p
-          className="font-normal mb-6"
+    <div
+      style={{
+        height: `${dimensions.slideHeights.intro}px`,  // EXACT: 480px
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        textAlign: 'center',
+      }}
+    >
+      {/* Profile Picture - EXACT margin-top: 70px */}
+      <div style={{ marginTop: `${spacing.profileTop}px`, display: 'flex', justifyContent: 'center' }}>
+        <div
           style={{
-            fontSize: typography.fontSize.base,
-            color: colors.text.secondary,
-            lineHeight: typography.lineHeight.normal,
+            width: `${intro.profilePictureSize}px`,
+            height: `${intro.profilePictureSize}px`,
+            borderRadius: '50%',
+            overflow: 'hidden',
+            backgroundColor: showFallback ? colors.background : 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          {pageName}
-        </p>
-      )}
+          {showFallback ? (
+            <User size={40} style={{ color: colors.text.tertiary }} strokeWidth={1.5} />
+          ) : (
+            <img
+              src={pageProfilePicture}
+              alt={pageName || 'Page profile'}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={() => setImageError(true)}
+            />
+          )}
+        </div>
+      </div>
 
-      {/* Headline */}
-      <h2
-        className="font-semibold mb-8"
+      {/* Content - EXACT margin-top: 100px from profile */}
+      <div style={{ marginTop: `${spacing.contentBelowProfile}px`, padding: '0 24px' }}>
+        {/* Page Name */}
+        {pageName && (
+          <p
+            style={{
+              fontSize: `${typography.fontSize.base}px`,
+              color: colors.text.secondary,
+              marginBottom: '16px',
+              fontWeight: typography.fontWeight.normal,
+            }}
+          >
+            {pageName}
+          </p>
+        )}
+
+        {/* Headline */}
+        <h2
+          style={{
+            fontSize: `${typography.fontSize.xl}px`,
+            fontWeight: typography.fontWeight.semibold,
+            color: colors.text.primary,
+            lineHeight: typography.lineHeight.tight,
+          }}
+        >
+          {headline}
+        </h2>
+      </div>
+
+      {/* Continue button at bottom */}
+      <div
         style={{
-          fontSize: typography.fontSize.xl,
-          color: colors.text.primary,
-          lineHeight: typography.lineHeight.tight,
+          position: 'absolute',
+          bottom: `${spacing.buttonBottom}px`,
+          left: '12px',
+          right: '12px',
+          display: 'flex',
+          justifyContent: 'center',
         }}
       >
-        {headline}
-      </h2>
-
-      {/* Continue Button */}
-      <div className="w-full max-w-xs" style={{ marginTop: 'auto' }}>
-        <PrimaryButton onClick={onContinue}>Continue</PrimaryButton>
+        <PrimaryButton onClick={onContinue} showArrow={true}>
+          Continue
+        </PrimaryButton>
       </div>
     </div>
   )
 }
-
