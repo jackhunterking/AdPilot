@@ -20,13 +20,14 @@ import { cn } from "@/lib/utils"
 import { newEditSession } from "@/lib/utils/edit-session"
 // Removed two-step Meta connect flow; using single summary card
 import { MetaConnectCard } from "@/components/meta/MetaConnectCard"
-import { LocationSummaryCard } from "@/components/launch/location-summary-card"
-import { AudienceSummaryCard } from "@/components/launch/audience-summary-card"
-import { FormSummaryCard } from "@/components/launch/form-summary-card"
 import { BudgetSchedule } from "@/components/forms/budget-schedule"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import type { Database } from "@/lib/supabase/database.types"
 import { metaStorage } from "@/lib/meta/storage"
+import { CollapsibleSection } from "@/components/launch/collapsible-section"
+import { SectionEditModal } from "@/components/launch/section-edit-modal"
+import { PublishSection } from "@/components/launch/publish-section"
+import { Link2, MapPin, Target, Flag, DollarSign } from "lucide-react"
 
 const mockAdAccounts = [
   { id: "act_123456789", name: "Main Business Account", currency: "USD" },
@@ -48,6 +49,12 @@ export function PreviewPanel() {
   const [isEditingBudget, setIsEditingBudget] = useState(false)
   const [budgetInputValue, setBudgetInputValue] = useState(budgetState.dailyBudget.toString())
   
+  // Modal state management for section editing
+  const [metaModalOpen, setMetaModalOpen] = useState(false)
+  const [locationModalOpen, setLocationModalOpen] = useState(false)
+  const [audienceModalOpen, setAudienceModalOpen] = useState(false)
+  const [goalModalOpen, setGoalModalOpen] = useState(false)
+
   // Memoized Meta connection completion check - reacts to campaign state and budget state changes
   const isMetaConnectionComplete = useMemo(() => {
     // Check database state first
@@ -78,6 +85,32 @@ export function PreviewPanel() {
     
     return serverConnected || budgetConnected || localStorageConnected
   }, [campaign?.campaign_states, campaign?.id, budgetState.isConnected])
+
+  // Close modals when sections complete
+  useEffect(() => {
+    if (locationState.status === "completed" && locationModalOpen) {
+      setLocationModalOpen(false)
+    }
+  }, [locationState.status, locationModalOpen])
+
+  useEffect(() => {
+    if (audienceState.status === "completed" && audienceModalOpen) {
+      setAudienceModalOpen(false)
+    }
+  }, [audienceState.status, audienceModalOpen])
+
+  useEffect(() => {
+    if (goalState.status === "completed" && goalModalOpen) {
+      setGoalModalOpen(false)
+    }
+  }, [goalState.status, goalModalOpen])
+
+  useEffect(() => {
+    if (isMetaConnectionComplete && metaModalOpen) {
+      // Don't auto-close meta modal as it may need payment setup
+      // setMetaModalOpen(false)
+    }
+  }, [isMetaConnectionComplete, metaModalOpen])
   
   // Listen for image edit events from AI chat (always mounted)
   useEffect(() => {
@@ -679,7 +712,78 @@ export function PreviewPanel() {
     </div>
   )
 
-  // Step 5: Launch Content (new unified layout)
+  // Calculate completed steps count
+  const completedCount = useMemo(() => {
+    return [
+      selectedImageIndex !== null,
+      adCopyState.status === "completed",
+      locationState.status === "completed",
+      audienceState.status === "completed",
+      isMetaConnectionComplete,
+      goalState.status === "completed"
+    ].filter(Boolean).length
+  }, [selectedImageIndex, adCopyState.status, locationState.status, audienceState.status, isMetaConnectionComplete, goalState.status])
+
+  const totalSteps = 6
+
+  // Summary content generators for each section
+  const metaSummaryContent = useMemo(() => {
+    if (!isMetaConnectionComplete) {
+      return "Not connected"
+    }
+    const connection = campaign?.id ? metaStorage.getConnection(campaign.id) : null
+    if (!connection) return "Connected"
+    const summary = campaign?.id ? metaStorage.getConnectionSummary(campaign.id) : null
+    const accounts: string[] = []
+    if (summary?.business?.name) accounts.push(`Business: ${summary.business.name}`)
+    if (summary?.page?.name) accounts.push(`Page: ${summary.page.name}`)
+    if (summary?.adAccount?.name) accounts.push(`Ad Account: ${summary.adAccount.name}`)
+    return accounts.length > 0 ? accounts.join(", ") : "Connected"
+  }, [isMetaConnectionComplete, campaign?.id])
+
+  const locationSummaryContent = useMemo(() => {
+    const included = locationState.locations.filter(l => l.mode === "include")
+    const excluded = locationState.locations.filter(l => l.mode === "exclude")
+    if (included.length === 0 && excluded.length === 0) return "No locations selected"
+    const parts: string[] = []
+    if (included.length > 0) parts.push(`${included.length} included`)
+    if (excluded.length > 0) parts.push(`${excluded.length} excluded`)
+    return parts.join(", ")
+  }, [locationState.locations])
+
+  const audienceSummaryContent = useMemo(() => {
+    const mode = audienceState.targeting?.mode ?? "ai"
+    if (mode === "ai") {
+      return "AI Targeting enabled"
+    }
+    const t = audienceState.targeting
+    if (!t) return "Custom targeting"
+    if (t.description && t.description.trim().length > 0) {
+      return t.description.length > 60 ? `${t.description.slice(0, 60)}...` : t.description
+    }
+    return "Custom targeting configured"
+  }, [audienceState.targeting])
+
+  const goalSummaryContent = useMemo(() => {
+    if (!goalState.selectedGoal) return "No goal selected"
+    const form = goalState.formData
+    if (goalState.selectedGoal === 'leads' && form?.name) {
+      return form.name
+    }
+    if (goalState.selectedGoal === 'calls' && form?.phoneNumber) {
+      return `Calls: ${form.phoneNumber}`
+    }
+    if (goalState.selectedGoal === 'website-visits' && form?.websiteUrl) {
+      return form.displayLink || form.websiteUrl
+    }
+    return `${goalState.selectedGoal} goal selected`
+  }, [goalState.selectedGoal, goalState.formData])
+
+  const budgetSummaryContent = useMemo(() => {
+    return `$${budgetState.dailyBudget}/day`
+  }, [budgetState.dailyBudget])
+
+  // Step 5: Launch Content (new unified layout with collapsible sections)
   const launchContent = (
     <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6">
       {/* Left: Full ad mockup using selected variation */}
@@ -750,57 +854,94 @@ export function PreviewPanel() {
           : adVariations.map((v, i) => selectedImageIndex === i && renderFeedAd(v, i))}
       </div>
 
-      {/* Right: Summary stack */}
-      <div className="flex flex-col gap-4 max-w-3xl mx-auto">
-        <MetaConnectCard />
-        <LocationSummaryCard />
-        <AudienceSummaryCard />
-        <FormSummaryCard />
+      {/* Right: Collapsible sections with modals */}
+      <div className="flex flex-col gap-6 max-w-3xl mx-auto">
+        {/* Publish Section - Prominent at top */}
+        <PublishSection
+          allStepsComplete={allStepsComplete}
+          completedCount={completedCount}
+          totalSteps={totalSteps}
+          isPublished={isPublished}
+          onPublish={handlePublish}
+        />
 
-        <BudgetSchedule />
+        {/* Meta Connect Section */}
+        <CollapsibleSection
+          title="Connect Facebook & Instagram"
+          icon={Link2}
+          isComplete={isMetaConnectionComplete}
+          summaryContent={metaSummaryContent}
+          onEdit={() => setMetaModalOpen(true)}
+        />
 
-        {/* Removed old inline budget block in favor of BudgetSchedule */}
+        {/* Location Section */}
+        <CollapsibleSection
+          title="Target Locations"
+          icon={MapPin}
+          isComplete={locationState.status === "completed"}
+          summaryContent={locationSummaryContent}
+          onEdit={() => setLocationModalOpen(true)}
+        />
 
-        {/* Publish CTA - Always visible with step counter */}
-        <div className={cn(
-          "rounded-lg border p-4",
-          allStepsComplete 
-            ? "border-green-500/30 bg-green-500/5" 
-            : "border-border bg-card"
-        )}>
-          {allStepsComplete ? (
-            <>
-              <h3 className="font-semibold mb-1">Ready to Publish!</h3>
-              <p className="text-sm text-muted-foreground mb-3">All steps completed. Review your campaign and publish when ready.</p>
-            </>
-          ) : (
-            <>
-              <h3 className="font-semibold mb-1">Complete All Steps</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                {(() => {
-                  const completedCount = [
-                    selectedImageIndex !== null,
-                    adCopyState.status === "completed",
-                    locationState.status === "completed",
-                    audienceState.status === "completed",
-                    isMetaConnectionComplete,
-                    goalState.status === "completed"
-                  ].filter(Boolean).length
-                  return `${completedCount} of 6 steps completed`
-                })()}
-              </p>
-            </>
-          )}
-          <Button 
-            onClick={handlePublish} 
-            disabled={!allStepsComplete} 
-            size="lg" 
-            className="w-full gap-2 bg-[#4B73FF] hover:bg-[#3d5fd9] disabled:opacity-50"
-          >
-            <Play className="h-4 w-4" />
-            {isPublished ? 'Unpublish Campaign' : 'Publish Campaign'}
-          </Button>
-        </div>
+        {/* Audience Section */}
+        <CollapsibleSection
+          title="Audience"
+          icon={Target}
+          isComplete={audienceState.status === "completed"}
+          summaryContent={audienceSummaryContent}
+          onEdit={() => setAudienceModalOpen(true)}
+        />
+
+        {/* Goal Section */}
+        <CollapsibleSection
+          title="Goal"
+          icon={Flag}
+          isComplete={goalState.status === "completed"}
+          summaryContent={goalSummaryContent}
+          onEdit={() => setGoalModalOpen(true)}
+        />
+
+        {/* Budget Section - Inline expandable */}
+        <CollapsibleSection
+          title="Budget"
+          icon={DollarSign}
+          isComplete={isComplete()}
+          summaryContent={budgetSummaryContent}
+          editContent={<BudgetSchedule />}
+        />
+
+        {/* Edit Modals */}
+        <SectionEditModal
+          open={metaModalOpen}
+          onOpenChange={setMetaModalOpen}
+          title="Connect Facebook & Instagram"
+        >
+          <MetaConnectCard mode="step" />
+        </SectionEditModal>
+
+        <SectionEditModal
+          open={locationModalOpen}
+          onOpenChange={setLocationModalOpen}
+          title="Target Locations"
+        >
+          <LocationSelectionCanvas />
+        </SectionEditModal>
+
+        <SectionEditModal
+          open={audienceModalOpen}
+          onOpenChange={setAudienceModalOpen}
+          title="Define Audience"
+        >
+          <AudienceSelectionCanvas />
+        </SectionEditModal>
+
+        <SectionEditModal
+          open={goalModalOpen}
+          onOpenChange={setGoalModalOpen}
+          title="Set Your Goal"
+        >
+          <GoalSelectionCanvas />
+        </SectionEditModal>
       </div>
     </div>
   )
