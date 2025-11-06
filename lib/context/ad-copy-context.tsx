@@ -53,15 +53,24 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
     // campaign_states is 1-to-1 object, not array
     const savedData = campaign.campaign_states?.ad_copy_data as unknown as AdCopyState | null
     if (savedData) {
+      // Limit to first 3 variations if restoring old data with more than 3
+      const limitedVariations = savedData.customCopyVariations 
+        ? savedData.customCopyVariations.slice(0, 3)
+        : null
       console.log('[AdCopyContext] ✅ Restoring ad copy state:', {
         selectedIndex: savedData.selectedCopyIndex,
-        hasCustomVariations: !!savedData.customCopyVariations,
-        customVariationsCount: savedData.customCopyVariations?.length || 0,
+        hasCustomVariations: !!limitedVariations,
+        customVariationsCount: limitedVariations?.length || 0,
       });
+      // Reset selected index if it's out of range (greater than 2 for 3 variations)
+      const validSelectedIndex = savedData.selectedCopyIndex != null && savedData.selectedCopyIndex < 3
+        ? savedData.selectedCopyIndex
+        : null
+      
       setAdCopyState({
-        selectedCopyIndex: savedData.selectedCopyIndex ?? null,
+        selectedCopyIndex: validSelectedIndex,
         status: savedData.status || "idle",
-        customCopyVariations: savedData.customCopyVariations || null,
+        customCopyVariations: limitedVariations,
       })
     }
     
@@ -86,19 +95,23 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
   }
 
   const setCustomCopyVariations = (variations: AdCopyVariation[]) => {
+    // Always limit to first 3 variations for consistency
+    const limitedVariations = variations.slice(0, 3)
     console.log('[AdCopyContext] 📝 Setting custom copy variations:', {
-      count: variations.length,
-      firstHeadline: variations[0]?.headline,
+      count: limitedVariations.length,
+      firstHeadline: limitedVariations[0]?.headline,
     })
     setAdCopyState(prev => ({
       ...prev,
-      customCopyVariations: variations,
+      customCopyVariations: limitedVariations,
     }))
   }
 
   const getActiveVariations = (): AdCopyVariation[] => {
     // Return custom variations if available, otherwise return defaults
-    return adCopyState.customCopyVariations || adCopyVariations
+    // Always limit to first 3 variations for consistency
+    const variations = adCopyState.customCopyVariations || adCopyVariations
+    return variations.slice(0, 3)
   }
 
   const isComplete = () => adCopyState.status === "completed"

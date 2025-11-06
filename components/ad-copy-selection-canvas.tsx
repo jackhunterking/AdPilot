@@ -151,8 +151,9 @@ export function AdCopySelectionCanvas() {
         })
         if (!res.ok) throw new Error(await res.text())
         const data = await res.json()
-        if (!cancelled && data?.variations?.length === 3) {
-          setCustomCopyVariations(data.variations)
+        if (!cancelled && data?.variations?.length) {
+          // Only take the first 3 variations to ensure consistency
+          setCustomCopyVariations(data.variations.slice(0, 3))
         }
       } catch (e) {
         console.error('[AdCopy] generation failed', e)
@@ -510,8 +511,8 @@ export function AdCopySelectionCanvas() {
 
       {/* Grid of Ad Copy Variations */}
       <div className="grid grid-cols-3 gap-4 max-w-6xl mx-auto">
-        {activeFormat === "feed" && activeVariations.map((_, index) => renderFeedAdCopyCard(index))}
-        {activeFormat === "story" && activeVariations.map((_, index) => renderStoryAdCopyCard(index))}
+        {activeFormat === "feed" && activeVariations.slice(0, 3).map((_, index) => renderFeedAdCopyCard(index))}
+        {activeFormat === "story" && activeVariations.slice(0, 3).map((_, index) => renderStoryAdCopyCard(index))}
       </div>
 
       {/* CTA Selector */}
