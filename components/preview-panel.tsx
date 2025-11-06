@@ -27,7 +27,6 @@ import { metaStorage } from "@/lib/meta/storage"
 import { CollapsibleSection } from "@/components/launch/collapsible-section"
 import { SectionEditModal } from "@/components/launch/section-edit-modal"
 import { PublishSection } from "@/components/launch/publish-section"
-import { Link2, MapPin, Target, Flag, DollarSign } from "lucide-react"
 
 const mockAdAccounts = [
   { id: "act_123456789", name: "Main Business Account", currency: "USD" },
