@@ -463,21 +463,9 @@ export function PreviewPanel() {
               alt={adContent.headline}
               className="w-full h-full object-cover"
             />
-            {/* Text Overlay */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center text-white">
-                <p className="font-bold mb-1" style={{ fontSize: '24px', marginBottom: '4px' }}>Reach more, sell more,</p>
-                <p className="font-bold" style={{ fontSize: '20px' }}>all on facebook</p>
-              </div>
-            </div>
           </div>
         ) : (
-          <div className={`relative overflow-hidden bg-[#1C1E21] flex items-center justify-center`} style={{ aspectRatio: '1/1' }}>
-            <div className="text-center text-white">
-              <p className="font-bold mb-1" style={{ fontSize: '24px', marginBottom: '4px' }}>Reach more, sell more,</p>
-              <p className="font-bold" style={{ fontSize: '20px' }}>all on facebook</p>
-            </div>
-          </div>
+          <div className={`relative overflow-hidden bg-[#1C1E21]`} style={{ aspectRatio: '1/1' }} />
         )}
 
         {/* Link Preview Section - Horizontal Layout */}
@@ -647,8 +635,8 @@ export function PreviewPanel() {
           </div>
         </div>
 
-        {/* Header Section - Orange Bar */}
-        <div className="relative z-20 bg-[#FF6B35] px-3 py-2.5" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px' }}>
+        {/* Header Section - Subtle Gray Bar */}
+        <div className="relative z-20 bg-[#F2F3F5] px-3 py-2.5" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px' }}>
           <div className="flex items-center gap-2">
             {/* Brand Logo - 40x40px */}
             <div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center flex-shrink-0" style={{ width: '40px', height: '40px', borderRadius: '8px' }}>
@@ -675,71 +663,23 @@ export function PreviewPanel() {
                 alt={adContent.headline} 
                 className="w-full h-full object-cover"
               />
-              
-              {/* Text Overlay & Primary CTA Button - Centered on Image */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center px-4" style={{ bottom: '140px' }}>
-                {/* Text Overlay */}
-                <p className="text-white font-bold text-center mb-4" style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>
-                  <Skeleton className="inline-block h-5 w-48 bg-white/30" style={{ height: '24px' }} />
-                </p>
-                
-                {/* Primary CTA Button */}
-                <button 
-                  className="bg-white text-[#1877F2] font-semibold rounded-lg px-3 py-2 hover:bg-gray-100 transition-colors"
-                  style={{ 
-                    fontSize: '15px', 
-                    fontWeight: 600, 
-                    paddingLeft: '12px', 
-                    paddingRight: '12px', 
-                    paddingTop: '8px', 
-                    paddingBottom: '8px',
-                    borderRadius: '8px'
-                  }}
-                  disabled
-                >
-                  Check Availability
-                </button>
-              </div>
             </div>
           ) : (
-            <div className={`relative w-full h-full bg-gradient-to-br ${variation.gradient}`}>
-              {/* Text Overlay & Primary CTA Button - Centered on Gradient */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center px-4" style={{ bottom: '140px' }}>
-                {/* Text Overlay */}
-                <p className="text-white font-bold text-center mb-4" style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>
-                  <Skeleton className="inline-block h-5 w-48 bg-white/30" style={{ height: '24px' }} />
-                </p>
-                
-                {/* Primary CTA Button */}
-                <button 
-                  className="bg-white text-[#1877F2] font-semibold rounded-lg px-3 py-2 hover:bg-gray-100 transition-colors"
-                  style={{ 
-                    fontSize: '15px', 
-                    fontWeight: 600, 
-                    paddingLeft: '12px', 
-                    paddingRight: '12px', 
-                    paddingTop: '8px', 
-                    paddingBottom: '8px',
-                    borderRadius: '8px'
-                  }}
-                  disabled
-                >
-                  Check Availability
-                </button>
-              </div>
-            </div>
+            <div className={`relative w-full h-full bg-gradient-to-br ${variation.gradient}`} />
           )}
         </div>
 
         {/* Bottom Ad Copy/Engagement Section - Dark Background */}
         <div className="absolute bottom-0 left-0 right-0 z-20 bg-[#242526]">
-          {/* Information Text with Icon */}
+          {/* Information Text with Icon - Skeleton Loaders */}
           <div className="flex items-start gap-2 px-3 pt-3 pb-2" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '12px', paddingBottom: '8px' }}>
             <AlertTriangle className="h-4 w-4 text-white flex-shrink-0 mt-0.5" style={{ width: '16px', height: '16px' }} />
-            <p className="text-white flex-1" style={{ fontSize: '14px', fontWeight: 400 }}>
-              Builders: our private platform gives you access to high-value...{' '}
-              <span className="text-[#1877F2] underline">More</span>
-            </p>
+            <div className="flex-1 space-y-1">
+              {/* Primary Text Skeleton */}
+              <Skeleton className="h-3.5 w-full bg-white/30" style={{ height: '14px' }} />
+              {/* Description Skeleton */}
+              <Skeleton className="h-3.5 w-3/4 bg-white/30" style={{ height: '14px' }} />
+            </div>
           </div>
           
           {/* Expand Icon - ChevronUp */}
