@@ -1,161 +1,216 @@
 /**
- * Feature: Meta Instant Forms Preview - Final Correct Implementation
- * Purpose: Preview matching user screenshots with navigation outside, no scrolling, proper buttons
+ * Feature: Meta Instant Forms Preview - Lovable Design
+ * Purpose: Pixel-perfect preview matching Lovable design with 4-step navigation
  * References:
- *  - User screenshots showing exact layout requirements
- *  - Navigation outside gray container
- *  - Slides toggle with display (not transform)
+ *  - Lovable: https://github.com/jackhunterking/preview-palette-builder.git
+ *  - Phone mockup with proper styling
+ *  - Progress bar and step-based CTA buttons
  */
 
 'use client'
 
-import { useState, useEffect } from 'react'
-import { NavigationHeader } from './meta/NavigationHeader'
-import { IntroSlide } from './meta/slides/IntroSlide'
-import { ContactSlide } from './meta/slides/ContactSlide'
-import { PrivacySlide } from './meta/slides/PrivacySlide'
-import { ThankYouSlide } from './meta/slides/ThankYouSlide'
+import { Button } from '@/components/ui/button'
+import { ChevronLeft, X, Info, ArrowRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { MetaInstantForm } from '@/lib/types/meta-instant-form'
 
 interface MetaInstantFormPreviewProps {
   form: MetaInstantForm
-  showThankYou?: boolean
+  currentStep: number
+  onStepChange?: (step: number) => void
 }
 
 export function MetaInstantFormPreview({
   form,
-  showThankYou = false,
+  currentStep,
+  onStepChange,
 }: MetaInstantFormPreviewProps) {
-  const [stage, setStage] = useState(1)
-  const totalStages = 4
-
-  // Reset stage when form changes or showThankYou changes
-  useEffect(() => {
-    if (showThankYou) {
-      setStage(4)
-    } else {
-      setStage(1)
-    }
-  }, [form.id, showThankYou])
-
-  const handlePrev = () => {
-    setStage((prev) => (prev > 1 ? prev - 1 : totalStages))
+  // Get page initials for avatar
+  const getInitials = (name?: string) => {
+    if (!name) return 'JH'
+    return name
+      .split(' ')
+      .map((word) => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2)
   }
 
-  const handleNext = () => {
-    setStage((prev) => (prev < totalStages ? prev + 1 : 1))
-  }
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') handlePrev()
-      if (e.key === 'ArrowRight') handleNext()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
-
-  // Find all contact fields
-  const emailField = form.fields.find((f) => f.type === 'EMAIL')
-  const fullNameField = form.fields.find((f) => f.type === 'FULL_NAME')
-  const phoneField = form.fields.find((f) => f.type === 'PHONE')
-  const contactFields = [emailField, fullNameField, phoneField].filter(Boolean) as typeof form.fields
-
-  // Stage definitions
-  const stages = [
-    { title: 'Intro' },
-    { title: 'Prefill information' },
-    { title: 'Privacy review' },
-    { title: 'Message for leads' },
-  ]
-
-  const currentStage = stages[stage - 1]
+  const pageName = form.pageName || 'Jack Hunter X'
+  const initials = getInitials(pageName)
 
   return (
-    <div>
-      {/* Navigation - OUTSIDE gray container */}
-      <NavigationHeader
-        title={currentStage?.title || 'Form'}
-        currentStep={stage}
-        totalSteps={totalStages}
-        onPrev={handlePrev}
-        onNext={handleNext}
-      />
+    <div className="mx-auto max-w-md">
+      <div className="bg-[#E4E6EB] rounded-2xl p-4 shadow-xl">
+        {/* Phone Content Area */}
+        <div className="bg-card rounded-xl shadow-lg overflow-hidden min-h-[600px] flex flex-col">
+          {/* Top Navigation Bar */}
+          <div className="flex items-center justify-between p-4 border-b">
+            {currentStep > 0 && (
+              <button className="p-1 hover:bg-muted rounded-full transition-colors">
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+            )}
+            {currentStep === 0 && <div className="w-8" />}
+            <button className="p-1 hover:bg-muted rounded-full transition-colors ml-auto">
+              <X className="h-6 w-6" />
+            </button>
+          </div>
 
-      {/* Gray Container - ONLY form content */}
-      <div
-        style={{
-          backgroundColor: '#F0F2F5',
-          borderRadius: '12px',
-          padding: '28px',
-          minHeight: '600px',
-          width: '375px',
-          margin: '0 auto',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        {/* Slide 1: Intro - display toggle, NOT transform */}
-        <div
-          style={{
-            display: stage === 1 ? 'flex' : 'none',
-            flexDirection: 'column',
-            flex: 1,
-          }}
-        >
-          <IntroSlide
-            pageProfilePicture={form.pageProfilePicture}
-            pageName={form.pageName}
-            headline={form.introHeadline || form.name}
-            onContinue={handleNext}
-          />
-        </div>
+          {/* Content Area */}
+          <div className="flex-1 p-6 flex flex-col">
+            {/* Step 0: Intro */}
+            {currentStep === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 mb-4 overflow-hidden">
+                  {form.pageProfilePicture ? (
+                    <img
+                      src={form.pageProfilePicture}
+                      alt={pageName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white text-2xl font-bold">
+                      {initials}
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground mb-2">{pageName}</p>
+                <h3 className="text-2xl font-bold text-center">
+                  {form.introHeadline || 'Headline text'}
+                </h3>
+              </div>
+            )}
 
-        {/* Slide 2: Contact Information */}
-        <div
-          style={{
-            display: stage === 2 ? 'flex' : 'none',
-            flexDirection: 'column',
-            flex: 1,
-          }}
-        >
-          <ContactSlide fields={contactFields} onContinue={handleNext} />
-        </div>
+            {/* Step 1: Contact Information */}
+            {currentStep === 1 && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <h3 className="text-lg font-semibold">Contact information</h3>
+                  <Info className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="space-y-4">
+                  {form.fields.find((f) => f.type === 'EMAIL') && (
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-2 block">
+                        Email
+                      </label>
+                      <div className="border-b border-muted-foreground/20 pb-2">
+                        <input
+                          type="text"
+                          placeholder="Enter your answer."
+                          className="w-full bg-transparent text-muted-foreground outline-none placeholder:text-muted-foreground/60"
+                          disabled
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {form.fields.find((f) => f.type === 'FULL_NAME') && (
+                    <div>
+                      <label className="text-sm text-muted-foreground mb-2 block">
+                        Full name
+                      </label>
+                      <div className="border-b border-muted-foreground/20 pb-2">
+                        <input
+                          type="text"
+                          placeholder="Enter your answer."
+                          className="w-full bg-transparent text-muted-foreground outline-none placeholder:text-muted-foreground/60"
+                          disabled
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
-        {/* Slide 3: Privacy Review */}
-        <div
-          style={{
-            display: stage === 3 ? 'flex' : 'none',
-            flexDirection: 'column',
-            flex: 1,
-          }}
-        >
-          <PrivacySlide
-            pageName={form.pageName}
-            privacyUrl={form.privacy.url}
-            onSubmit={handleNext}
-          />
-        </div>
+            {/* Step 2: Privacy Policy */}
+            {currentStep === 2 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold mb-4">Privacy policy</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  By clicking Submit, you agree to send your info to {pageName} who agrees
+                  to use it according to their privacy policy. Facebook will also use it
+                  subject to our Data Policy, including to auto-fill forms for ads.
+                </p>
+                <a href="#" className="text-sm text-primary hover:underline block">
+                  View Facebook Data Policy.
+                </a>
+                <a
+                  href={form.privacy.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline block"
+                >
+                  Visit {pageName}&apos;s {form.privacy.linkText || 'Privacy Policy'}.
+                </a>
+              </div>
+            )}
 
-        {/* Slide 4: Thank You */}
-        <div
-          style={{
-            display: stage === 4 ? 'flex' : 'none',
-            flexDirection: 'column',
-            flex: 1,
-          }}
-        >
-          <ThankYouSlide
-            title={form.thankYou?.title || "Thanks, you're all set."}
-            body={
-              form.thankYou?.body || 'You can visit our website or exit the form now.'
-            }
-            ctaText={form.thankYou?.ctaText || 'View website'}
-            ctaUrl={form.thankYou?.ctaUrl}
-            pageProfilePicture={form.pageProfilePicture}
-            pageName={form.pageName}
-          />
+            {/* Step 3: Thank You */}
+            {currentStep === 3 && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 mb-4 overflow-hidden">
+                  {form.pageProfilePicture ? (
+                    <img
+                      src={form.pageProfilePicture}
+                      alt={pageName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white text-2xl font-bold">
+                      {initials}
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">{pageName}</p>
+                <h3 className="text-xl font-bold mb-3">
+                  {form.thankYou?.title || "Thanks, you're all set."}
+                </h3>
+                <p className="text-sm text-foreground mb-6">
+                  {form.thankYou?.body || 'You can visit our website or exit the form now.'}
+                </p>
+                <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
+                  <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                  <p>You successfully submitted your responses.</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Section */}
+          <div className="p-6 pt-0 space-y-3">
+            {/* Progress Bar (only steps 0-2) */}
+            {currentStep < 3 && (
+              <div className="flex gap-1">
+                {[0, 1, 2].map((idx) => (
+                  <div
+                    key={idx}
+                    className={cn(
+                      'h-1 flex-1 rounded-full transition-colors',
+                      idx <= currentStep ? 'bg-primary' : 'bg-muted'
+                    )}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* CTA Button */}
+            <Button
+              className="w-full h-12 text-base font-medium rounded-full"
+              onClick={() => onStepChange?.(Math.min(currentStep + 1, 3))}
+            >
+              {currentStep === 3 ? (
+                'View website'
+              ) : currentStep === 2 ? (
+                'Submit'
+              ) : (
+                <>
+                  Continue <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

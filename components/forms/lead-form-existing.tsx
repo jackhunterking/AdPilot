@@ -217,14 +217,11 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
   return (
     <div className="space-y-4">
       {/* Explanatory header above list/search */}
-      <div className="rounded-md border bg-muted/30 p-3">
-        <div className="flex items-center gap-2">
-          <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
-          <p className="text-sm text-foreground">
-            Select one of your existing forms below to collect lead information.
-          </p>
-        </div>
-      </div>
+      <Card className="p-4 bg-blue-50 border-blue-200">
+        <p className="text-sm text-blue-900">
+          Select one of your existing forms below to collect lead information.
+        </p>
+      </Card>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1877F2]" />

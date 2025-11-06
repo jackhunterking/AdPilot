@@ -10,11 +10,13 @@
 
 import { useMemo, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MetaInstantFormPreview } from "@/components/forms/MetaInstantFormPreview"
 import { LeadFormCreate } from "@/components/forms/lead-form-create"
 import { LeadFormExisting } from "@/components/forms/lead-form-existing"
 import { cn } from "@/lib/utils"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useGoal } from "@/lib/context/goal-context"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { metaStorage } from "@/lib/meta/storage"
@@ -30,12 +32,21 @@ interface LeadFormSetupProps {
   onChangeGoal: () => void
 }
 
+// Preview steps for navigation
+const PREVIEW_STEPS = [
+  { title: "Intro" },
+  { title: "Prefill information" },
+  { title: "Privacy review" },
+  { title: "Message for leads" },
+]
+
 export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupProps) {
   const { goalState } = useGoal()
   const { campaign } = useCampaignContext()
   const hasSavedForm = !!goalState.formData?.id
   const [tab, setTab] = useState<"create" | "existing">(hasSavedForm ? "existing" : "create")
   const [selectedFormId, setSelectedFormId] = useState<string | null>(goalState.formData?.id ?? null)
+  const [currentStep, setCurrentStep] = useState<number>(0)
 
   // Shared preview state for Create tab
   const [formName, setFormName] = useState<string>("Lead Form")
@@ -207,7 +218,44 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
 
           {/* Right column - Live mockup */}
           <div className="lg:sticky lg:top-8 lg:h-fit">
-            <MetaInstantFormPreview form={previewForm} />
+            <Card className="p-8 bg-muted/30">
+              {/* Step Title & Navigation - OUTSIDE phone */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold">{PREVIEW_STEPS[currentStep].title}</h2>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
+                      disabled={currentStep === 0}
+                      className="h-10 w-10"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <span className="text-sm font-medium min-w-[60px] text-center">
+                      {currentStep + 1} of {PREVIEW_STEPS.length}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setCurrentStep(Math.min(PREVIEW_STEPS.length - 1, currentStep + 1))}
+                      disabled={currentStep === PREVIEW_STEPS.length - 1}
+                      className="h-10 w-10"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Phone Mockup */}
+              <MetaInstantFormPreview
+                form={previewForm}
+                currentStep={currentStep}
+                onStepChange={setCurrentStep}
+              />
+            </Card>
           </div>
         </div>
       </Tabs>

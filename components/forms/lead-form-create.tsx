@@ -198,14 +198,11 @@ export function LeadFormCreate({
   return (
     <div className="space-y-4">
       {/* Explanatory header above accordions */}
-      <div className="rounded-md border bg-muted/30 p-3">
-        <div className="flex items-center gap-2">
-          <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
-          <p className="text-sm text-foreground">
-            Create a Facebook Instant Form to capture contact info and complete the sections below.
-          </p>
-        </div>
-      </div>
+      <Card className="p-4 bg-blue-50 border-blue-200">
+        <p className="text-sm text-blue-900">
+          Create a Facebook Instant Form to capture contact info and complete the sections below.
+        </p>
+      </Card>
 
       <div className="space-y-3">
         {/* Form Name Section */}
@@ -247,10 +244,10 @@ export function LeadFormCreate({
                     <Switch checked={f.required} onCheckedChange={() => toggleRequired(f.id)} />
                   </div>
                 ))}
-                <Card className="p-3 bg-muted/30 border">
+                <Card className="p-3 bg-blue-50 border-blue-200">
                   <div className="flex items-start gap-2">
-                    <Info className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <p className="text-xs text-muted-foreground">Customization coming soon</p>
+                    <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-blue-900">Customization coming soon</p>
                   </div>
                 </Card>
               </div>
