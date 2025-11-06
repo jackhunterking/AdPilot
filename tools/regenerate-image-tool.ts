@@ -11,9 +11,9 @@ import { z } from 'zod';
 import { generateImage } from '@/server/images';
 
 export const regenerateImageTool = tool({
-  description: 'Regenerate ONE specific variation with fresh take. Use when user wants completely new version of a single variation (not all 6). User must be in edit mode with specific variation selected.',
+  description: 'Regenerate ONE specific variation with fresh take. Use when user wants completely new version of a single variation (not all 3). User must be in edit mode with specific variation selected.',
   inputSchema: z.object({
-    variationIndex: z.number().min(0).max(5).describe('Which variation (0-5) to regenerate - REQUIRED'),
+    variationIndex: z.number().min(0).max(2).describe('Which variation (0-2) to regenerate - REQUIRED'),
     originalPrompt: z.string().describe('Original generation prompt or context to base new version on'),
     campaignId: z.string().describe('Campaign ID'),
   }),

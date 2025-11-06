@@ -689,7 +689,7 @@ Otherwise, make intelligent style AND FORMAT assumptions based on:
 - **Instead use:**
   - editImage → for modifications to existing image
   - regenerateImage → for creating new version of ONE specific variation
-  - generateImage → ONLY for creating initial 6 variations from scratch
+  - generateImage → ONLY for creating initial 3 variations from scratch
 
 **ASK (max 1 question) when:**
 - User provides only generic business name without offer/context
@@ -862,10 +862,10 @@ ${effectiveGoal === 'website-visits' ? `- Primary CTAs: "Shop Now", "Explore Mor
 
 **Editing Existing Images:**
 When user wants to edit images after variations already exist:
-1. First ask: "Would you like to update all 6 variations or just specific ones?"
-2. If they choose specific: "Which variation(s)? (1-6)"
+1. First ask: "Would you like to update all 3 variations or just specific ones?"
+2. If they choose specific: "Which variation(s)? (1-3)"
 3. Only regenerate the requested variations (future implementation)
-4. For now, regenerating will create 6 new variations
+4. For now, regenerating will create 3 new variations
 
 ## Location Targeting
 Parse natural language:

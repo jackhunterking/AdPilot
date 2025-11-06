@@ -26,7 +26,7 @@ export const CopyItemSchema = z.object({
 })
 
 export const CopySchema = z.object({
-  variations: z.array(CopyItemSchema).length(6),
+  variations: z.array(CopyItemSchema).length(3),
 })
 
 export const SingleCopySchema = CopyItemSchema

@@ -1,6 +1,6 @@
 /**
  * Feature: Ad Copy Generation API
- * Purpose: Generate six ad copy variations from selected creative images and goal
+ * Purpose: Generate three ad copy variations from selected creative images and goal
  * References:
  *  - AI SDK Core: https://ai-sdk.dev/docs/ai-sdk-core/structured-output
  *  - AI SDK Core Vision: https://ai-sdk.dev/docs/ai-sdk-core/vision
@@ -18,16 +18,16 @@ import { CopySchema, SingleCopySchema } from '@/lib/ai/schemas/ad-copy'
 const BatchRequestSchema = z.object({
   campaignId: z.string().optional(),
   goalType: z.string().nullable().optional(),
-  imageUrls: z.array(z.string().url()).min(1).max(6),
+  imageUrls: z.array(z.string().url()).min(1).max(3),
   businessContext: z.string().optional(),
 })
 
 const SingleRequestSchema = z.object({
   campaignId: z.string().optional(),
   goalType: z.string().nullable().optional(),
-  imageUrls: z.array(z.string().url()).min(1).max(6),
-  targetIndex: z.number().int().min(0).max(5),
-  selectedImageIndex: z.number().int().min(0).max(5).optional(),
+  imageUrls: z.array(z.string().url()).min(1).max(3),
+  targetIndex: z.number().int().min(0).max(2),
+  selectedImageIndex: z.number().int().min(0).max(2).optional(),
   preferEmojis: z.boolean().optional(),
   current: z
     .object({
@@ -41,11 +41,11 @@ const SingleRequestSchema = z.object({
 
 // Schemas are shared from lib/ai/schemas to avoid Next.js route export validation issues
 
-const SYSTEM_INSTRUCTIONS = `You are an expert Meta ads copywriter. Write six unique ad copy variations for the same creative.
+const SYSTEM_INSTRUCTIONS = `You are an expert Meta ads copywriter. Write three unique ad copy variations for the same creative.
 
 Rules:
-- Each variation must use a different angle: benefit-led, offer/urgency, social proof, problem–solution, question hook, objection buster.
-- EXACTLY 3 of the 6 variations MUST include tasteful emojis (1–2) in the primaryText only; the other 3 MUST NOT include emojis.
+- Each variation must use a different angle: benefit-led, offer/urgency, social proof.
+- EXACTLY 1 of the 3 variations MUST include tasteful emojis (1–2) in the primaryText only; the other 2 MUST NOT include emojis.
 - Never put emojis in the headline or description unless explicitly requested.
 - Align tone and CTA with the campaign goal if given (leads, calls, website-visits).
 - Keep copy concise and platform-native.
@@ -104,12 +104,12 @@ If current copy is provided, improve it while changing the persuasion angle. Als
       return NextResponse.json({ variation })
     }
 
-    // Batch (six) variations
+    // Batch (three) variations
     const { goalType, imageUrls, businessContext } = BatchRequestSchema.parse(body)
     const userContent = [
       {
         type: 'text' as const,
-        text: `Create six different ad copy variations for this campaign.${goalType ? ` Goal: ${goalType}.` : ''} ${businessContext ? ` Context: ${businessContext}` : ''}
+        text: `Create three different ad copy variations for this campaign.${goalType ? ` Goal: ${goalType}.` : ''} ${businessContext ? ` Context: ${businessContext}` : ''}
 Use these image URLs as context only (do not attempt to analyze the images directly, just infer likely themes): ${imageUrls.join(', ')}
 
 Additionally, for each variation return optional overlay-ready fields (when applicable):

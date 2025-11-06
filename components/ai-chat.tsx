@@ -562,21 +562,21 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       
       // Set generation message
       setIsGenerating(true);
-      setGenerationMessage("Generating 6 AI-powered creative variations...");
+      setGenerationMessage("Generating 3 AI-powered creative variations...");
       
       try {
-        // Generate 6 unique AI variations in one call
-        const imageUrls = await generateImage(prompt, campaignId, 6);
+        // Generate 3 unique AI variations in one call
+        const imageUrls = await generateImage(prompt, campaignId, 3);
         
-        console.log('[IMAGE-GEN] ✅ Generated 6 variations:', imageUrls);
+        console.log('[IMAGE-GEN] ✅ Generated 3 variations:', imageUrls);
         
-        // Set all 6 variations immediately
+        // Set all 3 variations immediately
         const newContent = {
           headline: adContent?.headline || '',
           body: adContent?.body || '',
           cta: adContent?.cta || 'Learn More',
           baseImageUrl: imageUrls[0],
-          imageVariations: imageUrls, // All 6 URLs
+          imageVariations: imageUrls, // All 3 URLs
         };
         
         console.log('[IMAGE-GEN] 📤 Setting adContent with variations:', {

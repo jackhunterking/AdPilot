@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { uploadToSupabase } from '@/server/images';
 
-export const maxDuration = 60; // Allow up to 60 seconds for processing 6 variations
+export const maxDuration = 30; // Allow up to 30 seconds for processing 3 variations
 
 export async function POST(req: NextRequest) {
     try {
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        console.log(`🎨 Generating 6 variations for image: ${baseImageUrl}`);
+        console.log(`🎨 Generating 3 variations for image: ${baseImageUrl}`);
 
         // Fetch the base image
         const imageResponse = await fetch(baseImageUrl);
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
         const variations: string[] = [];
 
         // Variation 1: Original (no changes, just re-upload for consistency)
-        console.log('Creating variation 1/6: Original...');
+        console.log('Creating variation 1/3: Original...');
         const variation1 = await sharp(imageBuffer)
             .png()
             .toBuffer();
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
         variations.push(url1);
 
         // Variation 2: Warm tone
-        console.log('Creating variation 2/6: Warm tone...');
+        console.log('Creating variation 2/3: Warm tone...');
         const variation2 = await sharp(imageBuffer)
             .modulate({
                 brightness: 1.05,
@@ -63,82 +63,21 @@ export async function POST(req: NextRequest) {
         );
         variations.push(url2);
 
-        // Variation 3: Cool tone
-        console.log('Creating variation 3/6: Cool tone...');
+        // Variation 3: High contrast
+        console.log('Creating variation 3/3: High contrast...');
         const variation3 = await sharp(imageBuffer)
-            .modulate({
-                brightness: 1.05,
-                saturation: 1.1,
-                hue: -10
-            })
-            .png()
-            .toBuffer();
-        const url3 = await uploadToSupabase(
-            variation3,
-            `variation-3-cool-${timestamp}.png`,
-            campaignId
-        );
-        variations.push(url3);
-
-        // Variation 4: High contrast
-        console.log('Creating variation 4/6: High contrast...');
-        const variation4 = await sharp(imageBuffer)
             .normalize()
             .modulate({
                 saturation: 1.2
             })
             .png()
             .toBuffer();
-        const url4 = await uploadToSupabase(
-            variation4,
-            `variation-4-contrast-${timestamp}.png`,
+        const url3 = await uploadToSupabase(
+            variation3,
+            `variation-3-contrast-${timestamp}.png`,
             campaignId
         );
-        variations.push(url4);
-
-        // Variation 5: Soft/muted
-        console.log('Creating variation 5/6: Soft/muted...');
-        const variation5 = await sharp(imageBuffer)
-            .blur(0.5)
-            .modulate({
-                saturation: 0.8
-            })
-            .png()
-            .toBuffer();
-        const url5 = await uploadToSupabase(
-            variation5,
-            `variation-5-soft-${timestamp}.png`,
-            campaignId
-        );
-        variations.push(url5);
-
-        // Variation 6: Zoomed crop (extract center 85%, resize back)
-        console.log('Creating variation 6/6: Zoomed crop...');
-        const cropPercentage = 0.85;
-        const newWidth = Math.floor(originalWidth * cropPercentage);
-        const newHeight = Math.floor(originalHeight * cropPercentage);
-        const left = Math.floor((originalWidth - newWidth) / 2);
-        const top = Math.floor((originalHeight - newHeight) / 2);
-
-        const variation6 = await sharp(imageBuffer)
-            .extract({
-                left,
-                top,
-                width: newWidth,
-                height: newHeight
-            })
-            .resize(originalWidth, originalHeight, {
-                fit: 'fill',
-                kernel: 'lanczos3'
-            })
-            .png()
-            .toBuffer();
-        const url6 = await uploadToSupabase(
-            variation6,
-            `variation-6-zoom-${timestamp}.png`,
-            campaignId
-        );
-        variations.push(url6);
+        variations.push(url3);
 
         console.log(`✅ Successfully generated ${variations.length} variations`);
 
