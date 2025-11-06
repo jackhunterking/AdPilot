@@ -455,9 +455,9 @@ export function PreviewPanel() {
           </p>
         </div>
 
-        {/* Media Section - 16:9 aspect ratio */}
+        {/* Media Section - Square (1:1) aspect ratio - 1080x1080 */}
         {adContent?.imageVariations?.[index] ? (
-          <div className="relative overflow-hidden" style={{ aspectRatio: '16/9' }}>
+          <div className="relative overflow-hidden" style={{ aspectRatio: '1/1' }}>
             <img
               src={adContent.imageVariations[index]}
               alt={adContent.headline}
@@ -472,7 +472,7 @@ export function PreviewPanel() {
             </div>
           </div>
         ) : (
-          <div className={`relative overflow-hidden bg-[#1C1E21] flex items-center justify-center`} style={{ aspectRatio: '16/9' }}>
+          <div className={`relative overflow-hidden bg-[#1C1E21] flex items-center justify-center`} style={{ aspectRatio: '1/1' }}>
             <div className="text-center text-white">
               <p className="font-bold mb-1" style={{ fontSize: '24px', marginBottom: '4px' }}>Reach more, sell more,</p>
               <p className="font-bold" style={{ fontSize: '20px' }}>all on facebook</p>
