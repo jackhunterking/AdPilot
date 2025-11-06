@@ -40,7 +40,7 @@ export function MetaInstantFormPreview({
   const initials = getInitials(pageName)
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto w-[375px]">
       <div className="bg-[#E4E6EB] rounded-2xl p-4 shadow-xl">
         {/* Phone Content Area */}
         <div className="bg-card rounded-xl shadow-lg overflow-hidden min-h-[600px] flex flex-col">

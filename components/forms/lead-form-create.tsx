@@ -213,7 +213,7 @@ export function LeadFormCreate({
               <ChevronDown className={cn("h-5 w-5 transition-transform", formNameOpen && "rotate-180")} />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="p-4 pt-0 space-y-3 border-t">
+              <div className="p-4 pt-4 space-y-3 border-t">
                 <div>
                   <Label className="mb-2 block">Form name</Label>
                   <Input value={formName} onChange={(e) => onFormNameChange(e.target.value)} placeholder="Lead Form" className="h-10" />
@@ -232,7 +232,7 @@ export function LeadFormCreate({
               <ChevronDown className={cn("h-5 w-5 transition-transform", fieldsOpen && "rotate-180")} />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="p-4 pt-0 space-y-4 border-t">
+              <div className="p-4 pt-4 space-y-4 border-t">
                 {fields.map((f) => (
                   <div key={f.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                     <div>
@@ -263,7 +263,7 @@ export function LeadFormCreate({
               <ChevronDown className={cn("h-5 w-5 transition-transform", privacyOpen && "rotate-180")} />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="p-4 pt-0 space-y-4 border-t">
+              <div className="p-4 pt-4 space-y-4 border-t">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium">Use default privacy policy</Label>
                   <Switch
@@ -297,7 +297,7 @@ export function LeadFormCreate({
               <ChevronDown className={cn("h-5 w-5 transition-transform", thankYouOpen && "rotate-180")} />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="p-4 pt-0 space-y-4 border-t">
+              <div className="p-4 pt-4 space-y-4 border-t">
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Title</Label>
                   <Input value={thankYouTitle} onChange={(e) => onThankYouTitleChange(e.target.value)} className="h-10" />
