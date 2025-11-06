@@ -109,14 +109,25 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
   // Support external navigation requests (Edit links in summary cards)
   useEffect(() => {
     const handler = (e: Event) => {
-      const custom = e as CustomEvent<{ id?: string }>
+      const custom = e as CustomEvent<{ id?: string; force?: boolean }>
       const stepId = custom.detail?.id
+      const force = custom.detail?.force === true
       if (!stepId) return
       const targetIndex = steps.findIndex((s) => s.id === stepId)
       if (targetIndex < 0) return
 
-      // Rules: allow moving backward freely; allow moving forward only to
-      // completed steps, never beyond the first incomplete step.
+      // Rules: 
+      // - If force=true, allow navigation to any step (for explicit edits like "Change Goal")
+      // - Otherwise: allow moving backward freely; allow moving forward only to
+      //   completed steps, never beyond the first incomplete step.
+      if (force) {
+        // Force navigation - allow going to any step
+        if (targetIndex === currentStepIndex) return
+        setDirection(targetIndex > currentStepIndex ? 'forward' : 'backward')
+        setCurrentStepIndex(targetIndex)
+        return
+      }
+
       const firstIncomplete = steps.findIndex((s) => !s.completed)
       const maxForwardIndex = firstIncomplete === -1 ? steps.length - 1 : firstIncomplete
 
@@ -137,13 +148,22 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
   // Handle legacy switchToTab events to navigate to a step by id (e.g., from AI chat tool UI)
   useEffect(() => {
     const handler = (e: Event) => {
-      const custom = e as CustomEvent<string | { id?: string }>
+      const custom = e as CustomEvent<string | { id?: string; force?: boolean }>
       const detail = custom.detail
-      const stepId = typeof detail === 'string' ? detail : (detail && typeof detail === 'object' ? (detail as { id?: string }).id : undefined)
+      const stepId = typeof detail === 'string' ? detail : (detail && typeof detail === 'object' ? (detail as { id?: string; force?: boolean }).id : undefined)
+      const force = typeof detail === 'object' && detail !== null ? (detail as { force?: boolean }).force === true : false
       if (!stepId) return
 
       const targetIndex = steps.findIndex((s) => s.id === stepId)
       if (targetIndex < 0) return
+
+      // If force=true, allow navigation to any step
+      if (force) {
+        if (targetIndex === currentStepIndex) return
+        setDirection(targetIndex > currentStepIndex ? 'forward' : 'backward')
+        setCurrentStepIndex(targetIndex)
+        return
+      }
 
       const firstIncomplete = steps.findIndex((s) => !s.completed)
       const maxForwardIndex = firstIncomplete === -1 ? steps.length - 1 : firstIncomplete

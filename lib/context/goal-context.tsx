@@ -166,6 +166,10 @@ export function GoalProvider({ children }: { children: ReactNode }) {
       formData: null,
       errorMessage: undefined,
     })
+    // Navigate to goal step when resetting, allowing navigation even if step is incomplete
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'goal', force: true } }))
+    }
   }
 
   return (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Play, ImageIcon, Video, Layers, Sparkles, DollarSign, Plus, Minus, Building2, Check, Facebook, Loader2, Edit2, Palette, Type, MapPin, Target, Rocket, Flag, Link2 } from "lucide-react"
 import { LocationSelectionCanvas } from "./location-selection-canvas"
@@ -26,6 +26,7 @@ import { FormSummaryCard } from "@/components/launch/form-summary-card"
 import { BudgetSchedule } from "@/components/forms/budget-schedule"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import type { Database } from "@/lib/supabase/database.types"
+import { metaStorage } from "@/lib/meta/storage"
 
 const mockAdAccounts = [
   { id: "act_123456789", name: "Main Business Account", currency: "USD" },
@@ -751,11 +752,7 @@ export function PreviewPanel() {
                     adCopyState.status === "completed",
                     locationState.status === "completed",
                     audienceState.status === "completed",
-                    (() => {
-                      const states = campaign?.campaign_states as Database['public']['Tables']['campaign_states']['Row'] | null | undefined
-                      const serverConnected = Boolean((states as unknown as { meta_connect_data?: { status?: string } } | null | undefined)?.meta_connect_data && (states as unknown as { meta_connect_data?: { status?: string } }).meta_connect_data?.status === 'connected')
-                      return serverConnected || budgetState.isConnected === true
-                    })(),
+                    isMetaConnectionComplete,
                     goalState.status === "completed"
                   ].filter(Boolean).length
                   return `${completedCount} of 6 steps completed`
@@ -776,6 +773,37 @@ export function PreviewPanel() {
       </div>
     </div>
   )
+
+  // Memoized Meta connection completion check - reacts to campaign state and budget state changes
+  const isMetaConnectionComplete = useMemo(() => {
+    // Check database state first
+    const states = campaign?.campaign_states as Database['public']['Tables']['campaign_states']['Row'] | null | undefined
+    const metaConnectData = (states as unknown as { meta_connect_data?: { status?: string } } | null | undefined)?.meta_connect_data
+    const serverConnected = Boolean(metaConnectData?.status === 'connected' || metaConnectData?.status === 'selected_assets')
+    
+    // Check budget state
+    const budgetConnected = budgetState.isConnected === true
+    
+    // Check localStorage as fallback (for immediate UI updates before server sync)
+    let localStorageConnected = false
+    if (campaign?.id && typeof window !== 'undefined') {
+      try {
+        const connectionData = metaStorage.getConnection(campaign.id)
+        if (connectionData) {
+          const summary = metaStorage.getConnectionSummary(campaign.id)
+          localStorageConnected = Boolean(
+            summary?.status === 'connected' || 
+            summary?.status === 'selected_assets' ||
+            (summary?.adAccount?.id && summary?.business?.id)
+          )
+        }
+      } catch {
+        // Ignore localStorage errors
+      }
+    }
+    
+    return serverConnected || budgetConnected || localStorageConnected
+  }, [campaign?.campaign_states, campaign?.id, budgetState.isConnected])
 
   const steps = [
     {
@@ -819,11 +847,7 @@ export function PreviewPanel() {
       number: 5,
       title: "Connect Facebook & Instagram",
       description: "Authenticate and select Page, IG (optional) and Ad Account",
-      completed: ((): boolean => {
-        const states = campaign?.campaign_states as Database['public']['Tables']['campaign_states']['Row'] | null | undefined
-        const serverConnected = Boolean((states as unknown as { meta_connect_data?: { status?: string } } | null | undefined)?.meta_connect_data && (states as unknown as { meta_connect_data?: { status?: string } }).meta_connect_data?.status === 'connected')
-        return serverConnected || budgetState.isConnected === true
-      })(),
+      completed: isMetaConnectionComplete,
       content: (
         <div className="p-2">
           <div className="max-w-3xl mx-auto">
