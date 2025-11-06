@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
-import { Play, ImageIcon, Video, Layers, Sparkles, DollarSign, Plus, Minus, Building2, Check, Facebook, Loader2, Edit2, Palette, Type, MapPin, Target, Rocket, Flag, Link2 } from "lucide-react"
+import { Play, ImageIcon, Video, Layers, Sparkles, DollarSign, Plus, Minus, Building2, Check, Facebook, Loader2, Edit2, Palette, Type, MapPin, Target, Rocket, Flag, Link2, MoreVertical, Globe, Heart, ThumbsUp, MessageCircle, Share2, ChevronDown } from "lucide-react"
 import { LocationSelectionCanvas } from "./location-selection-canvas"
 import { AudienceSelectionCanvas } from "./audience-selection-canvas"
 import { AdCopySelectionCanvas } from "./ad-copy-selection-canvas"
@@ -367,7 +367,7 @@ export function PreviewPanel() {
     { gradient: "from-green-600 via-green-500 to-emerald-500", title: "Variation 3" },
   ]
 
-  // Render single Feed ad mockup
+  // Render single Feed ad mockup (Facebook pixel-perfect format)
   const renderFeedAd = (variation: typeof adVariations[0], index: number) => {
     const isSelected = selectedImageIndex === index
     const isProcessing = false
@@ -375,9 +375,10 @@ export function PreviewPanel() {
     return (
       <div 
         key={index} 
-        className={`rounded-lg border-2 bg-card overflow-hidden hover:shadow-lg transition-all relative group ${
-          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-border'
+        className={`rounded-lg border-2 bg-white overflow-hidden hover:shadow-lg transition-all relative group ${
+          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]'
         } ${isProcessing ? 'opacity-75' : ''}`}
+        style={{ borderRadius: '8px' }}
       >
         {/* Processing Overlay */}
         {isProcessing && (
@@ -429,52 +430,140 @@ export function PreviewPanel() {
           </div>
         )}
 
-        <div className="flex items-center gap-2 p-3 border-b border-border">
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex-shrink-0" />
+        {/* Header Section - Facebook Style */}
+        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[#CED0D4]" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px' }}>
+          {/* Profile Picture - 40px circle, solid blue */}
+          <div className="h-10 w-10 rounded-full bg-[#1877F2] flex-shrink-0" style={{ width: '40px', height: '40px' }} />
+          
+          {/* Business Name & Sponsored */}
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold truncate">Your Brand</p>
-            <p className="text-[10px] text-muted-foreground">Sponsored</p>
+            <p className="font-semibold truncate text-[#050505]" style={{ fontSize: '15px', fontWeight: 600 }}>Business Name</p>
+            <div className="flex items-center gap-1">
+              <p className="text-[#65676B]" style={{ fontSize: '13px', fontWeight: 400 }}>Sponsored</p>
+              <Globe className="h-3 w-3 text-[#65676B]" style={{ width: '12px', height: '12px' }} />
+            </div>
           </div>
+          
+          {/* Options Icon - MoreVertical on right */}
+          <MoreVertical className="h-5 w-5 text-[#65676B] flex-shrink-0 cursor-pointer hover:bg-[#F2F3F5] rounded-full p-1" style={{ width: '20px', height: '20px' }} />
         </div>
 
+        {/* Primary Text Section - BEFORE Media */}
+        <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
+          <p className="text-[#050505] leading-[1.3333]" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '20px' }}>
+            <Skeleton className="inline-block h-4 w-full" style={{ height: '20px' }} />
+          </p>
+        </div>
+
+        {/* Media Section - 16:9 aspect ratio */}
         {adContent?.imageVariations?.[index] ? (
-          <div className="aspect-square relative overflow-hidden">
+          <div className="relative overflow-hidden" style={{ aspectRatio: '16/9' }}>
             <img
               src={adContent.imageVariations[index]}
               alt={adContent.headline}
               className="w-full h-full object-cover"
             />
+            {/* Text Overlay */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center text-white">
+                <p className="font-bold mb-1" style={{ fontSize: '24px', marginBottom: '4px' }}>Reach more, sell more,</p>
+                <p className="font-bold" style={{ fontSize: '20px' }}>all on facebook</p>
+              </div>
+            </div>
           </div>
         ) : (
-          <div className={`aspect-square bg-gradient-to-br ${variation.gradient} flex items-center justify-center`}>
-            <div className="text-center text-white p-4">
-              <p className="text-sm font-bold">{variation.title}</p>
+          <div className={`relative overflow-hidden bg-[#1C1E21] flex items-center justify-center`} style={{ aspectRatio: '16/9' }}>
+            <div className="text-center text-white">
+              <p className="font-bold mb-1" style={{ fontSize: '24px', marginBottom: '4px' }}>Reach more, sell more,</p>
+              <p className="font-bold" style={{ fontSize: '20px' }}>all on facebook</p>
             </div>
           </div>
         )}
 
-        <div className="p-3 space-y-2">
-          <div className="flex items-center gap-3">
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
+        {/* Link Preview Section - Horizontal Layout */}
+        <div className="flex items-start gap-3 px-3 py-3 border-b border-[#CED0D4]" style={{ paddingLeft: '12px', paddingRight: '12px' }}>
+          {/* Left Side - Content */}
+          <div className="flex-1 min-w-0 space-y-1">
+            {/* Website URL */}
+            <p className="text-[#65676B] uppercase tracking-wide" style={{ fontSize: '11px', fontWeight: 400, letterSpacing: '0.5px' }}>
+              YOURWEBSITE.HELLO
+            </p>
+            {/* Headline */}
+            <p className="font-bold text-[#050505] line-clamp-1" style={{ fontSize: '17px', fontWeight: 700, lineHeight: '1.1765' }}>
+              <Skeleton className="h-5 w-3/4" style={{ height: '20px' }} />
+            </p>
+            {/* Description */}
+            <p className="text-[#050505] line-clamp-2" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '1.3333' }}>
+              <Skeleton className="h-4 w-full" style={{ height: '20px' }} />
+            </p>
           </div>
-          {/* Primary Text with Skeleton */}
-          <p className="text-xs line-clamp-3">
-            <span className="font-semibold">Your Brand</span>{" "}
-            <Skeleton className="inline-block h-3 w-32" />
-          </p>
+          
+          {/* Right Side - Learn more Button */}
+          <button 
+            className="flex-shrink-0 bg-[#E4E6EB] text-[#050505] font-semibold rounded-md px-3 py-2 hover:bg-[#D8DADF] transition-colors"
+            style={{ 
+              fontSize: '15px', 
+              fontWeight: 600, 
+              paddingLeft: '12px', 
+              paddingRight: '12px', 
+              paddingTop: '8px', 
+              paddingBottom: '8px',
+              borderRadius: '6px',
+              minWidth: '100px'
+            }}
+            disabled
+          >
+            Learn more
+          </button>
+        </div>
 
-          {/* Headline & Description with Skeletons */}
-          <div className="bg-muted rounded-lg p-2.5 space-y-1">
-            <Skeleton className="h-3 w-24" />
-            <Skeleton className="h-2.5 w-full" />
-            <Button size="sm" className="w-full mt-1.5 h-7 text-[10px] bg-[#4B73FF] hover:bg-[#3d5fd9]" disabled>
-              {adContent?.cta || 'Learn More'}
-            </Button>
+        {/* Engagement Section */}
+        <div>
+          {/* Top Row - Reactions & Counts */}
+          <div className="flex items-center justify-between px-2 py-1" style={{ paddingLeft: '8px', paddingRight: '8px', paddingTop: '4px', paddingBottom: '4px' }}>
+            {/* Left Side - Reactions */}
+            <div className="flex items-center gap-1.5">
+              <div className="relative flex items-center">
+                <ThumbsUp className="h-4 w-4 text-[#1877F2]" style={{ width: '16px', height: '16px' }} />
+                <Heart className="h-4 w-4 text-[#F02849] absolute -left-1" style={{ width: '16px', height: '16px', left: '-4px' }} />
+              </div>
+              <p className="text-[#050505]" style={{ fontSize: '13px', fontWeight: 400 }}>Oliver, Sofia and 28 others</p>
+            </div>
+            
+            {/* Right Side - Comments & Shares */}
+            <p className="text-[#65676B]" style={{ fontSize: '13px', fontWeight: 400 }}>14 Comments 7 Shares</p>
+          </div>
+
+          {/* Action Buttons Row */}
+          <div className="flex items-center border-t border-[#CED0D4]" style={{ borderTopWidth: '1px' }}>
+            {/* Like Button */}
+            <button className="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-[#F2F3F5] transition-colors">
+              <ThumbsUp className="h-5 w-5 text-[#65676B]" style={{ width: '20px', height: '20px' }} />
+              <span className="text-[#65676B]" style={{ fontSize: '15px', fontWeight: 400 }}>Like</span>
+            </button>
+            
+            {/* Divider */}
+            <div className="w-px h-6 bg-[#CED0D4]" style={{ width: '1px' }} />
+            
+            {/* Comment Button */}
+            <button className="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-[#F2F3F5] transition-colors">
+              <MessageCircle className="h-5 w-5 text-[#65676B]" style={{ width: '20px', height: '20px' }} />
+              <span className="text-[#65676B]" style={{ fontSize: '15px', fontWeight: 400 }}>Comment</span>
+            </button>
+            
+            {/* Divider */}
+            <div className="w-px h-6 bg-[#CED0D4]" style={{ width: '1px' }} />
+            
+            {/* Share Button */}
+            <button className="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-[#F2F3F5] transition-colors">
+              <Share2 className="h-5 w-5 text-[#65676B]" style={{ width: '20px', height: '20px' }} />
+              <span className="text-[#65676B]" style={{ fontSize: '15px', fontWeight: 400 }}>Share</span>
+            </button>
+            
+            {/* Dropdown Arrow */}
+            <button className="px-2 py-2 hover:bg-[#F2F3F5] transition-colors">
+              <ChevronDown className="h-4 w-4 text-[#65676B]" style={{ width: '16px', height: '16px' }} />
+            </button>
           </div>
         </div>
       </div>
