@@ -90,7 +90,7 @@ export function MetaInstantFormPreview({
           borderRadius: '12px',
           padding: '28px',
           minHeight: '600px',
-          maxWidth: '500px',
+          width: '375px',
           margin: '0 auto',
           display: 'flex',
           flexDirection: 'column',
