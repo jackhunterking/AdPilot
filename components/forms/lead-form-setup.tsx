@@ -222,7 +222,7 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
               {/* Step Title & Navigation - OUTSIDE phone */}
               <div className="mb-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold">{PREVIEW_STEPS[currentStep].title}</h2>
+                  <h2 className="text-2xl font-bold">{PREVIEW_STEPS[currentStep]?.title || 'Preview'}</h2>
                   <div className="flex items-center gap-3">
                     <Button
                       variant="outline"
