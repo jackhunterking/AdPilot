@@ -851,14 +851,26 @@ export function PreviewPanel() {
       <div className="rounded-lg border border-border bg-card p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold">Ad Preview</h3>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'ads' } }))}
-            className="h-7 px-3"
-          >
-            Edit
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'ads' } }))}
+              className="h-7 px-3"
+            >
+              <Palette className="h-3 w-3 mr-1.5" />
+              Edit Ad Creative
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'copy' } }))}
+              className="h-7 px-3"
+            >
+              <Type className="h-3 w-3 mr-1.5" />
+              Edit Ad Copy
+            </Button>
+          </div>
         </div>
         {/* Format selector (matches creator) */}
         <div className="flex justify-center pb-4">

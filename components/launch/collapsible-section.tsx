@@ -42,7 +42,7 @@ export function CollapsibleSection({
         <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className={cn(
-              "h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0",
+              "h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 self-center",
               isComplete ? "bg-green-500/10" : "bg-muted"
             )}>
               <Icon className={cn(
@@ -50,7 +50,7 @@ export function CollapsibleSection({
                 isComplete ? "text-green-600" : "text-muted-foreground"
               )} />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 flex flex-col justify-center">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-sm">{title}</h3>
                 {isComplete && (
