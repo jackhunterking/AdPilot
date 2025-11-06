@@ -7,8 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, supabaseServer } from '@/lib/supabase/server'
-import { getConnection } from '@/lib/meta/service'
-import { getGraphVersion } from '@/lib/meta/graph-version'
+import { getConnectionWithToken, fetchPagesWithTokens, getGraphVersion } from '@/lib/meta/service'
 
 export async function GET(req: NextRequest) {
   console.log('[MetaPagePicture GET] Request received')
@@ -53,16 +52,30 @@ export async function GET(req: NextRequest) {
     }
 
     // 3. Get access token (try Supabase first, then client-provided)
-    let pageAccessToken: string | null = null
-    let source: 'supabase' | 'localStorage' = 'supabase'
+    let pageAccessToken: string = ''
+    let source: 'supabase' | 'localStorage' | 'derived' = 'supabase'
 
-    const conn = await getConnection({ campaignId })
-    if (conn && 'selected_page_access_token' in conn && conn.selected_page_access_token) {
-      pageAccessToken = conn.selected_page_access_token
-      source = 'supabase'
-    } else if (clientPageToken) {
-      pageAccessToken = clientPageToken
-      source = 'localStorage'
+    const conn = await getConnectionWithToken({ campaignId })
+
+    if (conn?.selected_page_id && conn?.long_lived_user_token) {
+      // Supabase has data - use it
+      // Try to get page access token from stored value or derive it
+      if (conn.selected_page_access_token) {
+        pageAccessToken = conn.selected_page_access_token
+        source = 'supabase'
+      } else {
+        // Derive from long-lived token
+        const pages = await fetchPagesWithTokens({ token: conn.long_lived_user_token })
+        const match = pages.find(p => p.id === conn.selected_page_id) || null
+        pageAccessToken = match?.access_token || ''
+        source = pageAccessToken ? 'derived' : 'supabase'
+      }
+    } else {
+      // Supabase empty - fall back to client-provided tokens
+      if (clientPageToken) {
+        pageAccessToken = clientPageToken
+        source = 'localStorage'
+      }
     }
 
     if (!pageAccessToken) {
