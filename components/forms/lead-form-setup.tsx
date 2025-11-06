@@ -8,7 +8,7 @@
  *  - Supabase (server auth, not used directly here): https://supabase.com/docs/guides/auth/server/nextjs
  */
 
-import { useMemo, useState, useEffect } from "react"
+import { useMemo, useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MetaInstantFormPreview } from "@/components/forms/MetaInstantFormPreview"
@@ -45,6 +45,7 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
   const [tab, setTab] = useState<"create" | "existing">(hasSavedForm ? "existing" : "create")
   const [selectedFormId, setSelectedFormId] = useState<string | null>(goalState.formData?.id ?? null)
   const [currentStep, setCurrentStep] = useState<number>(0)
+  const [previewError, setPreviewError] = useState<string | null>(null)
 
   // Shared preview state for Create tab
   const [formName, setFormName] = useState<string>("Lead Form")
@@ -166,15 +167,24 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
               <TabsContent value="existing" className="space-y-4 mt-6">
                 <LeadFormExisting
                   onPreview={(preview) => {
+                    console.log('[LeadFormSetup] Preview callback received:', {
+                      id: preview.id,
+                      name: preview.name,
+                      fieldsCount: preview.fields.length,
+                      hasThankYou: !!preview.thankYouTitle,
+                    })
+                    // Update all form state to trigger preview recalculation
                     setFormName(preview.name)
                     setPrivacyUrl(preview.privacyUrl || "")
                     setPrivacyLinkText(preview.privacyLinkText || "Privacy Policy")
                     setFields(preview.fields)
                     // Update thank you page data if provided
                     if (preview.thankYouTitle) setThankYouTitle(preview.thankYouTitle)
-                    if (preview.thankYouMessage) setThankYouMessage(preview.thankYouMessage)
+                    if (preview.thankYouMessage !== undefined) setThankYouMessage(preview.thankYouMessage)
                     if (preview.thankYouButtonText) setThankYouButtonText(preview.thankYouButtonText)
                     if (preview.thankYouButtonUrl) setThankYouButtonUrl(preview.thankYouButtonUrl)
+                    // Update selectedFormId to ensure previewForm includes the ID
+                    setSelectedFormId(preview.id)
                   }}
                   onConfirm={(existing) => {
                     setSelectedFormId(existing.id)
@@ -186,6 +196,9 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
                   }}
                   onRequestCreate={() => setTab("create")}
                   selectedFormId={selectedFormId}
+                  onPreviewError={(error) => {
+                    setPreviewError(error)
+                  }}
                 />
               </TabsContent>
               <TabsContent value="create" className="space-y-6 mt-6">
@@ -253,6 +266,14 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
                   </div>
                 </div>
               </div>
+
+              {/* Error Display */}
+              {previewError && (
+                <div className="mb-4 p-4 rounded-lg border border-destructive/40 bg-destructive/5 text-sm text-destructive">
+                  <p className="font-medium mb-1">Preview Error</p>
+                  <p>{previewError}</p>
+                </div>
+              )}
 
               {/* Phone Mockup */}
               <MetaInstantFormPreview

@@ -33,17 +33,20 @@ interface PreviewData {
 }
 
 interface LeadFormExistingProps {
-  onPreview: (data: PreviewData) => void
+  onPreview: (data: PreviewData) => void | Promise<void>
   onConfirm: (data: { id: string; name: string }) => void
   onRequestCreate?: () => void
   selectedFormId?: string | null
+  onPreviewError?: (error: string) => void
 }
 
-export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, selectedFormId: selectedFormIdProp }: LeadFormExistingProps) {
+export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, selectedFormId: selectedFormIdProp, onPreviewError }: LeadFormExistingProps) {
   const { campaign } = useCampaignContext()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const [previewFormId, setPreviewFormId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [forms, setForms] = useState<LeadForm[]>([])
   const [pageProfilePicture, setPageProfilePicture] = useState<string | undefined>(undefined)
@@ -115,6 +118,18 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
     }
   }, [selectedFormIdProp])
 
+  // Auto-load preview on mount if selectedFormIdProp is provided and forms are loaded
+  useEffect(() => {
+    if (selectedFormIdProp && forms.length > 0 && !previewFormId) {
+      const formExists = forms.some(f => f.id === selectedFormIdProp)
+      if (formExists) {
+        console.log('[LeadFormExisting] Auto-loading preview for saved selection:', selectedFormIdProp)
+        requestPreview(selectedFormIdProp)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFormIdProp, forms.length, previewFormId])
+
   const filteredForms = useMemo(() => forms.filter((f) => (f.name || '').toLowerCase().includes(searchQuery.toLowerCase())), [forms, searchQuery])
 
   const requestPreview = async (id: string) => {
@@ -122,6 +137,10 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
       console.log('[LeadFormExisting] No campaign ID for preview')
       return
     }
+
+    // Set loading state
+    setIsLoadingPreview(true)
+    setPreviewFormId(id)
 
     // Get connection from localStorage for fallback
     const connection = metaStorage.getConnection(campaign.id)
@@ -205,7 +224,14 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
         required: f.required || false,
       }))
 
-      onPreview({
+      console.log('[LeadFormExisting] Calling onPreview with:', {
+        id: metaForm.id || '',
+        name: metaForm.name,
+        fieldsCount: fields.length,
+        hasThankYou: !!metaForm.thankYou,
+      })
+
+      await onPreview({
         id: metaForm.id || '',
         name: metaForm.name,
         privacyUrl: metaForm.privacy.url,
@@ -216,8 +242,16 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
         thankYouButtonText: metaForm.thankYou?.ctaText,
         thankYouButtonUrl: metaForm.thankYou?.ctaUrl,
       })
+      // Clear error on success
+      setError(null)
     } catch (e) {
-      // noop preview failure
+      const errorMessage = e instanceof Error ? e.message : 'Failed to load form preview'
+      console.error('[LeadFormExisting] Failed to load preview:', e)
+      setError(errorMessage)
+      // Notify parent component of error
+      onPreviewError?.(errorMessage)
+    } finally {
+      setIsLoadingPreview(false)
     }
   }
 
@@ -261,34 +295,47 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
             )}
           </div>
         ) : (
-          filteredForms.map((form) => (
-            <button
-              key={form.id}
-              onClick={() => {
-                setSelectedFormId(form.id)
-                requestPreview(form.id)
-              }}
-              className={`w-full rounded-lg border p-4 text-left transition-all hover:bg-muted/50 ${selectedFormId === form.id ? "border-[#1877F2] bg-[#1877F2]/5" : "border-border bg-card"}`}
-            >
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-lg bg-[#1877F2]/10 flex items-center justify-center flex-shrink-0">
-                  <FileText className="h-5 w-5 text-[#1877F2]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <h3 className="text-sm font-medium text-foreground">{form.name}</h3>
-                    {selectedFormId === form.id && <Check className="h-4 w-4 text-[#1877F2] flex-shrink-0" />}
+          filteredForms.map((form) => {
+            const isSelected = selectedFormId === form.id
+            const isLoadingThisPreview = isLoadingPreview && previewFormId === form.id
+
+            return (
+              <button
+                key={form.id}
+                onClick={() => {
+                  setSelectedFormId(form.id)
+                  requestPreview(form.id)
+                }}
+                disabled={isLoadingPreview}
+                className={`w-full rounded-lg border p-4 text-left transition-all hover:bg-muted/50 ${isSelected ? "border-[#1877F2] bg-[#1877F2]/5" : "border-border bg-card"} ${isLoadingPreview ? "opacity-60 cursor-wait" : ""}`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-[#1877F2]/10 flex items-center justify-center flex-shrink-0">
+                    {isLoadingThisPreview ? (
+                      <div className="h-5 w-5 border-2 border-[#1877F2] border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <FileText className="h-5 w-5 text-[#1877F2]" />
+                    )}
                   </div>
-                  {form.created_time && (
-                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground flex-wrap">
-                      <Calendar className="h-3 w-3" />
-                      <span>{new Date(form.created_time).toLocaleDateString()}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <h3 className="text-sm font-medium text-foreground">{form.name}</h3>
+                      {isSelected && !isLoadingThisPreview && <Check className="h-4 w-4 text-[#1877F2] flex-shrink-0" />}
+                      {isLoadingThisPreview && (
+                        <div className="h-4 w-4 border-2 border-[#1877F2] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                      )}
                     </div>
-                  )}
+                    {form.created_time && (
+                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground flex-wrap">
+                        <Calendar className="h-3 w-3" />
+                        <span>{new Date(form.created_time).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))
+              </button>
+            )
+          })
         )}
       </div>
 

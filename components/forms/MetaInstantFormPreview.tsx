@@ -9,7 +9,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, X, Info, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -31,10 +31,24 @@ export function MetaInstantFormPreview({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   // Create a stable form key to detect when form structure changes
-  const formKey = `${form.id || form.name}-${form.fields.map(f => `${f.id}:${f.type}`).join(',')}`
+  // Include form ID, name, field count, field types, and field IDs for reliable change detection
+  const formKey = useMemo(() => {
+    const fieldSignature = form.fields
+      .map(f => `${f.id}:${f.type}:${f.label}`)
+      .sort()
+      .join('|')
+    const formSignature = `${form.id || 'new'}-${form.name || 'unnamed'}-${form.fields.length}-${fieldSignature}`
+    return formSignature
+  }, [form.id, form.name, form.fields])
 
   // Reset form state when form structure changes
   useEffect(() => {
+    console.log('[MetaInstantFormPreview] Form structure changed, resetting:', {
+      formKey,
+      formId: form.id,
+      formName: form.name,
+      fieldsCount: form.fields.length,
+    })
     setFieldValues({})
     setFieldErrors({})
     // Reset to step 0 when form structure changes
