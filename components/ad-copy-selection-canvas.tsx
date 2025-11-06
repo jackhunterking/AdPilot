@@ -10,7 +10,6 @@ import { useGeneration } from "@/lib/context/generation-context"
 import { newEditSession } from "@/lib/utils/edit-session"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useGoal } from "@/lib/context/goal-context"
-import { CTASelect } from "@/components/forms/cta-select"
 
 export function AdCopySelectionCanvas() {
   const { adCopyState, setSelectedCopyIndex, getActiveVariations, setCustomCopyVariations } = useAdCopy()
@@ -262,7 +261,6 @@ export function AdCopySelectionCanvas() {
         {/* Primary Text Section - BEFORE Media */}
         <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
           <p className="text-[#050505] leading-[1.3333]" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '20px' }}>
-            <span className="font-semibold">Your Brand</span>{" "}
             {copy.primaryText}
           </p>
         </div>
@@ -613,24 +611,6 @@ export function AdCopySelectionCanvas() {
       <div className="grid grid-cols-3 gap-4 max-w-6xl mx-auto">
         {activeFormat === "feed" && activeVariations.slice(0, 3).map((_, index) => renderFeedAdCopyCard(index))}
         {activeFormat === "story" && activeVariations.slice(0, 3).map((_, index) => renderStoryAdCopyCard(index))}
-      </div>
-
-      {/* CTA Selector */}
-      <div className="rounded-lg border border-border bg-card p-4 max-w-6xl mx-auto w-full">
-        <CTASelect />
-      </div>
-
-      
-
-      {/* Info Section */}
-      <div className="text-center py-6">
-        <p className="text-sm text-muted-foreground">
-          {isGenerating 
-            ? "Writing 3 ad copy variations…"
-            : adCopyState.selectedCopyIndex !== null 
-              ? `Copy variation ${adCopyState.selectedCopyIndex + 1} selected - Click Next to continue`
-              : "Select an ad copy variation to continue"}
-        </p>
       </div>
     </div>
   )
