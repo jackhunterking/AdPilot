@@ -116,7 +116,7 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
 
   // Convert builder state to MetaInstantForm for preview
   const previewForm = useMemo(() => {
-    return mapBuilderStateToMetaForm(
+    const form = mapBuilderStateToMetaForm(
       {
         formName,
         privacyUrl,
@@ -133,6 +133,11 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
         pageProfilePicture,
       }
     )
+    // Include form ID if we have a selected form
+    if (selectedFormId) {
+      form.id = selectedFormId
+    }
+    return form
   }, [
     formName,
     privacyUrl,
@@ -145,6 +150,7 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
     pageData.pageId,
     pageData.pageName,
     pageProfilePicture,
+    selectedFormId,
   ])
 
   return (
@@ -164,6 +170,11 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
                     setPrivacyUrl(preview.privacyUrl || "")
                     setPrivacyLinkText(preview.privacyLinkText || "Privacy Policy")
                     setFields(preview.fields)
+                    // Update thank you page data if provided
+                    if (preview.thankYouTitle) setThankYouTitle(preview.thankYouTitle)
+                    if (preview.thankYouMessage) setThankYouMessage(preview.thankYouMessage)
+                    if (preview.thankYouButtonText) setThankYouButtonText(preview.thankYouButtonText)
+                    if (preview.thankYouButtonUrl) setThankYouButtonUrl(preview.thankYouButtonUrl)
                   }}
                   onConfirm={(existing) => {
                     setSelectedFormId(existing.id)

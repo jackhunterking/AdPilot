@@ -26,6 +26,10 @@ interface PreviewData {
   privacyUrl?: string
   privacyLinkText?: string
   fields: Array<{ id: string; type: "full_name" | "email" | "phone"; label: string; required: boolean }>
+  thankYouTitle?: string
+  thankYouMessage?: string
+  thankYouButtonText?: string
+  thankYouButtonUrl?: string
 }
 
 interface LeadFormExistingProps {
@@ -207,6 +211,10 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
         privacyUrl: metaForm.privacy.url,
         privacyLinkText: metaForm.privacy.linkText,
         fields,
+        thankYouTitle: metaForm.thankYou?.title,
+        thankYouMessage: metaForm.thankYou?.body,
+        thankYouButtonText: metaForm.thankYou?.ctaText,
+        thankYouButtonUrl: metaForm.thankYou?.ctaUrl,
       })
     } catch (e) {
       // noop preview failure

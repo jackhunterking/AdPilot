@@ -9,6 +9,7 @@
 
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, X, Info, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -25,6 +26,22 @@ export function MetaInstantFormPreview({
   currentStep,
   onStepChange,
 }: MetaInstantFormPreviewProps) {
+  // Form state management
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({})
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  // Create a stable form key to detect when form structure changes
+  const formKey = `${form.id || form.name}-${form.fields.map(f => `${f.id}:${f.type}`).join(',')}`
+
+  // Reset form state when form structure changes
+  useEffect(() => {
+    setFieldValues({})
+    setFieldErrors({})
+    // Reset to step 0 when form structure changes
+    onStepChange?.(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formKey])
+
   // Get page initials for avatar
   const getInitials = (name?: string) => {
     if (!name) return 'JH'
@@ -39,6 +56,86 @@ export function MetaInstantFormPreview({
   const pageName = form.pageName || 'Jack Hunter X'
   const initials = getInitials(pageName)
 
+  // Handle field value changes
+  const handleFieldChange = (fieldId: string, value: string) => {
+    setFieldValues((prev) => ({ ...prev, [fieldId]: value }))
+    // Clear error when user starts typing
+    if (fieldErrors[fieldId]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev }
+        delete next[fieldId]
+        return next
+      })
+    }
+  }
+
+  // Validate email format
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
+  // Validate form before proceeding
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {}
+    
+    form.fields.forEach((field) => {
+      const value = fieldValues[field.id] || ''
+      
+      if (field.required && !value.trim()) {
+        errors[field.id] = 'This field is required'
+      } else if (field.type === 'EMAIL' && value.trim() && !validateEmail(value.trim())) {
+        errors[field.id] = 'Please enter a valid email address'
+      }
+    })
+
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  // Handle step navigation with validation
+  const handleNextStep = () => {
+    if (currentStep === 1) {
+      // Validate before proceeding to privacy step
+      if (!validateForm()) {
+        return
+      }
+    }
+    
+    if (currentStep === 2) {
+      // Final validation before submission
+      if (!validateForm()) {
+        return
+      }
+    }
+
+    onStepChange?.(Math.min(currentStep + 1, 3))
+  }
+
+  // Get input type based on field type
+  const getInputType = (fieldType: string): string => {
+    switch (fieldType) {
+      case 'EMAIL':
+        return 'email'
+      case 'PHONE':
+        return 'tel'
+      default:
+        return 'text'
+    }
+  }
+
+  // Get placeholder based on field type
+  const getPlaceholder = (fieldType: string): string => {
+    switch (fieldType) {
+      case 'EMAIL':
+        return 'email@example.com'
+      case 'PHONE':
+        return '+1 (555) 000-0000'
+      default:
+        return 'Enter your answer.'
+    }
+  }
+
   return (
     <div className="mx-auto w-[375px]">
       <div className="bg-[#E4E6EB] rounded-2xl p-4 shadow-xl">
@@ -46,13 +143,21 @@ export function MetaInstantFormPreview({
         <div className="bg-card rounded-xl shadow-lg overflow-hidden min-h-[600px] flex flex-col">
           {/* Top Navigation Bar */}
           <div className="flex items-center justify-between p-4 border-b">
-            {currentStep > 0 && (
-              <button className="p-1 hover:bg-muted rounded-full transition-colors">
+            {currentStep > 0 ? (
+              <button 
+                onClick={() => onStepChange?.(Math.max(currentStep - 1, 0))}
+                className="p-1 hover:bg-muted rounded-full transition-colors"
+                aria-label="Go back"
+              >
                 <ChevronLeft className="h-6 w-6" />
               </button>
+            ) : (
+              <div className="w-8" />
             )}
-            {currentStep === 0 && <div className="w-8" />}
-            <button className="p-1 hover:bg-muted rounded-full transition-colors ml-auto">
+            <button 
+              className="p-1 hover:bg-muted rounded-full transition-colors ml-auto"
+              aria-label="Close"
+            >
               <X className="h-6 w-6" />
             </button>
           </div>
@@ -90,35 +195,44 @@ export function MetaInstantFormPreview({
                   <Info className="h-5 w-5 text-muted-foreground" />
                 </div>
                 <div className="space-y-4">
-                  {form.fields.find((f) => f.type === 'EMAIL') && (
-                    <div>
-                      <label className="text-sm text-muted-foreground mb-2 block">
-                        Email
-                      </label>
-                      <div className="border-b border-muted-foreground/20 pb-2">
-                        <input
-                          type="text"
-                          placeholder="Enter your answer."
-                          className="w-full bg-transparent text-muted-foreground outline-none placeholder:text-muted-foreground/60"
-                          disabled
-                        />
+                  {form.fields.map((field) => {
+                    const value = fieldValues[field.id] || ''
+                    const error = fieldErrors[field.id]
+                    const hasError = !!error
+
+                    return (
+                      <div key={field.id}>
+                        <label className="text-sm text-muted-foreground mb-2 block">
+                          {field.label}
+                          {field.required && <span className="text-destructive ml-1">*</span>}
+                        </label>
+                        <div className={cn(
+                          "border-b pb-2 transition-colors",
+                          hasError 
+                            ? "border-destructive" 
+                            : "border-muted-foreground/20 focus-within:border-primary"
+                        )}>
+                          <input
+                            type={getInputType(field.type)}
+                            placeholder={getPlaceholder(field.type)}
+                            value={value}
+                            onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                            className={cn(
+                              "w-full bg-transparent outline-none placeholder:text-muted-foreground/60 transition-colors",
+                              hasError 
+                                ? "text-destructive" 
+                                : "text-foreground"
+                            )}
+                          />
+                        </div>
+                        {hasError && (
+                          <p className="text-xs text-destructive mt-1">{error}</p>
+                        )}
                       </div>
-                    </div>
-                  )}
-                  {form.fields.find((f) => f.type === 'FULL_NAME') && (
-                    <div>
-                      <label className="text-sm text-muted-foreground mb-2 block">
-                        Full name
-                      </label>
-                      <div className="border-b border-muted-foreground/20 pb-2">
-                        <input
-                          type="text"
-                          placeholder="Enter your answer."
-                          className="w-full bg-transparent text-muted-foreground outline-none placeholder:text-muted-foreground/60"
-                          disabled
-                        />
-                      </div>
-                    </div>
+                    )
+                  })}
+                  {form.fields.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No fields configured for this form.</p>
                   )}
                 </div>
               </div>
@@ -196,20 +310,31 @@ export function MetaInstantFormPreview({
             )}
 
             {/* CTA Button */}
-            <Button
-              className="w-full h-12 text-base font-medium rounded-full"
-              onClick={() => onStepChange?.(Math.min(currentStep + 1, 3))}
-            >
-              {currentStep === 3 ? (
-                'View website'
-              ) : currentStep === 2 ? (
-                'Submit'
-              ) : (
-                <>
-                  Continue <ArrowRight className="ml-2 h-4 w-4" />
-                </>
-              )}
-            </Button>
+            {currentStep === 3 && form.thankYou?.ctaUrl ? (
+              <Button
+                asChild
+                className="w-full h-12 text-base font-medium rounded-full"
+              >
+                <a href={form.thankYou.ctaUrl} target="_blank" rel="noopener noreferrer">
+                  {form.thankYou?.ctaText || 'View website'}
+                </a>
+              </Button>
+            ) : (
+              <Button
+                className="w-full h-12 text-base font-medium rounded-full"
+                onClick={handleNextStep}
+              >
+                {currentStep === 3 ? (
+                  form.thankYou?.ctaText || 'View website'
+                ) : currentStep === 2 ? (
+                  'Submit'
+                ) : (
+                  <>
+                    Continue <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </div>
