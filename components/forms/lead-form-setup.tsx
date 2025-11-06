@@ -148,7 +148,7 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
   ])
 
   return (
-    <div className="container mx-auto px-6 py-8 max-w-full">
+    <div className="w-full px-4 py-6">
       <div className="grid lg:grid-cols-2 gap-8 w-full">
           {/* Left Panel - Form Selection/Creation */}
           <div className="space-y-6">
@@ -212,7 +212,7 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
 
           {/* Right Panel - Preview */}
           <div className="lg:sticky lg:top-8 lg:h-fit">
-            <div className="p-8 bg-muted/30 rounded-lg">
+            <div className="p-8 bg-muted/30 rounded-lg border border-border">
               {/* Step Title Outside Phone */}
               <div className="mb-6">
                 <div className="flex items-center justify-between">
