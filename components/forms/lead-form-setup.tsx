@@ -150,76 +150,73 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
   ])
 
   return (
-    <div className="flex flex-col gap-6">
-      <Tabs value={tab} onValueChange={(v) => setTab(v as "create" | "existing")} className="w-full">
-        {/* Centered TabsList */}
-        <div className="flex justify-center pb-4">
-          <TabsList className="grid w-full max-w-md grid-cols-2 h-12">
-            <TabsTrigger value="existing" className="text-base">Select Existing</TabsTrigger>
-            <TabsTrigger value="create" className="text-base">Create New</TabsTrigger>
-          </TabsList>
-        </div>
-
-        {/* Two-column layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
-          {/* Left column */}
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-6 py-8">
+        <div className="grid lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
+          {/* Left Panel - Form Selection/Creation */}
           <div className="space-y-6">
-            <TabsContent value="create" className="space-y-4 mt-0">
-              <LeadFormCreate
-                formName={formName}
-                onFormNameChange={setFormName}
-                privacyUrl={privacyUrl}
-                onPrivacyUrlChange={setPrivacyUrl}
-                privacyLinkText={privacyLinkText}
-                onPrivacyLinkTextChange={setPrivacyLinkText}
-                fields={fields}
-                onFieldsChange={setFields}
-                thankYouTitle={thankYouTitle}
-                onThankYouTitleChange={setThankYouTitle}
-                thankYouMessage={thankYouMessage}
-                onThankYouMessageChange={setThankYouMessage}
-                thankYouButtonText={thankYouButtonText}
-                onThankYouButtonTextChange={setThankYouButtonText}
-                thankYouButtonUrl={thankYouButtonUrl}
-                onThankYouButtonUrlChange={setThankYouButtonUrl}
-                onConfirm={(created) => {
-                  // Auto-select newly created form: switch to Existing and highlight
-                  setSelectedFormId(created.id)
-                  setTab("existing")
-                  onFormSelected(created)
-                  // Signal stepper to advance once state completes
-                  setTimeout(() => {
-                    try { window.dispatchEvent(new Event('autoAdvanceStep')) } catch {}
-                  }, 0)
-                }}
-              />
-            </TabsContent>
-            <TabsContent value="existing" className="space-y-4 mt-0">
-              <LeadFormExisting
-                onPreview={(preview) => {
-                  setFormName(preview.name)
-                  setPrivacyUrl(preview.privacyUrl || "")
-                  setPrivacyLinkText(preview.privacyLinkText || "Privacy Policy")
-                  setFields(preview.fields)
-                }}
-                onConfirm={(existing) => {
-                  setSelectedFormId(existing.id)
-                  onFormSelected(existing)
-                  // Signal stepper to advance once state completes
-                  setTimeout(() => {
-                    try { window.dispatchEvent(new Event('autoAdvanceStep')) } catch {}
-                  }, 0)
-                }}
-                onRequestCreate={() => setTab("create")}
-                selectedFormId={selectedFormId}
-              />
-            </TabsContent>
+            <Tabs value={tab} onValueChange={(v) => setTab(v as "create" | "existing")} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 h-12">
+                <TabsTrigger value="existing" className="text-base">Select Existing</TabsTrigger>
+                <TabsTrigger value="create" className="text-base">Create New</TabsTrigger>
+              </TabsList>
+              <TabsContent value="existing" className="space-y-4 mt-6">
+                <LeadFormExisting
+                  onPreview={(preview) => {
+                    setFormName(preview.name)
+                    setPrivacyUrl(preview.privacyUrl || "")
+                    setPrivacyLinkText(preview.privacyLinkText || "Privacy Policy")
+                    setFields(preview.fields)
+                  }}
+                  onConfirm={(existing) => {
+                    setSelectedFormId(existing.id)
+                    onFormSelected(existing)
+                    // Signal stepper to advance once state completes
+                    setTimeout(() => {
+                      try { window.dispatchEvent(new Event('autoAdvanceStep')) } catch {}
+                    }, 0)
+                  }}
+                  onRequestCreate={() => setTab("create")}
+                  selectedFormId={selectedFormId}
+                />
+              </TabsContent>
+              <TabsContent value="create" className="space-y-6 mt-6">
+                <LeadFormCreate
+                  formName={formName}
+                  onFormNameChange={setFormName}
+                  privacyUrl={privacyUrl}
+                  onPrivacyUrlChange={setPrivacyUrl}
+                  privacyLinkText={privacyLinkText}
+                  onPrivacyLinkTextChange={setPrivacyLinkText}
+                  fields={fields}
+                  onFieldsChange={setFields}
+                  thankYouTitle={thankYouTitle}
+                  onThankYouTitleChange={setThankYouTitle}
+                  thankYouMessage={thankYouMessage}
+                  onThankYouMessageChange={setThankYouMessage}
+                  thankYouButtonText={thankYouButtonText}
+                  onThankYouButtonTextChange={setThankYouButtonText}
+                  thankYouButtonUrl={thankYouButtonUrl}
+                  onThankYouButtonUrlChange={setThankYouButtonUrl}
+                  onConfirm={(created) => {
+                    // Auto-select newly created form: switch to Existing and highlight
+                    setSelectedFormId(created.id)
+                    setTab("existing")
+                    onFormSelected(created)
+                    // Signal stepper to advance once state completes
+                    setTimeout(() => {
+                      try { window.dispatchEvent(new Event('autoAdvanceStep')) } catch {}
+                    }, 0)
+                  }}
+                />
+              </TabsContent>
+            </Tabs>
           </div>
 
-          {/* Right column - Live mockup */}
+          {/* Right Panel - Preview */}
           <div className="lg:sticky lg:top-8 lg:h-fit">
             <Card className="p-8 bg-muted/30">
-              {/* Step Title & Navigation - OUTSIDE phone */}
+              {/* Step Title Outside Phone */}
               <div className="mb-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold">{PREVIEW_STEPS[currentStep]?.title || 'Preview'}</h2>
@@ -258,13 +255,13 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
             </Card>
           </div>
         </div>
-      </Tabs>
 
-      {/* Change Goal button at bottom */}
-      <div className="flex justify-center pt-6 border-t border-border">
-        <Button variant="outline" size="lg" onClick={onChangeGoal}>
-          Change Goal
-        </Button>
+        {/* Change Goal Button */}
+        <div className="flex justify-center mt-8">
+          <Button variant="outline" size="lg" className="h-12 px-8" onClick={onChangeGoal}>
+            Change Goal
+          </Button>
+        </div>
       </div>
     </div>
   )

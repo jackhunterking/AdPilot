@@ -325,8 +325,8 @@ export function LeadFormCreate({
       {serverError && (
         <p className="text-sm text-red-600 py-1">{serverError}</p>
       )}
-      <Button onClick={createForm} disabled={Object.keys(errors).length > 0 || isSubmitting} className="w-full">
-        {isSubmitting ? "Creating..." : "Create and select form"}
+      <Button onClick={createForm} disabled={Object.keys(errors).length > 0 || isSubmitting} className="w-full h-12 text-base font-medium">
+        {isSubmitting ? "Creating..." : "Create and Select Form"}
       </Button>
     </div>
   )

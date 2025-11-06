@@ -290,9 +290,9 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
         	if (form) onConfirm({ id: form.id, name: form.name })
         }}
         disabled={!selectedFormId}
-        className="w-full"
+        className="w-full h-12 text-base font-medium"
       >
-        Use this form
+        Use Selected Form
       </Button>
     </div>
   )
