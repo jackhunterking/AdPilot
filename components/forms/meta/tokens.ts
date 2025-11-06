@@ -132,12 +132,17 @@ export const metaFormTokens = {
     slow: '300ms ease-in-out',
   },
 
-  // Card layout
-  card: {
-    maxWidth: 480,
-    padding: 24,
-    shadow: '0 2px 12px rgba(0,0,0,0.08)',
-    borderRadius: 16,
+  // Horizontal slider
+  slider: {
+    slideWidth: 324,
+    transitionDuration: '300ms',
+  },
+
+  // Progress bar
+  progressBar: {
+    height: 3,
+    trackColor: '#E4E6EB',
+    fillColor: '#1877F2',
   },
 
   // Intro screen

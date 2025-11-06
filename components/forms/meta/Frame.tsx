@@ -73,8 +73,9 @@ export function Frame({ children }: FrameProps) {
         {/* Body - content area */}
         <div
           style={{
-            backgroundColor: colors.background,
+            backgroundColor: '#FFFFFF',
             minHeight: dimensions.frame.height - dimensions.statusBar.height,
+            overflow: 'hidden',
           }}
         >
           {children}

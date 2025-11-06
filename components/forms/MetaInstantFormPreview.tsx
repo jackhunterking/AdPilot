@@ -1,8 +1,8 @@
 /**
  * Feature: Meta Instant Forms Preview (Orchestrator)
- * Purpose: Stage orchestrator producing pixel-perfect 5-stage form flow
+ * Purpose: Horizontal slider carousel with 4-stage form flow matching Facebook's actual implementation
  * References:
- *  - Meta Instant Forms UI: Multi-stage form flow with centered cards
+ *  - Meta Instant Forms UI: Horizontal slider with translateX animation
  *  - Meta Business Help: https://www.facebook.com/business/help/1611070512241988
  */
 
@@ -11,14 +11,15 @@
 import { useState, useEffect } from 'react'
 import { Frame } from './meta/Frame'
 import { Header } from './meta/Header'
-import { Card } from './meta/Card'
 import { Intro } from './meta/Intro'
 import { Field } from './meta/Field'
 import { PrimaryButton } from './meta/PrimaryButton'
-import { Privacy } from './meta/Privacy'
 import { PrivacyReview } from './meta/PrivacyReview'
 import { ThankYou } from './meta/ThankYou'
+import { CloseButton } from './meta/CloseButton'
+import { ProgressBar } from './meta/ProgressBar'
 import { metaFormTokens } from './meta/tokens'
+import { Info } from 'lucide-react'
 import type { MetaInstantForm } from '@/lib/types/meta-instant-form'
 
 interface MetaInstantFormPreviewProps {
@@ -31,14 +32,14 @@ export function MetaInstantFormPreview({
   showThankYou = false,
 }: MetaInstantFormPreviewProps) {
   const [stage, setStage] = useState(1)
-  const totalStages = 5
+  const totalStages = 4
 
-  const { spacing } = metaFormTokens
+  const { slider, spacing, colors, typography } = metaFormTokens
 
   // Reset stage when form changes or showThankYou changes
   useEffect(() => {
     if (showThankYou) {
-      setStage(5) // Thank you is stage 5
+      setStage(4) // Thank you is stage 4
     } else {
       setStage(1)
     }
@@ -67,27 +68,22 @@ export function MetaInstantFormPreview({
   const fullNameField = form.fields.find((f) => f.type === 'FULL_NAME')
   const phoneField = form.fields.find((f) => f.type === 'PHONE')
 
+  // Combine all contact fields for stage 2
+  const contactFields = [emailField, fullNameField, phoneField].filter(Boolean)
+
   // Stage definitions
   const stages = [
     {
       title: 'Intro',
-      fields: [],
     },
     {
       title: 'Prefill information',
-      fields: [emailField, fullNameField].filter(Boolean),
-    },
-    {
-      title: 'Contact information',
-      fields: [phoneField].filter(Boolean),
     },
     {
       title: 'Privacy review',
-      fields: [],
     },
     {
       title: 'Message for leads',
-      fields: [],
     },
   ]
 
@@ -104,79 +100,96 @@ export function MetaInstantFormPreview({
         onNext={handleNext}
       />
 
-      {/* Stage-specific content */}
-      {stage === 1 ? (
-        // Stage 1: Intro
-        <Card showBack={false} showClose={true}>
-          <Intro
-            pageProfilePicture={form.pageProfilePicture}
-            pageName={form.pageName}
-            headline={form.introHeadline || form.name}
-            onContinue={handleNext}
-          />
-        </Card>
-      ) : stage === 2 || stage === 3 ? (
-        // Stage 2: Prefill information (Email + Full Name)
-        // Stage 3: Contact information (Phone)
-        <Card showBack={true} showClose={true} onBack={handlePrev}>
-          <div className="px-6 py-8">
-            {/* Form name as heading */}
-            <h1
-              className="font-semibold mb-6"
-              style={{
-                fontSize: metaFormTokens.typography.fontSize.lg,
-                color: metaFormTokens.colors.text.primary,
-              }}
-            >
-              {form.name}
-            </h1>
+      {/* Horizontal slider container */}
+      <div style={{ overflow: 'hidden', position: 'relative' }}>
+        <div
+          style={{
+            display: 'flex',
+            transform: `translateX(-${(stage - 1) * slider.slideWidth}px)`,
+            transition: `transform ${slider.transitionDuration} ease-in-out`,
+          }}
+        >
+          {/* Slide 1: Intro */}
+          <div style={{ width: `${slider.slideWidth}px`, flexShrink: 0 }}>
+            <Intro
+              pageProfilePicture={form.pageProfilePicture}
+              pageName={form.pageName}
+              headline={form.introHeadline || form.name}
+              onContinue={handleNext}
+            />
+          </div>
 
-            {/* Fields */}
-            <div className="space-y-4">
-              {currentStage?.fields.map((field) =>
-                field ? (
-                  <Field key={field.id} type={field.type} label={field.label} />
-                ) : null
-              )}
-            </div>
+          {/* Slide 2: Contact Information (Email + Full Name + Phone) */}
+          <div style={{ width: `${slider.slideWidth}px`, flexShrink: 0 }}>
+            <div className="relative flex flex-col" style={{ height: '480px' }}>
+              <CloseButton />
+              
+              <div className="flex-1 px-6 py-8" style={{ marginTop: '70px' }}>
+                {/* Heading with info icon */}
+                <div className="flex items-center gap-2 mb-6">
+                  <h2
+                    className="font-semibold"
+                    style={{
+                      fontSize: typography.fontSize.lg,
+                      color: colors.text.primary,
+                      lineHeight: typography.lineHeight.tight,
+                    }}
+                  >
+                    Contact information
+                  </h2>
+                  <Info
+                    size={16}
+                    style={{ color: colors.text.secondary }}
+                  />
+                </div>
 
-            {/* Continue button */}
-            {currentStage && currentStage.fields.length > 0 && (
-              <div style={{ marginTop: spacing['3xl'] }}>
-                <PrimaryButton onClick={handleNext}>Continue</PrimaryButton>
+                {/* Fields */}
+                <div className="space-y-4">
+                  {contactFields.map((field) =>
+                    field ? (
+                      <Field key={field.id} type={field.type} label={field.label} />
+                    ) : null
+                  )}
+                </div>
               </div>
-            )}
 
-            {/* Privacy text at bottom */}
-            <div style={{ marginTop: spacing['3xl'] }}>
-              <Privacy linkText={form.privacy.linkText} url={form.privacy.url} />
+              {/* Bottom section with progress and button */}
+              <div className="mt-auto">
+                <div className="px-6 mb-4">
+                  <ProgressBar progress={50} />
+                </div>
+                <div className="px-6 pb-6">
+                  <PrimaryButton onClick={handleNext}>Continue</PrimaryButton>
+                </div>
+              </div>
             </div>
           </div>
-        </Card>
-      ) : stage === 4 ? (
-        // Stage 4: Privacy Review
-        <Card showBack={true} showClose={true} onBack={handlePrev}>
-          <PrivacyReview
-            pageName={form.pageName}
-            privacyUrl={form.privacy.url}
-            onSubmit={handleNext}
-          />
-        </Card>
-      ) : (
-        // Stage 5: Thank You
-        <Card showBack={false} showClose={true}>
-          <ThankYou
-            title={form.thankYou?.title || 'Thanks, you\'re all set.'}
-            body={
-              form.thankYou?.body ||
-              'You can visit our website or exit the form now.'
-            }
-            ctaText={form.thankYou?.ctaText || 'View website'}
-            ctaUrl={form.thankYou?.ctaUrl}
-          />
-        </Card>
-      )}
+
+          {/* Slide 3: Privacy Review */}
+          <div style={{ width: `${slider.slideWidth}px`, flexShrink: 0 }}>
+            <PrivacyReview
+              pageName={form.pageName}
+              privacyUrl={form.privacy.url}
+              onSubmit={handleNext}
+            />
+          </div>
+
+          {/* Slide 4: Thank You */}
+          <div style={{ width: `${slider.slideWidth}px`, flexShrink: 0 }}>
+            <ThankYou
+              title={form.thankYou?.title || 'Thanks, you\'re all set.'}
+              body={
+                form.thankYou?.body ||
+                'You can visit our website or exit the form now.'
+              }
+              ctaText={form.thankYou?.ctaText || 'View website'}
+              ctaUrl={form.thankYou?.ctaUrl}
+              pageProfilePicture={form.pageProfilePicture}
+              pageName={form.pageName}
+            />
+          </div>
+        </div>
+      </div>
     </Frame>
   )
 }
-

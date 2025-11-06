@@ -12,12 +12,14 @@ import { useState, useEffect } from 'react'
 import { User } from 'lucide-react'
 import { metaFormTokens } from './tokens'
 import { PrimaryButton } from './PrimaryButton'
+import { CloseButton } from './CloseButton'
 
 interface IntroProps {
   pageProfilePicture?: string
   pageName?: string
   headline: string
   onContinue?: () => void
+  onClose?: () => void
 }
 
 export function Intro({
@@ -25,6 +27,7 @@ export function Intro({
   pageName,
   headline,
   onContinue,
+  onClose,
 }: IntroProps) {
   const { intro, colors, typography, spacing } = metaFormTokens
   const [imageError, setImageError] = useState(false)
@@ -37,7 +40,9 @@ export function Intro({
   const showFallback = !pageProfilePicture || imageError
 
   return (
-    <div className="flex flex-col items-center text-center px-6 py-8">
+    <div className="relative flex flex-col items-center text-center px-6 py-8" style={{ height: '480px' }}>
+      <CloseButton onClick={onClose} />
+      
       {/* Profile Picture */}
       <div
         className="rounded-full overflow-hidden flex items-center justify-center mb-4"
@@ -46,6 +51,7 @@ export function Intro({
           height: intro.profilePictureSize,
           border: `${intro.profilePictureBorder}px solid ${colors.border.light}`,
           backgroundColor: showFallback ? colors.background : 'transparent',
+          marginTop: '70px',
         }}
       >
         {showFallback ? (
@@ -91,7 +97,7 @@ export function Intro({
       </h2>
 
       {/* Continue Button */}
-      <div className="w-full max-w-xs" style={{ marginTop: spacing['3xl'] }}>
+      <div className="w-full max-w-xs" style={{ marginTop: 'auto' }}>
         <PrimaryButton onClick={onContinue}>Continue</PrimaryButton>
       </div>
     </div>
