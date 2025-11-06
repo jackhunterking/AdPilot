@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, supabaseServer } from '@/lib/supabase/server'
 import { getConnectionWithToken, fetchPagesWithTokens, getGraphVersion } from '@/lib/meta/service'
+import { GraphAPILeadgenFormSchema } from '@/lib/meta/instant-form-schemas'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   console.log('[MetaInstantForms GET] Request received')
@@ -116,7 +117,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     })
 
     const gv = getGraphVersion()
-    const url = `https://graph.facebook.com/${gv}/${encodeURIComponent(formId)}?fields=id,name,questions{type},privacy_policy_url`
+    const url = `https://graph.facebook.com/${gv}/${encodeURIComponent(formId)}?fields=id,name,questions{type,key,label},privacy_policy{url,link_text},thank_you_page{title,body,button_text,website_url}`
 
     console.log('[MetaInstantForms GET] Calling Meta Graph API:', {
       endpoint: url.replace(/access_token=[^&]+/, 'access_token=[REDACTED]'),
@@ -134,20 +135,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: msg }, { status: 502 })
     }
 
-    // Narrow to shape used by UI
-    const out = (json && typeof json === 'object' && json !== null) ? (json as {
-      id?: string
-      name?: string
-      questions?: Array<{ type?: string }>
-      privacy_policy_url?: string
-    }) : {}
+    // Validate with zod schema
+    const parseResult = GraphAPILeadgenFormSchema.safeParse(json)
+    if (!parseResult.success) {
+      console.error('[MetaInstantForms GET] Invalid response from Graph API:', parseResult.error)
+      return NextResponse.json({
+        error: 'Invalid form data received from Meta',
+        details: parseResult.error.issues,
+      }, { status: 502 })
+    }
 
-    return NextResponse.json({
-      id: typeof out.id === 'string' ? out.id : '',
-      name: typeof out.name === 'string' ? out.name : '',
-      questions: Array.isArray(out.questions) ? out.questions : [],
-      privacy_policy_url: typeof out.privacy_policy_url === 'string' ? out.privacy_policy_url : undefined,
-    })
+    return NextResponse.json(parseResult.data)
   } catch (error) {
     console.error('[MetaInstantFormDetail] GET error:', {
       error: error instanceof Error ? error.message : String(error),

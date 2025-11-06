@@ -14,6 +14,8 @@ import { FileText, Search, Calendar, Check, Info } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { metaStorage } from "@/lib/meta/storage"
+import { mapGraphAPIFormToMetaForm } from "@/lib/meta/instant-form-mapper"
+import type { GraphAPILeadgenForm } from "@/lib/types/meta-instant-form"
 
 interface LeadForm { id: string; name: string; created_time?: string }
 
@@ -152,39 +154,23 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
       })
 
       if (!res.ok) throw new Error((json as { error?: string }).error || 'Failed to load form detail')
-      const detail = json as {
-        id: string
-        name: string
-        questions?: Array<{ type?: string }>
-        privacy_policy_url?: string
-      }
+      
+      // Use mapper to convert Graph API response to our format
+      const metaForm = mapGraphAPIFormToMetaForm(json as GraphAPILeadgenForm)
 
-      const fields: PreviewData['fields'] = []
-      const q = Array.isArray(detail.questions) ? detail.questions : []
-      const map: Record<string, PreviewData['fields'][number]> = {
-        FULL_NAME: { id: 'full', type: 'full_name', label: 'Full Name', required: true },
-        EMAIL: { id: 'email', type: 'email', label: 'Email Address', required: true },
-        PHONE: { id: 'phone', type: 'phone', label: 'Phone Number', required: true },
-      }
-      q.forEach((qq) => {
-        const t = typeof qq.type === 'string' ? qq.type.toUpperCase() : ''
-        const mappedField = map[t]
-        if (mappedField) fields.push(mappedField)
-      })
-      if (fields.length === 0) {
-        const fullName = map.FULL_NAME
-        const email = map.EMAIL
-        const phone = map.PHONE
-        if (fullName) fields.push(fullName)
-        if (email) fields.push(email)
-        if (phone) fields.push(phone)
-      }
+      // Convert to legacy PreviewData format for parent callback
+      const fields: PreviewData['fields'] = metaForm.fields.map((f) => ({
+        id: f.id,
+        type: f.type === 'FULL_NAME' ? 'full_name' : f.type === 'EMAIL' ? 'email' : 'phone',
+        label: f.label,
+        required: f.required || false,
+      }))
 
       onPreview({
-        id: detail.id,
-        name: detail.name,
-        privacyUrl: detail.privacy_policy_url,
-        privacyLinkText: 'Privacy Policy',
+        id: metaForm.id || '',
+        name: metaForm.name,
+        privacyUrl: metaForm.privacy.url,
+        privacyLinkText: metaForm.privacy.linkText,
         fields,
       })
     } catch (e) {

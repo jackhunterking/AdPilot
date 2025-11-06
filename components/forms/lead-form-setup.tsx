@@ -10,11 +10,12 @@
 
 import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { InstantFormPhoneMockup } from "@/components/forms/instant-form-phone-mockup"
+import { MetaInstantFormPreview } from "@/components/forms/MetaInstantFormPreview"
 import { LeadFormCreate } from "@/components/forms/lead-form-create"
 import { LeadFormExisting } from "@/components/forms/lead-form-existing"
 import { cn } from "@/lib/utils"
 import { useGoal } from "@/lib/context/goal-context"
+import { mapBuilderStateToMetaForm } from "@/lib/meta/instant-form-mapper"
 
 interface SelectedFormData {
   id: string
@@ -49,6 +50,29 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
   const [thankYouButtonUrl, setThankYouButtonUrl] = useState<string>("")
 
   const mockFields = useMemo(() => fields.map(f => ({ ...f })), [fields])
+
+  // Convert builder state to MetaInstantForm for preview
+  const previewForm = useMemo(() => {
+    return mapBuilderStateToMetaForm({
+      formName,
+      privacyUrl,
+      privacyLinkText,
+      fields,
+      thankYouTitle,
+      thankYouMessage,
+      thankYouButtonText,
+      thankYouButtonUrl,
+    })
+  }, [
+    formName,
+    privacyUrl,
+    privacyLinkText,
+    fields,
+    thankYouTitle,
+    thankYouMessage,
+    thankYouButtonText,
+    thankYouButtonUrl,
+  ])
 
   const tabs = [
     { id: "create", label: "Create New" },
@@ -138,12 +162,7 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
 
         {/* Right column - Live mockup */}
         <div className="flex items-start justify-center">
-          <InstantFormPhoneMockup
-            formName={formName}
-            fields={mockFields}
-            privacyUrl={privacyUrl}
-            privacyLinkText={privacyLinkText}
-          />
+          <MetaInstantFormPreview form={previewForm} />
         </div>
       </div>
 
