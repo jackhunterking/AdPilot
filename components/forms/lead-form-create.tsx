@@ -63,6 +63,16 @@ export function LeadFormCreate({
 }: LeadFormCreateProps) {
   const { campaign } = useCampaignContext()
 
+  // Ensure required fields (full_name, email, phone) always have required: true
+  const normalizedFields = useMemo(() => {
+    return fields.map(f => {
+      if (f.type === "full_name" || f.type === "email" || f.type === "phone") {
+        return { ...f, required: true }
+      }
+      return f
+    })
+  }, [fields])
+
   // Collapsible section states
   const [formNameOpen, setFormNameOpen] = useState<boolean>(true)
   const [fieldsOpen, setFieldsOpen] = useState<boolean>(true)
@@ -91,7 +101,12 @@ export function LeadFormCreate({
   }, [formName, privacyUrl, privacyLinkText, thankYouButtonText, thankYouButtonUrl])
 
   const toggleRequired = (id: string) => {
-    onFieldsChange(fields.map(f => f.id === id ? { ...f, required: !f.required } : f))
+    // Prevent toggling required fields (full_name, email, phone)
+    const field = normalizedFields.find(f => f.id === id)
+    if (field && (field.type === "full_name" || field.type === "email" || field.type === "phone")) {
+      return // These fields are always required and cannot be toggled
+    }
+    onFieldsChange(normalizedFields.map(f => f.id === id ? { ...f, required: !f.required } : f))
   }
 
   const createForm = async () => {
@@ -233,17 +248,24 @@ export function LeadFormCreate({
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="p-4 pt-4 space-y-4 border-t">
-                {fields.map((f) => (
-                  <div key={f.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                    <div>
-                      <div className="font-medium text-sm">{f.label}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {f.type === "full_name" || f.type === "email" ? "Required by Meta" : "Required"}
+                {normalizedFields.map((f) => {
+                  const isRequiredField = f.type === "full_name" || f.type === "email" || f.type === "phone"
+                  return (
+                    <div key={f.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                      <div>
+                        <div className="font-medium text-sm">{f.label}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {f.type === "full_name" || f.type === "email" ? "Required by Meta" : "Required"}
+                        </div>
                       </div>
+                      <Switch 
+                        checked={f.required} 
+                        onCheckedChange={() => toggleRequired(f.id)} 
+                        disabled={isRequiredField}
+                      />
                     </div>
-                    <Switch checked={f.required} onCheckedChange={() => toggleRequired(f.id)} />
-                  </div>
-                ))}
+                  )
+                })}
                 <Card className="p-3 bg-blue-50 border-blue-200">
                   <div className="flex items-start gap-2">
                     <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
