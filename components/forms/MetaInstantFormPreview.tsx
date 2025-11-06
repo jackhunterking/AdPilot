@@ -1,20 +1,20 @@
 /**
- * Feature: Meta Instant Forms Preview - PIXEL PERFECT
- * Purpose: Horizontal slider carousel matching Facebook's EXACT implementation
+ * Feature: Meta Instant Forms Preview - EXACT Facebook Implementation
+ * Purpose: Complete orchestrator matching Facebook's exact HTML structure
  * References:
- *  - Meta Instant Forms UI: Exact HTML/CSS from Facebook
- *  - Facebook CSS files: ._8duj, ._81-n, exact dimensions and styling
+ *  - Facebook HTML files with exact DOM structure
+ *  - All spacing, sizing, and positioning matches Facebook exactly
  */
 
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, ChevronLeft, ChevronRight } from 'lucide-react'
-import { SimpleContainer } from './meta/SimpleContainer'
-import { Intro } from './meta/Intro'
-import { ContactSlide } from './meta/ContactSlide'
-import { PrivacyReview } from './meta/PrivacyReview'
-import { ThankYou } from './meta/ThankYou'
+import { OuterContainer } from './meta/OuterContainer'
+import { NavigationHeader } from './meta/NavigationHeader'
+import { IntroSlide } from './meta/slides/IntroSlide'
+import { ContactSlide } from './meta/slides/ContactSlide'
+import { PrivacySlide } from './meta/slides/PrivacySlide'
+import { ThankYouSlide } from './meta/slides/ThankYouSlide'
 import { metaFormTokens } from './meta/tokens'
 import type { MetaInstantForm } from '@/lib/types/meta-instant-form'
 
@@ -30,12 +30,12 @@ export function MetaInstantFormPreview({
   const [stage, setStage] = useState(1)
   const totalStages = 4
 
-  const { slider, colors, typography } = metaFormTokens
+  const { slider } = metaFormTokens
 
   // Reset stage when form changes or showThankYou changes
   useEffect(() => {
     if (showThankYou) {
-      setStage(4) // Thank you is stage 4
+      setStage(4)
     } else {
       setStage(1)
     }
@@ -65,7 +65,7 @@ export function MetaInstantFormPreview({
   const phoneField = form.fields.find((f) => f.type === 'PHONE')
   const contactFields = [emailField, fullNameField, phoneField].filter(Boolean) as typeof form.fields
 
-  // Stage definitions
+  // Stage definitions - EXACT from Facebook
   const stages = [
     { title: 'Intro' },
     { title: 'Prefill information' },
@@ -76,145 +76,58 @@ export function MetaInstantFormPreview({
   const currentStage = stages[stage - 1]
 
   return (
-    <SimpleContainer>
-      {/* Header - OUTSIDE slider */}
-      <div style={{ padding: '16px 0' }}>
+    <OuterContainer>
+      {/* Navigation Header - OUTSIDE slider */}
+      <NavigationHeader
+        title={currentStage?.title || 'Form'}
+        currentStep={stage}
+        totalSteps={totalStages}
+        onPrev={handlePrev}
+        onNext={handleNext}
+      />
+
+      {/* Horizontal Slider Container */}
+      <div style={{ position: 'relative' }}>
+        {/* Slides wrapper - EXACT display: flex with transform */}
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 16px',
-          }}
-        >
-          <button
-            type="button"
-            onClick={handlePrev}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              padding: '8px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <ChevronLeft size={20} color={colors.button.primary} strokeWidth={2.5} />
-          </button>
-
-          <div style={{ textAlign: 'center' }}>
-            <div
-              style={{
-                fontSize: `${typography.fontSize.lg - 1}px`,  // 17px
-                fontWeight: typography.fontWeight.semibold,
-                color: colors.text.primary,
-              }}
-            >
-              {currentStage?.title || 'Form'}
-            </div>
-            <div
-              style={{
-                fontSize: `${typography.fontSize.xs}px`,  // 11px
-                color: colors.text.secondary,
-                marginTop: '2px',
-              }}
-            >
-              {stage} of {totalStages}
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleNext}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              padding: '8px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <ChevronRight size={20} color={colors.button.primary} strokeWidth={2.5} />
-          </button>
-        </div>
-      </div>
-
-      {/* Slider container */}
-      <div
-        style={{
-          overflow: 'hidden',
-          position: 'relative',
-          width: `${slider.slideWidth}px`,  // EXACT: 324px
-        }}
-      >
-        {/* Close X button - in gray area, absolute positioned */}
-        <button
-          type="button"
-          style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            zIndex: 10,
-            background: 'transparent',
-            border: 'none',
-            padding: '8px',
-            cursor: 'pointer',
-          }}
-        >
-          <X size={20} color={colors.text.secondary} strokeWidth={2} />
-        </button>
-
-        {/* Slides wrapper */}
-        <div
-          style={{
-            display: 'flex',
-            transform: `translateX(-${(stage - 1) * slider.slideWidth}px)`,  // EXACT: 0, -324px, -648px, -972px
+            transform: `translateX(-${slider.slidePositions[stage - 1]}px)`,  // EXACT: 0, -324, -648, -972
             transition: `transform ${slider.transitionDuration} ease-in-out`,
           }}
         >
           {/* Slide 1: Intro - NO white card */}
-          <div style={{ width: `${slider.slideWidth}px`, flexShrink: 0 }}>
-            <Intro
-              pageProfilePicture={form.pageProfilePicture}
-              pageName={form.pageName}
-              headline={form.introHeadline || form.name}
-              onContinue={handleNext}
-            />
-          </div>
+          <IntroSlide
+            pageProfilePicture={form.pageProfilePicture}
+            pageName={form.pageName}
+            headline={form.introHeadline || form.name}
+            onContinue={handleNext}
+          />
 
           {/* Slide 2: Contact Information - WITH white card */}
-          <div style={{ width: `${slider.slideWidth}px`, flexShrink: 0 }}>
-            <ContactSlide
-              fields={contactFields}
-              onContinue={handleNext}
-            />
-          </div>
+          <ContactSlide
+            fields={contactFields}
+            onContinue={handleNext}
+          />
 
           {/* Slide 3: Privacy Review - NO white card */}
-          <div style={{ width: `${slider.slideWidth}px`, flexShrink: 0 }}>
-            <PrivacyReview
-              pageName={form.pageName}
-              privacyUrl={form.privacy.url}
-              onSubmit={handleNext}
-            />
-          </div>
+          <PrivacySlide
+            pageName={form.pageName}
+            privacyUrl={form.privacy.url}
+            onSubmit={handleNext}
+          />
 
           {/* Slide 4: Thank You - NO white card */}
-          <div style={{ width: `${slider.slideWidth}px`, flexShrink: 0 }}>
-            <ThankYou
-              title={form.thankYou?.title || 'Thanks, you\'re all set.'}
-              body={form.thankYou?.body || 'You can visit our website or exit the form now.'}
-              ctaText={form.thankYou?.ctaText || 'View website'}
-              ctaUrl={form.thankYou?.ctaUrl}
-              pageProfilePicture={form.pageProfilePicture}
-              pageName={form.pageName}
-            />
-          </div>
+          <ThankYouSlide
+            title={form.thankYou?.title || 'Thanks, you\'re all set.'}
+            body={form.thankYou?.body || 'You can visit our website or exit the form now.'}
+            ctaText={form.thankYou?.ctaText || 'View website'}
+            ctaUrl={form.thankYou?.ctaUrl}
+            pageProfilePicture={form.pageProfilePicture}
+            pageName={form.pageName}
+          />
         </div>
       </div>
-    </SimpleContainer>
+    </OuterContainer>
   )
 }
