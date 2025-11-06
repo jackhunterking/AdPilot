@@ -10,12 +10,10 @@
 
 import { useMemo, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { MetaInstantFormPreview } from "@/components/forms/MetaInstantFormPreview"
 import { LeadFormCreate } from "@/components/forms/lead-form-create"
 import { LeadFormExisting } from "@/components/forms/lead-form-existing"
-import { cn } from "@/lib/utils"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useGoal } from "@/lib/context/goal-context"
 import { useCampaignContext } from "@/lib/context/campaign-context"
@@ -215,7 +213,7 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
 
           {/* Right Panel - Preview */}
           <div className="lg:sticky lg:top-8 lg:h-fit">
-            <Card className="p-8 bg-muted/30">
+            <div className="p-8 bg-muted/30 rounded-lg">
               {/* Step Title Outside Phone */}
               <div className="mb-6">
                 <div className="flex items-center justify-between">
@@ -252,7 +250,7 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
                 currentStep={currentStep}
                 onStepChange={setCurrentStep}
               />
-            </Card>
+            </div>
           </div>
         </div>
 
