@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
-import { Play, ImageIcon, Video, Layers, Sparkles, DollarSign, Plus, Minus, Building2, Check, Facebook, Loader2, Edit2, Palette, Type, MapPin, Target, Rocket, Flag, Link2, MoreVertical, Globe, Heart, ThumbsUp, MessageCircle, Share2, ChevronDown } from "lucide-react"
+import { Play, ImageIcon, Video, Layers, Sparkles, DollarSign, Plus, Minus, Building2, Check, Facebook, Loader2, Edit2, Palette, Type, MapPin, Target, Rocket, Flag, Link2, MoreVertical, Globe, Heart, ThumbsUp, MessageCircle, Share2, ChevronDown, AlertTriangle, ChevronUp } from "lucide-react"
 import { LocationSelectionCanvas } from "./location-selection-canvas"
 import { AudienceSelectionCanvas } from "./audience-selection-canvas"
 import { AdCopySelectionCanvas } from "./ad-copy-selection-canvas"
@@ -570,7 +570,7 @@ export function PreviewPanel() {
     )
   }
 
-  // Render single Story ad mockup
+  // Render single Story ad mockup (Meta pixel-perfect format)
   const renderStoryAd = (variation: typeof adVariations[0], index: number) => {
     const isSelected = selectedImageIndex === index
     const isProcessing = false
@@ -578,9 +578,10 @@ export function PreviewPanel() {
     return (
       <div 
         key={index} 
-        className={`aspect-[9/16] rounded-lg border-2 bg-card overflow-hidden relative hover:shadow-lg transition-all group ${
-          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-border'
+        className={`aspect-[9/16] rounded-lg border-2 bg-white overflow-hidden relative hover:shadow-lg transition-all group ${
+          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]'
         } ${isProcessing ? 'opacity-75' : ''}`}
+        style={{ borderRadius: '8px' }}
       >
         {/* Processing Overlay */}
         {isProcessing && (
@@ -639,52 +640,131 @@ export function PreviewPanel() {
           </div>
         )}
 
-        {adContent?.imageVariations?.[index] ? (
-          <div className="absolute inset-0">
-            {/* Background fill (blur/gradient) */}
-            <img src={adContent.imageVariations[index]} alt="bg" className="w-full h-full object-cover blur-lg scale-110 opacity-70" />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
-            {/* Foreground exact square (parity with square) */}
-            <div className="absolute inset-0 flex items-center justify-center p-3">
-              <div className="aspect-square w-[82%] max-w-[82%] rounded-md overflow-hidden shadow-md">
-                <img src={adContent.imageVariations[index]} alt={adContent.headline} className="w-full h-full object-contain bg-black/20" />
+        {/* Progress Bar - Top Edge */}
+        <div className="absolute top-0 left-0 right-0 z-30" style={{ height: '2px' }}>
+          <div className="h-full bg-[#CED0D4]">
+            <div className="h-full bg-white" style={{ width: '33%' }} />
+          </div>
+        </div>
+
+        {/* Header Section - Orange Bar */}
+        <div className="relative z-20 bg-[#FF6B35] px-3 py-2.5" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px' }}>
+          <div className="flex items-center gap-2">
+            {/* Brand Logo - 40x40px */}
+            <div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center flex-shrink-0" style={{ width: '40px', height: '40px', borderRadius: '8px' }}>
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500" />
+            </div>
+            
+            {/* Brand Name & Sponsored */}
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold truncate text-[#333333]" style={{ fontSize: '15px', fontWeight: 600 }}>Business Name</p>
+              <p className="text-[#65676B]" style={{ fontSize: '13px', fontWeight: 400 }}>Sponsored</p>
+            </div>
+            
+            {/* Options Icon */}
+            <MoreVertical className="h-5 w-5 text-[#65676B] flex-shrink-0 cursor-pointer" style={{ width: '20px', height: '20px' }} />
+          </div>
+        </div>
+
+        {/* Main Creative Section - Full Screen Background */}
+        <div className="absolute inset-0" style={{ top: '60px' }}>
+          {adContent?.imageVariations?.[index] ? (
+            <div className="relative w-full h-full">
+              <img 
+                src={adContent.imageVariations[index]} 
+                alt={adContent.headline} 
+                className="w-full h-full object-cover"
+              />
+              
+              {/* Text Overlay & Primary CTA Button - Centered on Image */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center px-4" style={{ bottom: '140px' }}>
+                {/* Text Overlay */}
+                <p className="text-white font-bold text-center mb-4" style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>
+                  <Skeleton className="inline-block h-5 w-48 bg-white/30" style={{ height: '24px' }} />
+                </p>
+                
+                {/* Primary CTA Button */}
+                <button 
+                  className="bg-white text-[#1877F2] font-semibold rounded-lg px-3 py-2 hover:bg-gray-100 transition-colors"
+                  style={{ 
+                    fontSize: '15px', 
+                    fontWeight: 600, 
+                    paddingLeft: '12px', 
+                    paddingRight: '12px', 
+                    paddingTop: '8px', 
+                    paddingBottom: '8px',
+                    borderRadius: '8px'
+                  }}
+                  disabled
+                >
+                  Check Availability
+                </button>
               </div>
             </div>
-          </div>
-        ) : (
-          <div className={`absolute inset-0 bg-gradient-to-br ${variation.gradient}`} />
-        )}
-        
-        <div className="relative z-10 p-3">
-          <div className="h-0.5 bg-white/30 rounded-full mb-3">
-            <div className="h-full w-1/3 bg-white rounded-full" />
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 border-2 border-white flex-shrink-0" />
-            <p className="text-white text-xs font-semibold truncate">Your Brand</p>
-          </div>
+          ) : (
+            <div className={`relative w-full h-full bg-gradient-to-br ${variation.gradient}`}>
+              {/* Text Overlay & Primary CTA Button - Centered on Gradient */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center px-4" style={{ bottom: '140px' }}>
+                {/* Text Overlay */}
+                <p className="text-white font-bold text-center mb-4" style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>
+                  <Skeleton className="inline-block h-5 w-48 bg-white/30" style={{ height: '24px' }} />
+                </p>
+                
+                {/* Primary CTA Button */}
+                <button 
+                  className="bg-white text-[#1877F2] font-semibold rounded-lg px-3 py-2 hover:bg-gray-100 transition-colors"
+                  style={{ 
+                    fontSize: '15px', 
+                    fontWeight: 600, 
+                    paddingLeft: '12px', 
+                    paddingRight: '12px', 
+                    paddingTop: '8px', 
+                    paddingBottom: '8px',
+                    borderRadius: '8px'
+                  }}
+                  disabled
+                >
+                  Check Availability
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Primary Text & Headline with Skeletons */}
-        <div className="absolute bottom-6 left-0 right-0 px-3 z-10 space-y-2">
-          {/* Primary Text Skeleton */}
-          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
-            <Skeleton className="h-3 w-full bg-white/30" />
+        {/* Bottom Ad Copy/Engagement Section - Dark Background */}
+        <div className="absolute bottom-0 left-0 right-0 z-20 bg-[#242526]">
+          {/* Information Text with Icon */}
+          <div className="flex items-start gap-2 px-3 pt-3 pb-2" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '12px', paddingBottom: '8px' }}>
+            <AlertTriangle className="h-4 w-4 text-white flex-shrink-0 mt-0.5" style={{ width: '16px', height: '16px' }} />
+            <p className="text-white flex-1" style={{ fontSize: '14px', fontWeight: 400 }}>
+              Builders: our private platform gives you access to high-value...{' '}
+              <span className="text-[#1877F2] underline">More</span>
+            </p>
           </div>
           
-          {/* Headline Skeleton */}
-          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
-            <Skeleton className="h-3 w-24 bg-white/30" />
+          {/* Expand Icon - ChevronUp */}
+          <div className="flex justify-center py-1">
+            <ChevronUp className="h-4 w-4 text-white" style={{ width: '16px', height: '16px' }} />
           </div>
           
-          {/* CTA Button */}
-          <div className="bg-white/20 backdrop-blur-sm rounded-full py-2 px-4 text-center">
-            <p className="text-white font-semibold text-xs truncate">{adContent?.cta || 'Learn More'}</p>
+          {/* Secondary CTA Button */}
+          <div className="flex justify-center px-3 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingBottom: '12px' }}>
+            <button 
+              className="bg-white text-[#333333] font-semibold rounded-lg px-3 py-2 hover:bg-gray-100 transition-colors"
+              style={{ 
+                fontSize: '15px', 
+                fontWeight: 600, 
+                paddingLeft: '12px', 
+                paddingRight: '12px', 
+                paddingTop: '8px', 
+                paddingBottom: '8px',
+                borderRadius: '8px'
+              }}
+              disabled
+            >
+              Learn more
+            </button>
           </div>
-        </div>
-
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <p className="text-white text-xs font-bold opacity-50">{variation.title}</p>
         </div>
       </div>
     )
