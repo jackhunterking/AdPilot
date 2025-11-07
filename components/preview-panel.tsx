@@ -8,6 +8,7 @@ import { AudienceSelectionCanvas } from "./audience-selection-canvas"
 import { AdCopySelectionCanvas } from "./ad-copy-selection-canvas"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { GoalSelectionCanvas } from "./goal-selection-canvas"
+import { GoalSummaryCard } from "@/components/launch/goal-summary-card"
 import { CampaignStepper } from "./campaign-stepper"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -805,9 +806,59 @@ export function PreviewPanel() {
     <AudienceSelectionCanvas variant="summary" />
   )
 
-  const goalSummaryContent = (
-    <GoalSelectionCanvas variant="summary" />
-  )
+  const goalSummaryContent = useMemo(() => {
+    const goal = goalState.selectedGoal
+    const form = goalState.formData
+
+    if (goal === "leads" && form?.name) {
+      return (
+        <GoalSummaryCard
+          variant="leads"
+          value={form.name}
+          subtitle={form.updatedAt ? new Date(form.updatedAt).toLocaleDateString() : undefined}
+        />
+      )
+    }
+
+    if (goal === "website-visits" && form?.websiteUrl) {
+      let display = form.displayLink
+      try {
+        if (!display) {
+          const url = new URL(form.websiteUrl)
+          display = url.hostname.replace(/^www\./, "")
+        }
+      } catch {
+        display = form.websiteUrl
+      }
+
+      return (
+        <GoalSummaryCard
+          variant="website"
+          value={display}
+          subtitle={form.websiteUrl}
+          helper="Forwarding to your landing page"
+        />
+      )
+    }
+
+    if (goal === "calls" && form?.phoneNumber) {
+      return (
+        <GoalSummaryCard
+          variant="calls"
+          value={form.phoneNumber}
+          helper="Customers will call this number"
+        />
+      )
+    }
+
+    return (
+      <GoalSummaryCard
+        variant="leads"
+        value="Goal not configured"
+        helper="Select a goal to complete this step"
+      />
+    )
+  }, [goalState.selectedGoal, goalState.formData])
 
   const budgetSummaryContent = useMemo(() => {
     return `$${budgetState.dailyBudget}/day`
