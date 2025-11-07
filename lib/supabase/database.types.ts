@@ -49,6 +49,123 @@ export type Database = {
           },
         ]
       }
+      campaign_meta_connections: {
+        Row: {
+          ad_account_currency_code: string | null
+          ad_account_payment_connected: boolean
+          admin_ad_account_raw_json: Json | null
+          admin_ad_account_role: string | null
+          admin_ad_account_users_json: Json | null
+          admin_business_raw_json: Json | null
+          admin_business_role: string | null
+          admin_business_users_json: Json | null
+          admin_checked_at: string | null
+          admin_connected: boolean
+          campaign_id: string
+          created_at: string
+          fb_user_id: string | null
+          id: string
+          long_lived_user_token: string | null
+          selected_ad_account_id: string | null
+          selected_ad_account_name: string | null
+          selected_business_id: string | null
+          selected_business_name: string | null
+          selected_ig_user_id: string | null
+          selected_ig_username: string | null
+          selected_page_access_token: string | null
+          selected_page_id: string | null
+          selected_page_name: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_app_connected: boolean
+          user_app_fb_user_id: string | null
+          user_app_token: string | null
+          user_app_token_expires_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ad_account_currency_code?: string | null
+          ad_account_payment_connected?: boolean
+          admin_ad_account_raw_json?: Json | null
+          admin_ad_account_role?: string | null
+          admin_ad_account_users_json?: Json | null
+          admin_business_raw_json?: Json | null
+          admin_business_role?: string | null
+          admin_business_users_json?: Json | null
+          admin_checked_at?: string | null
+          admin_connected?: boolean
+          campaign_id: string
+          created_at?: string
+          fb_user_id?: string | null
+          id?: string
+          long_lived_user_token?: string | null
+          selected_ad_account_id?: string | null
+          selected_ad_account_name?: string | null
+          selected_business_id?: string | null
+          selected_business_name?: string | null
+          selected_ig_user_id?: string | null
+          selected_ig_username?: string | null
+          selected_page_access_token?: string | null
+          selected_page_id?: string | null
+          selected_page_name?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_app_connected?: boolean
+          user_app_fb_user_id?: string | null
+          user_app_token?: string | null
+          user_app_token_expires_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ad_account_currency_code?: string | null
+          ad_account_payment_connected?: boolean
+          admin_ad_account_raw_json?: Json | null
+          admin_ad_account_role?: string | null
+          admin_ad_account_users_json?: Json | null
+          admin_business_raw_json?: Json | null
+          admin_business_role?: string | null
+          admin_business_users_json?: Json | null
+          admin_checked_at?: string | null
+          admin_connected?: boolean
+          campaign_id?: string
+          created_at?: string
+          fb_user_id?: string | null
+          id?: string
+          long_lived_user_token?: string | null
+          selected_ad_account_id?: string | null
+          selected_ad_account_name?: string | null
+          selected_business_id?: string | null
+          selected_business_name?: string | null
+          selected_ig_user_id?: string | null
+          selected_ig_username?: string | null
+          selected_page_access_token?: string | null
+          selected_page_id?: string | null
+          selected_page_name?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_app_connected?: boolean
+          user_app_fb_user_id?: string | null
+          user_app_token?: string | null
+          user_app_token_expires_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_meta_connections_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_meta_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_meta_links: {
         Row: {
           campaign_id: string
@@ -104,177 +221,60 @@ export type Database = {
           },
         ]
       }
-      campaign_meta_connections: {
-        Row: {
-          ad_account_payment_connected: boolean
-          ad_account_currency_code: string | null
-          admin_ad_account_raw_json: Json | null
-          admin_ad_account_role: string | null
-          admin_ad_account_users_json: Json | null
-          admin_business_raw_json: Json | null
-          admin_business_role: string | null
-          admin_business_users_json: Json | null
-          admin_checked_at: string | null
-          admin_connected: boolean
-          campaign_id: string
-          created_at: string
-          fb_user_id: string | null
-          id: string
-          long_lived_user_token: string | null
-          selected_ad_account_id: string | null
-          selected_ad_account_name: string | null
-          selected_business_id: string | null
-          selected_business_name: string | null
-          selected_ig_user_id: string | null
-          selected_ig_username: string | null
-          selected_page_access_token: string | null
-          selected_page_id: string | null
-          selected_page_name: string | null
-          token_expires_at: string | null
-          updated_at: string
-          user_app_connected: boolean
-          user_app_fb_user_id: string | null
-          user_app_token: string | null
-          user_app_token_expires_at: string | null
-          user_id: string
-        }
-        Insert: {
-          ad_account_payment_connected?: boolean
-          ad_account_currency_code?: string | null
-          admin_ad_account_raw_json?: Json | null
-          admin_ad_account_role?: string | null
-          admin_ad_account_users_json?: Json | null
-          admin_business_raw_json?: Json | null
-          admin_business_role?: string | null
-          admin_business_users_json?: Json | null
-          admin_checked_at?: string | null
-          admin_connected?: boolean
-          campaign_id: string
-          created_at?: string
-          fb_user_id?: string | null
-          id?: string
-          long_lived_user_token?: string | null
-          selected_ad_account_id?: string | null
-          selected_ad_account_name?: string | null
-          selected_business_id?: string | null
-          selected_business_name?: string | null
-          selected_ig_user_id?: string | null
-          selected_ig_username?: string | null
-          selected_page_access_token?: string | null
-          selected_page_id?: string | null
-          selected_page_name?: string | null
-          token_expires_at?: string | null
-          updated_at?: string
-          user_app_connected?: boolean
-          user_app_fb_user_id?: string | null
-          user_app_token?: string | null
-          user_app_token_expires_at?: string | null
-          user_id: string
-        }
-        Update: {
-          ad_account_payment_connected?: boolean
-          ad_account_currency_code?: string | null
-          admin_ad_account_raw_json?: Json | null
-          admin_ad_account_role?: string | null
-          admin_ad_account_users_json?: Json | null
-          admin_business_raw_json?: Json | null
-          admin_business_role?: string | null
-          admin_business_users_json?: Json | null
-          admin_checked_at?: string | null
-          admin_connected?: boolean
-          campaign_id?: string
-          created_at?: string
-          fb_user_id?: string | null
-          id?: string
-          long_lived_user_token?: string | null
-          selected_ad_account_id?: string | null
-          selected_ad_account_name?: string | null
-          selected_business_id?: string | null
-          selected_business_name?: string | null
-          selected_ig_user_id?: string | null
-          selected_ig_username?: string | null
-          selected_page_access_token?: string | null
-          selected_page_id?: string | null
-          selected_page_name?: string | null
-          token_expires_at?: string | null
-          updated_at?: string
-          user_app_connected?: boolean
-          user_app_fb_user_id?: string | null
-          user_app_token?: string | null
-          user_app_token_expires_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "campaign_meta_connections_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: true
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "campaign_meta_connections_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       campaign_metrics_cache: {
         Row: {
           cached_at: string
           campaign_id: string
           clicks: number | null
-          cost_per_result: string | null
-          cpc: string | null
-          cpm: string | null
-          ctr: string | null
+          cost_per_result: number | null
+          cpc: number | null
+          cpm: number | null
+          created_at: string
+          ctr: number | null
           date_end: string
           date_start: string
-          date_range: string
           id: string
           impressions: number | null
+          range_key: string
           reach: number | null
           results: number | null
-          spend: string | null
-          created_at: string
+          spend: number | null
         }
         Insert: {
           cached_at?: string
           campaign_id: string
           clicks?: number | null
-          cost_per_result?: string | null
-          cpc?: string | null
-          cpm?: string | null
-          ctr?: string | null
+          cost_per_result?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
           date_end: string
           date_start: string
-          date_range: string
           id?: string
           impressions?: number | null
+          range_key?: string
           reach?: number | null
           results?: number | null
-          spend?: string | null
-          created_at?: string
+          spend?: number | null
         }
         Update: {
           cached_at?: string
           campaign_id?: string
           clicks?: number | null
-          cost_per_result?: string | null
-          cpc?: string | null
-          cpm?: string | null
-          ctr?: string | null
+          cost_per_result?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          created_at?: string
+          ctr?: number | null
           date_end?: string
           date_start?: string
-          date_range?: string
           id?: string
           impressions?: number | null
+          range_key?: string
           reach?: number | null
           results?: number | null
-          spend?: string | null
-          created_at?: string
+          spend?: number | null
         }
         Relationships: [
           {
@@ -332,56 +332,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "campaign_states_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: true
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      crm_webhooks: {
-        Row: {
-          active: boolean
-          campaign_id: string
-          created_at: string
-          events: string[]
-          id: string
-          last_error_message: string | null
-          last_status_code: number | null
-          last_triggered_at: string | null
-          secret_key: string | null
-          updated_at: string
-          webhook_url: string
-        }
-        Insert: {
-          active?: boolean
-          campaign_id: string
-          created_at?: string
-          events?: string[]
-          id?: string
-          last_error_message?: string | null
-          last_status_code?: number | null
-          last_triggered_at?: string | null
-          secret_key?: string | null
-          updated_at?: string
-          webhook_url: string
-        }
-        Update: {
-          active?: boolean
-          campaign_id?: string
-          created_at?: string
-          events?: string[]
-          id?: string
-          last_error_message?: string | null
-          last_status_code?: number | null
-          last_triggered_at?: string | null
-          secret_key?: string | null
-          updated_at?: string
-          webhook_url?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "crm_webhooks_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: true
             referencedRelation: "campaigns"
@@ -475,103 +425,6 @@ export type Database = {
           },
         ]
       }
-      lead_form_submissions: {
-        Row: {
-          campaign_id: string
-          created_at: string
-          exported_at: string | null
-          form_data: Json
-          id: string
-          meta_form_id: string
-          meta_lead_id: string
-          submitted_at: string
-          webhook_sent: boolean
-          webhook_sent_at: string | null
-        }
-        Insert: {
-          campaign_id: string
-          created_at?: string
-          exported_at?: string | null
-          form_data?: Json
-          id?: string
-          meta_form_id: string
-          meta_lead_id: string
-          submitted_at: string
-          webhook_sent?: boolean
-          webhook_sent_at?: string | null
-        }
-        Update: {
-          campaign_id?: string
-          created_at?: string
-          exported_at?: string | null
-          form_data?: Json
-          id?: string
-          meta_form_id?: string
-          meta_lead_id?: string
-          submitted_at?: string
-          webhook_sent?: boolean
-          webhook_sent_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lead_form_submissions_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      meta_published_campaigns: {
-        Row: {
-          campaign_id: string
-          created_at: string
-          error_message: string | null
-          id: string
-          meta_ad_ids: string[]
-          meta_adset_id: string
-          meta_campaign_id: string
-          paused_at: string | null
-          publish_status: string
-          published_at: string | null
-          updated_at: string
-        }
-        Insert: {
-          campaign_id: string
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          meta_ad_ids?: string[]
-          meta_adset_id: string
-          meta_campaign_id: string
-          paused_at?: string | null
-          publish_status?: string
-          published_at?: string | null
-          updated_at?: string
-        }
-        Update: {
-          campaign_id?: string
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          meta_ad_ids?: string[]
-          meta_adset_id?: string
-          meta_campaign_id?: string
-          paused_at?: string | null
-          publish_status?: string
-          published_at?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "meta_published_campaigns_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: true
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       copy_variants: {
         Row: {
           campaign_id: string
@@ -613,41 +466,6 @@ export type Database = {
           },
         ]
       }
-      creative_plans: {
-        Row: {
-          campaign_id: string
-          created_at: string
-          created_by: string | null
-          id: string
-          plan: Json
-          status: string
-        }
-        Insert: {
-          campaign_id: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          plan: Json
-          status?: string
-        }
-        Update: {
-          campaign_id?: string
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          plan?: Json
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "creative_plans_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       creative_variants: {
         Row: {
           asset_id: string | null
@@ -681,6 +499,56 @@ export type Database = {
             foreignKeyName: "creative_variants_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_webhooks: {
+        Row: {
+          active: boolean
+          campaign_id: string
+          created_at: string
+          events: string[]
+          id: string
+          last_error_message: string | null
+          last_status_code: number | null
+          last_triggered_at: string | null
+          secret_key: string | null
+          updated_at: string
+          webhook_url: string
+        }
+        Insert: {
+          active?: boolean
+          campaign_id: string
+          created_at?: string
+          events?: string[]
+          id?: string
+          last_error_message?: string | null
+          last_status_code?: number | null
+          last_triggered_at?: string | null
+          secret_key?: string | null
+          updated_at?: string
+          webhook_url: string
+        }
+        Update: {
+          active?: boolean
+          campaign_id?: string
+          created_at?: string
+          events?: string[]
+          id?: string
+          last_error_message?: string | null
+          last_status_code?: number | null
+          last_triggered_at?: string | null
+          secret_key?: string | null
+          updated_at?: string
+          webhook_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_webhooks_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
@@ -819,6 +687,53 @@ export type Database = {
             columns: ["variant_id"]
             isOneToOne: false
             referencedRelation: "experiment_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_form_submissions: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          exported_at: string | null
+          form_data: Json
+          id: string
+          meta_form_id: string
+          meta_lead_id: string
+          submitted_at: string
+          webhook_sent: boolean
+          webhook_sent_at: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          exported_at?: string | null
+          form_data?: Json
+          id?: string
+          meta_form_id: string
+          meta_lead_id: string
+          submitted_at: string
+          webhook_sent?: boolean
+          webhook_sent_at?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          exported_at?: string | null
+          form_data?: Json
+          id?: string
+          meta_form_id?: string
+          meta_lead_id?: string
+          submitted_at?: string
+          webhook_sent?: boolean
+          webhook_sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_form_submissions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
         ]
@@ -1036,80 +951,55 @@ export type Database = {
           },
         ]
       }
-      meta_asset_snapshots: {
+      meta_published_campaigns: {
         Row: {
-          ad_accounts_json: Json | null
-          business_json: Json | null
-          captured_at: string
-          id: string
-          pages_json: Json | null
-          user_id: string
-        }
-        Insert: {
-          ad_accounts_json?: Json | null
-          business_json?: Json | null
-          captured_at?: string
-          id?: string
-          pages_json?: Json | null
-          user_id: string
-        }
-        Update: {
-          ad_accounts_json?: Json | null
-          business_json?: Json | null
-          captured_at?: string
-          id?: string
-          pages_json?: Json | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      meta_connections: {
-        Row: {
-          ad_account_id: string | null
-          ad_account_name: string | null
-          ad_account_currency_code: string | null
-          business_id: string
-          business_name: string | null
+          campaign_id: string
           created_at: string
-          has_funding: boolean
+          error_message: string | null
           id: string
-          page_id: string | null
-          page_name: string | null
-          status: string
+          meta_ad_ids: string[]
+          meta_adset_id: string
+          meta_campaign_id: string
+          paused_at: string | null
+          publish_status: string
+          published_at: string | null
           updated_at: string
-          user_id: string
         }
         Insert: {
-          ad_account_id?: string | null
-          ad_account_name?: string | null
-          ad_account_currency_code?: string | null
-          business_id: string
-          business_name?: string | null
+          campaign_id: string
           created_at?: string
-          has_funding?: boolean
+          error_message?: string | null
           id?: string
-          page_id?: string | null
-          page_name?: string | null
-          status?: string
+          meta_ad_ids?: string[]
+          meta_adset_id: string
+          meta_campaign_id: string
+          paused_at?: string | null
+          publish_status?: string
+          published_at?: string | null
           updated_at?: string
-          user_id: string
         }
         Update: {
-          ad_account_id?: string | null
-          ad_account_name?: string | null
-          ad_account_currency_code?: string | null
-          business_id?: string
-          business_name?: string | null
+          campaign_id?: string
           created_at?: string
-          has_funding?: boolean
+          error_message?: string | null
           id?: string
-          page_id?: string | null
-          page_name?: string | null
-          status?: string
+          meta_ad_ids?: string[]
+          meta_adset_id?: string
+          meta_campaign_id?: string
+          paused_at?: string | null
+          publish_status?: string
+          published_at?: string | null
           updated_at?: string
-          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "meta_published_campaigns_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       meta_tokens: {
         Row: {
