@@ -876,92 +876,94 @@ export function PreviewPanel() {
 
   // Step 5: Launch Content (new unified layout with collapsible sections)
   const launchContent = (
-    <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6 items-start">
       {/* Left: Full ad mockup using selected variation */}
-      <Card className="h-full">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base font-semibold">Ad Preview</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0 space-y-4">
-          {/* Format selector (matches creator) */}
-          <div className="flex justify-center">
-            <div className="inline-flex rounded-lg border border-border p-1 bg-card">
-            {previewFormats.map((format) => {
-              const Icon = format.icon
-              const isActive = activeFormat === format.id
+      <div className="self-start lg:sticky lg:top-24">
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base font-semibold">Ad Preview</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-4">
+            {/* Format selector (matches creator) */}
+            <div className="flex justify-center">
+              <div className="inline-flex rounded-lg border border-border p-1 bg-card">
+              {previewFormats.map((format) => {
+                const Icon = format.icon
+                const isActive = activeFormat === format.id
 
-              if (format.id === "reel") {
-                return (
-                  <div key={format.id} className="relative">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleReelClick}
-                      className="px-4 relative"
-                    >
-                      <Icon className="h-3.5 w-3.5 mr-1.5" />
-                      {format.label}
-                      <Sparkles size={10} className="absolute -top-0.5 -right-0.5 text-yellow-500 animate-pulse" />
-                    </Button>
-                    {showReelMessage && (
-                      <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap animate-in fade-in slide-in-from-top-1 duration-200">
-                        <div className="bg-popover border border-border rounded-md px-3 py-1.5 shadow-md">
-                          <div className="flex items-center gap-1.5 text-xs">
-                            <Sparkles size={12} className="text-yellow-500" />
-                            <span className="font-medium">Coming Soon!</span>
+                if (format.id === "reel") {
+                  return (
+                    <div key={format.id} className="relative">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleReelClick}
+                        className="px-4 relative"
+                      >
+                        <Icon className="h-3.5 w-3.5 mr-1.5" />
+                        {format.label}
+                        <Sparkles size={10} className="absolute -top-0.5 -right-0.5 text-yellow-500 animate-pulse" />
+                      </Button>
+                      {showReelMessage && (
+                        <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap animate-in fade-in slide-in-from-top-1 duration-200">
+                          <div className="bg-popover border border-border rounded-md px-3 py-1.5 shadow-md">
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <Sparkles size={12} className="text-yellow-500" />
+                              <span className="font-medium">Coming Soon!</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )
+                }
+
+                return (
+                  <Button
+                    key={format.id}
+                    variant={isActive ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setActiveFormat(format.id)}
+                    className="px-4"
+                  >
+                    <Icon className="h-3.5 w-3.5 mr-1.5" />
+                    {format.label}
+                  </Button>
                 )
-              }
+              })}
+            </div>
+            </div>
 
-              return (
-                <Button
-                  key={format.id}
-                  variant={isActive ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setActiveFormat(format.id)}
-                  className="px-4"
-                >
-                  <Icon className="h-3.5 w-3.5 mr-1.5" />
-                  {format.label}
-                </Button>
-              )
-            })}
-          </div>
-          </div>
-
-          <div>
-            {activeFormat === "story"
-              ? adVariations.map((v, i) => selectedImageIndex === i && renderStoryAd(v, i))
-              : adVariations.map((v, i) => selectedImageIndex === i && renderFeedAd(v, i))}
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-col gap-2 border-t pt-4">
-          <div className="grid w-full gap-2 sm:grid-cols-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'ads' } }))}
-              className="h-8 px-3 justify-center"
-            >
-              <Palette className="h-4 w-4 mr-2" />
-              Edit Ad Creative
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'copy' } }))}
-              className="h-8 px-3 justify-center"
-            >
-              <Type className="h-4 w-4 mr-2" />
-              Edit Ad Copy
-            </Button>
-          </div>
-        </CardFooter>
-      </Card>
+            <div>
+              {activeFormat === "story"
+                ? adVariations.map((v, i) => selectedImageIndex === i && renderStoryAd(v, i))
+                : adVariations.map((v, i) => selectedImageIndex === i && renderFeedAd(v, i))}
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col gap-2 border-t pt-4">
+            <div className="grid w-full gap-2 sm:grid-cols-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'ads' } }))}
+                className="h-8 px-3 justify-center"
+              >
+                <Palette className="h-4 w-4 mr-2" />
+                Edit Ad Creative
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'copy' } }))}
+                className="h-8 px-3 justify-center"
+              >
+                <Type className="h-4 w-4 mr-2" />
+                Edit Ad Copy
+              </Button>
+            </div>
+          </CardFooter>
+        </Card>
+      </div>
 
       {/* Right: Collapsible sections with modals */}
       <div className="flex flex-col gap-6 max-w-3xl mx-auto">
