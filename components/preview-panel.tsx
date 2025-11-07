@@ -62,7 +62,6 @@ export function PreviewPanel() {
   const [budgetInputValue, setBudgetInputValue] = useState(budgetState.dailyBudget.toString())
   
   // Modal state management for section editing
-  const [metaModalOpen, setMetaModalOpen] = useState(false)
   const [locationModalOpen, setLocationModalOpen] = useState(false)
   const [audienceModalOpen, setAudienceModalOpen] = useState(false)
   const [goalModalOpen, setGoalModalOpen] = useState(false)
@@ -117,13 +116,6 @@ export function PreviewPanel() {
     }
   }, [goalState.status, goalModalOpen])
 
-  useEffect(() => {
-    if (isMetaConnectionComplete && metaModalOpen) {
-      // Don't auto-close meta modal as it may need payment setup
-      // setMetaModalOpen(false)
-    }
-  }, [isMetaConnectionComplete, metaModalOpen])
-  
   // Listen for image edit events from AI chat (always mounted)
   useEffect(() => {
     const handleImageEdited = (event: Event) => {
@@ -988,7 +980,7 @@ export function PreviewPanel() {
           isComplete={isMetaConnectionComplete}
           summaryContent={metaSummaryContent}
           editStepId="meta-connect"
-          onEdit={() => setMetaModalOpen(true)}
+          onEdit={() => {}}
         />
 
         {/* Location Section */}
@@ -1022,19 +1014,6 @@ export function PreviewPanel() {
         />
 
         {/* Edit Modals */}
-        <SectionEditModal
-          open={metaModalOpen}
-          onOpenChange={setMetaModalOpen}
-          title="Connect Facebook & Instagram"
-          size="xl"
-          bodyClassName="bg-muted/20 px-2 py-2"
-          innerClassName="max-w-3xl w-full"
-        >
-          <div className="w-full px-4 py-2">
-            <MetaConnectCard mode="step" />
-          </div>
-        </SectionEditModal>
-
         <SectionEditModal
           open={locationModalOpen}
           onOpenChange={setLocationModalOpen}
