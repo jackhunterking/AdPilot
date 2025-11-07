@@ -52,6 +52,7 @@ export interface CampaignMetaConnectionPayload {
   selected_ig_username: string | null
   selected_ad_account_id: string | null
   selected_ad_account_name: string | null
+  ad_account_currency_code?: string | null
   ad_account_payment_connected: boolean
   admin_connected: boolean
   user_app_connected: boolean

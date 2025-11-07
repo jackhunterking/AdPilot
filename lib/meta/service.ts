@@ -151,6 +151,7 @@ export async function persistConnection(args: {
     selected_ig_username: args.assets.instagram?.username ?? null,
     selected_ad_account_id: args.assets.adAccount?.id ?? null,
     selected_ad_account_name: args.assets.adAccount?.name ?? null,
+    ad_account_currency_code: args.assets.adAccount?.currency ?? null,
     ad_account_payment_connected: false,
     admin_connected: false,
     user_app_connected: false,
@@ -425,6 +426,7 @@ export async function setSelectedAssets(args: {
     const rawId = args.adAccountId
     updates.selected_ad_account_id = rawId
     updates.selected_ad_account_name = null
+    updates.ad_account_currency_code = null
     if (rawId) {
       try {
         const accounts = await fetchAdAccounts({ token })
@@ -433,6 +435,7 @@ export async function setSelectedAssets(args: {
         if (match) {
           updates.selected_ad_account_id = match.id
           updates.selected_ad_account_name = match.name ?? null
+          updates.ad_account_currency_code = match.currency ?? null
         }
       } catch {}
     }

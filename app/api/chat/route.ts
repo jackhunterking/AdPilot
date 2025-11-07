@@ -20,13 +20,14 @@ import {
   Tool,
 } from 'ai';
 import { sanitizeMessages, isSanitizerEnabled } from '@/lib/ai/schema';
-import { generateImageTool } from '@/tools/generate-image-tool';
-import { editImageTool } from '@/tools/edit-image-tool';
-import { regenerateImageTool } from '@/tools/regenerate-image-tool';
-import { locationTargetingTool } from '@/tools/location-targeting-tool';
-import { audienceTargetingTool } from '@/tools/audience-targeting-tool';
-import { setupGoalTool } from '@/tools/setup-goal-tool';
-import { editAdCopyTool } from '@/tools/edit-ad-copy-tool';
+import { generateImageTool } from '@/lib/ai/tools/generate-image';
+import { editImageTool } from '@/lib/ai/tools/edit-image';
+import { regenerateImageTool } from '@/lib/ai/tools/regenerate-image';
+import { locationTargetingTool } from '@/lib/ai/tools/location-targeting-tool';
+import { audienceTargetingTool } from '@/lib/ai/tools/audience-targeting-tool';
+import { setupGoalTool } from '@/lib/ai/tools/setup-goal-tool';
+import { editAdCopyTool } from '@/lib/ai/tools/edit-ad-copy';
+import { getCachedMetrics } from '@/lib/meta/insights';
 import { getModel } from '@/lib/ai/gateway-provider';
 import { messageStore } from '@/lib/services/message-store';
 import { conversationManager } from '@/lib/services/conversation-manager';
@@ -96,6 +97,11 @@ function getGoalContextDescription(goalType: string): string {
   }
 }
 
+function formatNumber(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return '0'
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(value)
+}
+
 export async function POST(req: Request) {
   const { message, id, model } = await req.json();
   
@@ -108,6 +114,9 @@ export async function POST(req: Request) {
   if (message?.metadata?.editingReference) {
     console.log(`[API] editingReference content:`, message.metadata.editingReference);
   }
+
+  const activeTab = message?.metadata?.activeTab === 'results' ? 'results' : 'setup';
+  console.log(`[API] activeTab context:`, activeTab);
   
   // Authenticate user
   const supabase = await createServerClient();
@@ -176,6 +185,24 @@ export async function POST(req: Request) {
     messageGoal,
     effectiveGoal,
   });
+
+  let resultsContext = '';
+  if (activeTab === 'results' && conversation?.campaign_id) {
+    try {
+      const metrics = await getCachedMetrics(conversation.campaign_id, '7d')
+      if (metrics) {
+        resultsContext = `\n[RESULTS SNAPSHOT]\n- People reached: ${formatNumber(metrics.reach)}\n- Total ${effectiveGoal === 'leads' ? 'leads' : effectiveGoal === 'calls' ? 'calls' : 'results'}: ${formatNumber(metrics.results)}\n- Amount spent: $${formatNumber(metrics.spend)}\n- Cost per result: ${metrics.cost_per_result != null ? '$' + formatNumber(metrics.cost_per_result) : 'not enough data yet'}`
+      } else {
+        resultsContext = `\n[RESULTS SNAPSHOT]\nNo cached metrics yet. Invite the user to refresh the Results tab.`
+      }
+    } catch (error) {
+      console.warn('[API] Failed to load metrics snapshot for chat context:', error)
+    }
+  }
+
+  const tabInstructions = activeTab === 'results'
+    ? `\n[RESULTS MODE]\nThe user is viewing the Results tab. Focus on:\n- Explaining metrics in plain language\n- Suggesting optimisations based on the numbers above\n- Offering to adjust budget, schedule, or targeting when helpful\nDo NOT ask setup questions unless the user switches back to Setup.`
+    : '';
 
   // Load latest CreativePlan for this campaign (if any) to provide plan-driven guardrails
   let planContext = '';
@@ -520,6 +547,8 @@ User: "make background darker"
 ` : ''}
 ${planContext}
 ${offerAskContext}
+${resultsContext}
+${tabInstructions}
 # CAMPAIGN GOAL: ${effectiveGoal?.toUpperCase() || 'NOT SET'}
 
 ${effectiveGoal ? getGoalContextDescription(effectiveGoal) : 'No specific goal has been set for this campaign yet. Consider asking the user about their campaign objectives if relevant.'}

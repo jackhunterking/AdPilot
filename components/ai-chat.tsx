@@ -103,6 +103,7 @@ interface MessageMetadata {
     demographics?: string;
     interests?: string;
   };
+  activeTab?: 'setup' | 'results';
 }
 
 interface LocationInput {
@@ -195,9 +196,10 @@ interface AIChatProps {
     initialPrompt?: string;
     initialGoal?: string | null;
   };
+  activeTab?: 'setup' | 'results';
 }
 
-const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], campaignMetadata }: AIChatProps = {}) => {
+const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], campaignMetadata, activeTab = 'setup' }: AIChatProps = {}) => {
   const [input, setInput] = useState("");
   const [model] = useState<string>("openai/gpt-4o");
   const { campaign } = useCampaignContext();
@@ -275,6 +277,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
             metadata: {
               ...(existingMeta || {}),
               goalType: goalType,
+              activeTab,
             },
           };
           
@@ -294,7 +297,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
           };
         },
       }),
-    [model, goalType]
+    [model, goalType, activeTab]
   );
   
   const DEBUG = process.env.NEXT_PUBLIC_DEBUG === '1';
@@ -1002,6 +1005,14 @@ Make it conversational and easy to understand for a business owner.`,
       setIsGenerating(false);
     }
   }, [messages, status, generatingImages, processingLocations, setIsGenerating, setGenerationMessage]);
+
+  useEffect(() => {
+    if (activeTab === 'results') {
+      setCustomPlaceholder('Ask how your ad is performing or how to improve it…');
+    } else {
+      setCustomPlaceholder('Describe what you need to build…');
+    }
+  }, [activeTab]);
 
   return (
     <div className="relative flex size-full flex-col overflow-hidden">

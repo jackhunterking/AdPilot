@@ -202,6 +202,7 @@ export async function GET(req: NextRequest) {
       selected_ig_username: assets.instagram?.username,
       selected_ad_account_id: assets.adAccount?.id,
       selected_ad_account_name: assets.adAccount?.name,
+      ad_account_currency_code: assets.adAccount?.currency,
       ad_account_payment_connected: false,
       admin_connected: adminSnapshot?.admin_connected || false,
       admin_business_role: adminSnapshot?.admin_business_role,

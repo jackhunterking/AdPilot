@@ -768,6 +768,7 @@ export const clientService = {
       selected_ig_username: args.assets.instagram?.username,
       selected_ad_account_id: args.assets.adAccount?.id,
       selected_ad_account_name: args.assets.adAccount?.name,
+      ad_account_currency_code: args.assets.adAccount?.currency,
       ad_account_payment_connected: false,
       admin_connected: false,
       user_app_connected: false,

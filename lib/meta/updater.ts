@@ -1,0 +1,110 @@
+/**
+ * Feature: Meta campaign updater
+ * Purpose: Apply post-launch edits (budget, schedule) to Meta ad sets and persist to Supabase state.
+ * References:
+ *  - Meta Ad Set Update: https://developers.facebook.com/docs/marketing-api/reference/ad-campaign#Updating
+ *  - Supabase Server Client: https://supabase.com/docs/reference/javascript/update
+ */
+
+import { supabaseServer } from '@/lib/supabase/server'
+import { getConnectionWithToken, getGraphVersion } from '@/lib/meta/service'
+import { getPublishStatus } from '@/lib/meta/publisher'
+
+interface BudgetUpdateInput {
+  campaignId: string
+  dailyBudget: number
+  startTime?: string | null
+  endTime?: string | null
+}
+
+function encodePayload(payload: Record<string, unknown>): URLSearchParams {
+  const params = new URLSearchParams()
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined || value === null) return
+    params.append(key, String(value))
+  })
+  return params
+}
+
+export async function updateBudgetAndSchedule({ campaignId, dailyBudget, startTime, endTime }: BudgetUpdateInput) {
+  if (dailyBudget <= 0) {
+    throw new Error('Daily budget must be greater than zero')
+  }
+
+  const publishStatus = await getPublishStatus(campaignId)
+  if (!publishStatus || !publishStatus.metaAdSetId || publishStatus.publishStatus !== 'active') {
+    throw new Error('Campaign must be active before editing the budget')
+  }
+
+  const connection = await getConnectionWithToken({ campaignId })
+  if (!connection || !connection.long_lived_user_token) {
+    throw new Error('Missing Meta token. Please reconnect Meta before editing the budget.')
+  }
+
+  const graphVersion = getGraphVersion()
+  const url = `https://graph.facebook.com/${graphVersion}/${publishStatus.metaAdSetId}`
+
+  const payload: Record<string, unknown> = {
+    daily_budget: Math.round(dailyBudget * 100),
+  }
+
+  if (startTime) {
+    payload.start_time = new Date(startTime).toISOString()
+  }
+  if (endTime) {
+    payload.end_time = new Date(endTime).toISOString()
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${connection.long_lived_user_token}`,
+    },
+    body: encodePayload(payload),
+  })
+
+  const text = await response.text()
+  let json: unknown = null
+  try {
+    json = text ? JSON.parse(text) : null
+  } catch {
+    json = null
+  }
+
+  if (!response.ok) {
+    const message = json && typeof json === 'object' && json !== null && 'error' in json && typeof (json as { error?: { message?: string } }).error?.message === 'string'
+      ? (json as { error: { message: string } }).error.message
+      : text || `Meta API error ${response.status}`
+    throw new Error(message)
+  }
+
+  const { data: existingState } = await supabaseServer
+    .from('campaign_states')
+    .select('budget_data')
+    .eq('campaign_id', campaignId)
+    .maybeSingle()
+
+  const currentBudget = (existingState?.budget_data ?? {}) as Record<string, unknown>
+  const nextBudget = {
+    ...currentBudget,
+    dailyBudget,
+    startTime: startTime ?? currentBudget.startTime ?? null,
+    endTime: endTime ?? currentBudget.endTime ?? null,
+  }
+
+  const { error: updateError } = await supabaseServer
+    .from('campaign_states')
+    .upsert(
+      {
+        campaign_id: campaignId,
+        budget_data: nextBudget,
+      },
+      { onConflict: 'campaign_id' }
+    )
+
+  if (updateError) {
+    throw new Error(updateError.message)
+  }
+
+  return nextBudget
+}

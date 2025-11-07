@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       page_name: b.pageName ?? null,
       ad_account_id: b.adAccountId ?? null,
       ad_account_name: b.adAccountName ?? null,
-      currency: b.currency ?? null,
+      ad_account_currency_code: b.currency ?? null,
       status: 'connected' as const,
       updated_at: new Date().toISOString(),
     }

@@ -107,6 +107,7 @@ export type Database = {
       campaign_meta_connections: {
         Row: {
           ad_account_payment_connected: boolean
+          ad_account_currency_code: string | null
           admin_ad_account_raw_json: Json | null
           admin_ad_account_role: string | null
           admin_ad_account_users_json: Json | null
@@ -139,6 +140,7 @@ export type Database = {
         }
         Insert: {
           ad_account_payment_connected?: boolean
+          ad_account_currency_code?: string | null
           admin_ad_account_raw_json?: Json | null
           admin_ad_account_role?: string | null
           admin_ad_account_users_json?: Json | null
@@ -171,6 +173,7 @@ export type Database = {
         }
         Update: {
           ad_account_payment_connected?: boolean
+          ad_account_currency_code?: string | null
           admin_ad_account_raw_json?: Json | null
           admin_ad_account_role?: string | null
           admin_ad_account_users_json?: Json | null
@@ -218,6 +221,71 @@ export type Database = {
           },
         ]
       }
+      campaign_metrics_cache: {
+        Row: {
+          cached_at: string
+          campaign_id: string
+          clicks: number | null
+          cost_per_result: string | null
+          cpc: string | null
+          cpm: string | null
+          ctr: string | null
+          date_end: string
+          date_start: string
+          date_range: string
+          id: string
+          impressions: number | null
+          reach: number | null
+          results: number | null
+          spend: string | null
+          created_at: string
+        }
+        Insert: {
+          cached_at?: string
+          campaign_id: string
+          clicks?: number | null
+          cost_per_result?: string | null
+          cpc?: string | null
+          cpm?: string | null
+          ctr?: string | null
+          date_end: string
+          date_start: string
+          date_range: string
+          id?: string
+          impressions?: number | null
+          reach?: number | null
+          results?: number | null
+          spend?: string | null
+          created_at?: string
+        }
+        Update: {
+          cached_at?: string
+          campaign_id?: string
+          clicks?: number | null
+          cost_per_result?: string | null
+          cpc?: string | null
+          cpm?: string | null
+          ctr?: string | null
+          date_end?: string
+          date_start?: string
+          date_range?: string
+          id?: string
+          impressions?: number | null
+          reach?: number | null
+          results?: number | null
+          spend?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_metrics_cache_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_states: {
         Row: {
           ad_copy_data: Json | null
@@ -230,6 +298,7 @@ export type Database = {
           id: string
           location_data: Json | null
           meta_connect_data: Json | null
+          publish_data: Json | null
           updated_at: string | null
         }
         Insert: {
@@ -243,6 +312,7 @@ export type Database = {
           id?: string
           location_data?: Json | null
           meta_connect_data?: Json | null
+          publish_data?: Json | null
           updated_at?: string | null
         }
         Update: {
@@ -256,11 +326,62 @@ export type Database = {
           id?: string
           location_data?: Json | null
           meta_connect_data?: Json | null
+          publish_data?: Json | null
           updated_at?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "campaign_states_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_webhooks: {
+        Row: {
+          active: boolean
+          campaign_id: string
+          created_at: string
+          events: string[]
+          id: string
+          last_error_message: string | null
+          last_status_code: number | null
+          last_triggered_at: string | null
+          secret_key: string | null
+          updated_at: string
+          webhook_url: string
+        }
+        Insert: {
+          active?: boolean
+          campaign_id: string
+          created_at?: string
+          events?: string[]
+          id?: string
+          last_error_message?: string | null
+          last_status_code?: number | null
+          last_triggered_at?: string | null
+          secret_key?: string | null
+          updated_at?: string
+          webhook_url: string
+        }
+        Update: {
+          active?: boolean
+          campaign_id?: string
+          created_at?: string
+          events?: string[]
+          id?: string
+          last_error_message?: string | null
+          last_status_code?: number | null
+          last_triggered_at?: string | null
+          secret_key?: string | null
+          updated_at?: string
+          webhook_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_webhooks_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: true
             referencedRelation: "campaigns"
@@ -274,8 +395,10 @@ export type Database = {
           current_step: number | null
           id: string
           initial_goal: string | null
+          last_metrics_sync_at: string | null
           metadata: Json | null
           name: string
+          published_status: string | null
           status: string | null
           total_steps: number | null
           updated_at: string | null
@@ -286,8 +409,10 @@ export type Database = {
           current_step?: number | null
           id?: string
           initial_goal?: string | null
+          last_metrics_sync_at?: string | null
           metadata?: Json | null
           name: string
+          published_status?: string | null
           status?: string | null
           total_steps?: number | null
           updated_at?: string | null
@@ -298,8 +423,10 @@ export type Database = {
           current_step?: number | null
           id?: string
           initial_goal?: string | null
+          last_metrics_sync_at?: string | null
           metadata?: Json | null
           name?: string
+          published_status?: string | null
           status?: string | null
           total_steps?: number | null
           updated_at?: string | null
@@ -343,6 +470,103 @@ export type Database = {
             foreignKeyName: "conversations_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_form_submissions: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          exported_at: string | null
+          form_data: Json
+          id: string
+          meta_form_id: string
+          meta_lead_id: string
+          submitted_at: string
+          webhook_sent: boolean
+          webhook_sent_at: string | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          exported_at?: string | null
+          form_data?: Json
+          id?: string
+          meta_form_id: string
+          meta_lead_id: string
+          submitted_at: string
+          webhook_sent?: boolean
+          webhook_sent_at?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          exported_at?: string | null
+          form_data?: Json
+          id?: string
+          meta_form_id?: string
+          meta_lead_id?: string
+          submitted_at?: string
+          webhook_sent?: boolean
+          webhook_sent_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_form_submissions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_published_campaigns: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          meta_ad_ids: string[]
+          meta_adset_id: string
+          meta_campaign_id: string
+          paused_at: string | null
+          publish_status: string
+          published_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          meta_ad_ids?: string[]
+          meta_adset_id: string
+          meta_campaign_id: string
+          paused_at?: string | null
+          publish_status?: string
+          published_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          meta_ad_ids?: string[]
+          meta_adset_id?: string
+          meta_campaign_id?: string
+          paused_at?: string | null
+          publish_status?: string
+          published_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_published_campaigns_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
           },
@@ -843,10 +1067,10 @@ export type Database = {
         Row: {
           ad_account_id: string | null
           ad_account_name: string | null
+          ad_account_currency_code: string | null
           business_id: string
           business_name: string | null
           created_at: string
-          currency: string | null
           has_funding: boolean
           id: string
           page_id: string | null
@@ -858,10 +1082,10 @@ export type Database = {
         Insert: {
           ad_account_id?: string | null
           ad_account_name?: string | null
+          ad_account_currency_code?: string | null
           business_id: string
           business_name?: string | null
           created_at?: string
-          currency?: string | null
           has_funding?: boolean
           id?: string
           page_id?: string | null
@@ -873,10 +1097,10 @@ export type Database = {
         Update: {
           ad_account_id?: string | null
           ad_account_name?: string | null
+          ad_account_currency_code?: string | null
           business_id?: string
           business_name?: string | null
           created_at?: string
-          currency?: string | null
           has_funding?: boolean
           id?: string
           page_id?: string | null
