@@ -987,14 +987,23 @@ export function PreviewPanel() {
           open={metaModalOpen}
           onOpenChange={setMetaModalOpen}
           title="Connect Facebook & Instagram"
+          size="xl"
+          bodyClassName="bg-muted/20 px-2 py-2"
+          innerClassName="max-w-3xl w-full"
         >
-          <MetaConnectCard mode="step" />
+          <div className="w-full px-4 py-2">
+            <MetaConnectCard mode="step" />
+          </div>
         </SectionEditModal>
 
         <SectionEditModal
           open={locationModalOpen}
           onOpenChange={setLocationModalOpen}
           title="Target Locations"
+          size="full"
+          className="max-w-6xl"
+          bodyClassName="bg-muted/20 px-0 py-0"
+          innerClassName="max-w-none mx-0 h-full"
         >
           <LocationSelectionCanvas />
         </SectionEditModal>
@@ -1003,6 +1012,9 @@ export function PreviewPanel() {
           open={audienceModalOpen}
           onOpenChange={setAudienceModalOpen}
           title="Define Audience"
+          size="xl"
+          bodyClassName="bg-muted/20 px-0 py-0"
+          innerClassName="max-w-none mx-0"
         >
           <AudienceSelectionCanvas />
         </SectionEditModal>
@@ -1011,6 +1023,9 @@ export function PreviewPanel() {
           open={goalModalOpen}
           onOpenChange={setGoalModalOpen}
           title="Set Your Goal"
+          size="xl"
+          bodyClassName="bg-muted/20 px-0 py-0"
+          innerClassName="max-w-none mx-0"
         >
           <GoalSelectionCanvas />
         </SectionEditModal>
