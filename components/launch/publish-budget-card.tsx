@@ -9,9 +9,8 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Play, CheckCircle2, DollarSign } from "lucide-react"
+import { Play, CheckCircle2, DollarSign, ShieldCheck, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Separator } from "@/components/ui/separator"
 
 interface PublishBudgetCardProps {
   allStepsComplete: boolean
@@ -36,64 +35,54 @@ export function PublishBudgetCard({
 }: PublishBudgetCardProps) {
   const progressPercentage = (completedCount / totalSteps) * 100
 
+  const formattedProgress = Math.round(progressPercentage)
+
   return (
-    <Card
-      className={cn(
-        "border shadow-sm",
-        allStepsComplete ? "border-green-500/40 bg-green-500/10" : "border-border bg-card"
-      )}
-    >
-      <CardContent className="p-6">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+    <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-slate-900 via-slate-900/95 to-slate-900 text-white shadow-2xl">
+      <div className="absolute inset-0 opacity-70" style={{ backgroundImage: "radial-gradient(circle at top left, rgba(99,102,241,0.35), transparent 55%)" }} />
+      <div className="absolute inset-x-0 -top-48 h-56 bg-gradient-to-b from-white/20 via-white/5 to-transparent blur-3xl" />
+      <CardContent className="relative z-[1] p-6 lg:p-7">
+        <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-4">
-            {allStepsComplete ? (
-              <div className="space-y-2">
-                <div className="inline-flex items-center gap-2 text-green-700">
-                  <CheckCircle2 className="h-5 w-5" />
-                  <span className="text-sm font-semibold">Ready to publish</span>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Launch assistant
                 </div>
-                <h3 className="text-lg font-semibold">All steps complete</h3>
-                <p className="text-sm text-muted-foreground">
-                  Give everything one last look and publish when you feel confident.
+                <h3 className="text-xl font-semibold">Complete all steps</h3>
+                <p className="text-sm text-white/70">
+                  {completedCount} of {totalSteps} steps complete. Finish below to launch your campaign confidently.
                 </p>
               </div>
-            ) : (
-              <div className="space-y-3">
-                <div>
-                  <h3 className="text-lg font-semibold">Complete all steps</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {completedCount} of {totalSteps} steps completed
-                  </p>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between text-xs font-medium text-muted-foreground mb-1">
-                    <span>Progress</span>
-                    <span>{Math.round(progressPercentage)}%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all duration-500"
-                      style={{ width: `${progressPercentage}%` }}
-                    />
-                  </div>
-                </div>
+              <div className="hidden lg:flex flex-col items-end">
+                <span className="text-sm uppercase tracking-widest text-white/60">Readiness</span>
+                <span className="text-3xl font-semibold text-white">{formattedProgress}%</span>
               </div>
-            )}
+            </div>
+
+            <div className="relative h-2.5 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400 shadow-[0_0_12px_rgba(56,189,248,0.45)] transition-[width] duration-500"
+                style={{ width: `${progressPercentage}%` }}
+              />
+              <div className="absolute inset-y-0 left-0 w-full border border-white/10 rounded-full" />
+            </div>
 
             <Button
               onClick={onPublish}
               disabled={!allStepsComplete}
               size="lg"
               className={cn(
-                "w-full gap-2 h-11 text-sm font-semibold",
+                "mt-2 w-full gap-2 h-12 text-sm font-semibold",
                 allStepsComplete
-                  ? "bg-[#4B73FF] hover:bg-[#3d5fd9] text-white shadow-lg"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
+                  ? "bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-slate-900 shadow-lg hover:brightness-105"
+                  : "bg-white/10 text-white/60 cursor-not-allowed"
               )}
             >
               {isPublished ? (
                 <>
-                  <CheckCircle2 className="h-5 w-5" />
+                  <ShieldCheck className="h-5 w-5" />
                   Campaign Published
                 </>
               ) : (
@@ -105,39 +94,39 @@ export function PublishBudgetCard({
             </Button>
           </div>
 
-          <div className="flex flex-col gap-4">
-            <div className="flex items-start justify-between gap-3">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 backdrop-blur">
+            <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div
                   className={cn(
-                    "h-10 w-10 rounded-full flex items-center justify-center",
-                    isBudgetComplete ? "bg-green-500/15" : "bg-muted"
+                    "h-11 w-11 rounded-2xl border border-white/15 flex items-center justify-center",
+                    isBudgetComplete ? "bg-emerald-400/15" : "bg-white/10"
                   )}
                 >
                   <DollarSign
                     className={cn(
                       "h-5 w-5",
-                      isBudgetComplete ? "text-green-700" : "text-muted-foreground"
+                      isBudgetComplete ? "text-emerald-300" : "text-white/60"
                     )}
                   />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">Budget</p>
-                  <p className="text-xs text-muted-foreground">Daily spend target</p>
+                  <p className="text-sm font-semibold text-white">Budget control</p>
+                  <p className="text-xs text-white/60">Daily spend target aligned with strategy</p>
                 </div>
               </div>
-              <span className="text-sm font-medium text-foreground/80">{budgetSummaryContent}</span>
+              <span className="text-base font-semibold text-white/90">{budgetSummaryContent}</span>
             </div>
-            <Separator />
-            {budgetEditContent ? (
-              <div className="rounded-lg border border-dashed border-border/70 bg-background p-4">
-                {budgetEditContent}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Set your daily budget to keep campaigns aligned with your spend goals.
-              </p>
-            )}
+
+            <div className="mt-4 rounded-xl border border-dashed border-white/20 bg-white/[0.02] p-4">
+              {budgetEditContent ? (
+                budgetEditContent
+              ) : (
+                <p className="text-sm text-white/65">
+                  Set your daily budget to keep campaigns aligned with your spend goals.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </CardContent>

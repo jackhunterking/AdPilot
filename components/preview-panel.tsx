@@ -876,10 +876,10 @@ export function PreviewPanel() {
 
   // Step 5: Launch Content (new unified layout with collapsible sections)
   const launchContent = (
-    <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6 items-start">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] items-start">
       {/* Left: Full ad mockup using selected variation */}
-      <div className="self-start lg:sticky lg:top-6 lg:-mt-6">
-        <Card>
+      <div className="self-start lg:sticky lg:top-4 lg:-mt-4">
+        <Card className="lg:w-[400px] xl:w-[420px]">
           <CardHeader className="pb-4">
             <CardTitle className="text-base font-semibold">Ad Preview</CardTitle>
           </CardHeader>
@@ -966,18 +966,20 @@ export function PreviewPanel() {
       </div>
 
       {/* Right: Collapsible sections with modals */}
-      <div className="flex flex-col gap-6 max-w-3xl mx-auto">
+      <div className="flex flex-col gap-6 max-w-3xl mx-auto lg:w-full">
         {/* Combined Publish and Budget Card */}
-        <PublishBudgetCard
-          allStepsComplete={allStepsComplete}
-          completedCount={completedCount}
-          totalSteps={totalSteps}
-          isPublished={isPublished}
-          onPublish={handlePublish}
-          budgetSummaryContent={budgetSummaryContent}
-          isBudgetComplete={isComplete()}
-          budgetEditContent={<BudgetSchedule variant="inline" />}
-        />
+        <div className="lg:sticky lg:top-4 lg:z-10">
+          <PublishBudgetCard
+            allStepsComplete={allStepsComplete}
+            completedCount={completedCount}
+            totalSteps={totalSteps}
+            isPublished={isPublished}
+            onPublish={handlePublish}
+            budgetSummaryContent={budgetSummaryContent}
+            isBudgetComplete={isComplete()}
+            budgetEditContent={<BudgetSchedule variant="inline" />}
+          />
+        </div>
 
         {/* Meta Connect Section */}
         <CollapsibleSection
