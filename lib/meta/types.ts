@@ -61,7 +61,7 @@ export interface SelectionSummaryDTO {
   business?: { id: string; name?: string }
   page?: { id: string; name?: string }
   instagram?: { id: string; username: string } | null
-  adAccount?: { id: string; name?: string }
+  adAccount?: { id: string; name?: string; currency?: string }
   paymentConnected: boolean
   adminConnected: boolean
   adminBusinessRole: string | null

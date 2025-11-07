@@ -67,12 +67,9 @@ export function BudgetSchedule({ variant = "card" }: BudgetScheduleProps = {}) {
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label className="text-xs font-medium text-muted-foreground">Daily Budget (USD)</Label>
-          {variant === "inline" && (
-            <div className="text-xs font-medium text-muted-foreground">
-              Min ${minBudget} – Max ${maxBudget}
-            </div>
-          )}
+          <Label className="text-xs font-medium text-muted-foreground">
+            Daily Budget ({budgetState.currency})
+          </Label>
         </div>
         <div className="flex items-center gap-2">
           <Button

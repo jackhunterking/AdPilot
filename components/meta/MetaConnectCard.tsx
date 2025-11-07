@@ -103,6 +103,11 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
           if (statusRes.ok) {
             const statusData = await statusRes.json()
             setAccountValidation(statusData)
+            if (statusData && typeof statusData.currency === "string" && campaign?.id) {
+              metaStorage.setConnection(campaign.id, {
+                ad_account_currency_code: statusData.currency,
+              })
+            }
             metaLogger.debug('MetaConnectCard', 'Account validation result', {
               isActive: statusData.isActive,
               status: statusData.status,

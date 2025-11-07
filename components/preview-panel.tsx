@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
-import { Play, ImageIcon, Video, Layers, Sparkles, DollarSign, Plus, Minus, Building2, Check, Facebook, Loader2, Edit2, Palette, Type, MapPin, Target, Rocket, Flag, Link2, MoreVertical, Globe, Heart, ThumbsUp, MessageCircle, Share2, ChevronDown, AlertTriangle, ChevronUp } from "lucide-react"
+import { Play, ImageIcon, Video, Layers, Sparkles, Building2, Check, Facebook, Loader2, Edit2, Palette, Type, MapPin, Target, Rocket, Flag, Link2, MoreVertical, Globe, Heart, ThumbsUp, MessageCircle, Share2, ChevronDown, AlertTriangle, ChevronUp } from "lucide-react"
 import { LocationSelectionCanvas } from "./location-selection-canvas"
 import { AudienceSelectionCanvas } from "./audience-selection-canvas"
 import { AdCopySelectionCanvas } from "./ad-copy-selection-canvas"
@@ -20,8 +20,6 @@ import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { GoalSelectionCanvas } from "./goal-selection-canvas"
 import { GoalSummaryCard } from "@/components/launch/goal-summary-card"
 import { CampaignStepper } from "./campaign-stepper"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useBudget } from "@/lib/context/budget-context"
 import { useLocation } from "@/lib/context/location-context"
 import { useAudience } from "@/lib/context/audience-context"
@@ -31,7 +29,6 @@ import { cn } from "@/lib/utils"
 import { newEditSession } from "@/lib/utils/edit-session"
 // Removed two-step Meta connect flow; using single summary card
 import { MetaConnectCard } from "@/components/meta/MetaConnectCard"
-import { BudgetSchedule } from "@/components/forms/budget-schedule"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import type { Database } from "@/lib/supabase/database.types"
 import { metaStorage } from "@/lib/meta/storage"
@@ -41,25 +38,17 @@ import { PublishBudgetCard } from "@/components/launch/publish-budget-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
-const mockAdAccounts = [
-  { id: "act_123456789", name: "Main Business Account", currency: "USD" },
-  { id: "act_987654321", name: "Marketing Campaign Account", currency: "USD" },
-  { id: "act_456789123", name: "Test Account", currency: "CAD" },
-]
-
 export function PreviewPanel() {
   const [activeFormat, setActiveFormat] = useState("feed")
   // Removed regenerate feature: no regenerating state
   const { adContent, setAdContent, isPublished, setIsPublished, selectedImageIndex, setSelectedCreativeVariation, setSelectedImageIndex } = useAdPreview()
-  const { budgetState, setDailyBudget, setSelectedAdAccount, setIsConnected, isComplete } = useBudget()
+  const { budgetState, isComplete } = useBudget()
   const { campaign } = useCampaignContext()
   const { locationState } = useLocation()
   const { audienceState } = useAudience()
   const { goalState } = useGoal()
   const { adCopyState, getActiveVariations } = useAdCopy()
   const [showReelMessage, setShowReelMessage] = useState(false)
-  const [isEditingBudget, setIsEditingBudget] = useState(false)
-  const [budgetInputValue, setBudgetInputValue] = useState(budgetState.dailyBudget.toString())
   
   // Modal state management for section editing
   const [locationModalOpen, setLocationModalOpen] = useState(false)
@@ -150,10 +139,6 @@ export function PreviewPanel() {
     };
   }, [setAdContent]);
   
-  const minBudget = 5
-  const maxBudget = 100
-  const increment = 5
-
   const previewFormats = [
     { id: "feed", label: "Feed", icon: ImageIcon },
     { id: "story", label: "Story", icon: Layers },
@@ -163,55 +148,6 @@ export function PreviewPanel() {
   const handleReelClick = () => {
     setShowReelMessage(true)
     setTimeout(() => setShowReelMessage(false), 2500)
-  }
-
-  const handleIncrementBudget = () => {
-    const newBudget = Math.min(budgetState.dailyBudget + increment, maxBudget)
-    setDailyBudget(newBudget)
-    setBudgetInputValue(newBudget.toString())
-  }
-
-  const handleDecrementBudget = () => {
-    const newBudget = Math.max(budgetState.dailyBudget - increment, minBudget)
-    setDailyBudget(newBudget)
-    setBudgetInputValue(newBudget.toString())
-  }
-
-  const handleBudgetClick = () => {
-    setIsEditingBudget(true)
-    setBudgetInputValue(budgetState.dailyBudget.toString())
-  }
-
-  const handleBudgetInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9]/g, "")
-    setBudgetInputValue(value)
-  }
-
-  const handleBudgetInputBlur = () => {
-    const numValue = Number.parseInt(budgetInputValue) || minBudget
-    const clampedValue = Math.max(minBudget, Math.min(maxBudget, numValue))
-    setDailyBudget(clampedValue)
-    setBudgetInputValue(clampedValue.toString())
-    setIsEditingBudget(false)
-  }
-
-  const handleBudgetInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      handleBudgetInputBlur()
-    } else if (e.key === "Escape") {
-      setIsEditingBudget(false)
-      setBudgetInputValue(budgetState.dailyBudget.toString())
-    }
-  }
-
-  const handleAccountSelect = (accountId: string) => {
-    setSelectedAdAccount(accountId)
-  }
-
-  const handleConnectMeta = () => {
-    // Simulate Meta connection
-    setIsConnected(true)
-    // In real implementation, this would open OAuth flow
   }
 
   const handlePublish = async () => {
@@ -362,6 +298,7 @@ export function PreviewPanel() {
     locationState.status === "completed" &&
     audienceState.status === "completed" &&
     goalState.status === "completed" &&
+    isMetaConnectionComplete &&
     isComplete()
 
   // Mock ad variations with different gradients
@@ -848,10 +785,6 @@ export function PreviewPanel() {
     )
   }, [goalState.selectedGoal, goalState.formData])
 
-  const budgetSummaryContent = useMemo(() => {
-    return `$${budgetState.dailyBudget}/day`
-  }, [budgetState.dailyBudget])
-
   // Step 5: Launch Content (new unified layout with collapsible sections)
   const launchContent = (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] items-start">
@@ -951,9 +884,6 @@ export function PreviewPanel() {
             allStepsComplete={allStepsComplete}
             isPublished={isPublished}
             onPublish={handlePublish}
-            budgetSummaryContent={budgetSummaryContent}
-            isBudgetComplete={isComplete()}
-            budgetEditContent={<BudgetSchedule variant="inline" />}
           />
         </div>
 
