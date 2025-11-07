@@ -777,20 +777,6 @@ export function PreviewPanel() {
     </div>
   )
 
-  // Calculate completed steps count
-  const completedCount = useMemo(() => {
-    return [
-      selectedImageIndex !== null,
-      adCopyState.status === "completed",
-      locationState.status === "completed",
-      audienceState.status === "completed",
-      isMetaConnectionComplete,
-      goalState.status === "completed"
-    ].filter(Boolean).length
-  }, [selectedImageIndex, adCopyState.status, locationState.status, audienceState.status, isMetaConnectionComplete, goalState.status])
-
-  const totalSteps = 6
-
   // Summary content generators for each section
   const metaSummaryContent = (
     <div className="p-2">
@@ -960,11 +946,9 @@ export function PreviewPanel() {
       {/* Right: Collapsible sections with modals */}
       <div className="flex flex-col gap-6 max-w-3xl mx-auto lg:w-full">
         {/* Combined Publish and Budget Card */}
-        <div className="lg:sticky lg:top-4 lg:z-10">
+        <div>
           <PublishBudgetCard
             allStepsComplete={allStepsComplete}
-            completedCount={completedCount}
-            totalSteps={totalSteps}
             isPublished={isPublished}
             onPublish={handlePublish}
             budgetSummaryContent={budgetSummaryContent}

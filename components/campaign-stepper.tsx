@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Check, ChevronLeft, ChevronRight, LucideIcon } from "lucide-react"
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -293,22 +293,20 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
                     >
                       <div
                         className={cn(
-                          "rounded-full flex items-center justify-center font-bold text-sm transition-all absolute inset-0",
+                          "absolute inset-0 flex items-center justify-center rounded-full border transition-all",
                           step.completed
-                            ? "bg-green-500 text-white"
+                            ? "border-green-500 bg-green-500 text-white"
                             : index === currentStepIndex
-                            ? "bg-blue-500 text-white"
+                            ? "border-yellow-500 bg-yellow-500 text-white"
                             : canNavigate
-                            ? "bg-muted text-muted-foreground hover:bg-muted-foreground/20"
-                            : "bg-muted text-muted-foreground cursor-not-allowed"
+                            ? "border-yellow-500/60 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+                            : "border-muted-foreground/20 bg-muted text-muted-foreground"
                         )}
                       >
                         {step.completed ? (
                           <Check className="h-4 w-4" />
-                        ) : step.icon ? (
-                          <step.icon className="h-4 w-4" />
                         ) : (
-                          step.number
+                          <AlertTriangle className="h-4 w-4" />
                         )}
                       </div>
                       

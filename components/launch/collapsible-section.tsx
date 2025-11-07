@@ -10,7 +10,7 @@
 import { useState } from "react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, Check } from "lucide-react"
+import { ChevronDown, Check, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface CollapsibleSectionProps {
@@ -53,26 +53,26 @@ export function CollapsibleSection({
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div
               className={cn(
-                "flex h-7 w-7 items-center justify-center rounded-full border",
+                "flex h-7 w-7 items-center justify-center rounded-full border transition-colors",
                 isComplete
                   ? "border-green-500 bg-green-500 text-white"
-                  : "border-border bg-background text-muted-foreground"
+                  : "border-yellow-500 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
               )}
             >
               {isComplete ? (
                 <Check className="h-3.5 w-3.5" aria-hidden="true" />
               ) : (
-                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
               )}
             </div>
             <div className={cn(
-              "h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0",
-              isComplete ? "bg-green-500/10" : "bg-muted"
+              "h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors",
+              isComplete ? "bg-green-500/10" : "bg-yellow-500/10"
             )}>
               <Icon
                 className={cn(
                   "h-5 w-5",
-                  isComplete ? "text-green-600" : "text-muted-foreground"
+                  isComplete ? "text-green-600 dark:text-green-400" : "text-yellow-600 dark:text-yellow-400"
                 )}
               />
             </div>
