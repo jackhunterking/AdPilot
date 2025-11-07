@@ -21,6 +21,8 @@ interface CollapsibleSectionProps {
   summaryContentClassName?: string
   editContent?: React.ReactNode
   onEdit?: () => void
+  editStepId?: string
+  editStepForce?: boolean
   defaultOpen?: boolean
   className?: string
 }
@@ -33,6 +35,8 @@ export function CollapsibleSection({
   summaryContentClassName,
   editContent,
   onEdit,
+  editStepId,
+  editStepForce = true,
   defaultOpen = false,
   className,
 }: CollapsibleSectionProps) {
@@ -98,6 +102,14 @@ export function CollapsibleSection({
                 size="sm"
                 className="h-8 px-3"
                 onClick={() => {
+                  if (editStepId) {
+                    window.dispatchEvent(new CustomEvent('gotoStep', {
+                      detail: {
+                        id: editStepId,
+                        ...(editStepForce ? { force: true } : {}),
+                      },
+                    }))
+                  }
                   onEdit()
                 }}
               >

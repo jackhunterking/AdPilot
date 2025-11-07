@@ -985,6 +985,7 @@ export function PreviewPanel() {
           icon={Link2}
           isComplete={isMetaConnectionComplete}
           summaryContent={metaSummaryContent}
+          editStepId="meta-connect"
           onEdit={() => setMetaModalOpen(true)}
         />
 
@@ -994,6 +995,7 @@ export function PreviewPanel() {
           icon={MapPin}
           isComplete={locationState.status === "completed"}
           summaryContent={locationSummaryContent}
+          editStepId="location"
           onEdit={() => setLocationModalOpen(true)}
         />
 
@@ -1003,6 +1005,7 @@ export function PreviewPanel() {
           icon={Target}
           isComplete={audienceState.status === "completed"}
           summaryContent={audienceSummaryContent}
+          editStepId="audience"
           onEdit={() => setAudienceModalOpen(true)}
         />
 
@@ -1012,6 +1015,7 @@ export function PreviewPanel() {
           icon={Flag}
           isComplete={goalState.status === "completed"}
           summaryContent={goalSummaryContent}
+          editStepId="goal"
           onEdit={() => setGoalModalOpen(true)}
         />
 
