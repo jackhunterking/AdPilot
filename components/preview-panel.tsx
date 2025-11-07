@@ -789,57 +789,25 @@ export function PreviewPanel() {
   const totalSteps = 6
 
   // Summary content generators for each section
-  const metaSummaryContent = useMemo(() => {
-    if (!isMetaConnectionComplete) {
-      return "Not connected"
-    }
-    const connection = campaign?.id ? metaStorage.getConnection(campaign.id) : null
-    if (!connection) return "Connected"
-    const summary = campaign?.id ? metaStorage.getConnectionSummary(campaign.id) : null
-    const accounts: string[] = []
-    if (summary?.business?.name) accounts.push(`Business: ${summary.business.name}`)
-    if (summary?.page?.name) accounts.push(`Page: ${summary.page.name}`)
-    if (summary?.adAccount?.name) accounts.push(`Ad Account: ${summary.adAccount.name}`)
-    return accounts.length > 0 ? accounts.join(", ") : "Connected"
-  }, [isMetaConnectionComplete, campaign?.id])
+  const metaSummaryContent = (
+    <div className="p-2">
+      <div className="max-w-3xl mx-auto">
+        <MetaConnectCard mode="step" />
+      </div>
+    </div>
+  )
 
-  const locationSummaryContent = useMemo(() => {
-    const included = locationState.locations.filter(l => l.mode === "include")
-    const excluded = locationState.locations.filter(l => l.mode === "exclude")
-    if (included.length === 0 && excluded.length === 0) return "No locations selected"
-    const parts: string[] = []
-    if (included.length > 0) parts.push(`${included.length} included`)
-    if (excluded.length > 0) parts.push(`${excluded.length} excluded`)
-    return parts.join(", ")
-  }, [locationState.locations])
+  const locationSummaryContent = (
+    <LocationSelectionCanvas variant="summary" />
+  )
 
-  const audienceSummaryContent = useMemo(() => {
-    const mode = audienceState.targeting?.mode ?? "ai"
-    if (mode === "ai") {
-      return "AI Targeting enabled"
-    }
-    const t = audienceState.targeting
-    if (!t) return "Custom targeting"
-    if (t.description && t.description.trim().length > 0) {
-      return t.description.length > 60 ? `${t.description.slice(0, 60)}...` : t.description
-    }
-    return "Custom targeting configured"
-  }, [audienceState.targeting])
+  const audienceSummaryContent = (
+    <AudienceSelectionCanvas variant="summary" />
+  )
 
-  const goalSummaryContent = useMemo(() => {
-    if (!goalState.selectedGoal) return "No goal selected"
-    const form = goalState.formData
-    if (goalState.selectedGoal === 'leads' && form?.name) {
-      return form.name
-    }
-    if (goalState.selectedGoal === 'calls' && form?.phoneNumber) {
-      return `Calls: ${form.phoneNumber}`
-    }
-    if (goalState.selectedGoal === 'website-visits' && form?.websiteUrl) {
-      return form.displayLink || form.websiteUrl
-    }
-    return `${goalState.selectedGoal} goal selected`
-  }, [goalState.selectedGoal, goalState.formData])
+  const goalSummaryContent = (
+    <GoalSelectionCanvas variant="summary" />
+  )
 
   const budgetSummaryContent = useMemo(() => {
     return `$${budgetState.dailyBudget}/day`

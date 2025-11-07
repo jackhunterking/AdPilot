@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { useLocation } from "@/lib/context/location-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { useEffect, useRef, useState } from "react"
+import { cn } from "@/lib/utils"
 
 interface LeafletBounds {
   isValid(): boolean;
@@ -63,7 +64,11 @@ declare global {
   }
 }
 
-export function LocationSelectionCanvas() {
+interface LocationSelectionCanvasProps {
+  variant?: "step" | "summary"
+}
+
+export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionCanvasProps = {}) {
   const { locationState, removeLocation, resetLocations, clearLocations } = useLocation()
   const { isPublished } = useAdPreview()
   const mapRef = useRef<LeafletMap | null>(null)
@@ -71,6 +76,7 @@ export function LocationSelectionCanvas() {
   const markersRef = useRef<LeafletMarker[]>([])
   const shapesRef = useRef<LeafletShape[]>([])
   const [isMapReady, setIsMapReady] = useState(false)
+  const isSummary = variant === "summary"
 
   // Initialize map when container is ready
   useEffect(() => {
@@ -356,8 +362,14 @@ export function LocationSelectionCanvas() {
     const excludedLocations = locationState.locations.filter(loc => loc.mode === "exclude")
 
     return (
-      <div className="flex flex-col h-full overflow-auto p-8">
-        <div className="max-w-3xl w-full mx-auto space-y-6">
+      <div
+        className={cn(
+          "flex flex-col",
+          isSummary ? "gap-6" : "h-full overflow-auto p-8"
+        )}
+      >
+        <div className={cn("w-full space-y-6", "max-w-3xl mx-auto")}
+        >
           {/* Map Display */}
           <div className="rounded-lg border-2 border-blue-600 bg-card overflow-hidden">
             <div ref={mapContainerRef} className="w-full h-[400px]" style={{ position: 'relative', isolation: 'isolate' }} />
@@ -377,7 +389,8 @@ export function LocationSelectionCanvas() {
                     <LocationCard
                       key={location.id}
                       location={location as LocationData}
-                      onRemove={removeLocation}
+                      onRemove={isSummary ? undefined : removeLocation}
+                      readonly={isSummary}
                     />
                   ))}
                 </div>
@@ -396,8 +409,9 @@ export function LocationSelectionCanvas() {
                     <LocationCard
                       key={location.id}
                       location={location as LocationData}
-                      onRemove={removeLocation}
+                      onRemove={isSummary ? undefined : removeLocation}
                       isExcluded
+                      readonly={isSummary}
                     />
                   ))}
                 </div>
@@ -405,28 +419,30 @@ export function LocationSelectionCanvas() {
             )}
           </div>
 
-          <div className="flex justify-center gap-4 pt-4 pb-8">
-            {!isPublished && (
-              <>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={handleAddMore}
-                  className="gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add More Locations
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={clearLocations}
-                >
-                  Clear All
-                </Button>
-              </>
-            )}
-          </div>
+          {!isSummary && (
+            <div className="flex justify-center gap-4 pt-4 pb-8">
+              {!isPublished && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={handleAddMore}
+                    className="gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add More Locations
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={clearLocations}
+                  >
+                    Clear All
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -463,14 +479,16 @@ export function LocationSelectionCanvas() {
 }
 
 // Location Card Component
-function LocationCard({ 
-  location, 
+function LocationCard({
+  location,
   onRemove,
-  isExcluded = false 
-}: { 
+  isExcluded = false,
+  readonly = false,
+}: {
   location: LocationData
-  onRemove: (id: string) => void
+  onRemove?: (id: string) => void
   isExcluded?: boolean
+  readonly?: boolean
 }) {
   const getLocationTypeLabel = () => {
     switch (location.type) {
@@ -500,14 +518,16 @@ function LocationCard({
           <p className="text-xs text-muted-foreground">{getLocationTypeLabel()}</p>
         </div>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => onRemove(location.id)}
-        className="h-6 w-6 hover:bg-red-500/10 hover:text-red-600 flex-shrink-0"
-      >
-        <X className="h-3.5 w-3.5" />
-      </Button>
+      {!readonly && onRemove && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onRemove(location.id)}
+          className="h-6 w-6 hover:bg-red-500/10 hover:text-red-600 flex-shrink-0"
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      )}
     </div>
   )
 }

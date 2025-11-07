@@ -10,10 +10,16 @@ import { LeadFormSetup } from "@/components/forms/lead-form-setup"
 import { FormSummaryCard } from "@/components/launch/form-summary-card"
 import { CallConfiguration } from "@/components/forms/call-configuration"
 import { WebsiteConfiguration } from "@/components/forms/website-configuration"
+import { cn } from "@/lib/utils"
 
-export function GoalSelectionCanvas() {
+interface GoalSelectionCanvasProps {
+  variant?: "step" | "summary"
+}
+
+export function GoalSelectionCanvas({ variant = "step" }: GoalSelectionCanvasProps = {}) {
   const { goalState, setSelectedGoal, resetGoal, setFormData } = useGoal()
   const { isPublished } = useAdPreview()
+  const isSummary = variant === "summary"
   
   // Removed AI-triggered setup; inline UI is used instead
 
@@ -38,7 +44,8 @@ export function GoalSelectionCanvas() {
   // If published, show locked state regardless of goal setup status
   if (isPublished) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
+      <div className={cn("flex flex-col items-center justify-center h-full p-8", isSummary && "p-6")}
+      >
         <div className="max-w-2xl w-full space-y-6">
           <div className="text-center space-y-3">
             <div className="h-16 w-16 rounded-full bg-orange-500/10 flex items-center justify-center mx-auto">
@@ -119,7 +126,8 @@ export function GoalSelectionCanvas() {
   // LEADS: Always show builder for all statuses (when not published)
   if (goalState.selectedGoal === 'leads') {
     return (
-      <div className="h-full">
+      <div className={cn("h-full", isSummary && "h-auto")}
+      >
         <LeadFormSetup
           onFormSelected={(data) => {
             setFormData({ id: data.id, name: data.name })
@@ -133,7 +141,8 @@ export function GoalSelectionCanvas() {
   // Initial state - no goal selected
   if (goalState.status === "idle") {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
+      <div className={cn("flex flex-col items-center justify-center h-full p-8", isSummary && "p-6")}
+      >
         <div className="max-w-3xl w-full space-y-8">
           <div className="grid grid-cols-3 gap-6">
             {/* Leads Card */}
@@ -210,7 +219,8 @@ export function GoalSelectionCanvas() {
   // Goal selected - show setup button
   if (goalState.status === "selecting") {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
+      <div className={cn("flex flex-col items-center justify-center h-full p-8", isSummary && "p-6")}
+      >
         <div className="max-w-2xl w-full space-y-8">
           {/* Selected goal hero card removed once a goal is chosen to keep the canvas clean */}
 
@@ -228,11 +238,13 @@ export function GoalSelectionCanvas() {
             </div>
           )}
 
-          <div className="flex justify-center gap-4 pt-6">
-            <Button variant="outline" size="lg" onClick={resetGoal}>
-              Change Goal
-            </Button>
-          </div>
+          {!isSummary && (
+            <div className="flex justify-center gap-4 pt-6">
+              <Button variant="outline" size="lg" onClick={resetGoal}>
+                Change Goal
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -241,7 +253,8 @@ export function GoalSelectionCanvas() {
   // Setup in progress
   if (goalState.status === "setup-in-progress") {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
+      <div className={cn("flex flex-col items-center justify-center h-full p-8", isSummary && "p-6")}
+      >
         <div className="max-w-xl w-full space-y-6 text-center">
           <Loader2 className="h-16 w-16 animate-spin text-blue-600 mx-auto" />
           <div className="space-y-2">
@@ -258,7 +271,8 @@ export function GoalSelectionCanvas() {
   // Completed setup: show saved goal summary (calls or website)
   if (goalState.status === "completed" && (goalState.selectedGoal === 'calls' || goalState.selectedGoal === 'website-visits')) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
+      <div className={cn("flex flex-col items-center justify-center h-full p-8", isSummary && "p-6")}
+      >
         <div className="max-w-2xl w-full space-y-6">
           <FormSummaryCard mode="inline" />
         </div>
@@ -269,7 +283,8 @@ export function GoalSelectionCanvas() {
   // Error state
   if (goalState.status === "error") {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
+      <div className={cn("flex flex-col items-center justify-center h-full p-8", isSummary && "p-6")}
+      >
         <div className="max-w-xl w-full space-y-6 text-center">
           <div className="h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto">
             <span className="text-3xl">⚠️</span>

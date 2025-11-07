@@ -18,6 +18,7 @@ interface CollapsibleSectionProps {
   icon: React.ComponentType<{ className?: string }>
   isComplete: boolean
   summaryContent: React.ReactNode
+  summaryContentClassName?: string
   editContent?: React.ReactNode
   onEdit?: () => void
   defaultOpen?: boolean
@@ -29,6 +30,7 @@ export function CollapsibleSection({
   icon: Icon,
   isComplete,
   summaryContent,
+  summaryContentClassName,
   editContent,
   onEdit,
   defaultOpen = false,
@@ -85,7 +87,7 @@ export function CollapsibleSection({
       <CollapsibleContent>
         <div className="border-t px-4 py-4 space-y-4">
           {summaryContent && (
-            <div className="text-sm text-muted-foreground leading-relaxed">
+            <div className={cn("space-y-4", summaryContentClassName)}>
               {summaryContent}
             </div>
           )}
