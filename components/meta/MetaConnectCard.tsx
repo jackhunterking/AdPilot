@@ -153,6 +153,9 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
           hasManage: Boolean(json?.hasManage),
           hasFunding: Boolean(json?.hasFunding),
         })
+        if (json?.hasFunding && campaign?.id) {
+          metaStorage.markPaymentConnected(campaign.id)
+        }
       } catch {
         // ignore
       }

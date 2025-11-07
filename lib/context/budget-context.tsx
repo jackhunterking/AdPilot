@@ -80,6 +80,59 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     setIsInitialized(true) // Mark initialized regardless of saved data
   }, [campaign, isInitialized])
 
+  // Sync budget state with Meta connection summary (localStorage) once initialized
+  useEffect(() => {
+    if (!campaign?.id || !isInitialized) return
+    if (typeof window === "undefined") return
+
+    try {
+      const summary = metaStorage.getConnectionSummary(campaign.id)
+      const connection = metaStorage.getConnection(campaign.id)
+
+      if (!summary && !connection) {
+        return
+      }
+
+      setBudgetState(prev => {
+        let changed = false
+        const next: BudgetState = { ...prev }
+
+        const adAccountId = summary?.adAccount?.id ?? connection?.selected_ad_account_id ?? null
+        if (adAccountId && prev.selectedAdAccount !== adAccountId) {
+          next.selectedAdAccount = adAccountId
+          changed = true
+        }
+
+        const isConnected =
+          Boolean(
+            summary?.status === "connected" ||
+              summary?.status === "selected_assets" ||
+              summary?.status === "payment_linked" ||
+              connection?.ad_account_payment_connected ||
+              adAccountId,
+          )
+
+        if (isConnected && !prev.isConnected) {
+          next.isConnected = true
+          changed = true
+        }
+
+        const currencyCandidate = summary?.adAccount?.currency ?? connection?.ad_account_currency_code ?? null
+        if (currencyCandidate) {
+          const normalized = currencyCandidate.trim().toUpperCase()
+          if (normalized.length === 3 && normalized !== prev.currency) {
+            next.currency = normalized
+            changed = true
+          }
+        }
+
+        return changed ? next : prev
+      })
+    } catch (error) {
+      console.error("[BudgetContext] Failed to sync Meta connection summary", error)
+    }
+  }, [campaign?.id, isInitialized])
+
   // Save function
   const saveFn = useCallback(async (state: BudgetState) => {
     if (!campaign?.id || !isInitialized) return

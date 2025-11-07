@@ -49,6 +49,7 @@ export function PreviewPanel() {
   const { goalState } = useGoal()
   const { adCopyState, getActiveVariations } = useAdCopy()
   const [showReelMessage, setShowReelMessage] = useState(false)
+  const [hasPaymentMethod, setHasPaymentMethod] = useState(false)
   
   // Modal state management for section editing
   const [locationModalOpen, setLocationModalOpen] = useState(false)
@@ -149,6 +150,80 @@ export function PreviewPanel() {
     setShowReelMessage(true)
     setTimeout(() => setShowReelMessage(false), 2500)
   }
+
+  // Derive active ad copy variations for preview rendering
+  const activeCopyVariations = getActiveVariations()
+
+  useEffect(() => {
+    if (!campaign?.id) {
+      setHasPaymentMethod(false)
+      return
+    }
+
+    if (typeof window === "undefined") {
+      return
+    }
+
+    try {
+      const summary = metaStorage.getConnectionSummary(campaign.id)
+      const connection = metaStorage.getConnection(campaign.id)
+
+      if (summary?.paymentConnected || connection?.ad_account_payment_connected) {
+        setHasPaymentMethod(true)
+        return
+      }
+
+      const adAccountId =
+        summary?.adAccount?.id ??
+        connection?.selected_ad_account_id ??
+        budgetState.selectedAdAccount
+
+      if (!adAccountId) {
+        setHasPaymentMethod(false)
+        return
+      }
+
+      let cancelled = false
+
+      const verifyFunding = async () => {
+        try {
+          const res = await fetch(
+            `/api/meta/payments/capability?campaignId=${encodeURIComponent(campaign.id)}`,
+            { cache: "no-store" },
+          )
+
+          if (!res.ok) {
+            return
+          }
+
+          const data: unknown = await res.json()
+          const hasFunding = Boolean((data as { hasFunding?: unknown }).hasFunding)
+
+          if (cancelled) return
+
+          if (hasFunding) {
+            metaStorage.markPaymentConnected(campaign.id)
+            setHasPaymentMethod(true)
+          } else {
+            setHasPaymentMethod(false)
+          }
+        } catch (error) {
+          if (!cancelled) {
+            console.error("[PreviewPanel] Failed to verify payment capability", error)
+            setHasPaymentMethod(false)
+          }
+        }
+      }
+
+      void verifyFunding()
+
+      return () => {
+        cancelled = true
+      }
+    } catch (error) {
+      console.error("[PreviewPanel] Payment verification error", error)
+    }
+  }, [campaign?.id, budgetState.selectedAdAccount])
 
   const handlePublish = async () => {
     if (!campaign?.id) return
@@ -299,6 +374,7 @@ export function PreviewPanel() {
     audienceState.status === "completed" &&
     goalState.status === "completed" &&
     isMetaConnectionComplete &&
+    hasPaymentMethod &&
     isComplete()
 
   // Mock ad variations with different gradients
@@ -312,6 +388,11 @@ export function PreviewPanel() {
   const renderFeedAd = (variation: typeof adVariations[0], index: number) => {
     const isSelected = selectedImageIndex === index
     const isProcessing = false
+    const copyForCard =
+      activeCopyVariations[index] ??
+      (adCopyState.selectedCopyIndex != null ? activeCopyVariations[adCopyState.selectedCopyIndex] : undefined) ??
+      activeCopyVariations[0] ??
+      null
     
     return (
       <div 
@@ -392,7 +473,7 @@ export function PreviewPanel() {
         {/* Primary Text Section - BEFORE Media */}
         <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
           <p className="text-[#050505] leading-[1.3333]" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '20px' }}>
-            <Skeleton className="inline-block h-4 w-full" style={{ height: '20px' }} />
+            {copyForCard?.primaryText ?? " "}
           </p>
         </div>
 
@@ -419,11 +500,11 @@ export function PreviewPanel() {
             </p>
             {/* Headline */}
             <p className="font-bold text-[#050505] line-clamp-1" style={{ fontSize: '17px', fontWeight: 700, lineHeight: '1.1765' }}>
-              <Skeleton className="h-5 w-3/4" style={{ height: '20px' }} />
+              {copyForCard?.headline ?? " "}
             </p>
             {/* Description */}
             <p className="text-[#050505] line-clamp-2" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '1.3333' }}>
-              <Skeleton className="h-4 w-full" style={{ height: '20px' }} />
+              {copyForCard?.description ?? " "}
             </p>
           </div>
           
