@@ -14,8 +14,13 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { useBudget } from "@/lib/context/budget-context"
 import { DollarSign, Plus, Minus } from "lucide-react"
+import { cn } from "@/lib/utils"
 
-export function BudgetSchedule() {
+interface BudgetScheduleProps {
+  variant?: "card" | "inline"
+}
+
+export function BudgetSchedule({ variant = "card" }: BudgetScheduleProps = {}) {
   const { budgetState, setDailyBudget } = useBudget()
   
   const minBudget = 5
@@ -42,19 +47,33 @@ export function BudgetSchedule() {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-card p-4 space-y-4">
-      <div className="flex items-center gap-2">
-        <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+    <div
+      className={cn(
+        "space-y-4",
+        variant === "card" && "rounded-lg border border-border bg-card p-4"
+      )}
+    >
+      {variant === "card" && (
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center">
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-medium">Budget</p>
+            <p className="text-xs text-muted-foreground">Set your daily budget.</p>
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-medium">Budget</p>
-          <p className="text-xs text-muted-foreground">Set your daily budget.</p>
-        </div>
-      </div>
+      )}
 
       <div className="space-y-3">
-        <Label className="text-xs">Daily Budget (USD)</Label>
+        <div className="flex items-center justify-between">
+          <Label className="text-xs">Daily Budget (USD)</Label>
+          {variant === "inline" && (
+            <div className="text-xs font-medium text-muted-foreground">
+              Min ${minBudget} – Max ${maxBudget}
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <Button
             type="button"

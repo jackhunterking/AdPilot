@@ -53,20 +53,36 @@ export function CollapsibleSection({
           }
         }}
       >
-        <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
+        <div className="flex items-center justify-between gap-3 p-4 hover:bg-muted/50 transition-colors">
           <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-full border",
+                isComplete
+                  ? "border-green-500 bg-green-500 text-white"
+                  : "border-border bg-background text-muted-foreground"
+              )}
+            >
+              {isComplete ? (
+                <Check className="h-3.5 w-3.5" aria-hidden="true" />
+              ) : (
+                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+              )}
+            </div>
             <div className={cn(
-              "h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 self-center",
+              "h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0",
               isComplete ? "bg-green-500/10" : "bg-muted"
             )}>
-              <Icon className={cn(
-                "h-5 w-5",
-                isComplete ? "text-green-600" : "text-muted-foreground"
-              )} />
+              <Icon
+                className={cn(
+                  "h-5 w-5",
+                  isComplete ? "text-green-600" : "text-muted-foreground"
+                )}
+              />
             </div>
-            <div className="flex-1 min-w-0 flex flex-col justify-center">
+            <div className="flex-1 min-w-0 flex flex-col justify-center text-left">
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-sm">{title}</h3>
+                <h3 className="font-semibold text-sm leading-none">{title}</h3>
                 {isComplete && (
                   <div className="flex items-center gap-1 text-green-600 text-xs">
                     <Check className="h-3 w-3" />
@@ -74,7 +90,7 @@ export function CollapsibleSection({
                   </div>
                 )}
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">
+              <div className="mt-1 text-xs text-muted-foreground leading-relaxed text-left">
                 {summaryContent}
               </div>
             </div>

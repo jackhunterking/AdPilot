@@ -28,6 +28,7 @@ import { CollapsibleSection } from "@/components/launch/collapsible-section"
 import { SectionEditModal } from "@/components/launch/section-edit-modal"
 import { PublishBudgetCard } from "@/components/launch/publish-budget-card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 
 const mockAdAccounts = [
   { id: "act_123456789", name: "Main Business Account", currency: "USD" },
@@ -848,33 +849,14 @@ export function PreviewPanel() {
   const launchContent = (
     <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6">
       {/* Left: Full ad mockup using selected variation */}
-      <div className="rounded-lg border border-border bg-card p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold">Ad Preview</h3>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'ads' } }))}
-              className="h-7 px-3"
-            >
-              <Palette className="h-3 w-3 mr-1.5" />
-              Edit Ad Creative
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'copy' } }))}
-              className="h-7 px-3"
-            >
-              <Type className="h-3 w-3 mr-1.5" />
-              Edit Ad Copy
-            </Button>
-          </div>
-        </div>
-        {/* Format selector (matches creator) */}
-        <div className="flex justify-center pb-4">
-          <div className="inline-flex rounded-lg border border-border p-1 bg-card">
+      <Card className="h-full">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold">Ad Preview</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0 space-y-4">
+          {/* Format selector (matches creator) */}
+          <div className="flex justify-center">
+            <div className="inline-flex rounded-lg border border-border p-1 bg-card">
             {previewFormats.map((format) => {
               const Icon = format.icon
               const isActive = activeFormat === format.id
@@ -920,12 +902,35 @@ export function PreviewPanel() {
               )
             })}
           </div>
-        </div>
+          </div>
 
-        {activeFormat === "story"
-          ? adVariations.map((v, i) => selectedImageIndex === i && renderStoryAd(v, i))
-          : adVariations.map((v, i) => selectedImageIndex === i && renderFeedAd(v, i))}
-      </div>
+          <div>
+            {activeFormat === "story"
+              ? adVariations.map((v, i) => selectedImageIndex === i && renderStoryAd(v, i))
+              : adVariations.map((v, i) => selectedImageIndex === i && renderFeedAd(v, i))}
+          </div>
+        </CardContent>
+        <CardFooter className="flex flex-col gap-2 border-t pt-4">
+          <div className="grid w-full gap-2 sm:grid-cols-2">
+            <Button
+              variant="secondary"
+              onClick={() => window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'ads' } }))}
+              className="justify-center"
+            >
+              <Palette className="h-4 w-4 mr-2" />
+              Edit Ad Creative
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'copy' } }))}
+              className="justify-center"
+            >
+              <Type className="h-4 w-4 mr-2" />
+              Edit Ad Copy
+            </Button>
+          </div>
+        </CardFooter>
+      </Card>
 
       {/* Right: Collapsible sections with modals */}
       <div className="flex flex-col gap-6 max-w-3xl mx-auto">
@@ -938,7 +943,7 @@ export function PreviewPanel() {
           onPublish={handlePublish}
           budgetSummaryContent={budgetSummaryContent}
           isBudgetComplete={isComplete()}
-          budgetEditContent={<BudgetSchedule />}
+          budgetEditContent={<BudgetSchedule variant="inline" />}
         />
 
         {/* Meta Connect Section */}
