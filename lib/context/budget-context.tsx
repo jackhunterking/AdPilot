@@ -92,6 +92,7 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!campaign?.id) return
     if (!budgetState.selectedAdAccount) return
+    const accountId = budgetState.selectedAdAccount
 
     const applyCurrency = (value: string | null | undefined) => {
       if (!value) return
@@ -116,7 +117,7 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     const fetchCurrency = async () => {
       try {
         const res = await fetch(
-          `/api/meta/adaccount/status?campaignId=${encodeURIComponent(campaign.id)}&accountId=${encodeURIComponent(budgetState.selectedAdAccount)}`,
+          `/api/meta/adaccount/status?campaignId=${encodeURIComponent(campaign.id)}&accountId=${encodeURIComponent(accountId)}`,
           { cache: "no-store", signal: controller.signal },
         )
         if (!res.ok) return
