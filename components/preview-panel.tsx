@@ -878,7 +878,7 @@ export function PreviewPanel() {
   const launchContent = (
     <div className="grid grid-cols-1 lg:grid-cols-[2fr_3fr] gap-6 items-start">
       {/* Left: Full ad mockup using selected variation */}
-      <div className="self-start lg:sticky lg:top-24">
+      <div className="self-start lg:sticky lg:top-6 lg:-mt-6">
         <Card>
           <CardHeader className="pb-4">
             <CardTitle className="text-base font-semibold">Ad Preview</CardTitle>
