@@ -47,6 +47,18 @@ export interface CampaignMetricsSnapshot {
   cached_at: string
 }
 
+// Type alias for backward compatibility
+export type CampaignMetrics = Omit<CampaignMetricsSnapshot, 'range_key' | 'campaign_id' | 'date_start' | 'date_end' | 'cached_at'> & {
+  costPerResult: number | null
+}
+
+export interface TimelinePoint {
+  date: string
+  results: number
+  spend: number
+  reach: number
+}
+
 export interface MetricsBreakdownRow {
   label: string
   reach: number
@@ -349,5 +361,6 @@ export async function fetchMetricsBreakdown(
     }
   })
 }
+
 
 

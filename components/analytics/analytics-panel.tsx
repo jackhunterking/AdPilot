@@ -10,7 +10,7 @@ import { useBudget } from '@/lib/context/budget-context'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import type { CampaignMetrics, TimelinePoint } from '@/lib/meta/insights'
-import { LeadManager } from '@/components/analytics/lead-manager'
+import { LeadManager } from '@/components/results/lead-manager'
 
 interface MetricsApiResponse {
   metrics: CampaignMetrics
