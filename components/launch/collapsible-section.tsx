@@ -10,7 +10,7 @@
 import { useState } from "react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, Edit2, Check } from "lucide-react"
+import { ChevronDown, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface CollapsibleSectionProps {
@@ -37,22 +37,12 @@ export function CollapsibleSection({
   const [isOpen, setIsOpen] = useState(defaultOpen)
 
   const handleOpenChange = (open: boolean) => {
-    if (editContent) {
-      setIsOpen(open)
-    }
+    setIsOpen(open)
   }
 
   return (
     <Collapsible open={isOpen} onOpenChange={handleOpenChange} className={cn("rounded-lg border border-border bg-card", className)}>
-      <CollapsibleTrigger 
-        className={cn("w-full", !editContent && "cursor-default")} 
-        onClick={(e) => {
-          if (!editContent) {
-            e.preventDefault()
-            e.stopPropagation()
-          }
-        }}
-      >
+      <CollapsibleTrigger className="w-full">
         <div className="flex items-center justify-between gap-3 p-4 hover:bg-muted/50 transition-colors">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div
@@ -81,51 +71,45 @@ export function CollapsibleSection({
               />
             </div>
             <div className="flex-1 min-w-0 flex flex-col justify-center text-left">
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-sm leading-none">{title}</h3>
-                {isComplete && (
-                  <div className="flex items-center gap-1 text-green-600 text-xs">
-                    <Check className="h-3 w-3" />
-                    <span>Complete</span>
-                  </div>
-                )}
-              </div>
-              <div className="mt-1 text-xs text-muted-foreground leading-relaxed text-left">
-                {summaryContent}
-              </div>
+              <h3 className="font-semibold text-sm leading-none text-foreground">{title}</h3>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {onEdit && (
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 text-muted-foreground transition-transform",
+              isOpen && "rotate-180"
+            )}
+          />
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="border-t px-4 py-4 space-y-4">
+          {summaryContent && (
+            <div className="text-sm text-muted-foreground leading-relaxed">
+              {summaryContent}
+            </div>
+          )}
+          {onEdit && (
+            <div className="flex justify-end">
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 px-3"
-                onClick={(e) => {
-                  e.stopPropagation()
+                className="h-8 px-3"
+                onClick={() => {
                   onEdit()
                 }}
               >
-                <Edit2 className="h-3 w-3 mr-1.5" />
                 Edit
               </Button>
-            )}
-            {editContent && (
-              <ChevronDown className={cn(
-                "h-4 w-4 text-muted-foreground transition-transform",
-                isOpen && "rotate-180"
-              )} />
-            )}
-          </div>
+            </div>
+          )}
+          {editContent && (
+            <div className="pt-4 border-t">
+              {editContent}
+            </div>
+          )}
         </div>
-      </CollapsibleTrigger>
-      {editContent && (
-        <CollapsibleContent className="px-4 pb-4">
-          <div className="pt-4 border-t">
-            {editContent}
-          </div>
-        </CollapsibleContent>
-      )}
+      </CollapsibleContent>
     </Collapsible>
   )
 }
