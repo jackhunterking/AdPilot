@@ -1,3 +1,13 @@
+/**
+ * Feature: Launch Preview Panel
+ * Purpose: Provide the prelaunch summary with edit entry points tied to each configuration section
+ * References:
+ *  - AI SDK Core: https://ai-sdk.dev/docs/introduction#why-use-the-ai-sdk
+ *  - AI Elements: https://ai-sdk.dev/elements#quick-start
+ *  - Vercel AI Gateway: https://vercel.com/docs/ai-gateway#key-features
+ *  - Supabase: https://supabase.com/docs/guides/auth#providers
+ */
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -932,17 +942,19 @@ export function PreviewPanel() {
         <CardFooter className="flex flex-col gap-2 border-t pt-4">
           <div className="grid w-full gap-2 sm:grid-cols-2">
             <Button
-              variant="secondary"
+              variant="outline"
+              size="sm"
               onClick={() => window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'ads' } }))}
-              className="justify-center"
+              className="h-8 px-3 justify-center"
             >
               <Palette className="h-4 w-4 mr-2" />
               Edit Ad Creative
             </Button>
             <Button
-              variant="secondary"
+              variant="outline"
+              size="sm"
               onClick={() => window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'copy' } }))}
-              className="justify-center"
+              className="h-8 px-3 justify-center"
             >
               <Type className="h-4 w-4 mr-2" />
               Edit Ad Copy
