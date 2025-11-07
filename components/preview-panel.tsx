@@ -815,7 +815,7 @@ export function PreviewPanel() {
         <GoalSummaryCard
           variant="leads"
           value={form.name}
-          subtitle={form.updatedAt ? new Date(form.updatedAt).toLocaleDateString() : undefined}
+          subtitle={form.id ? `Form ID: ${form.id}` : undefined}
         />
       )
     }
