@@ -84,28 +84,26 @@ export function PublishBudgetCard({
           </Button>
         </div>
 
-        <div className="rounded-lg border border-border bg-muted/40 p-4">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-lg",
-                  isBudgetComplete
-                    ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                    : "bg-muted text-muted-foreground"
-                )}
-              >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div
+              className={cn(
+                "flex h-10 w-10 items-center justify-center rounded-lg",
+                isBudgetComplete
+                  ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              {isBudgetComplete ? (
+                <CheckCircle2 className="h-5 w-5" />
+              ) : (
                 <DollarSign className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">Budget control</p>
-                <p className="text-xs text-muted-foreground">Daily spend target aligned with strategy</p>
-              </div>
+              )}
             </div>
-            <span className="text-sm font-semibold text-foreground">{budgetSummaryContent}</span>
+            <span className="text-lg font-semibold text-foreground">{budgetSummaryContent}</span>
           </div>
 
-          <div className="mt-4 rounded-md border border-dashed border-border bg-card/60 p-4">
+          <div>
             {budgetEditContent ? (
               budgetEditContent
             ) : (
