@@ -466,6 +466,41 @@ export type Database = {
           },
         ]
       }
+      creative_plans: {
+        Row: {
+          campaign_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          plan: Json
+          status: string
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          plan: Json
+          status?: string
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          plan?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creative_plans_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creative_variants: {
         Row: {
           asset_id: string | null
@@ -944,6 +979,97 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "meta_accounts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_asset_snapshots: {
+        Row: {
+          ad_accounts_json: Json | null
+          business_json: Json | null
+          captured_at: string
+          id: string
+          pages_json: Json | null
+          user_id: string
+        }
+        Insert: {
+          ad_accounts_json?: Json | null
+          business_json?: Json | null
+          captured_at?: string
+          id?: string
+          pages_json?: Json | null
+          user_id: string
+        }
+        Update: {
+          ad_accounts_json?: Json | null
+          business_json?: Json | null
+          captured_at?: string
+          id?: string
+          pages_json?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_asset_snapshots_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meta_connections: {
+        Row: {
+          ad_account_currency_code: string | null
+          ad_account_id: string | null
+          ad_account_name: string | null
+          business_id: string
+          business_name: string | null
+          created_at: string
+          has_funding: boolean
+          id: string
+          page_id: string | null
+          page_name: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ad_account_currency_code?: string | null
+          ad_account_id?: string | null
+          ad_account_name?: string | null
+          business_id: string
+          business_name?: string | null
+          created_at?: string
+          has_funding?: boolean
+          id?: string
+          page_id?: string | null
+          page_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ad_account_currency_code?: string | null
+          ad_account_id?: string | null
+          ad_account_name?: string | null
+          business_id?: string
+          business_name?: string | null
+          created_at?: string
+          has_funding?: boolean
+          id?: string
+          page_id?: string | null
+          page_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_connections_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"

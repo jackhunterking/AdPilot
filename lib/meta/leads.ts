@@ -10,6 +10,7 @@ import { createHmac } from 'crypto'
 
 import { supabaseServer } from '@/lib/supabase/server'
 import { getConnectionWithToken, getGraphVersion } from '@/lib/meta/service'
+import type { Database, Json } from '@/lib/supabase/database.types'
 
 interface MetaLeadField {
   name?: string
@@ -22,16 +23,11 @@ interface MetaLeadResponse {
   field_data?: MetaLeadField[]
 }
 
-export interface LeadRecord {
-  id: string
-  campaign_id: string
-  meta_form_id: string
-  meta_lead_id: string
-  form_data: Record<string, unknown>
-  submitted_at: string
-  exported_at: string | null
-  webhook_sent: boolean
-  webhook_sent_at: string | null
+type LeadFormSubmissionRow = Database['public']['Tables']['lead_form_submissions']['Row']
+type LeadFormSubmissionInsert = Database['public']['Tables']['lead_form_submissions']['Insert']
+
+export interface LeadRecord extends LeadFormSubmissionRow {
+  form_data: Record<string, Json> | null
 }
 
 export interface WebhookConfig {
@@ -44,15 +40,25 @@ export interface WebhookConfig {
   last_error_message: string | null
 }
 
-function mapFieldDataToRecord(data: MetaLeadField[] | undefined): Record<string, unknown> {
-  const record: Record<string, unknown> = {}
+function mapFieldDataToRecord(data: MetaLeadField[] | undefined): Record<string, Json> {
+  const record: Record<string, Json> = {}
   if (!Array.isArray(data)) {
     return record
   }
   data.forEach((field, index) => {
     const key = field.name && field.name.trim().length > 0 ? field.name : `field_${index + 1}`
-    if (Array.isArray(field.values)) {
-      record[key] = field.values.length === 1 ? field.values[0] : field.values.join(', ')
+    if (!Array.isArray(field.values) || field.values.length === 0) {
+      return
+    }
+    const sanitized = field.values.filter((value): value is string => typeof value === 'string' && value.length > 0)
+    if (sanitized.length === 0) {
+      return
+    }
+    if (sanitized.length === 1) {
+      const [firstValue] = sanitized
+      record[key] = firstValue ?? ''
+    } else {
+      record[key] = sanitized.join(', ')
     }
   })
   return record
@@ -118,22 +124,21 @@ export async function refreshLeadsFromMeta(campaignId: string): Promise<{ insert
     return { inserted: 0, total: 0 }
   }
 
-  const rows = leads
-    .map((lead) => {
-      const metaLeadId = typeof lead.id === 'string' ? lead.id : null
-      const createdTime = typeof lead.created_time === 'string' ? lead.created_time : null
-      if (!metaLeadId || !createdTime) {
-        return null
-      }
-      return {
-        campaign_id: campaignId,
-        meta_form_id: formId,
-        meta_lead_id: metaLeadId,
-        form_data: mapFieldDataToRecord(lead.field_data),
-        submitted_at: new Date(createdTime).toISOString(),
-      }
+  const rows = leads.reduce<LeadFormSubmissionInsert[]>((acc, lead) => {
+    const metaLeadId = typeof lead.id === 'string' ? lead.id : null
+    const createdTime = typeof lead.created_time === 'string' ? lead.created_time : null
+    if (!metaLeadId || !createdTime) {
+      return acc
+    }
+    acc.push({
+      campaign_id: campaignId,
+      meta_form_id: formId,
+      meta_lead_id: metaLeadId,
+      form_data: mapFieldDataToRecord(lead.field_data),
+      submitted_at: new Date(createdTime).toISOString(),
     })
-    .filter((row): row is { campaign_id: string; meta_form_id: string; meta_lead_id: string; form_data: Record<string, unknown>; submitted_at: string } => Boolean(row))
+    return acc
+  }, [])
 
   if (rows.length === 0) {
     return { inserted: 0, total: leads.length }
@@ -161,7 +166,15 @@ export async function getStoredLeads(campaignId: string): Promise<LeadRecord[]> 
     throw new Error(error.message)
   }
 
-  return (data as LeadRecord[]) ?? []
+  return (
+    (data ?? []).map((row) => ({
+      ...row,
+      form_data:
+        row.form_data && typeof row.form_data === 'object' && !Array.isArray(row.form_data)
+          ? (row.form_data as Record<string, Json>)
+          : null,
+    })) ?? []
+  )
 }
 
 export function formatLeadsAsCsv(leads: LeadRecord[]): string {
@@ -261,17 +274,22 @@ export async function sendWebhookTest(campaignId: string, config: WebhookConfig)
   }
 
   const leads = await getStoredLeads(campaignId)
-  const sampleLead = leads[0] ?? {
-    id: 'sample',
-    campaign_id: campaignId,
-    meta_form_id: 'form_sample',
-    meta_lead_id: 'sample_lead',
-    form_data: { full_name: 'Test Lead', email: 'test@example.com' },
-    submitted_at: new Date().toISOString(),
-    exported_at: null,
-    webhook_sent: false,
-    webhook_sent_at: null,
-  }
+  const sampleLead: LeadRecord =
+    leads[0] ?? {
+      id: 'sample',
+      campaign_id: campaignId,
+      meta_form_id: 'form_sample',
+      meta_lead_id: 'sample_lead',
+      form_data: {
+        full_name: 'Test Lead',
+        email: 'test@example.com',
+      },
+      submitted_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      exported_at: null,
+      webhook_sent: false,
+      webhook_sent_at: null,
+    }
 
   const payload = buildWebhookPayload(campaignId, sampleLead)
   const body = JSON.stringify(payload)

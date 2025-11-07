@@ -28,6 +28,7 @@ export interface MetaAdAccount {
   name?: string
   account_status?: number
   business?: { id: string; name?: string }
+  currency?: string | null
 }
 
 export interface MetaAssets {

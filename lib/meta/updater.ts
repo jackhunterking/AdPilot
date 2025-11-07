@@ -9,6 +9,7 @@
 import { supabaseServer } from '@/lib/supabase/server'
 import { getConnectionWithToken, getGraphVersion } from '@/lib/meta/service'
 import { getPublishStatus } from '@/lib/meta/publisher'
+import type { Json } from '@/lib/supabase/database.types'
 
 interface BudgetUpdateInput {
   campaignId: string
@@ -84,13 +85,22 @@ export async function updateBudgetAndSchedule({ campaignId, dailyBudget, startTi
     .eq('campaign_id', campaignId)
     .maybeSingle()
 
-  const currentBudget = (existingState?.budget_data ?? {}) as Record<string, unknown>
+  const currentBudget = ((existingState?.budget_data as Json) ?? {}) as Record<string, Json>
+  const previousStart =
+    'startTime' in currentBudget && typeof currentBudget.startTime === 'string'
+      ? (currentBudget.startTime as string)
+      : null
+  const previousEnd =
+    'endTime' in currentBudget && typeof currentBudget.endTime === 'string'
+      ? (currentBudget.endTime as string)
+      : null
+
   const nextBudget = {
     ...currentBudget,
     dailyBudget,
-    startTime: startTime ?? currentBudget.startTime ?? null,
-    endTime: endTime ?? currentBudget.endTime ?? null,
-  }
+    startTime: startTime ?? previousStart ?? null,
+    endTime: endTime ?? previousEnd ?? null,
+  } satisfies Record<string, Json>
 
   const { error: updateError } = await supabaseServer
     .from('campaign_states')

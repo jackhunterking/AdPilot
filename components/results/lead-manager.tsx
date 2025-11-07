@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { RefreshCw, Download, Loader2, Send } from 'lucide-react'
 
@@ -42,6 +43,23 @@ const dateFormatter = Intl.DateTimeFormat(undefined, {
   dateStyle: 'medium',
   timeStyle: 'short',
 })
+
+const renderLeadFieldValue = (value: unknown): ReactNode => {
+  if (value === null || value === undefined) {
+    return '—'
+  }
+  if (typeof value === 'string' || typeof value === 'number') {
+    return value
+  }
+  if (typeof value === 'boolean') {
+    return value ? 'Yes' : 'No'
+  }
+  return (
+    <code className="whitespace-pre-wrap text-xs text-muted-foreground">
+      {JSON.stringify(value)}
+    </code>
+  )
+}
 
 export function LeadManager({ campaignId, goal }: LeadManagerProps) {
   const [leads, setLeads] = useState<LeadRow[]>([])
@@ -253,7 +271,7 @@ export function LeadManager({ campaignId, goal }: LeadManagerProps) {
                       </td>
                       {columns.map((column) => (
                         <td key={column} className="px-3 py-2 align-top">
-                          {lead.form_data?.[column] ?? '—'}
+                          {renderLeadFieldValue(lead.form_data?.[column])}
                         </td>
                       ))}
                     </tr>
