@@ -218,7 +218,7 @@ export function Dashboard({
         </div>
 
         {/* Workspace - tabs for Setup/Results */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden h-full min-h-0">
           <CampaignWorkspace activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
       </div>

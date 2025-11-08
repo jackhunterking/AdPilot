@@ -99,7 +99,7 @@ export function CampaignWorkspace({ activeTab, onTabChange }: CampaignWorkspaceP
   }, [campaign?.published_status])
 
   return (
-    <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-1 flex-col overflow-hidden h-full">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-1 flex-col overflow-hidden h-full min-h-0">
       <div className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3">
         <TabsList className="w-auto">
           <TabsTrigger value={TAB_SETUP}>Setup</TabsTrigger>
@@ -120,10 +120,10 @@ export function CampaignWorkspace({ activeTab, onTabChange }: CampaignWorkspaceP
           </span>
         </div>
       </div>
-      <TabsContent value={TAB_SETUP} className="flex-1 overflow-hidden h-full">
+      <TabsContent value={TAB_SETUP} className="flex-1 overflow-hidden h-full min-h-0">
         <PreviewPanel />
       </TabsContent>
-      <TabsContent value={TAB_RESULTS} className="flex-1 overflow-hidden h-full">
+      <TabsContent value={TAB_RESULTS} className="flex-1 overflow-hidden h-full min-h-0">
         <ResultsPanel isEnabled={resultsEnabled} />
       </TabsContent>
     </Tabs>

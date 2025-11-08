@@ -261,7 +261,7 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
     : { title: "", subtitle: "", subtext: "" }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden min-h-0">
       {/* If steps are not ready yet (e.g., during goal switch), render a lightweight placeholder while keeping hooks order stable */}
       {!currentStep ? (
         <>
@@ -348,7 +348,7 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
           </div>
 
           {/* Step Content */}
-          <div className="flex-1 overflow-hidden relative bg-background">
+          <div className="flex-1 overflow-hidden relative bg-background min-h-0">
             <div
               key={currentStepIndex}
               className="absolute inset-0 overflow-auto"
