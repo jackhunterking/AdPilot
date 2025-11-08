@@ -1119,7 +1119,7 @@ export function PreviewPanel() {
   ]
 
   return (
-    <div className="flex h-full flex-col relative">
+    <div className="flex flex-1 flex-col relative">
       <div className="flex-1 overflow-hidden bg-muted border border-border rounded-tl-lg">
         <CampaignStepper steps={steps} campaignId={campaign?.id} />
       </div>
