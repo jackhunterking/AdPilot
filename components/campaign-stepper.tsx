@@ -348,7 +348,7 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
           </div>
 
           {/* Step Content */}
-          <div className="flex-1 overflow-hidden relative bg-background min-h-0">
+          <div className="flex-1 overflow-hidden relative bg-background h-full min-h-0">
             <div
               key={currentStepIndex}
               className="absolute inset-0 overflow-auto"
