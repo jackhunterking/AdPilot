@@ -348,18 +348,10 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
           </div>
 
           {/* Step Content */}
-          <div className="flex-1 overflow-hidden relative">
+          <div className="flex-1 overflow-hidden relative bg-background">
             <div
               key={currentStepIndex}
-              className={cn(
-                "absolute inset-0 overflow-auto",
-                "[animation-name:none]:opacity-100 [animation-name:none]:transform-none",
-                "animate-in fade-in duration-300",
-                direction === 'forward'
-                  ? "slide-in-from-right-4"
-                  : "slide-in-from-left-4"
-              )}
-              style={{ animationFillMode: 'forwards' }}
+              className="absolute inset-0 overflow-auto"
             >
               <div className="p-6 min-h-full">
                 {currentStep.content}
