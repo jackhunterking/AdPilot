@@ -188,6 +188,18 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
   const currentStepCompleted = Boolean(currentStep?.completed)
   const canGoNext = currentStepCompleted
 
+  useEffect(() => {
+    if (!currentStep) return
+    console.log('[CampaignStepper] Rendering step', {
+      index: currentStepIndex,
+      id: currentStep.id,
+      title: currentStep.title,
+      completed: currentStep.completed,
+      hasContent: Boolean(currentStep.content),
+      transition: direction,
+    })
+  }, [currentStep, currentStepIndex, direction])
+
   const handleNext = () => {
     if (canGoNext && !isLastStep) {
       setDirection('forward')
@@ -340,12 +352,14 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
             <div
               key={currentStepIndex}
               className={cn(
-                "absolute inset-0 overflow-auto opacity-100 transform-none",
-                "motion-reduce:transition-none motion-reduce:transform-none motion-reduce:opacity-100",
+                "absolute inset-0 overflow-auto",
+                "[animation-name:none]:opacity-100 [animation-name:none]:transform-none",
+                "animate-in fade-in duration-300",
                 direction === 'forward'
-                  ? "animate-in fade-in duration-300 slide-in-from-right-4"
-                  : "animate-in fade-in duration-300 slide-in-from-left-4"
+                  ? "slide-in-from-right-4"
+                  : "slide-in-from-left-4"
               )}
+              style={{ animationFillMode: 'forwards' }}
             >
               <div className="p-6 min-h-full">
                 {currentStep.content}
