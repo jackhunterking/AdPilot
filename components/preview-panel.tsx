@@ -341,9 +341,9 @@ export function PreviewPanel() {
       setIsPublished(true)
       setIsPublishing(false)
       
-      // Navigate to the All Ads Grid (homepage) with success indicator
+      // Navigate to campaign's all-ads grid
       if (typeof window !== 'undefined') {
-        // Use sessionStorage to show success modal on next page
+        // Use sessionStorage to show success indicator if needed
         sessionStorage.setItem('ad_publish_success', JSON.stringify({
           campaignId: campaign.id,
           campaignName: campaign.name,
@@ -351,8 +351,8 @@ export function PreviewPanel() {
           timestamp: Date.now()
         }))
         
-        // Navigate to homepage
-        window.location.href = '/'
+        // Navigate to campaign page - will automatically show all-ads grid
+        window.location.href = `/${campaign.id}`
       }
     } catch (error) {
       console.error('Error in handlePublishComplete:', error)
