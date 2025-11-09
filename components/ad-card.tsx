@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, Eye, Trash2 } from "lucide-react"
 import type { AdVariant } from "@/lib/types/workspace"
 
 export interface AdCardProps {
@@ -138,122 +138,129 @@ export function AdCard({
         </DialogContent>
       </Dialog>
       
-      <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-        {/* Ad preview thumbnail */}
-        <div className="aspect-square bg-muted relative overflow-hidden">
-          {(() => {
-            // Get the first available image from variations or single imageUrl
-            const imageUrl = ad.creative_data.imageVariations?.[0] || ad.creative_data.imageUrl
+      <div className="space-y-3">
+        <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+          {/* Ad preview thumbnail with overlay icons */}
+          <div className="aspect-square bg-muted relative overflow-hidden group">
+            {(() => {
+              // Get the first available image from variations or single imageUrl
+              const imageUrl = ad.creative_data.imageVariations?.[0] || ad.creative_data.imageUrl
+              
+              return imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt={ad.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                  <span className="text-sm">No image</span>
+                </div>
+              )
+            })()}
             
-            return imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={ad.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                <span className="text-sm">No image</span>
-              </div>
-            )
-          })()}
-        </div>
-        
-        {/* Ad info */}
-        <CardContent className="p-4">
-          <h3 className="font-semibold mb-1 truncate" title={ad.name}>
-          {ad.name}
-          </h3>
-          <div className="flex items-center gap-2 mb-3">
-            {ad.status === 'active' && (
-              <Badge className="bg-green-500 text-white hover:bg-green-600">
-                🟢 Active
-              </Badge>
-            )}
-            {ad.status === 'paused' && (
-              <Badge variant="secondary">⏸️ Paused</Badge>
-            )}
-            {ad.status === 'draft' && (
-              <Badge variant="outline">Draft</Badge>
-            )}
-          </div>
-          
-          {/* Metrics */}
-          {ad.metrics_snapshot && (
-            <div className="space-y-1 text-sm text-muted-foreground mb-4">
-              <div className="flex items-center gap-1">
-                👁️ {formatNumber(ad.metrics_snapshot.impressions)} impressions
-              </div>
-              <div className="flex items-center gap-1">
-                🖱️ {formatNumber(ad.metrics_snapshot.clicks)} clicks
-              </div>
-              <div className="flex items-center gap-1">
-                📊 {ad.metrics_snapshot.ctr.toFixed(1)}% CTR
-              </div>
-              <div className="flex items-center gap-1">
-                💰 ${ad.metrics_snapshot.spend.toFixed(2)} spend
-              </div>
+            {/* Icon overlays */}
+            <div className="absolute inset-0 pointer-events-none">
+              {/* Eye icon - top left */}
+              <button
+                onClick={onView}
+                className="absolute top-2 left-2 p-2 bg-black/60 hover:bg-black/80 rounded-full text-white transition-all hover:scale-110 pointer-events-auto"
+                aria-label="View ad"
+              >
+                <Eye className="h-4 w-4" />
+              </button>
+              
+              {/* Trash icon - top right */}
+              <button
+                onClick={handleDeleteClick}
+                className="absolute top-2 right-2 p-2 bg-red-600/80 hover:bg-red-600 rounded-full text-white transition-all hover:scale-110 pointer-events-auto"
+                aria-label="Delete ad"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
-          )}
-          
-          {/* Actions */}
-          <div className="space-y-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onView}
-              className="w-full"
-            >
-              View
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onEdit}
-              className="w-full"
-            >
-              Edit
-            </Button>
-            {isPaused ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onResume}
-                className="w-full"
-              >
-                Resume
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePauseClick}
-                className="w-full"
-              >
-                Pause
-              </Button>
-            )}
-            {showABTestButton && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled
-                className="w-full cursor-not-allowed opacity-50"
-              >
-                A/B Test (Coming Soon)
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDeleteClick}
-              className="w-full text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
-            >
-              Delete
-            </Button>
           </div>
-        </CardContent>
-      </Card>
+          
+          {/* Ad info */}
+          <CardContent className="p-4">
+            <h3 className="font-semibold mb-1 truncate" title={ad.name}>
+            {ad.name}
+            </h3>
+            <div className="flex items-center gap-2 mb-3">
+              {ad.status === 'active' && (
+                <Badge className="bg-green-500 text-white hover:bg-green-600">
+                  🟢 Active
+                </Badge>
+              )}
+              {ad.status === 'paused' && (
+                <Badge variant="secondary">⏸️ Paused</Badge>
+              )}
+              {ad.status === 'draft' && (
+                <Badge variant="outline">Draft</Badge>
+              )}
+            </div>
+            
+            {/* Metrics */}
+            {ad.metrics_snapshot && (
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  👁️ {formatNumber(ad.metrics_snapshot.impressions)} impressions
+                </div>
+                <div className="flex items-center gap-1">
+                  🖱️ {formatNumber(ad.metrics_snapshot.clicks)} clicks
+                </div>
+                <div className="flex items-center gap-1">
+                  📊 {ad.metrics_snapshot.ctr.toFixed(1)}% CTR
+                </div>
+                <div className="flex items-center gap-1">
+                  💰 ${ad.metrics_snapshot.spend.toFixed(2)} spend
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Horizontal action buttons below card */}
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onEdit}
+            className="flex-1"
+          >
+            Edit
+          </Button>
+          {isPaused ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onResume}
+              className="flex-1"
+            >
+              Resume
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePauseClick}
+              className="flex-1"
+            >
+              Pause
+            </Button>
+          )}
+          {showABTestButton && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled
+              className="flex-1 cursor-not-allowed opacity-50"
+            >
+              A/B Test
+            </Button>
+          )}
+        </div>
+      </div>
     </>
   )
 }
