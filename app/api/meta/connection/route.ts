@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 import { buildBusinessLoginUrl, generateRandomState } from '@/lib/meta/login'
+import { env } from '@/lib/env'
 import type { MetaConnectionSummary } from '@/lib/types/meta-integration'
 
 export async function GET(request: NextRequest) {
@@ -109,8 +110,23 @@ export async function POST(request: NextRequest) {
     // Generate OAuth state
     const state = generateRandomState()
     
+    // Get environment configuration
+    const appId = env.NEXT_PUBLIC_FB_APP_ID
+    const configId = env.NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID_SYSTEM || env.NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID || ''
+    const graphVersion = env.NEXT_PUBLIC_FB_GRAPH_VERSION || 'v24.0'
+    
+    if (!configId) {
+      return NextResponse.json({ error: 'Meta Business Login not configured' }, { status: 500 })
+    }
+    
     // Build Meta OAuth URL
-    const authUrl = buildBusinessLoginUrl(state, redirectUrl)
+    const authUrl = buildBusinessLoginUrl({
+      appId,
+      configId,
+      redirectUri: redirectUrl,
+      graphVersion,
+      state,
+    })
 
     // Update connection status to 'pending'
     await supabase
