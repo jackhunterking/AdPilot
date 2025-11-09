@@ -127,94 +127,110 @@ export function Dashboard({
         {/* AI Chat - Collapsible sidebar */}
         <div className={`${isChatCollapsed ? 'w-14' : 'w-[30%]'} transition-all duration-300 ease-in-out bg-preview-panel text-preview-panel-foreground flex flex-col h-full`}>
           {/* Header - Only for left section */}
-          <div className="flex h-12 items-center justify-between px-4 bg-preview-panel text-preview-panel-foreground shrink-0">
-            {!isChatCollapsed && (
-              <div className="flex items-center gap-2">
-                <div className="relative h-8 w-8">
-                  <img src="/AdPilot-Logomark.svg" alt="AdPilot" className="h-8 w-8" />
+          <div className={`${isChatCollapsed ? 'flex-col items-center pt-3 pb-2' : 'flex h-12 items-center justify-between px-4'} flex bg-preview-panel text-preview-panel-foreground shrink-0`}>
+            {isChatCollapsed ? (
+              <>
+                {/* Collapsed state: smaller logo + collapse button stacked vertically */}
+                <div className="relative h-6 w-6">
+                  <img src="/AdPilot-Logomark.svg" alt="AdPilot" className="h-6 w-6" />
                 </div>
-                <div className="flex flex-col leading-none">
-                  <span className="text-sm font-semibold truncate max-w-[160px]">{campaign?.name ?? COMPANY_NAME}</span>
-                  <div className="-mt-0.5">
-                    <SaveIndicator />
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 w-8 p-0 mt-2"
+                  onClick={toggleChatCollapse}
+                  aria-label="Expand sidebar"
+                  title="Expand sidebar"
+                >
+                  <PanelLeftOpen className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <>
+                {/* Expanded state: full header */}
+                <div className="flex items-center gap-2">
+                  <div className="relative h-8 w-8">
+                    <img src="/AdPilot-Logomark.svg" alt="AdPilot" className="h-8 w-8" />
                   </div>
+                  <div className="flex flex-col leading-none">
+                    <span className="text-sm font-semibold truncate max-w-[160px]">{campaign?.name ?? COMPANY_NAME}</span>
+                    <div className="-mt-0.5">
+                      <SaveIndicator />
+                    </div>
+                  </div>
+                  <DropdownMenu onOpenChange={setIsDropdownOpen}>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <ChevronDown className={`h-4 w-4 transition-colors ${isDropdownOpen ? 'text-foreground' : 'text-muted-foreground'}`} />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" alignOffset={-140} className="w-56">
+                      <DropdownMenuItem onClick={() => router.push('/')}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Back to Dashboard
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <div className="px-2 py-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Credits</span>
+                          <span className="text-sm font-medium">{credits} left</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden mb-1">
+                          <div 
+                            className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all"
+                            style={{ width: `${(credits / dailyCredits) * 100}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1" />
+                          Daily credits used first
+                        </p>
+                      </div>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={openRename}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Rename ad
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          {resolvedTheme === "dark" ? (
+                            <Moon className="mr-2 h-4 w-4" />
+                          ) : (
+                            <Sun className="mr-2 h-4 w-4" />
+                          )}
+                          Appearance
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                          <DropdownMenuItem onClick={() => setTheme("light")}>
+                            <Sun className="mr-2 h-4 w-4" />
+                            Light
+                            {resolvedTheme === "light" && <Check className="ml-auto h-4 w-4" />}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setTheme("dark")}>
+                            <Moon className="mr-2 h-4 w-4" />
+                            Dark
+                            {resolvedTheme === "dark" && <Check className="ml-auto h-4 w-4" />}
+                          </DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-                <DropdownMenu onOpenChange={setIsDropdownOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                    <ChevronDown className={`h-4 w-4 transition-colors ${isDropdownOpen ? 'text-foreground' : 'text-muted-foreground'}`} />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" alignOffset={-140} className="w-56">
-                  <DropdownMenuItem onClick={() => router.push('/')}>
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Dashboard
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium">Credits</span>
-                      <span className="text-sm font-medium">{credits} left</span>
-                    </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden mb-1">
-                      <div 
-                        className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all"
-                        style={{ width: `${(credits / dailyCredits) * 100}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1" />
-                      Daily credits used first
-                    </p>
-                  </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={openRename}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Rename ad
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      {resolvedTheme === "dark" ? (
-                        <Moon className="mr-2 h-4 w-4" />
-                      ) : (
-                        <Sun className="mr-2 h-4 w-4" />
-                      )}
-                      Appearance
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent>
-                      <DropdownMenuItem onClick={() => setTheme("light")}>
-                        <Sun className="mr-2 h-4 w-4" />
-                        Light
-                        {resolvedTheme === "light" && <Check className="ml-auto h-4 w-4" />}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setTheme("dark")}>
-                        <Moon className="mr-2 h-4 w-4" />
-                        Dark
-                        {resolvedTheme === "dark" && <Check className="ml-auto h-4 w-4" />}
-                      </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              </div>
-            )}
 
-            {/* Collapse/Expand Button */}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 w-8 p-0"
-              onClick={toggleChatCollapse}
-              aria-label={isChatCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              title={isChatCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {isChatCollapsed ? (
-                <PanelLeftOpen className="h-4 w-4" />
-              ) : (
-                <PanelLeftClose className="h-4 w-4" />
-              )}
-            </Button>
+                {/* Collapse Button */}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 w-8 p-0"
+                  onClick={toggleChatCollapse}
+                  aria-label="Collapse sidebar"
+                  title="Collapse sidebar"
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </Button>
+              </>
+            )}
 
             {/* Rename Dialog mounted outside dropdown */}
             <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
