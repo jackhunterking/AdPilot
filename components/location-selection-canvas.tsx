@@ -1,6 +1,6 @@
 "use client"
 
-import { MapPin, Loader2, Lock, Plus, X, Sparkles, Check } from "lucide-react"
+import { MapPin, Loader2, Lock, Plus, X, Sparkles, Check, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useLocation } from "@/lib/context/location-context"
@@ -266,45 +266,6 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     window.dispatchEvent(new CustomEvent('triggerLocationSetup'))
   }
 
-  // If published, show locked state
-  if (isPublished) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
-        <div className="max-w-xl w-full space-y-6 text-center">
-          <div className="h-16 w-16 rounded-full bg-orange-500/10 flex items-center justify-center mx-auto">
-            <Lock className="h-8 w-8 text-orange-600" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold">Location Locked</h2>
-            <p className="text-muted-foreground">
-              This ad has been published. Location targeting cannot be changed once an ad is live.
-            </p>
-          </div>
-          
-          {locationState.locations.length > 0 && (
-              <div className="bg-card border border-border rounded-lg p-6 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Locations Targeted:</span>
-                <span className="text-sm font-semibold">{locationState.locations.length}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Status:</span>
-                  <span className="status-muted flex items-center gap-1">
-                    <Lock className="h-3 w-3" />
-                    Published
-                  </span>
-              </div>
-            </div>
-          )}
-
-          <p className="text-xs text-muted-foreground pt-4">
-            To modify location targeting, you must first unpublish or create a new ad campaign.
-          </p>
-        </div>
-      </div>
-    )
-  }
-
   // Initial state - no locations selected
   if (locationState.status === "idle" || locationState.locations.length === 0) {
     return (
@@ -370,6 +331,21 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       >
         <div className={cn("w-full space-y-6", "max-w-3xl mx-auto")}
         >
+          {/* Published Warning Banner */}
+          {isPublished && !isSummary && (
+            <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                <div className="text-left text-sm space-y-1">
+                  <p className="font-medium text-orange-700 dark:text-orange-400">Live Campaign - Edit with Caution</p>
+                  <p className="text-orange-600 dark:text-orange-300 text-xs">
+                    This ad is currently published. Changes to location targeting will update your live campaign.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Map Display */}
           <div className="rounded-lg border-2 border-blue-600 bg-card overflow-hidden">
             <div ref={mapContainerRef} className="w-full h-[400px]" style={{ position: 'relative', isolation: 'isolate' }} />
@@ -421,26 +397,22 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
 
           {!isSummary && (
             <div className="flex justify-center gap-4 pt-4 pb-8">
-              {!isPublished && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={handleAddMore}
-                    className="gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add More Locations
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={clearLocations}
-                  >
-                    Clear All
-                  </Button>
-                </>
-              )}
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={handleAddMore}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add More Locations
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={clearLocations}
+              >
+                Clear All
+              </Button>
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, Lock, Target, Loader2, Sparkles } from "lucide-react"
+import { Check, Lock, Target, Loader2, Sparkles, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useState } from "react"
@@ -30,56 +30,6 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
         <div className={cn("w-full space-y-8", maxWidthClass)}>{content}</div>
       </div>
     )
-  }
-
-  // If published, show locked state
-  if (isPublished) {
-    const content = (
-      <div className="space-y-6 text-center">
-        <div className="h-16 w-16 rounded-full bg-orange-500/10 flex items-center justify-center mx-auto">
-          <Lock className="h-8 w-8 text-orange-600" />
-        </div>
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold">Audience Locked</h2>
-          <p className="text-muted-foreground">
-            This ad has been published. Audience targeting cannot be changed once an ad is live.
-          </p>
-        </div>
-
-        {audienceState.status === "completed" && (
-          <div className="bg-card border border-border rounded-lg p-6 space-y-3 text-left">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Targeting Mode:</span>
-              <Badge className="bg-cyan-600 text-white">
-                <Sparkles className="h-3 w-3 mr-1" />
-                AI Advantage+
-              </Badge>
-            </div>
-            {audienceState.targeting.description && (
-              <div className="flex items-start gap-2 pt-2 border-t border-border">
-                <span className="text-sm font-medium">Strategy:</span>
-                <p className="text-sm text-muted-foreground flex-1">
-                  {audienceState.targeting.description}
-                </p>
-              </div>
-            )}
-            <div className="flex items-center justify-between pt-2 border-t border-border">
-              <span className="text-sm font-medium">Status:</span>
-              <span className="text-sm text-orange-600 font-medium flex items-center gap-1">
-                <Lock className="h-3 w-3" />
-                Published
-              </span>
-            </div>
-          </div>
-        )}
-
-        <p className="text-xs text-muted-foreground pt-4">
-          To modify audience targeting, you must first unpublish or create a new ad campaign.
-        </p>
-      </div>
-    )
-
-    return renderLayout(content, "max-w-xl")
   }
 
   // Initial state - no audience set
@@ -130,27 +80,57 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
   // Completed: show compact confirmation matching Launch summary
   if (audienceState.status === "completed") {
     const content = (
-      <div className="rounded-lg border border-border bg-card p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="icon-tile-muted">
-              <Target className="h-4 w-4" />
-            </div>
-            <h3 className="font-semibold">Audience</h3>
-          </div>
-        </div>
-        <div className="flex items-center justify-between p-3 rounded-lg border panel-surface">
-          <div className="flex items-center gap-2">
-            <div className="icon-tile-muted"><Sparkles className="h-4 w-4 text-brand-blue" /></div>
-            <div>
-              <p className="text-sm font-medium">AI Targeting</p>
-              <p className="text-xs text-muted-foreground">AI Advantage+ will optimize who sees your ad</p>
+      <div className="space-y-6">
+        {/* Published Warning Banner */}
+        {isPublished && !isSummary && (
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+              <div className="text-left text-sm space-y-1">
+                <p className="font-medium text-orange-700 dark:text-orange-400">Live Campaign - Edit with Caution</p>
+                <p className="text-orange-600 dark:text-orange-300 text-xs">
+                  This ad is currently published. Changes to audience targeting will update your live campaign.
+                </p>
+              </div>
             </div>
           </div>
-          <div className="inline-flex items-center gap-1 text-status-green text-xs font-medium">
-            <Check className="h-4 w-4" /> Enabled
+        )}
+
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="icon-tile-muted">
+                <Target className="h-4 w-4" />
+              </div>
+              <h3 className="font-semibold">Audience</h3>
+            </div>
+          </div>
+          <div className="flex items-center justify-between p-3 rounded-lg border panel-surface">
+            <div className="flex items-center gap-2">
+              <div className="icon-tile-muted"><Sparkles className="h-4 w-4 text-brand-blue" /></div>
+              <div>
+                <p className="text-sm font-medium">AI Targeting</p>
+                <p className="text-xs text-muted-foreground">AI Advantage+ will optimize who sees your ad</p>
+              </div>
+            </div>
+            <div className="inline-flex items-center gap-1 text-status-green text-xs font-medium">
+              <Check className="h-4 w-4" /> Enabled
+            </div>
           </div>
         </div>
+
+        {/* Reset button for editing */}
+        {!isSummary && (
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={resetAudience}
+            >
+              Reset Audience
+            </Button>
+          </div>
+        )}
       </div>
     )
 
