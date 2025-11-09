@@ -11,10 +11,10 @@ import { supabaseServer } from "@/lib/supabase/server"
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ campaignId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { campaignId } = await context.params
+    const { id: campaignId } = await context.params
 
     // Fetch all ads for this campaign
     const { data: ads, error } = await supabaseServer
@@ -24,7 +24,7 @@ export async function GET(
       .order("created_at", { ascending: false })
 
     if (error) {
-      console.error("[GET /api/campaigns/[campaignId]/ads] Error:", error)
+      console.error("[GET /api/campaigns/[id]/ads] Error:", error)
       return NextResponse.json(
         { error: "Failed to fetch ads" },
         { status: 500 }
@@ -33,7 +33,7 @@ export async function GET(
 
     return NextResponse.json({ ads: ads || [] })
   } catch (error) {
-    console.error("[GET /api/campaigns/[campaignId]/ads] Unexpected error:", error)
+    console.error("[GET /api/campaigns/[id]/ads] Unexpected error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -43,10 +43,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ campaignId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { campaignId } = await context.params
+    const { id: campaignId } = await context.params
     const body = await request.json()
 
     const {
@@ -80,7 +80,7 @@ export async function POST(
       .single()
 
     if (error) {
-      console.error("[POST /api/campaigns/[campaignId]/ads] Error:", error)
+      console.error("[POST /api/campaigns/[id]/ads] Error:", error)
       return NextResponse.json(
         { error: "Failed to create ad" },
         { status: 500 }
@@ -89,7 +89,7 @@ export async function POST(
 
     return NextResponse.json({ ad }, { status: 201 })
   } catch (error) {
-    console.error("[POST /api/campaigns/[campaignId]/ads] Unexpected error:", error)
+    console.error("[POST /api/campaigns/[id]/ads] Unexpected error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

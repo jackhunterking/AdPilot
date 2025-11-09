@@ -11,10 +11,10 @@ import { supabaseServer } from "@/lib/supabase/server"
 
 export async function PATCH(
   request: NextRequest,
-  context: { params: Promise<{ campaignId: string; adId: string }> }
+  context: { params: Promise<{ id: string; adId: string }> }
 ) {
   try {
-    const { campaignId, adId } = await context.params
+    const { id: campaignId, adId } = await context.params
     const body = await request.json()
 
     // Only allow updating specific fields
@@ -44,7 +44,7 @@ export async function PATCH(
       .single()
 
     if (error) {
-      console.error("[PATCH /api/campaigns/[campaignId]/ads/[adId]] Error:", error)
+      console.error("[PATCH /api/campaigns/[id]/ads/[adId]] Error:", error)
       return NextResponse.json(
         { error: "Failed to update ad" },
         { status: 500 }
@@ -60,7 +60,7 @@ export async function PATCH(
 
     return NextResponse.json({ ad })
   } catch (error) {
-    console.error("[PATCH /api/campaigns/[campaignId]/ads/[adId]] Unexpected error:", error)
+    console.error("[PATCH /api/campaigns/[id]/ads/[adId]] Unexpected error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -70,10 +70,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ campaignId: string; adId: string }> }
+  context: { params: Promise<{ id: string; adId: string }> }
 ) {
   try {
-    const { campaignId, adId } = await context.params
+    const { id: campaignId, adId } = await context.params
 
     // Delete ad
     const { error } = await supabaseServer
@@ -83,7 +83,7 @@ export async function DELETE(
       .eq("campaign_id", campaignId) // Ensure ad belongs to campaign
 
     if (error) {
-      console.error("[DELETE /api/campaigns/[campaignId]/ads/[adId]] Error:", error)
+      console.error("[DELETE /api/campaigns/[id]/ads/[adId]] Error:", error)
       return NextResponse.json(
         { error: "Failed to delete ad" },
         { status: 500 }
@@ -92,7 +92,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("[DELETE /api/campaigns/[campaignId]/ads/[adId]] Unexpected error:", error)
+    console.error("[DELETE /api/campaigns/[id]/ads/[adId]] Unexpected error:", error)
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
