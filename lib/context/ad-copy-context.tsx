@@ -120,7 +120,19 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
     // This is the SINGLE SOURCE OF TRUTH for which copy is active
     const variations = getActiveVariations()
     const selectedIndex = adCopyState.selectedCopyIndex ?? 0
-    return variations[selectedIndex] || variations[0]
+    const selectedVariation = variations[selectedIndex] || variations[0]
+    
+    // Guarantee we always return a valid variation (should never happen but TypeScript needs assurance)
+    if (!selectedVariation) {
+      return {
+        id: "fallback",
+        primaryText: "Discover our amazing services and see how we can help you achieve your goals today.",
+        description: "Learn more about what we offer",
+        headline: "Get Started Today"
+      }
+    }
+    
+    return selectedVariation
   }
 
   const isComplete = () => adCopyState.status === "completed"
