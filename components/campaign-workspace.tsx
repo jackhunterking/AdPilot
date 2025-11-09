@@ -39,8 +39,10 @@ export function CampaignWorkspace() {
   const viewParam = searchParams.get("view") as WorkspaceMode | null
   const currentAdId = searchParams.get("adId")
   
-  // After first publish, default to all-ads mode (not results)
-  const shouldShowAllAds = isPublished && !viewParam && ads.length > 0
+  // Show all-ads grid when:
+  // 1. No explicit view parameter in URL AND
+  // 2. Campaign has at least one ad in database
+  const shouldShowAllAds = !viewParam && ads.length > 0
   const effectiveMode: WorkspaceMode = shouldShowAllAds ? 'all-ads' : (viewParam || 'build')
 
   // Update URL when mode changes
