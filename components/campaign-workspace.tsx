@@ -312,6 +312,35 @@ export function CampaignWorkspace() {
     console.log('Resume ad:', adId)
   }, [])
 
+  const handleDeleteAd = useCallback(async (adId: string) => {
+    try {
+      console.log('[CampaignWorkspace] Deleting ad:', adId)
+      
+      const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}`, {
+        method: 'DELETE',
+      })
+      
+      if (!response.ok) {
+        console.error('[CampaignWorkspace] Failed to delete ad:', await response.text())
+        // TODO: Show error toast
+        return
+      }
+      
+      console.log('[CampaignWorkspace] Ad deleted successfully:', adId)
+      
+      // Refresh ads list to remove deleted ad
+      await refreshAds()
+      
+      // If we're viewing the deleted ad, go back to all-ads grid
+      if (currentAdId === adId) {
+        setWorkspaceMode('all-ads')
+      }
+    } catch (error) {
+      console.error('[CampaignWorkspace] Error deleting ad:', error)
+      // TODO: Show error toast
+    }
+  }, [campaignId, currentAdId, refreshAds, setWorkspaceMode])
+
   const handleCreateABTest = useCallback((adId: string) => {
     setWorkspaceMode('ab-test-builder', adId)
   }, [setWorkspaceMode])
@@ -404,6 +433,7 @@ export function CampaignWorkspace() {
               onPauseAd={handlePauseAd}
               onResumeAd={handleResumeAd}
               onCreateABTest={handleCreateABTest}
+              onDeleteAd={handleDeleteAd}
               saveSuccessState={saveSuccessState}
               onClearSuccessState={() => setSaveSuccessState(null)}
             />

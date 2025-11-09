@@ -31,6 +31,7 @@ export interface AllAdsGridProps {
   onPauseAd: (adId: string) => void
   onResumeAd: (adId: string) => void
   onCreateABTest: (adId: string) => void
+  onDeleteAd: (adId: string) => void
   saveSuccessState: SaveSuccessState | null
   onClearSuccessState: () => void
 }
@@ -42,6 +43,7 @@ export function AllAdsGrid({
   onPauseAd,
   onResumeAd,
   onCreateABTest,
+  onDeleteAd,
   saveSuccessState,
   onClearSuccessState,
 }: AllAdsGridProps) {
@@ -93,16 +95,17 @@ export function AllAdsGrid({
         ) : (
           <div className="grid grid-cols-3 gap-6">
             {ads.map((ad) => (
-              <AdCard
-                key={ad.id}
-                ad={ad}
-                onView={() => onViewAd(ad.id)}
-                onEdit={() => onEditAd(ad.id)}
-                onPause={() => onPauseAd(ad.id)}
-                onResume={() => onResumeAd(ad.id)}
-                onCreateABTest={() => onCreateABTest(ad.id)}
-                showABTestButton={ad.status === 'active'}
-              />
+            <AdCard
+              key={ad.id}
+              ad={ad}
+              onView={() => onViewAd(ad.id)}
+              onEdit={() => onEditAd(ad.id)}
+              onPause={() => onPauseAd(ad.id)}
+              onResume={() => onResumeAd(ad.id)}
+              onCreateABTest={() => onCreateABTest(ad.id)}
+              onDelete={() => onDeleteAd(ad.id)}
+              showABTestButton={ad.status === 'active'}
+            />
             ))}
           </div>
         )}
