@@ -114,7 +114,7 @@ export function WorkspaceHeader({
 
   return (
     <div className={cn(
-      "flex items-center justify-between gap-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-3 flex-shrink-0",
+      "flex items-center justify-between gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-3 flex-shrink-0",
       className
     )}>
       {/* Left: Back Button (conditional) */}

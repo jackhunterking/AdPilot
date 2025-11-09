@@ -52,6 +52,7 @@ export function AdCard({
 }: AdCardProps) {
   const isPaused = ad.status === 'paused'
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showPauseDialog, setShowPauseDialog] = useState(false)
   
   const handleDeleteClick = () => {
     setShowDeleteDialog(true)
@@ -62,8 +63,49 @@ export function AdCard({
     onDelete()
   }
   
+  const handlePauseClick = () => {
+    setShowPauseDialog(true)
+  }
+  
+  const handleConfirmPause = () => {
+    setShowPauseDialog(false)
+    onPause()
+  }
+  
   return (
     <>
+      <Dialog open={showPauseDialog} onOpenChange={setShowPauseDialog}>
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader className="mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-500/10">
+                <AlertTriangle className="h-6 w-6 text-orange-600" />
+              </div>
+              <DialogTitle className="text-xl">Pause Ad?</DialogTitle>
+            </div>
+          </DialogHeader>
+          <DialogDescription className="text-sm text-muted-foreground mb-6">
+            Are you sure you want to pause <strong>{ad.name}</strong>? The ad will stop running and won&apos;t reach new people until you resume it.
+          </DialogDescription>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setShowPauseDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="lg"
+              onClick={handleConfirmPause}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              Pause
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="sm:max-w-md p-6">
           <DialogHeader className="mb-4">
@@ -185,7 +227,7 @@ export function AdCard({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={onPause}
+                onClick={handlePauseClick}
                 className="w-full"
               >
                 Pause
