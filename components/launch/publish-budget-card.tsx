@@ -101,22 +101,20 @@ export function PublishBudgetCard({
             disabled={!allStepsComplete || isPublishing}
             className={cn(
               "w-full gap-2 h-11 text-sm font-semibold transition-colors shadow-sm sm:w-auto",
-              isPublished
-                ? "bg-emerald-600 text-white hover:bg-emerald-500"
-                : allStepsComplete
+              allStepsComplete
                 ? "bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105"
                 : "bg-muted text-muted-foreground cursor-not-allowed",
             )}
           >
-            {isPublished ? (
-              <>
-                <ShieldCheck className="h-5 w-5" />
-                Ad Published
-              </>
-            ) : isPublishing ? (
+            {isPublishing ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin" />
                 Publishing...
+              </>
+            ) : isPublished ? (
+              <>
+                <Play className="h-5 w-5" />
+                Save Changes
               </>
             ) : (
               <>

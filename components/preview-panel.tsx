@@ -344,15 +344,18 @@ export function PreviewPanel() {
       setIsPublished(true)
       setIsPublishing(false)
       
-      // Navigate to the results view for this new ad
+      // Navigate to the All Ads Grid (homepage) with success indicator
       if (typeof window !== 'undefined') {
-        const url = new URL(window.location.href)
-        url.searchParams.set('view', 'results')
-        url.searchParams.set('adId', ad.id)
-        window.history.pushState({}, '', url.toString())
+        // Use sessionStorage to show success modal on next page
+        sessionStorage.setItem('ad_publish_success', JSON.stringify({
+          campaignId: campaign.id,
+          campaignName: campaign.name,
+          isEdit: isPublished, // If already published, this was an edit
+          timestamp: Date.now()
+        }))
         
-        // Force a reload to show the results panel
-        window.location.reload()
+        // Navigate to homepage
+        window.location.href = '/'
       }
     } catch (error) {
       console.error('Error in handlePublishComplete:', error)
@@ -1228,6 +1231,7 @@ export function PreviewPanel() {
         open={publishDialogOpen}
         onOpenChange={handlePublishDialogClose}
         campaignName={campaign?.name || "your ad"}
+        isEditMode={isPublished}
         onComplete={handlePublishComplete}
       />
     </div>

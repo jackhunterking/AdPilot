@@ -38,6 +38,7 @@ interface PublishFlowDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   campaignName?: string
+  isEditMode?: boolean
   onComplete?: () => void | Promise<void>
 }
 
@@ -85,6 +86,7 @@ export function PublishFlowDialog({
   open,
   onOpenChange,
   campaignName = "your ad",
+  isEditMode = false,
   onComplete,
 }: PublishFlowDialogProps) {
   const [currentStep, setCurrentStep] = useState<PublishStep | null>(null)
@@ -163,12 +165,15 @@ export function PublishFlowDialog({
             </div>
             <div>
               <h2 className="text-xl font-semibold">
-                {isComplete ? "Ad Published!" : "Publishing Ad"}
+                {isComplete 
+                  ? (isEditMode ? "Changes Saved!" : "Ad Published!")
+                  : (isEditMode ? "Saving Changes" : "Publishing Ad")
+                }
               </h2>
               <p className="text-sm text-muted-foreground">
                 {isComplete 
-                  ? `${campaignName} is now live`
-                  : `Setting up ${campaignName}...`
+                  ? (isEditMode ? `${campaignName} has been updated` : `${campaignName} is now live`)
+                  : (isEditMode ? `Updating ${campaignName}...` : `Setting up ${campaignName}...`)
                 }
               </p>
             </div>
@@ -223,40 +228,39 @@ export function PublishFlowDialog({
           {isComplete && (
             <div className="space-y-4 mb-6">
               <Response isAnimating={false}>
-                Your ad has been successfully published to Meta Ads Manager. It will begin running according to your schedule and budget settings.
+                {isEditMode 
+                  ? "Your changes have been saved successfully. The ad will continue running with the updated settings."
+                  : "Your ad has been successfully published to Meta Ads Manager. It will begin running according to your schedule and budget settings."
+                }
               </Response>
               
-              <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-4">
-                <div className="flex items-start gap-3">
-                  <Sparkles className="h-5 w-5 text-green-600 mt-0.5" />
-                  <div className="flex-1">
-                    <h3 className="font-medium text-sm mb-1">What happens next?</h3>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• Your ad will be reviewed by Meta (typically within 24 hours)</li>
-                      <li>• Once approved, it'll start showing to your target audience</li>
-                      <li>• You can monitor performance in the Results view</li>
-                      <li>• Edit or pause your ad anytime from the dashboard</li>
-                    </ul>
+              {!isEditMode && (
+                <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-4">
+                  <div className="flex items-start gap-3">
+                    <Sparkles className="h-5 w-5 text-green-600 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="font-medium text-sm mb-1">What happens next?</h3>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• Your ad will be reviewed by Meta (typically within 24 hours)</li>
+                        <li>• Once approved, it'll start showing to your target audience</li>
+                        <li>• You can monitor performance in the Results view</li>
+                        <li>• Edit or pause your ad anytime from the dashboard</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
           {/* Footer Actions */}
           {isComplete && (
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={handleClose}
-              >
-                View Dashboard
-              </Button>
+            <div className="flex justify-end">
               <Button
                 onClick={handleClose}
                 className="bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105"
               >
-                Done
+                Close
               </Button>
             </div>
           )}
