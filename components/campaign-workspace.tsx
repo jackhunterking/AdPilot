@@ -18,7 +18,6 @@ import { ResultsPanel } from "@/components/results-panel"
 import { WorkspaceHeader } from "@/components/workspace-header"
 import { AllAdsGrid } from "@/components/all-ads-grid"
 import { ABTestBuilder } from "@/components/ab-test/ab-test-builder"
-import AIChat from "@/components/ai-chat"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { useCampaignAds } from "@/lib/hooks/use-campaign-ads"
@@ -225,14 +224,7 @@ export function CampaignWorkspace() {
       {/* Main Content */}
       <div className="flex-1 overflow-hidden h-full min-h-0">
         {effectiveMode === 'build' && (
-          <div className="flex flex-1 h-full">
-            <div className="w-[35%] border-r">
-              <AIChat campaignId={campaignId} conversationId={campaignId} context="build" />
-            </div>
-            <div className="flex-1">
-              <PreviewPanel />
-            </div>
-          </div>
+          <PreviewPanel />
         )}
 
         {effectiveMode === 'results' && (
@@ -250,32 +242,18 @@ export function CampaignWorkspace() {
         )}
 
         {effectiveMode === 'all-ads' && (
-          <div className="flex flex-1 h-full">
-            <div className="w-[35%] border-r">
-              <AIChat campaignId={campaignId} conversationId={campaignId} context="all-ads" />
-            </div>
-            <div className="flex-1">
-              <AllAdsGrid
-                ads={convertedAds}
-                onViewAd={handleViewAd}
-                onEditAd={handleEditAd}
-                onPauseAd={handlePauseAd}
-                onResumeAd={handleResumeAd}
-                onCreateABTest={handleCreateABTest}
-              />
-            </div>
-          </div>
+          <AllAdsGrid
+            ads={convertedAds}
+            onViewAd={handleViewAd}
+            onEditAd={handleEditAd}
+            onPauseAd={handlePauseAd}
+            onResumeAd={handleResumeAd}
+            onCreateABTest={handleCreateABTest}
+          />
         )}
 
         {effectiveMode === 'edit' && (
-          <div className="flex flex-1 h-full">
-            <div className="w-[35%] border-r">
-              <AIChat campaignId={campaignId} conversationId={campaignId} context="edit" />
-            </div>
-            <div className="flex-1">
-              <PreviewPanel />
-            </div>
-          </div>
+          <PreviewPanel />
         )}
 
         {effectiveMode === 'ab-test-builder' && (

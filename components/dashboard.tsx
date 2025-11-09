@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import AiChat from "./ai-chat"
 import { Button } from "@/components/ui/button"
 import { ChevronDown, ArrowLeft, Edit, Moon, Sun, Check } from "lucide-react"
@@ -38,11 +38,15 @@ export function Dashboard({
   campaignMetadata,
 }: DashboardProps = {}) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [credits] = useState(205.5)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const dailyCredits = 500
   const { setTheme, resolvedTheme } = useTheme()
   const { campaign, updateCampaign } = useCampaignContext()
+  
+  // Get workspace mode from URL to pass as context to AI Chat
+  const viewMode = searchParams.get("view") as 'build' | 'edit' | 'all-ads' | 'results' | 'ab-test-builder' | null
 
   // Rename dialog state (lifted outside dropdown so it persists)
   const [renameOpen, setRenameOpen] = useState(false)
@@ -212,6 +216,7 @@ export function Dashboard({
             conversationId={conversationId}
             messages={messages}
             campaignMetadata={campaignMetadata ?? undefined}
+            context={viewMode || 'build'}
           />
         </div>
 
