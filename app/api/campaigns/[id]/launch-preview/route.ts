@@ -56,21 +56,34 @@ export async function GET(
     if (allocError) throw allocError
 
     // Build confirmation data
-    const metaConnection = {
-      status: (connection?.connection_status || 'disconnected') as 'disconnected' | 'pending' | 'connected' | 'error' | 'expired',
-      paymentStatus: (connection?.payment_status || 'unknown') as 'unknown' | 'verified' | 'missing' | 'flagged',
-      business: connection?.selected_business_id ? {
-        id: connection.selected_business_id,
-        name: connection.selected_business_name,
-      } : undefined,
-      page: connection?.selected_page_id ? {
-        id: connection.selected_page_id,
-        name: connection.selected_page_name,
-      } : undefined,
-      adAccount: connection?.selected_ad_account_id ? {
-        id: connection.selected_ad_account_id,
-        name: connection.selected_ad_account_name,
-      } : undefined,
+    const metaConnection: import('@/lib/types/meta-integration').MetaConnectionSummary = {
+      status: (connection?.connection_status ?? 'disconnected') as import('@/lib/types/meta-integration').MetaConnectionStatus,
+      paymentStatus: (connection?.payment_status ?? 'unknown') as import('@/lib/types/meta-integration').PaymentStatus,
+      business: connection?.selected_business_id
+        ? {
+            id: connection.selected_business_id,
+            name: connection.selected_business_name ?? undefined,
+          }
+        : undefined,
+      page: connection?.selected_page_id
+        ? {
+            id: connection.selected_page_id,
+            name: connection.selected_page_name ?? undefined,
+          }
+        : undefined,
+      instagram: connection?.selected_ig_user_id
+        ? {
+            id: connection.selected_ig_user_id,
+            username: connection.selected_ig_username ?? undefined,
+          }
+        : null,
+      adAccount: connection?.selected_ad_account_id
+        ? {
+            id: connection.selected_ad_account_id,
+            name: connection.selected_ad_account_name ?? undefined,
+          }
+        : undefined,
+      lastVerifiedAt: connection?.last_verified_at ?? undefined,
     }
 
     const campaignBudget: import('@/lib/types/meta-integration').CampaignBudget = {
