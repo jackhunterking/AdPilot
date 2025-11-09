@@ -121,7 +121,7 @@ export function WorkspaceHeader({
       <div className="flex items-center gap-4">
         {shouldShowBack && onBack && (
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={onBack}
             className="gap-2 hover:bg-muted"
@@ -130,22 +130,23 @@ export function WorkspaceHeader({
             {getBackButtonText()}
           </Button>
         )}
-        
-        {statusBadge}
       </div>
 
-      {/* Right: New Ad Button */}
-      {showNewAdButton && (
-        <Button
-          variant="default"
-          size="sm"
-          onClick={onNewAd}
-          className="gap-2 bg-primary hover:bg-primary/90"
-        >
-          <Plus className="h-4 w-4" />
-          New Ad
-        </Button>
-      )}
+      {/* Right: Status Badge and New Ad Button */}
+      <div className="flex items-center gap-4">
+        {statusBadge}
+        {showNewAdButton && (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={onNewAd}
+            className="gap-2 bg-primary hover:bg-primary/90"
+          >
+            <Plus className="h-4 w-4" />
+            New Ad
+          </Button>
+        )}
+      </div>
     </div>
   )
 }
