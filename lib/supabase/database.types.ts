@@ -1068,6 +1068,81 @@ export type Database = {
           },
         ]
       }
+      meta_asset_snapshots: {
+        Row: {
+          ad_accounts_json: Json | null
+          business_json: Json | null
+          captured_at: string
+          id: string
+          pages_json: Json | null
+          user_id: string
+        }
+        Insert: {
+          ad_accounts_json?: Json | null
+          business_json?: Json | null
+          captured_at?: string
+          id?: string
+          pages_json?: Json | null
+          user_id: string
+        }
+        Update: {
+          ad_accounts_json?: Json | null
+          business_json?: Json | null
+          captured_at?: string
+          id?: string
+          pages_json?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      meta_connections: {
+        Row: {
+          ad_account_id: string | null
+          ad_account_name: string | null
+          business_id: string
+          business_name: string | null
+          created_at: string
+          currency: string | null
+          has_funding: boolean
+          id: string
+          page_id: string | null
+          page_name: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ad_account_id?: string | null
+          ad_account_name?: string | null
+          business_id: string
+          business_name?: string | null
+          created_at?: string
+          currency?: string | null
+          has_funding?: boolean
+          id?: string
+          page_id?: string | null
+          page_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ad_account_id?: string | null
+          ad_account_name?: string | null
+          business_id?: string
+          business_name?: string | null
+          created_at?: string
+          currency?: string | null
+          has_funding?: boolean
+          id?: string
+          page_id?: string | null
+          page_name?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       meta_published_campaigns: {
         Row: {
           campaign_id: string
