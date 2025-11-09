@@ -10,8 +10,12 @@
 
 "use client"
 
+import { useState, useEffect } from "react"
 import { AdCard } from "@/components/ad-card"
 import type { AdVariant } from "@/lib/types/workspace"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { CheckCircle2 } from "lucide-react"
 
 export interface AllAdsGridProps {
   ads: AdVariant[]
@@ -30,32 +34,83 @@ export function AllAdsGrid({
   onResumeAd,
   onCreateABTest,
 }: AllAdsGridProps) {
+  const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [successData, setSuccessData] = useState<{campaignName: string, isEdit: boolean} | null>(null)
+
+  useEffect(() => {
+    const data = sessionStorage.getItem('ad_publish_success')
+    if (data) {
+      try {
+        const parsed = JSON.parse(data) as {campaignName: string, isEdit: boolean}
+        setSuccessData(parsed)
+        setShowSuccessModal(true)
+        sessionStorage.removeItem('ad_publish_success')
+      } catch (error) {
+        console.error('Failed to parse ad_publish_success data:', error)
+        sessionStorage.removeItem('ad_publish_success')
+      }
+    }
+  }, [])
+
   return (
-    <div className="flex-1 overflow-auto p-6 bg-muted">
-      {ads.length === 0 ? (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center text-muted-foreground">
-            <p className="text-lg font-semibold mb-2">No ads yet</p>
-            <p className="text-sm">Create your first ad to get started</p>
+    <>
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
+                <CheckCircle2 className="h-6 w-6 text-green-600" />
+              </div>
+              <DialogTitle className="text-xl">
+                {successData?.isEdit ? 'Changes Saved!' : 'Ad Published!'}
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {successData?.isEdit 
+                ? `${successData.campaignName} has been updated successfully. The ad will continue running with the updated settings.`
+                : `${successData?.campaignName} has been published successfully and is now live.`
+              }
+            </p>
+            <div className="flex justify-end">
+              <Button
+                onClick={() => setShowSuccessModal(false)}
+                className="bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105"
+              >
+                Close
+              </Button>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-6">
-          {ads.map((ad) => (
-            <AdCard
-              key={ad.id}
-              ad={ad}
-              onView={() => onViewAd(ad.id)}
-              onEdit={() => onEditAd(ad.id)}
-              onPause={() => onPauseAd(ad.id)}
-              onResume={() => onResumeAd(ad.id)}
-              onCreateABTest={() => onCreateABTest(ad.id)}
-              showABTestButton={ad.status === 'active'}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+        </DialogContent>
+      </Dialog>
+      
+      <div className="flex-1 overflow-auto p-6 bg-muted">
+        {ads.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center text-muted-foreground">
+              <p className="text-lg font-semibold mb-2">No ads yet</p>
+              <p className="text-sm">Create your first ad to get started</p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-6">
+            {ads.map((ad) => (
+              <AdCard
+                key={ad.id}
+                ad={ad}
+                onView={() => onViewAd(ad.id)}
+                onEdit={() => onEditAd(ad.id)}
+                onPause={() => onPauseAd(ad.id)}
+                onResume={() => onResumeAd(ad.id)}
+                onCreateABTest={() => onCreateABTest(ad.id)}
+                showABTestButton={ad.status === 'active'}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </>
   )
 }
 

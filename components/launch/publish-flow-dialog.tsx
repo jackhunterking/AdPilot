@@ -123,6 +123,13 @@ export function PublishFlowDialog({
         setCurrentStep("complete")
         setIsComplete(true)
         await onComplete?.()
+        
+        // For edit mode, dialog should close immediately after onComplete
+        // The navigation in onComplete will take over
+        if (isEditMode) {
+          // Close dialog without showing success state
+          onOpenChange(false)
+        }
       }
     }
 
@@ -131,7 +138,7 @@ export function PublishFlowDialog({
     return () => {
       isCancelled = true
     }
-  }, [open, onComplete])
+  }, [open, onComplete, isEditMode, onOpenChange])
 
   const handleClose = () => {
     if (isComplete) {

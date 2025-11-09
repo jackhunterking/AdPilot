@@ -353,6 +353,9 @@ export function PreviewPanel() {
       setIsPublished(true)
       setIsPublishing(false)
       
+      // Close the dialog immediately so navigation isn't blocked
+      setPublishDialogOpen(false)
+      
       // Navigate to campaign's all-ads grid
       if (typeof window !== 'undefined') {
         // Use sessionStorage to show success indicator if needed
@@ -363,8 +366,10 @@ export function PreviewPanel() {
           timestamp: Date.now()
         }))
         
-        // Navigate to campaign page - will automatically show all-ads grid
-        window.location.href = `/${campaign.id}`
+        // Small delay to ensure dialog closes, then navigate
+        setTimeout(() => {
+          window.location.href = `/${campaign.id}`
+        }, 100)
       }
     } catch (error) {
       console.error('Error in handlePublishComplete:', error)
