@@ -165,11 +165,13 @@ export function AdMockup({
       </div>
 
       {/* Primary Text Section - BEFORE Media */}
-      <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
-        <p className="text-[#050505] leading-[1.3333]" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '20px' }}>
-          {primaryText}
-        </p>
-      </div>
+      {primaryText && (
+        <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
+          <p className="text-[#050505] leading-[1.3333]" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '20px' }}>
+            {primaryText}
+          </p>
+        </div>
+      )}
 
       {/* Media Section - Square (1:1) aspect ratio - 1080x1080 */}
       {imageUrl ? (

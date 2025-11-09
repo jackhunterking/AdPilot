@@ -35,42 +35,44 @@ interface MetricItemProps {
 function MetricItem({ label, value, icon, trend, isPositive, compactMode }: MetricItemProps) {
   return (
     <div className={cn(
-      "flex items-center justify-between",
+      "flex items-start gap-3",
       compactMode ? "py-2" : "py-3"
     )}>
-      <div className="flex items-center gap-2">
-        <div className={cn(
-          "flex items-center justify-center rounded-lg bg-muted",
-          compactMode ? "h-8 w-8" : "h-10 w-10"
-        )}>
-          {icon}
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className={cn(
-            "font-semibold",
-            compactMode ? "text-base" : "text-lg"
-          )}>
-            {value}
-          </p>
-        </div>
+      <div className={cn(
+        "flex items-center justify-center rounded-full bg-muted/50 shrink-0",
+        compactMode ? "h-10 w-10" : "h-12 w-12"
+      )}>
+        {icon}
       </div>
-      
-      {trend !== undefined && (
-        <div className={cn(
-          "flex items-center gap-1 text-sm font-medium",
-          isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+      <div className="flex-1 min-w-0">
+        <p className={cn(
+          "text-muted-foreground mb-1",
+          compactMode ? "text-xs" : "text-sm"
         )}>
-          {isPositive ? (
-            <TrendingUp className="h-4 w-4" />
-          ) : trend === 0 ? (
-            <Minus className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <TrendingDown className="h-4 w-4" />
-          )}
-          {trend === 0 ? "—" : `${Math.abs(trend)}%`}
-        </div>
-      )}
+          {label}
+        </p>
+        <p className={cn(
+          "font-semibold",
+          compactMode ? "text-xl" : "text-2xl"
+        )}>
+          {value}
+        </p>
+        {trend !== undefined && (
+          <div className={cn(
+            "flex items-center gap-1 text-xs font-medium mt-1",
+            isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+          )}>
+            {isPositive ? (
+              <TrendingUp className="h-3 w-3" />
+            ) : trend === 0 ? (
+              <Minus className="h-3 w-3 text-muted-foreground" />
+            ) : (
+              <TrendingDown className="h-3 w-3" />
+            )}
+            {trend === 0 ? "—" : `${Math.abs(trend)}%`}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -147,11 +149,11 @@ export function MetricsCard({
           )}
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-0">
           <MetricItem
             label="Impressions"
             value={formatNumber(metrics.impressions)}
-            icon={<Eye className="h-4 w-4 text-muted-foreground" />}
+            icon={<Eye className="h-5 w-5 text-muted-foreground" />}
             trend={impressionsTrend?.trend}
             isPositive={impressionsTrend?.isPositive}
             compactMode={compactMode}
@@ -160,7 +162,7 @@ export function MetricsCard({
           <MetricItem
             label="Reach"
             value={formatNumber(metrics.reach)}
-            icon={<Users className="h-4 w-4 text-muted-foreground" />}
+            icon={<Users className="h-5 w-5 text-muted-foreground" />}
             trend={reachTrend?.trend}
             isPositive={reachTrend?.isPositive}
             compactMode={compactMode}
@@ -169,7 +171,7 @@ export function MetricsCard({
           <MetricItem
             label="Clicks"
             value={formatNumber(metrics.clicks)}
-            icon={<MousePointerClick className="h-4 w-4 text-muted-foreground" />}
+            icon={<MousePointerClick className="h-5 w-5 text-muted-foreground" />}
             trend={clicksTrend?.trend}
             isPositive={clicksTrend?.isPositive}
             compactMode={compactMode}
@@ -179,7 +181,7 @@ export function MetricsCard({
             <MetricItem
               label="Leads"
               value={formatNumber(metrics.leads)}
-              icon={<Users className="h-4 w-4 text-green-600" />}
+              icon={<Users className="h-5 w-5 text-green-600" />}
               trend={leadsTrend?.trend}
               isPositive={leadsTrend?.isPositive}
               compactMode={compactMode}
