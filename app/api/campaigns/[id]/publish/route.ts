@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServerClient } from '@/lib/supabase/server'
 
 export async function POST(
   request: NextRequest,
@@ -16,7 +16,7 @@ export async function POST(
 ) {
   try {
     const { id: campaignId } = await params
-    const supabase = await createClient()
+    const supabase = await createServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -96,7 +96,7 @@ export async function POST(
     
     // Log error
     try {
-      const supabase = await createClient()
+      const supabase = await createServerClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         await supabase

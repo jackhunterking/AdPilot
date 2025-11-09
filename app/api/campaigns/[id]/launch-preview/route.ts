@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServerClient } from '@/lib/supabase/server'
 import type { LaunchConfirmationData } from '@/lib/types/meta-integration'
 
 export async function GET(
@@ -16,7 +16,7 @@ export async function GET(
 ) {
   try {
     const { id: campaignId } = await params
-    const supabase = await createClient()
+    const supabase = await createServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
