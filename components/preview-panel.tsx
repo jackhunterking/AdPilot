@@ -46,7 +46,7 @@ export function PreviewPanel() {
   
   const [activeFormat, setActiveFormat] = useState("feed")
   // Removed regenerate feature: no regenerating state
-  const { adContent, setAdContent, isPublished, setIsPublished, selectedImageIndex, setSelectedCreativeVariation, setSelectedImageIndex } = useAdPreview()
+  const { adContent, setAdContent, isPublished, setIsPublished, selectedImageIndex, selectedCreativeVariation, setSelectedCreativeVariation, setSelectedImageIndex } = useAdPreview()
   const { budgetState, isComplete } = useBudget()
   const { campaign } = useCampaignContext()
   const { locationState } = useLocation()
