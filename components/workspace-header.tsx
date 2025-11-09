@@ -48,9 +48,10 @@ export function WorkspaceHeader({
   // Determine back button text based on mode
   const getBackButtonText = () => {
     switch (mode) {
+      case 'results':           // NEW: Navigate to all-ads grid
       case 'ab-test-builder':
       case 'edit':
-        return 'Back to Results'
+        return 'Back to All Ads'  // All navigate to grid
       case 'build':
         return 'Back to Home'
       default:

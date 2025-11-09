@@ -112,14 +112,14 @@ export function CampaignWorkspace() {
 
   // Navigation handlers
   const handleBack = useCallback(() => {
-    if (effectiveMode === 'edit' || effectiveMode === 'ab-test-builder') {
-      // Go back to results of current ad
-      setWorkspaceMode('results', currentAdId || undefined)
+    if (effectiveMode === 'results' || effectiveMode === 'edit' || effectiveMode === 'ab-test-builder') {
+      // All these modes navigate to all-ads grid
+      setWorkspaceMode('all-ads')
     } else if (effectiveMode === 'build') {
       // Go back to landing page
       router.push('/')
     }
-  }, [effectiveMode, currentAdId, setWorkspaceMode, router])
+  }, [effectiveMode, setWorkspaceMode, router])
 
   const handleNewAd = useCallback(() => {
     // Create new ad, go to build mode
@@ -174,7 +174,9 @@ export function CampaignWorkspace() {
   }, [ads])
 
   // Determine header props
-  const showNewAdButton = convertedAds.length > 0 && (effectiveMode === 'results' || effectiveMode === 'all-ads')
+  // Always show New Ad button in results and all-ads modes
+  const showNewAdButton = effectiveMode === 'results' || effectiveMode === 'all-ads'
+  // Keep back button visible in results, only hide in all-ads
   const showBackButton = effectiveMode !== 'all-ads'
 
   // Get current variant for results/edit modes
