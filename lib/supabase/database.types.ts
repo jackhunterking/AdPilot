@@ -96,6 +96,105 @@ export type Database = {
           },
         ]
       }
+      budget_allocations: {
+        Row: {
+          actual_spend: number | null
+          ad_id: string
+          campaign_id: string
+          confidence_score: number | null
+          created_at: string
+          id: string
+          last_synced_at: string | null
+          reason_code: string | null
+          recommended_budget: number
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_spend?: number | null
+          ad_id: string
+          campaign_id: string
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          reason_code?: string | null
+          recommended_budget: number
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_spend?: number | null
+          ad_id?: string
+          campaign_id?: string
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          reason_code?: string | null
+          recommended_budget?: number
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_allocations_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_allocations_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_audit_log: {
+        Row: {
+          action: string
+          campaign_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          campaign_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_audit_log_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_audit_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_meta_connections: {
         Row: {
           ad_account_currency_code: string | null
@@ -109,10 +208,13 @@ export type Database = {
           admin_checked_at: string | null
           admin_connected: boolean
           campaign_id: string
+          connection_status: string | null
           created_at: string
           fb_user_id: string | null
           id: string
+          last_verified_at: string | null
           long_lived_user_token: string | null
+          payment_status: string | null
           selected_ad_account_id: string | null
           selected_ad_account_name: string | null
           selected_business_id: string | null
@@ -142,10 +244,13 @@ export type Database = {
           admin_checked_at?: string | null
           admin_connected?: boolean
           campaign_id: string
+          connection_status?: string | null
           created_at?: string
           fb_user_id?: string | null
           id?: string
+          last_verified_at?: string | null
           long_lived_user_token?: string | null
+          payment_status?: string | null
           selected_ad_account_id?: string | null
           selected_ad_account_name?: string | null
           selected_business_id?: string | null
@@ -175,10 +280,13 @@ export type Database = {
           admin_checked_at?: string | null
           admin_connected?: boolean
           campaign_id?: string
+          connection_status?: string | null
           created_at?: string
           fb_user_id?: string | null
           id?: string
+          last_verified_at?: string | null
           long_lived_user_token?: string | null
+          payment_status?: string | null
           selected_ad_account_id?: string | null
           selected_ad_account_name?: string | null
           selected_business_id?: string | null
@@ -388,6 +496,9 @@ export type Database = {
       }
       campaigns: {
         Row: {
+          budget_status: string | null
+          budget_strategy: string | null
+          campaign_budget: number | null
           created_at: string | null
           current_step: number | null
           id: string
@@ -402,6 +513,9 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          budget_status?: string | null
+          budget_strategy?: string | null
+          campaign_budget?: number | null
           created_at?: string | null
           current_step?: number | null
           id?: string
@@ -416,6 +530,9 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          budget_status?: string | null
+          budget_strategy?: string | null
+          campaign_budget?: number | null
           created_at?: string | null
           current_step?: number | null
           id?: string
@@ -1487,4 +1604,3 @@ export const Constants = {
     },
   },
 } as const
-
