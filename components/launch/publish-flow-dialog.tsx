@@ -124,12 +124,9 @@ export function PublishFlowDialog({
         setIsComplete(true)
         await onComplete?.()
         
-        // For edit mode, dialog should close immediately after onComplete
-        // The navigation in onComplete will take over
-        if (isEditMode) {
-          // Close dialog without showing success state
-          onOpenChange(false)
-        }
+        // Close dialog immediately after onComplete for all modes
+        // Success feedback now handled by campaign workspace
+        onOpenChange(false)
       }
     }
 

@@ -349,6 +349,9 @@ export function PreviewPanel() {
       const { ad } = await response.json()
       console.log('✅ Ad persisted with snapshot:', ad.id)
       
+      // Capture whether this was an edit before updating state
+      const wasEdit = isPublished
+      
       // Mark as published in context
       setIsPublished(true)
       setIsPublishing(false)
@@ -356,20 +359,17 @@ export function PreviewPanel() {
       // Close the dialog immediately so navigation isn't blocked
       setPublishDialogOpen(false)
       
-      // Navigate to campaign's all-ads grid
+      // Dispatch custom event to notify campaign workspace
       if (typeof window !== 'undefined') {
-        // Use sessionStorage to show success indicator if needed
-        sessionStorage.setItem('ad_publish_success', JSON.stringify({
-          campaignId: campaign.id,
-          campaignName: campaign.name,
-          isEdit: isPublished, // If already published, this was an edit
-          timestamp: Date.now()
+        window.dispatchEvent(new CustomEvent('campaign:save-complete', {
+          detail: {
+            campaignId: campaign.id,
+            campaignName: campaign.name,
+            isEdit: wasEdit,
+            adId: ad.id,
+            timestamp: Date.now()
+          }
         }))
-        
-        // Small delay to ensure dialog closes, then navigate
-        setTimeout(() => {
-          window.location.href = `/${campaign.id}`
-        }, 100)
       }
     } catch (error) {
       console.error('Error in handlePublishComplete:', error)

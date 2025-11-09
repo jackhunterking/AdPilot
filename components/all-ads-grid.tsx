@@ -17,6 +17,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { CheckCircle2 } from "lucide-react"
 
+interface SaveSuccessState {
+  campaignName: string
+  isEdit: boolean
+  adId: string
+  timestamp: number
+}
+
 export interface AllAdsGridProps {
   ads: AdVariant[]
   onViewAd: (adId: string) => void
@@ -24,6 +31,8 @@ export interface AllAdsGridProps {
   onPauseAd: (adId: string) => void
   onResumeAd: (adId: string) => void
   onCreateABTest: (adId: string) => void
+  saveSuccessState: SaveSuccessState | null
+  onClearSuccessState: () => void
 }
 
 export function AllAdsGrid({
@@ -33,28 +42,16 @@ export function AllAdsGrid({
   onPauseAd,
   onResumeAd,
   onCreateABTest,
+  saveSuccessState,
+  onClearSuccessState,
 }: AllAdsGridProps) {
-  const [showSuccessModal, setShowSuccessModal] = useState(false)
-  const [successData, setSuccessData] = useState<{campaignName: string, isEdit: boolean} | null>(null)
-
-  useEffect(() => {
-    const data = sessionStorage.getItem('ad_publish_success')
-    if (data) {
-      try {
-        const parsed = JSON.parse(data) as {campaignName: string, isEdit: boolean}
-        setSuccessData(parsed)
-        setShowSuccessModal(true)
-        sessionStorage.removeItem('ad_publish_success')
-      } catch (error) {
-        console.error('Failed to parse ad_publish_success data:', error)
-        sessionStorage.removeItem('ad_publish_success')
-      }
-    }
-  }, [])
+  const handleCloseSuccess = () => {
+    onClearSuccessState()
+  }
 
   return (
     <>
-      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+      <Dialog open={!!saveSuccessState} onOpenChange={(open) => !open && handleCloseSuccess()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3 mb-4">
@@ -62,20 +59,20 @@ export function AllAdsGrid({
                 <CheckCircle2 className="h-6 w-6 text-green-600" />
               </div>
               <DialogTitle className="text-xl">
-                {successData?.isEdit ? 'Changes Saved!' : 'Ad Published!'}
+                {saveSuccessState?.isEdit ? 'Changes Saved!' : 'Ad Published!'}
               </DialogTitle>
             </div>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              {successData?.isEdit 
-                ? `${successData.campaignName} has been updated successfully. The ad will continue running with the updated settings.`
-                : `${successData?.campaignName} has been published successfully and is now live.`
+              {saveSuccessState?.isEdit 
+                ? `${saveSuccessState.campaignName} has been updated successfully. The ad will continue running with the updated settings.`
+                : `${saveSuccessState?.campaignName} has been published successfully and is now live.`
               }
             </p>
             <div className="flex justify-end">
               <Button
-                onClick={() => setShowSuccessModal(false)}
+                onClick={handleCloseSuccess}
                 className="bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105"
               >
                 Close

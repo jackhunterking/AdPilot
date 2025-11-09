@@ -10,7 +10,7 @@
 
 "use client"
 
-import { useCallback, useMemo } from "react"
+import { useCallback, useMemo, useState, useEffect } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { PreviewPanel } from "@/components/preview-panel"
@@ -24,6 +24,13 @@ import { useCampaignAds } from "@/lib/hooks/use-campaign-ads"
 import { useGoal } from "@/lib/context/goal-context"
 import type { WorkspaceMode, CampaignStatus, AdVariant, AdMetrics, LeadFormInfo } from "@/lib/types/workspace"
 
+interface SaveSuccessState {
+  campaignName: string
+  isEdit: boolean
+  adId: string
+  timestamp: number
+}
+
 export function CampaignWorkspace() {
   const { campaign } = useCampaignContext()
   const { goalState } = useGoal()
@@ -34,6 +41,46 @@ export function CampaignWorkspace() {
   
   const campaignId = campaign?.id ?? ""
   const { ads, loading: adsLoading, refreshAds } = useCampaignAds(campaignId)
+  
+  // State for save success notification
+  const [saveSuccessState, setSaveSuccessState] = useState<SaveSuccessState | null>(null)
+  
+  // Listen for save complete events
+  useEffect(() => {
+    const handleSaveComplete = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        campaignId: string
+        campaignName: string
+        isEdit: boolean
+        adId: string
+        timestamp: number
+      }>
+      
+      // Only handle events for this campaign
+      if (customEvent.detail.campaignId !== campaignId) return
+      
+      console.log('[CampaignWorkspace] Save complete event received:', customEvent.detail)
+      
+      // Refresh ads data
+      void refreshAds()
+      
+      // Switch to all-ads view (no query params = all-ads grid)
+      router.replace(pathname)
+      
+      // Store success state for modal
+      setSaveSuccessState({
+        campaignName: customEvent.detail.campaignName,
+        isEdit: customEvent.detail.isEdit,
+        adId: customEvent.detail.adId,
+        timestamp: customEvent.detail.timestamp
+      })
+    }
+    
+    window.addEventListener('campaign:save-complete', handleSaveComplete)
+    return () => {
+      window.removeEventListener('campaign:save-complete', handleSaveComplete)
+    }
+  }, [campaignId, refreshAds, router, pathname])
   
   // Get view mode from URL
   const viewParam = searchParams.get("view") as WorkspaceMode | null
@@ -356,6 +403,8 @@ export function CampaignWorkspace() {
             onPauseAd={handlePauseAd}
             onResumeAd={handleResumeAd}
             onCreateABTest={handleCreateABTest}
+            saveSuccessState={saveSuccessState}
+            onClearSuccessState={() => setSaveSuccessState(null)}
           />
         )}
 
