@@ -54,9 +54,9 @@ export function AllAdsGrid({
   return (
     <>
       <Dialog open={!!saveSuccessState} onOpenChange={(open) => !open && handleCloseSuccess()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="flex items-center gap-3 mb-4">
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader className="mb-4">
+            <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
                 <CheckCircle2 className="h-6 w-6 text-green-600" />
               </div>
@@ -65,21 +65,20 @@ export function AllAdsGrid({
               </DialogTitle>
             </div>
           </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {saveSuccessState?.isEdit 
-                ? `${saveSuccessState.campaignName} has been updated successfully. The ad will continue running with the updated settings.`
-                : `${saveSuccessState?.campaignName} has been published successfully and is now live.`
-              }
-            </p>
-            <div className="flex justify-end">
-              <Button
-                onClick={handleCloseSuccess}
-                className="bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105"
-              >
-                Close
-              </Button>
-            </div>
+          <p className="text-sm text-muted-foreground mb-6">
+            {saveSuccessState?.isEdit 
+              ? `${saveSuccessState.campaignName} has been updated successfully. The ad will continue running with the updated settings.`
+              : `${saveSuccessState?.campaignName} has been published successfully and is now live.`
+            }
+          </p>
+          <div className="flex justify-end">
+            <Button
+              onClick={handleCloseSuccess}
+              size="lg"
+              className="bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105"
+            >
+              Close
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

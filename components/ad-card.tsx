@@ -65,33 +65,34 @@ export function AdCard({
   return (
     <>
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <div className="flex items-center gap-3 mb-2">
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader className="mb-4">
+            <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
                 <AlertTriangle className="h-6 w-6 text-red-600" />
               </div>
               <DialogTitle className="text-xl">Delete Ad?</DialogTitle>
             </div>
           </DialogHeader>
-          <DialogDescription className="text-sm text-muted-foreground py-2">
+          <DialogDescription className="text-sm text-muted-foreground mb-6">
             Are you sure you want to delete <strong>{ad.name}</strong>? This action cannot be undone.
           </DialogDescription>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <div className="flex justify-end gap-2">
             <Button
               variant="outline"
+              size="lg"
               onClick={() => setShowDeleteDialog(false)}
             >
               Cancel
             </Button>
             <Button
               variant="destructive"
+              size="lg"
               onClick={handleConfirmDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
             >
               Delete
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
       
