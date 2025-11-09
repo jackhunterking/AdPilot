@@ -295,7 +295,8 @@ export function PreviewPanel() {
         ? adContent.imageVariations[selectedImageIndex]
         : adContent?.imageUrl || adContent?.imageVariations?.[0]
       
-      // Prepare the ad data for persistence (with snapshot as source of truth)
+      // Prepare the ad data for persistence
+      // Note: setup_snapshot not included until database schema supports it
       const adData = {
         name: `${campaign.name} - Ad ${new Date().toLocaleDateString()}`,
         status: 'active',
@@ -311,10 +312,10 @@ export function PreviewPanel() {
           cta: adContent?.cta || 'Learn More',
         },
         meta_ad_id: null, // Will be set when actually published to Meta
-        setup_snapshot: snapshot, // NEW: Include complete snapshot
+        // setup_snapshot omitted - will be added when database schema is updated
       }
       
-      console.log('📸 Publishing ad with snapshot:', {
+      console.log('📸 Validated snapshot (used for deriving data, not persisted):', {
         hasSnapshot: !!snapshot,
         creative: snapshot.creative.selectedImageIndex,
         copy: {
@@ -331,7 +332,7 @@ export function PreviewPanel() {
         name: adData.name,
         status: adData.status,
         copy_data: adData.copy_data,
-        hasSnapshot: !!adData.setup_snapshot,
+        creative_data: adData.creative_data,
       })
       
       // Persist the ad to Supabase

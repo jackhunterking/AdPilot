@@ -99,7 +99,13 @@ export async function POST(
       }
     }
 
-    // Create new ad with snapshot
+    // Note: setup_snapshot is not stored in database yet (column doesn't exist)
+    // We derive creative_data and copy_data from it for now
+    if (setup_snapshot) {
+      console.log('[POST /api/campaigns/[id]/ads] Snapshot provided but not persisted (column not in schema)')
+    }
+
+    // Create new ad without snapshot (table doesn't have this column yet)
     const { data: ad, error } = await supabaseServer
       .from("ads")
       .insert({
@@ -109,8 +115,8 @@ export async function POST(
         creative_data: finalCreativeData,
         copy_data: finalCopyData,
         meta_ad_id,
-        metrics_snapshot: null,
-        setup_snapshot // Store complete snapshot
+        metrics_snapshot: null
+        // setup_snapshot omitted - column doesn't exist in ads table
       })
       .select()
       .single()
