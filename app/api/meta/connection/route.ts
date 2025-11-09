@@ -42,25 +42,33 @@ export async function GET(request: NextRequest) {
 
     // Build summary
     const summary: MetaConnectionSummary = {
-      status: (connection?.connection_status as MetaConnectionSummary['status']) || 'disconnected',
-      paymentStatus: (connection?.payment_status as MetaConnectionSummary['paymentStatus']) || 'unknown',
-      business: connection?.selected_business_id ? {
-        id: connection.selected_business_id,
-        name: connection.selected_business_name,
-      } : undefined,
-      page: connection?.selected_page_id ? {
-        id: connection.selected_page_id,
-        name: connection.selected_page_name,
-      } : undefined,
-      instagram: connection?.selected_ig_user_id ? {
-        id: connection.selected_ig_user_id,
-        username: connection.selected_ig_username,
-      } : null,
-      adAccount: connection?.selected_ad_account_id ? {
-        id: connection.selected_ad_account_id,
-        name: connection.selected_ad_account_name,
-      } : undefined,
-      lastVerifiedAt: connection?.last_verified_at,
+      status: (connection?.connection_status ?? 'disconnected') as MetaConnectionSummary['status'],
+      paymentStatus: (connection?.payment_status ?? 'unknown') as MetaConnectionSummary['paymentStatus'],
+      business: connection?.selected_business_id
+        ? {
+            id: connection.selected_business_id,
+            name: connection.selected_business_name ?? undefined,
+          }
+        : undefined,
+      page: connection?.selected_page_id
+        ? {
+            id: connection.selected_page_id,
+            name: connection.selected_page_name ?? undefined,
+          }
+        : undefined,
+      instagram: connection?.selected_ig_user_id
+        ? {
+            id: connection.selected_ig_user_id,
+            username: connection.selected_ig_username ?? undefined,
+          }
+        : null,
+      adAccount: connection?.selected_ad_account_id
+        ? {
+            id: connection.selected_ad_account_id,
+            name: connection.selected_ad_account_name ?? undefined,
+          }
+        : undefined,
+      lastVerifiedAt: connection?.last_verified_at ?? undefined,
     }
 
     const needsReconnect = 
