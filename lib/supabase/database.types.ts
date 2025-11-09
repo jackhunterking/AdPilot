@@ -513,6 +513,76 @@ export type Database = {
           },
         ]
       }
+      creative_lint_reports: {
+        Row: {
+          created_at: string
+          id: string
+          passed: boolean
+          plan_id: string | null
+          report: Json
+          variation_index: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          passed: boolean
+          plan_id?: string | null
+          report: Json
+          variation_index: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          passed?: boolean
+          plan_id?: string | null
+          report?: Json
+          variation_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creative_lint_reports_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "creative_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creative_plans: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          plan: Json
+          status: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          plan: Json
+          status?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          plan?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "creative_plans_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       creative_variants: {
         Row: {
           asset_id: string | null
