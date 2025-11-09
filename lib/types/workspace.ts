@@ -49,6 +49,8 @@ export interface AdVariant {
     imageVariations?: string[]
     headline: string
     body: string
+    primaryText?: string
+    description?: string
     cta: string
     format?: 'feed' | 'story' | 'reel'
   }
