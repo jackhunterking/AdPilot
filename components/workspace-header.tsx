@@ -17,15 +17,17 @@ import type { WorkspaceMode, CampaignStatus } from "@/lib/types/workspace"
 
 export interface WorkspaceHeaderProps {
   mode: WorkspaceMode
-  onBack: () => void
-  onNewAd?: () => void
-  showNewAdButton?: boolean
+  onBack?: () => void        // Optional, only show for specific modes
+  onNewAd: () => void        // Always available after first publish
+  showBackButton?: boolean   // Control visibility
+  showNewAdButton: boolean   // Control visibility
   campaignStatus?: CampaignStatus
   abTestInfo?: {
     day: number
     totalDays: number
     testType: string
   }
+  totalAds?: number          // For all-ads mode display
   className?: string
 }
 
@@ -33,22 +35,24 @@ export function WorkspaceHeader({
   mode,
   onBack,
   onNewAd,
-  showNewAdButton = false,
+  showBackButton = true,
+  showNewAdButton,
   campaignStatus,
   abTestInfo,
+  totalAds,
   className,
 }: WorkspaceHeaderProps) {
+  // Don't show back button in all-ads mode
+  const shouldShowBack = showBackButton && mode !== 'all-ads'
+  
   // Determine back button text based on mode
   const getBackButtonText = () => {
     switch (mode) {
       case 'ab-test-builder':
       case 'edit':
-      case 'build-variant':
         return 'Back to Results'
       case 'build':
-      case 'results':
-      case 'ab-test-active':
-      case 'view-all-ads':
+        return 'Back to Home'
       default:
         return 'Back'
     }
@@ -56,6 +60,15 @@ export function WorkspaceHeader({
 
   // Determine status badge
   const getStatusBadge = () => {
+    // All-ads mode: show ad count
+    if (mode === 'all-ads' && totalAds) {
+      return (
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted text-foreground text-sm font-medium">
+          📊 {totalAds} {totalAds === 1 ? 'Ad' : 'Ads'} in Campaign
+        </div>
+      )
+    }
+    
     if (abTestInfo) {
       return (
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-sm font-medium">
@@ -101,7 +114,7 @@ export function WorkspaceHeader({
       )
     }
 
-    if (mode === 'build' || mode === 'build-variant') {
+    if (mode === 'build') {
       return (
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted text-muted-foreground text-sm font-medium">
           Draft
@@ -119,23 +132,25 @@ export function WorkspaceHeader({
       "flex items-center justify-between gap-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-3 flex-shrink-0",
       className
     )}>
-      {/* Left: Back Button */}
+      {/* Left: Back Button (conditional) */}
       <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onBack}
-          className="gap-2 hover:bg-muted"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {getBackButtonText()}
-        </Button>
+        {shouldShowBack && onBack && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            className="gap-2 hover:bg-muted"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {getBackButtonText()}
+          </Button>
+        )}
         
         {statusBadge}
       </div>
 
-      {/* Right: New Ad Button (conditional) */}
-      {showNewAdButton && onNewAd && (
+      {/* Right: New Ad Button */}
+      {showNewAdButton && (
         <Button
           variant="default"
           size="sm"

@@ -21,7 +21,7 @@ import { UIMessage } from "ai"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { SaveIndicator } from "./save-indicator"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
-import { CampaignWorkspace, type WorkspaceView } from "@/components/campaign-workspace"
+import { CampaignWorkspace } from "@/components/campaign-workspace"
 // Removed local heuristic name suggestion; naming is AI-driven on server
 
 interface DashboardProps {
@@ -43,7 +43,6 @@ export function Dashboard({
   const dailyCredits = 500
   const { setTheme, resolvedTheme } = useTheme()
   const { campaign, updateCampaign } = useCampaignContext()
-  const [activeView, setActiveView] = useState<WorkspaceView>('home')
 
   // Rename dialog state (lifted outside dropdown so it persists)
   const [renameOpen, setRenameOpen] = useState(false)
@@ -213,13 +212,12 @@ export function Dashboard({
             conversationId={conversationId}
             messages={messages}
             campaignMetadata={campaignMetadata ?? undefined}
-            activeView={activeView}
           />
         </div>
 
-        {/* Workspace - State-based routing */}
+        {/* Workspace - URL-based routing */}
         <div className="flex flex-1 flex-col overflow-hidden h-full min-h-0">
-          <CampaignWorkspace activeView={activeView} onViewChange={setActiveView} />
+          <CampaignWorkspace />
         </div>
       </div>
     </div>

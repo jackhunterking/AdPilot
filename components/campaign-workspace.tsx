@@ -1,6 +1,6 @@
 /**
- * Feature: Campaign Workspace - State-Based Routing
- * Purpose: Route between Build and Results modes with clean navigation
+ * Feature: Campaign Workspace - URL-Based View Routing
+ * Purpose: Manage all ad views within a campaign with clean URL-based navigation
  * References:
  *  - AI SDK Core: https://ai-sdk.dev/docs/introduction
  *  - AI Elements: https://ai-sdk.dev/elements/overview
@@ -10,30 +10,22 @@
 
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { PreviewPanel } from "@/components/preview-panel"
 import { ResultsPanel } from "@/components/results-panel"
 import { WorkspaceHeader } from "@/components/workspace-header"
+import { AllAdsView } from "@/components/all-ads-view"
+import { ABTestBuilder } from "@/components/ab-test/ab-test-builder"
+import AIChat from "@/components/ai-chat"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
-import { cn } from "@/lib/utils"
-import { CampaignHome } from "@/components/campaign-home"
-import { AdCardsGrid } from "@/components/ad-cards-grid"
-import { AdDetailDrawer } from "@/components/ad-detail-drawer"
 import { useCampaignAds } from "@/lib/hooks/use-campaign-ads"
 import { useGoal } from "@/lib/context/goal-context"
 import type { WorkspaceMode, CampaignStatus, AdVariant, AdMetrics, LeadFormInfo } from "@/lib/types/workspace"
 
-export type WorkspaceView = "home" | "build" | "view"
-
-type CampaignWorkspaceProps = {
-  activeView: WorkspaceView
-  onViewChange: (view: WorkspaceView) => void
-}
-
-export function CampaignWorkspace({ activeView, onViewChange }: CampaignWorkspaceProps) {
+export function CampaignWorkspace() {
   const { campaign } = useCampaignContext()
   const { goalState } = useGoal()
   const { isPublished, adContent } = useAdPreview()
@@ -44,94 +36,24 @@ export function CampaignWorkspace({ activeView, onViewChange }: CampaignWorkspac
   const campaignId = campaign?.id ?? ""
   const { ads, loading: adsLoading, refreshAds } = useCampaignAds(campaignId)
   
-  const [selectedAdId, setSelectedAdId] = useState<string | null>(null)
-  const [editingAdId, setEditingAdId] = useState<string | null>(null)
-  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('build')
+  // Get view mode from URL
+  const viewParam = searchParams.get("view") as WorkspaceMode | null
+  const currentAdId = searchParams.get("adId")
   
-  // Determine if we should show results mode
-  const shouldShowResults = isPublished && activeView === 'build'
+  // Default to build mode on initial entry
+  const workspaceMode: WorkspaceMode = viewParam || 'build'
+  
+  // After first publish, default to results mode
+  const shouldShowResults = isPublished && !viewParam
+  const effectiveMode = shouldShowResults ? 'results' : workspaceMode
 
-  const storageKey = campaignId ? `campaign-workspace-view:${campaignId}` : null
-  const paramsView = searchParams.get("view")
-
-  const updateQueryString = useCallback(
-    (view: WorkspaceView) => {
-      const params = new URLSearchParams(searchParams.toString())
-      params.set("view", view)
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-    },
-    [pathname, router, searchParams],
-  )
-
-  // Persist view to sessionStorage
-  useEffect(() => {
-    if (!storageKey || typeof window === "undefined") return
-    window.sessionStorage.setItem(storageKey, activeView)
-  }, [activeView, storageKey])
-
-  // Sync URL with active view
-  useEffect(() => {
-    updateQueryString(activeView)
-  }, [activeView, updateQueryString])
-
-  // Restore view from URL or storage on mount
-  useEffect(() => {
-    const stored = storageKey && typeof window !== "undefined"
-      ? window.sessionStorage.getItem(storageKey)
-      : null
-    const initialView = (paramsView || stored || "home") as WorkspaceView
-    if (initialView !== activeView && ["home", "build", "view"].includes(initialView)) {
-      onViewChange(initialView)
-    }
-  }, []) // Only run on mount
-
-  const statusLabel = useMemo(() => {
-    const status = campaign?.published_status
-    switch (status) {
-      case "publishing":
-        return { label: "Publishing", tone: "warning" as const }
-      case "active":
-        return { label: "Active", tone: "success" as const }
-      case "paused":
-        return { label: "Paused", tone: "default" as const }
-      case "error":
-        return { label: "Publish error", tone: "destructive" as const }
-      default:
-        return { label: "Draft", tone: "muted" as const }
-    }
-  }, [campaign?.published_status])
-
-  const handleNavigate = useCallback((path: "build" | "view") => {
-    onViewChange(path)
-  }, [onViewChange])
-
-  const handleViewResults = useCallback((adId: string) => {
-    setSelectedAdId(adId)
-  }, [])
-
-  const handleEdit = useCallback((adId: string) => {
-    setEditingAdId(adId)
-    onViewChange("build")
-  }, [onViewChange])
-
-  const handleCreateVariant = useCallback(() => {
-    onViewChange("build")
-  }, [onViewChange])
-
-  const handleCloseDrawer = useCallback(() => {
-    setSelectedAdId(null)
-  }, [])
-
-  // Transform ads data for grid component
-  const adsData = useMemo(() => {
-    return ads.map(ad => ({
-      id: ad.id,
-      name: ad.name,
-      status: ad.status,
-      metrics: ad.metrics_snapshot || {},
-      lastUpdated: ad.updated_at
-    }))
-  }, [ads])
+  // Update URL when mode changes
+  const setWorkspaceMode = useCallback((mode: WorkspaceMode, adId?: string) => {
+    const params = new URLSearchParams()
+    params.set("view", mode)
+    if (adId) params.set("adId", adId)
+    router.replace(`${pathname}?${params.toString()}`)
+  }, [pathname, router])
 
   // Simulated metrics for demonstration
   // TODO: Fetch real metrics from API
@@ -188,98 +110,159 @@ export function CampaignWorkspace({ activeView, onViewChange }: CampaignWorkspac
     ],
   } : undefined
 
-  // Handle back navigation
+  // Navigation handlers
   const handleBack = useCallback(() => {
-    if (activeView === 'build' && shouldShowResults) {
-      // From results, go to home
-      onViewChange('home')
-      setWorkspaceMode('build')
-    } else {
+    if (effectiveMode === 'edit' || effectiveMode === 'ab-test-builder') {
+      // Go back to results of current ad
+      setWorkspaceMode('results', currentAdId || undefined)
+    } else if (effectiveMode === 'build') {
+      // Go back to landing page
       router.push('/')
     }
-  }, [activeView, shouldShowResults, onViewChange, router])
+  }, [effectiveMode, currentAdId, setWorkspaceMode, router])
 
-  // Handle new ad creation
   const handleNewAd = useCallback(() => {
-    // TODO: Implement new ad variant creation flow
-    console.log('Create new ad variant')
+    // Create new ad, go to build mode
+    // TODO: API call to create ad variant
+    setWorkspaceMode('build')
+  }, [setWorkspaceMode])
+
+  const handleViewAllAds = useCallback(() => {
+    setWorkspaceMode('all-ads')
+  }, [setWorkspaceMode])
+
+  const handleViewAd = useCallback((adId: string) => {
+    setWorkspaceMode('results', adId)
+  }, [setWorkspaceMode])
+
+  const handleEditAd = useCallback((adId: string) => {
+    setWorkspaceMode('edit', adId)
+  }, [setWorkspaceMode])
+
+  const handlePauseAd = useCallback((adId: string) => {
+    // TODO: API call to pause ad
+    console.log('Pause ad:', adId)
   }, [])
 
-  // Handle edit ad
-  const handleEditAd = useCallback(() => {
-    setWorkspaceMode('edit')
+  const handleResumeAd = useCallback((adId: string) => {
+    // TODO: API call to resume ad
+    console.log('Resume ad:', adId)
   }, [])
 
-  // Handle pause ad
-  const handlePauseAd = useCallback(() => {
-    // TODO: Implement pause functionality
-    console.log('Pause ad')
-  }, [])
+  const handleCreateABTest = useCallback((adId: string) => {
+    setWorkspaceMode('ab-test-builder', adId)
+  }, [setWorkspaceMode])
 
-  // Handle create A/B test
-  const handleCreateABTest = useCallback(() => {
-    // TODO: Implement A/B test creation flow
-    console.log('Create A/B test')
-  }, [])
+  // Convert CampaignAd to AdVariant
+  const convertedAds: AdVariant[] = useMemo(() => {
+    return ads.map(ad => ({
+      id: ad.id,
+      campaign_id: ad.campaign_id,
+      name: ad.name,
+      status: ad.status as 'draft' | 'active' | 'paused' | 'archived',
+      variant_type: 'original' as const,
+      creative_data: (ad.creative_data as AdVariant['creative_data']) || {
+        headline: '',
+        body: '',
+        cta: '',
+      },
+      metrics_snapshot: ad.metrics_snapshot as AdVariant['metrics_snapshot'],
+      meta_ad_id: ad.meta_ad_id || undefined,
+      created_at: ad.created_at,
+      updated_at: ad.updated_at,
+    }))
+  }, [ads])
+
+  // Determine header props
+  const showNewAdButton = convertedAds.length > 0 && (effectiveMode === 'results' || effectiveMode === 'all-ads')
+  const showBackButton = effectiveMode !== 'all-ads'
+
+  // Get current variant for results/edit modes
+  const getCurrentVariant = (): AdVariant => {
+    // TODO: Fetch actual variant by currentAdId from API
+    return mockVariant
+  }
+
+  // Get current metrics
+  const getCurrentMetrics = (): AdMetrics => {
+    // TODO: Fetch actual metrics by currentAdId from API
+    return mockMetrics
+  }
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden h-full min-h-0 relative">
-      {/* Workspace Header - Only show for build/results, not home */}
-      {activeView !== "home" && (
-        <WorkspaceHeader
-          mode={shouldShowResults ? 'results' : 'build'}
-          onBack={handleBack}
-          onNewAd={shouldShowResults ? handleNewAd : undefined}
-          showNewAdButton={shouldShowResults}
-          campaignStatus={campaign?.published_status as CampaignStatus}
-        />
-      )}
+      {/* Workspace Header */}
+      <WorkspaceHeader
+        mode={effectiveMode}
+        onBack={showBackButton ? handleBack : undefined}
+        onNewAd={handleNewAd}
+        showBackButton={showBackButton}
+        showNewAdButton={showNewAdButton}
+        campaignStatus={campaign?.published_status as CampaignStatus}
+        totalAds={effectiveMode === 'all-ads' ? convertedAds.length : undefined}
+      />
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden h-full min-h-0">
-        {activeView === "home" && (
-          <CampaignHome onNavigate={handleNavigate} />
-        )}
-        
-        {activeView === "build" && !shouldShowResults && (
-          <div className="flex flex-1 h-full flex-col relative min-h-0">
-            <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
+        {effectiveMode === 'build' && (
+          <div className="flex flex-1 h-full">
+            <div className="flex-1 border-r">
+              <AIChat campaignId={campaignId} conversationId={campaignId} />
+            </div>
+            <div className="flex-1">
               <PreviewPanel />
             </div>
           </div>
         )}
 
-        {activeView === "build" && shouldShowResults && (
-          <div className="flex flex-1 h-full flex-col relative min-h-0 p-6">
+        {effectiveMode === 'results' && (
+          <div className="flex flex-1 h-full p-6">
             <ResultsPanel
-              variant={mockVariant}
-              metrics={mockMetrics}
-              onEdit={handleEditAd}
-              onPause={handlePauseAd}
-              onCreateABTest={handleCreateABTest}
+              variant={getCurrentVariant()}
+              metrics={getCurrentMetrics()}
+              onEdit={() => handleEditAd(currentAdId!)}
+              onPause={() => handlePauseAd(currentAdId!)}
+              onCreateABTest={() => handleCreateABTest(currentAdId!)}
+              onViewAllAds={handleViewAllAds}
               leadFormInfo={mockLeadFormInfo}
             />
           </div>
         )}
-        
-        {activeView === "view" && (
-          <>
-            <AdCardsGrid
-              ads={adsData}
-              isLoading={adsLoading}
-              onViewResults={handleViewResults}
-              onEdit={handleEdit}
-              onCreateVariant={handleCreateVariant}
-            />
-            {selectedAdId && (
-              <AdDetailDrawer
-                adId={selectedAdId}
-                campaignId={campaignId}
-                goal={goalState.selectedGoal}
-                onClose={handleCloseDrawer}
-              />
-            )}
-          </>
+
+        {effectiveMode === 'all-ads' && (
+          <AllAdsView
+            campaignId={campaignId}
+            ads={convertedAds}
+            onViewAd={handleViewAd}
+            onEditAd={handleEditAd}
+            onPauseAd={handlePauseAd}
+            onResumeAd={handleResumeAd}
+            onCreateABTest={handleCreateABTest}
+            conversationId={campaignId}
+          />
+        )}
+
+        {effectiveMode === 'edit' && (
+          <div className="flex flex-1 h-full">
+            <div className="flex-1 border-r">
+              <AIChat campaignId={campaignId} conversationId={campaignId} />
+            </div>
+            <div className="flex-1">
+              <PreviewPanel />
+            </div>
+          </div>
+        )}
+
+        {effectiveMode === 'ab-test-builder' && (
+          <ABTestBuilder
+            campaign_id={campaignId}
+            current_variant={getCurrentVariant()}
+            onCancel={() => setWorkspaceMode('results', currentAdId || undefined)}
+            onComplete={(test) => {
+              // TODO: Handle test creation
+              setWorkspaceMode('results', currentAdId || undefined)
+            }}
+          />
         )}
       </div>
     </div>

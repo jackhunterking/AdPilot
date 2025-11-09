@@ -13,7 +13,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Edit2, Pause, Play, TestTube2, ImageIcon, Video, Layers } from "lucide-react"
+import { Edit2, Pause, Play, TestTube2, ImageIcon, Video, Layers, LayoutGrid } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { MetricsCard } from "@/components/results/metrics-card"
 import { LeadFormIndicator } from "@/components/results/lead-form-indicator"
@@ -25,6 +25,7 @@ export interface ResultsPanelProps {
   onEdit: () => void
   onPause: () => void
   onCreateABTest: () => void
+  onViewAllAds: () => void  // Navigate to all-ads grid view
   leadFormInfo?: LeadFormInfo
   className?: string
 }
@@ -35,6 +36,7 @@ export function ResultsPanel({
   onEdit,
   onPause,
   onCreateABTest,
+  onViewAllAds,
   leadFormInfo,
   className,
 }: ResultsPanelProps) {
@@ -227,6 +229,15 @@ export function ResultsPanel({
               >
                 <TestTube2 className="h-4 w-4" />
                 Create A/B Test
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2"
+                onClick={onViewAllAds}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                View All Ads
               </Button>
             </div>
           </CardContent>

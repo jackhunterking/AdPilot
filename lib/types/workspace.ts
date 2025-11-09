@@ -13,13 +13,12 @@
 // ============================================================================
 
 export type WorkspaceMode =
-  | 'build'              // Initial ad creation
-  | 'results'            // Single ad results view (post-publish)
-  | 'edit'               // Edit existing ad
+  | 'build'              // Building new ad (creative first)
+  | 'results'            // Single ad results view
+  | 'edit'               // Editing existing ad
+  | 'all-ads'            // Grid view of all ads in campaign
   | 'ab-test-builder'    // A/B test setup wizard
   | 'ab-test-active'     // A/B test monitoring
-  | 'view-all-ads'       // Multiple variants grid
-  | 'build-variant'      // Create new ad variant
 
 // ============================================================================
 // Campaign Status
@@ -179,15 +178,17 @@ export interface WorkspaceState {
 
 export interface WorkspaceHeaderProps {
   mode: WorkspaceMode
-  onBack: () => void
-  onNewAd?: () => void
-  showNewAdButton?: boolean
+  onBack?: () => void        // Optional, only show for specific modes
+  onNewAd: () => void        // Always available after first publish
+  showBackButton?: boolean   // Control visibility
+  showNewAdButton: boolean   // Control visibility
   campaignStatus?: CampaignStatus
   abTestInfo?: {
     day: number
     totalDays: number
     testType: string
   }
+  totalAds?: number          // For all-ads mode display
 }
 
 // ============================================================================
@@ -200,8 +201,9 @@ export interface ResultsPanelProps {
   onEdit: () => void
   onPause: () => void
   onCreateABTest: () => void
-  onCreateNewVariant: () => void
+  onViewAllAds: () => void  // Navigate to all-ads grid view
   leadFormInfo?: LeadFormInfo
+  className?: string
 }
 
 export interface LeadFormInfo {
