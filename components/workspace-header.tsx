@@ -13,23 +13,7 @@
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { WorkspaceMode, CampaignStatus } from "@/lib/types/workspace"
-
-export interface WorkspaceHeaderProps {
-  mode: WorkspaceMode
-  onBack?: () => void        // Optional, only show for specific modes
-  onNewAd: () => void        // Always available after first publish
-  showBackButton?: boolean   // Control visibility
-  showNewAdButton: boolean   // Control visibility
-  campaignStatus?: CampaignStatus
-  abTestInfo?: {
-    day: number
-    totalDays: number
-    testType: string
-  }
-  totalAds?: number          // For all-ads mode display
-  className?: string
-}
+import type { WorkspaceHeaderProps } from "@/lib/types/workspace"
 
 export function WorkspaceHeader({
   mode,
@@ -40,6 +24,7 @@ export function WorkspaceHeader({
   campaignStatus,
   abTestInfo,
   totalAds,
+  hasPublishedAds,
   className,
 }: WorkspaceHeaderProps) {
   // Don't show back button in all-ads mode
@@ -48,12 +33,11 @@ export function WorkspaceHeader({
   // Determine back button text based on mode
   const getBackButtonText = () => {
     switch (mode) {
-      case 'results':           // NEW: Navigate to all-ads grid
+      case 'build':             // NEW: Navigate to all-ads grid when building subsequent ads
+      case 'results':
       case 'ab-test-builder':
       case 'edit':
         return 'Back to All Ads'  // All navigate to grid
-      case 'build':
-        return 'Back to Home'
       default:
         return 'Back'
     }

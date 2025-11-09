@@ -189,6 +189,8 @@ export interface WorkspaceHeaderProps {
     testType: string
   }
   totalAds?: number          // For all-ads mode display
+  hasPublishedAds?: boolean  // Track if campaign has published ads
+  className?: string
 }
 
 // ============================================================================

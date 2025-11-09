@@ -110,16 +110,43 @@ export function CampaignWorkspace() {
     ],
   } : undefined
 
+  // Convert CampaignAd to AdVariant
+  const convertedAds: AdVariant[] = useMemo(() => {
+    return ads.map(ad => ({
+      id: ad.id,
+      campaign_id: ad.campaign_id,
+      name: ad.name,
+      status: ad.status as 'draft' | 'active' | 'paused' | 'archived',
+      variant_type: 'original' as const,
+      creative_data: (ad.creative_data as AdVariant['creative_data']) || {
+        headline: '',
+        body: '',
+        cta: '',
+      },
+      metrics_snapshot: ad.metrics_snapshot as AdVariant['metrics_snapshot'],
+      meta_ad_id: ad.meta_ad_id || undefined,
+      created_at: ad.created_at,
+      updated_at: ad.updated_at,
+    }))
+  }, [ads])
+
+  // Track if campaign has any published ads (active or paused)
+  const hasPublishedAds = useMemo(() => {
+    return convertedAds.some(ad => ad.status === 'active' || ad.status === 'paused')
+  }, [convertedAds])
+
   // Navigation handlers
   const handleBack = useCallback(() => {
     if (effectiveMode === 'results' || effectiveMode === 'edit' || effectiveMode === 'ab-test-builder') {
       // All these modes navigate to all-ads grid
       setWorkspaceMode('all-ads')
     } else if (effectiveMode === 'build') {
-      // Go back to landing page
-      router.push('/')
+      // Only go to all-ads if we have published ads, otherwise do nothing (button should be hidden)
+      if (hasPublishedAds) {
+        setWorkspaceMode('all-ads')
+      }
     }
-  }, [effectiveMode, setWorkspaceMode, router])
+  }, [effectiveMode, hasPublishedAds, setWorkspaceMode])
 
   const handleNewAd = useCallback(() => {
     // Create new ad, go to build mode
@@ -153,31 +180,13 @@ export function CampaignWorkspace() {
     setWorkspaceMode('ab-test-builder', adId)
   }, [setWorkspaceMode])
 
-  // Convert CampaignAd to AdVariant
-  const convertedAds: AdVariant[] = useMemo(() => {
-    return ads.map(ad => ({
-      id: ad.id,
-      campaign_id: ad.campaign_id,
-      name: ad.name,
-      status: ad.status as 'draft' | 'active' | 'paused' | 'archived',
-      variant_type: 'original' as const,
-      creative_data: (ad.creative_data as AdVariant['creative_data']) || {
-        headline: '',
-        body: '',
-        cta: '',
-      },
-      metrics_snapshot: ad.metrics_snapshot as AdVariant['metrics_snapshot'],
-      meta_ad_id: ad.meta_ad_id || undefined,
-      created_at: ad.created_at,
-      updated_at: ad.updated_at,
-    }))
-  }, [ads])
-
   // Determine header props
   // Always show New Ad button in results and all-ads modes
   const showNewAdButton = effectiveMode === 'results' || effectiveMode === 'all-ads'
-  // Keep back button visible in results, only hide in all-ads
-  const showBackButton = effectiveMode !== 'all-ads'
+  // Show back button in all modes EXCEPT:
+  // 1. all-ads mode (it's the home base)
+  // 2. build mode when no published ads exist (first ad being built)
+  const showBackButton = effectiveMode !== 'all-ads' && !(effectiveMode === 'build' && !hasPublishedAds)
 
   // Get current variant for results/edit modes
   const getCurrentVariant = (): AdVariant => {
@@ -202,6 +211,7 @@ export function CampaignWorkspace() {
         showNewAdButton={showNewAdButton}
         campaignStatus={campaign?.published_status as CampaignStatus}
         totalAds={effectiveMode === 'all-ads' ? convertedAds.length : undefined}
+        hasPublishedAds={hasPublishedAds}
       />
 
       {/* Main Content */}
