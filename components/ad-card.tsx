@@ -22,8 +22,8 @@ export interface AdCardProps {
   ad: AdVariant
   onView: () => void
   onEdit: () => void
-  onPause: () => void
-  onResume: () => void
+  onPause: () => Promise<boolean>
+  onResume: () => Promise<boolean>
   onCreateABTest: () => void
   onDelete: () => void
   showABTestButton: boolean
@@ -67,9 +67,9 @@ export function AdCard({
     setShowPauseDialog(true)
   }
   
-  const handleConfirmPause = () => {
+  const handleConfirmPause = async () => {
     setShowPauseDialog(false)
-    onPause()
+    await onPause()
   }
   
   return (

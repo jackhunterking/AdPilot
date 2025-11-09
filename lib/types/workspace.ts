@@ -203,9 +203,9 @@ export interface ResultsPanelProps {
   variant: AdVariant
   metrics: AdMetrics
   onEdit: () => void
-  onPause: () => void
+  onPause: () => Promise<boolean>  // Returns true on success for navigation
+  onResume: () => Promise<boolean>  // Returns true on success
   onCreateABTest: () => void
-  onViewAllAds: () => void  // Navigate to all-ads grid view
   leadFormInfo?: LeadFormInfo
   className?: string
 }

@@ -302,7 +302,7 @@ export function CampaignWorkspace() {
     setWorkspaceMode('edit', adId)
   }, [setWorkspaceMode])
 
-  const handlePauseAd = useCallback(async (adId: string) => {
+  const handlePauseAd = useCallback(async (adId: string): Promise<boolean> => {
     try {
       console.log('[CampaignWorkspace] Pausing ad:', adId)
       
@@ -314,20 +314,23 @@ export function CampaignWorkspace() {
         const errorData = await response.json()
         console.error('[CampaignWorkspace] Failed to pause ad:', errorData)
         // TODO: Show error toast
-        return
+        return false
       }
       
       console.log('[CampaignWorkspace] Ad paused successfully:', adId)
       
       // Refresh ads list to update status
       await refreshAds()
+      
+      return true
     } catch (error) {
       console.error('[CampaignWorkspace] Error pausing ad:', error)
       // TODO: Show error toast
+      return false
     }
   }, [campaignId, refreshAds])
 
-  const handleResumeAd = useCallback(async (adId: string) => {
+  const handleResumeAd = useCallback(async (adId: string): Promise<boolean> => {
     try {
       console.log('[CampaignWorkspace] Resuming ad:', adId)
       
@@ -339,16 +342,19 @@ export function CampaignWorkspace() {
         const errorData = await response.json()
         console.error('[CampaignWorkspace] Failed to resume ad:', errorData)
         // TODO: Show error toast
-        return
+        return false
       }
       
       console.log('[CampaignWorkspace] Ad resumed successfully:', adId)
       
       // Refresh ads list to update status
       await refreshAds()
+      
+      return true
     } catch (error) {
       console.error('[CampaignWorkspace] Error resuming ad:', error)
       // TODO: Show error toast
+      return false
     }
   }, [campaignId, refreshAds])
 
@@ -455,9 +461,23 @@ export function CampaignWorkspace() {
                 variant={currentVariant}
                 metrics={getCurrentMetrics()}
                 onEdit={() => handleEditAd(currentAdId!)}
-                onPause={() => handlePauseAd(currentAdId!)}
+                onPause={async () => {
+                  const success = await handlePauseAd(currentAdId!)
+                  if (success) {
+                    // Navigate to all-ads view after successful pause
+                    handleViewAllAds()
+                  }
+                  return success
+                }}
+                onResume={async () => {
+                  const success = await handleResumeAd(currentAdId!)
+                  if (success) {
+                    // Navigate to all-ads view after successful resume
+                    handleViewAllAds()
+                  }
+                  return success
+                }}
                 onCreateABTest={() => handleCreateABTest(currentAdId!)}
-                onViewAllAds={handleViewAllAds}
                 leadFormInfo={mockLeadFormInfo}
               />
             </div>

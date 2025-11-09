@@ -13,7 +13,8 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Edit2, Pause, Play, TestTube2, ImageIcon, Video, Layers, LayoutGrid, Sparkles } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Edit2, Pause, Play, TestTube2, ImageIcon, Video, Layers, Sparkles, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { MetricsCard } from "@/components/results/metrics-card"
 import { LeadFormIndicator } from "@/components/results/lead-form-indicator"
@@ -24,9 +25,9 @@ export interface ResultsPanelProps {
   variant: AdVariant
   metrics: AdMetrics
   onEdit: () => void
-  onPause: () => void
+  onPause: () => Promise<boolean>  // Returns true on success for navigation
+  onResume: () => Promise<boolean>  // Returns true on success
   onCreateABTest: () => void
-  onViewAllAds: () => void  // Navigate to all-ads grid view
   leadFormInfo?: LeadFormInfo
   className?: string
 }
@@ -36,12 +37,14 @@ export function ResultsPanel({
   metrics,
   onEdit,
   onPause,
+  onResume,
   onCreateABTest,
-  onViewAllAds,
   leadFormInfo,
   className,
 }: ResultsPanelProps) {
   const [activeFormat, setActiveFormat] = useState<'feed' | 'story' | 'reel'>('feed')
+  const [showPauseDialog, setShowPauseDialog] = useState(false)
+  const [showResumeDialog, setShowResumeDialog] = useState(false)
   const isPaused = variant.status === 'paused'
   
   // Debug: Log what copy data we received
@@ -60,9 +63,94 @@ export function ResultsPanel({
     { id: "story" as const, label: "Story", icon: Layers },
     { id: "reel" as const, label: "Reel", icon: Video, comingSoon: true },
   ]
+  
+  const handlePauseClick = () => {
+    setShowPauseDialog(true)
+  }
+  
+  const handleConfirmPause = async () => {
+    setShowPauseDialog(false)
+    await onPause()
+  }
+  
+  const handleResumeClick = () => {
+    setShowResumeDialog(true)
+  }
+  
+  const handleConfirmResume = async () => {
+    setShowResumeDialog(false)
+    await onResume()
+  }
 
   return (
-    <div className={cn("flex flex-1 h-full gap-6 p-6 overflow-auto", className)}>
+    <>
+      {/* Pause Confirmation Dialog */}
+      <Dialog open={showPauseDialog} onOpenChange={setShowPauseDialog}>
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader className="mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-500/10">
+                <AlertTriangle className="h-6 w-6 text-orange-600" />
+              </div>
+              <DialogTitle className="text-xl">Pause Ad?</DialogTitle>
+            </div>
+          </DialogHeader>
+          <DialogDescription className="text-sm text-muted-foreground mb-6">
+            Are you sure you want to pause <strong>{variant.name}</strong>? The ad will stop running and won&apos;t reach new people until you resume it.
+          </DialogDescription>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setShowPauseDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="lg"
+              onClick={handleConfirmPause}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              Pause
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resume Confirmation Dialog */}
+      <Dialog open={showResumeDialog} onOpenChange={setShowResumeDialog}>
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader className="mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
+                <Play className="h-6 w-6 text-green-600" />
+              </div>
+              <DialogTitle className="text-xl">Resume Ad?</DialogTitle>
+            </div>
+          </DialogHeader>
+          <DialogDescription className="text-sm text-muted-foreground mb-6">
+            Are you sure you want to resume <strong>{variant.name}</strong>? The ad will start running again and reach new people.
+          </DialogDescription>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setShowResumeDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="lg"
+              onClick={handleConfirmResume}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              Resume
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <div className={cn("flex flex-1 h-full gap-6 p-6 overflow-auto", className)}>
       {/* Left: Ad Preview (40%) */}
       <div className="flex-[2] flex flex-col gap-4 min-w-0">
         <Card>
@@ -134,7 +222,7 @@ export function ResultsPanel({
                 <Button
                   variant="outline"
                   className="w-full justify-start gap-2 text-sm h-9"
-                  onClick={onPause}
+                  onClick={isPaused ? handleResumeClick : handlePauseClick}
                 >
                   {isPaused ? (
                     <>
@@ -151,20 +239,12 @@ export function ResultsPanel({
 
                 <Button
                   variant="outline"
-                  className="w-full justify-start gap-2 text-sm h-9"
-                  onClick={onCreateABTest}
+                  className="w-full justify-start gap-2 text-sm h-9 cursor-not-allowed opacity-50 relative"
+                  disabled
                 >
                   <TestTube2 className="h-3.5 w-3.5" />
-                  Create A/B Test
-                </Button>
-
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2 text-sm h-9"
-                  onClick={onViewAllAds}
-                >
-                  <LayoutGrid className="h-3.5 w-3.5" />
-                  View All Ads
+                  A/B Test (Coming Soon)
+                  <Sparkles size={10} className="absolute -top-0.5 -right-0.5 text-yellow-500 animate-pulse" />
                 </Button>
               </div>
             </CardContent>
@@ -177,6 +257,7 @@ export function ResultsPanel({
         </div>
       </div>
     </div>
+    </>
   )
 }
 

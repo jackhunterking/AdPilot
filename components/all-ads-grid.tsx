@@ -28,8 +28,8 @@ export interface AllAdsGridProps {
   ads: AdVariant[]
   onViewAd: (adId: string) => void
   onEditAd: (adId: string) => void
-  onPauseAd: (adId: string) => void
-  onResumeAd: (adId: string) => void
+  onPauseAd: (adId: string) => Promise<boolean>
+  onResumeAd: (adId: string) => Promise<boolean>
   onCreateABTest: (adId: string) => void
   onDeleteAd: (adId: string) => void
   saveSuccessState: SaveSuccessState | null
