@@ -87,7 +87,7 @@ export function PublishBudgetCard({
               )}
             </div>
             <div>
-              <h3 className="text-base font-semibold text-foreground">Publish campaign</h3>
+              <h3 className="text-base font-semibold text-foreground">Publish ad</h3>
               <p className="text-sm text-muted-foreground">
                 {allStepsComplete
                   ? "Everything looks good. Launch when you're ready."
@@ -111,7 +111,7 @@ export function PublishBudgetCard({
             {isPublished ? (
               <>
                 <ShieldCheck className="h-5 w-5" />
-                Campaign Published
+                Ad Published
               </>
             ) : isPublishing ? (
               <>
@@ -121,7 +121,7 @@ export function PublishBudgetCard({
             ) : (
               <>
                 <Play className="h-5 w-5" />
-                Publish Campaign
+                Publish Ad
               </>
             )}
           </Button>

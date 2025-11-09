@@ -38,7 +38,7 @@ interface PublishFlowDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   campaignName?: string
-  onComplete?: () => void
+  onComplete?: () => void | Promise<void>
 }
 
 interface StepConfig {
@@ -51,14 +51,14 @@ interface StepConfig {
 const PUBLISH_STEPS: StepConfig[] = [
   {
     id: "validating",
-    title: "Validating campaign settings",
+    title: "Validating ad settings",
     description: "Checking all requirements are met",
     duration: 1200,
   },
   {
     id: "creating-campaign",
-    title: "Creating campaign structure",
-    description: "Setting up campaign in Meta Ads Manager",
+    title: "Creating ad structure",
+    description: "Setting up ad in Meta Ads Manager",
     duration: 1500,
   },
   {
@@ -75,7 +75,7 @@ const PUBLISH_STEPS: StepConfig[] = [
   },
   {
     id: "scheduling",
-    title: "Scheduling campaign",
+    title: "Scheduling ad",
     description: "Setting budget and schedule parameters",
     duration: 1000,
   },
@@ -84,7 +84,7 @@ const PUBLISH_STEPS: StepConfig[] = [
 export function PublishFlowDialog({
   open,
   onOpenChange,
-  campaignName = "your campaign",
+  campaignName = "your ad",
   onComplete,
 }: PublishFlowDialogProps) {
   const [currentStep, setCurrentStep] = useState<PublishStep | null>(null)
@@ -120,7 +120,7 @@ export function PublishFlowDialog({
       if (!isCancelled) {
         setCurrentStep("complete")
         setIsComplete(true)
-        onComplete?.()
+        await onComplete?.()
       }
     }
 
@@ -163,7 +163,7 @@ export function PublishFlowDialog({
             </div>
             <div>
               <h2 className="text-xl font-semibold">
-                {isComplete ? "Campaign Published!" : "Publishing Campaign"}
+                {isComplete ? "Ad Published!" : "Publishing Ad"}
               </h2>
               <p className="text-sm text-muted-foreground">
                 {isComplete 
@@ -223,7 +223,7 @@ export function PublishFlowDialog({
           {isComplete && (
             <div className="space-y-4 mb-6">
               <Response isAnimating={false}>
-                Your campaign has been successfully published to Meta Ads Manager. It will begin running according to your schedule and budget settings.
+                Your ad has been successfully published to Meta Ads Manager. It will begin running according to your schedule and budget settings.
               </Response>
               
               <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-4">
@@ -232,10 +232,10 @@ export function PublishFlowDialog({
                   <div className="flex-1">
                     <h3 className="font-medium text-sm mb-1">What happens next?</h3>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                      <li>• Your ads will be reviewed by Meta (typically within 24 hours)</li>
-                      <li>• Once approved, they'll start showing to your target audience</li>
-                      <li>• You can monitor performance in the Results tab</li>
-                      <li>• Edit or pause your campaign anytime from the dashboard</li>
+                      <li>• Your ad will be reviewed by Meta (typically within 24 hours)</li>
+                      <li>• Once approved, it'll start showing to your target audience</li>
+                      <li>• You can monitor performance in the Results view</li>
+                      <li>• Edit or pause your ad anytime from the dashboard</li>
                     </ul>
                   </div>
                 </div>

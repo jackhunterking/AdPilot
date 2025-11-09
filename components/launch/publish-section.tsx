@@ -45,7 +45,7 @@ export function PublishSection({
             <h3 className="font-semibold text-lg">Ready to Publish!</h3>
           </div>
           <p className="text-sm text-muted-foreground mb-3">
-            All steps completed. Review your campaign and publish when ready.
+            All steps completed. Review your ad and publish when ready.
           </p>
         </>
       ) : (
@@ -78,12 +78,12 @@ export function PublishSection({
         {isPublished ? (
           <>
             <CheckCircle2 className="h-5 w-5" />
-            Campaign Published
+            Ad Published
           </>
         ) : (
           <>
             <Play className="h-5 w-5" />
-            Publish Campaign
+            Publish Ad
           </>
         )}
       </Button>

@@ -235,7 +235,7 @@ export function PreviewPanel() {
   }, [campaign?.id, budgetState.selectedAdAccount])
 
   /**
-   * Handles campaign publish action
+   * Handles ad publish action
    * 
    * NOTE: This currently opens a simulated publish flow dialog for UX demonstration.
    * TODO: Wire in actual Meta API calls when ready for production:
@@ -256,10 +256,72 @@ export function PreviewPanel() {
     setPublishDialogOpen(true)
   }
   
-  const handlePublishComplete = () => {
-    // Mark campaign as published
-    setIsPublished(true)
-    setIsPublishing(false)
+  const handlePublishComplete = async () => {
+    if (!campaign?.id) return
+    
+    try {
+      // Gather the finalized ad data from all contexts
+      const activeCopyVariations = getActiveVariations()
+      const selectedCopy = adCopyState.selectedCopyIndex !== null 
+        ? activeCopyVariations[adCopyState.selectedCopyIndex]
+        : activeCopyVariations[0]
+      
+      const selectedImageUrl = selectedImageIndex !== null && adContent?.imageVariations?.[selectedImageIndex]
+        ? adContent.imageVariations[selectedImageIndex]
+        : adContent?.imageUrl || adContent?.imageVariations?.[0]
+      
+      // Prepare the ad data for persistence
+      const adData = {
+        name: `${campaign.name} - Ad ${new Date().toLocaleDateString()}`,
+        status: 'active',
+        creative_data: {
+          imageUrl: selectedImageUrl,
+          imageVariations: adContent?.imageVariations,
+          baseImageUrl: adContent?.baseImageUrl,
+        },
+        copy_data: {
+          headline: selectedCopy?.headline || adContent?.headline,
+          primaryText: selectedCopy?.primaryText || adContent?.body,
+          description: selectedCopy?.description || adContent?.body,
+          cta: adContent?.cta || 'Learn More',
+        },
+        meta_ad_id: null, // Will be set when actually published to Meta
+      }
+      
+      // Persist the ad to Supabase
+      const response = await fetch(`/api/campaigns/${campaign.id}/ads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adData),
+      })
+      
+      if (!response.ok) {
+        console.error('Failed to persist ad:', await response.text())
+        throw new Error('Failed to save ad')
+      }
+      
+      const { ad } = await response.json()
+      console.log('✅ Ad persisted:', ad.id)
+      
+      // Mark as published in context
+      setIsPublished(true)
+      setIsPublishing(false)
+      
+      // Navigate to the results view for this new ad
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href)
+        url.searchParams.set('view', 'results')
+        url.searchParams.set('adId', ad.id)
+        window.history.pushState({}, '', url.toString())
+        
+        // Force a reload to show the results panel
+        window.location.reload()
+      }
+    } catch (error) {
+      console.error('Error in handlePublishComplete:', error)
+      setIsPublishing(false)
+      // TODO: Show error toast to user
+    }
   }
   
   const handlePublishDialogClose = (open: boolean) => {
@@ -1096,8 +1158,8 @@ export function PreviewPanel() {
         {
           id: "budget",
           number: 7,
-          title: "Launch Campaign",
-          description: "Review details and publish your ads",
+          title: "Launch Ad",
+          description: "Review details and publish your ad",
           completed: isComplete(),
           content: launchContent,
           icon: Rocket,
@@ -1128,7 +1190,7 @@ export function PreviewPanel() {
       <PublishFlowDialog
         open={publishDialogOpen}
         onOpenChange={handlePublishDialogClose}
-        campaignName={campaign?.name || "your campaign"}
+        campaignName={campaign?.name || "your ad"}
         onComplete={handlePublishComplete}
       />
     </div>

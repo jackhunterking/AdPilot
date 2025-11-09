@@ -44,6 +44,9 @@ export function CampaignWorkspace() {
   // 2. Campaign has at least one ad in database
   const shouldShowAllAds = !viewParam && ads.length > 0
   const effectiveMode: WorkspaceMode = shouldShowAllAds ? 'all-ads' : (viewParam || 'build')
+  
+  // If we're in results mode but don't have the specific ad yet, show all-ads instead
+  const shouldFallbackToAllAds = effectiveMode === 'results' && !currentAdId && ads.length > 0
 
   // Update URL when mode changes
   const setWorkspaceMode = useCallback((mode: WorkspaceMode, adId?: string) => {
@@ -229,7 +232,7 @@ export function CampaignWorkspace() {
           <PreviewPanel />
         )}
 
-        {effectiveMode === 'results' && (
+        {(effectiveMode === 'results' || shouldFallbackToAllAds) && !shouldFallbackToAllAds && currentAdId && (
           <div className="flex flex-1 h-full p-6">
             <ResultsPanel
               variant={getCurrentVariant()}
@@ -243,7 +246,7 @@ export function CampaignWorkspace() {
           </div>
         )}
 
-        {effectiveMode === 'all-ads' && (
+        {(effectiveMode === 'all-ads' || shouldFallbackToAllAds) && (
           <AllAdsGrid
             ads={convertedAds}
             onViewAd={handleViewAd}
