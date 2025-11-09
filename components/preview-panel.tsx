@@ -44,6 +44,11 @@ export function PreviewPanel() {
   const searchParams = useSearchParams()
   const isCreatingVariant = searchParams.get('variant') === 'true'
   
+  // Detect if we're editing an existing ad
+  const viewMode = searchParams.get('view')
+  const currentAdId = searchParams.get('adId')
+  const isEditingExistingAd = viewMode === 'edit' && !!currentAdId
+  
   const [activeFormat, setActiveFormat] = useState("feed")
   // Removed regenerate feature: no regenerating state
   const { adContent, setAdContent, isPublished, setIsPublished, selectedImageIndex, selectedCreativeVariation, setSelectedCreativeVariation, setSelectedImageIndex } = useAdPreview()
@@ -329,29 +334,32 @@ export function PreviewPanel() {
       })
       
       console.log('📦 Ad data being sent to API:', {
+        isEdit: isEditingExistingAd,
+        adId: currentAdId,
         name: adData.name,
         status: adData.status,
         copy_data: adData.copy_data,
         creative_data: adData.creative_data,
       })
       
-      // Persist the ad to Supabase
-      const response = await fetch(`/api/campaigns/${campaign.id}/ads`, {
-        method: 'POST',
+      // Persist the ad to Supabase (UPDATE existing or CREATE new)
+      const apiUrl = isEditingExistingAd 
+        ? `/api/campaigns/${campaign.id}/ads/${currentAdId}`
+        : `/api/campaigns/${campaign.id}/ads`
+      
+      const response = await fetch(apiUrl, {
+        method: isEditingExistingAd ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(adData),
       })
       
       if (!response.ok) {
         console.error('Failed to persist ad:', await response.text())
-        throw new Error('Failed to save ad')
+        throw new Error(isEditingExistingAd ? 'Failed to update ad' : 'Failed to create ad')
       }
       
       const { ad } = await response.json()
-      console.log('✅ Ad persisted with snapshot:', ad.id)
-      
-      // Capture whether this was an edit before updating state
-      const wasEdit = isPublished
+      console.log(`✅ Ad ${isEditingExistingAd ? 'updated' : 'created'}:`, ad.id)
       
       // Mark as published in context
       setIsPublished(true)
@@ -366,7 +374,7 @@ export function PreviewPanel() {
           detail: {
             campaignId: campaign.id,
             campaignName: campaign.name,
-            isEdit: wasEdit,
+            isEdit: isEditingExistingAd, // Use actual edit state from URL
             adId: ad.id,
             timestamp: Date.now()
           }
