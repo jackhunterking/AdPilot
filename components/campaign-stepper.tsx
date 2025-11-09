@@ -281,67 +281,93 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
                 </p>
               </div>
 
-              {/* Step Indicators */}
-              <div className="flex items-center justify-center gap-2 h-10">
-                {steps.map((step, index) => {
-                  const isTargetCompleted = step.completed
-                  const isNextStep = index === currentStepIndex + 1
-                  const isPreviousStep = index < currentStepIndex
-                  const canNavigate = isTargetCompleted || isPreviousStep || (isNextStep && currentStepCompleted)
-                  
-                  return (
-                  <div key={step.id} className="flex items-center">
-                    <button
-                      onClick={() => handleStepClick(index)}
-                      disabled={!canNavigate}
-                      className={cn(
-                        "relative flex items-center justify-center transition-opacity",
-                        index === currentStepIndex
-                          ? "h-10 w-10"
-                          : "h-8 w-8",
-                        !canNavigate && "opacity-40 cursor-not-allowed"
-                      )}
-                      title={step.title}
-                    >
-                      <div
-                        className={cn(
-                          "absolute inset-0 flex items-center justify-center rounded-full border transition-all",
-                          step.completed
-                            ? "border-green-500 bg-green-500 text-white"
-                            : index === currentStepIndex
-                            ? "border-yellow-500 bg-yellow-500 text-white"
-                            : canNavigate
-                            ? "border-yellow-500/60 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
-                            : "border-muted-foreground/20 bg-muted text-muted-foreground"
-                        )}
-                      >
-                        {step.completed ? (
-                          <Check className="h-4 w-4" />
-                        ) : (
-                          <AlertTriangle className="h-4 w-4" />
-                        )}
-                      </div>
-                      
-                      {/* Active step indicator ring */}
-                      {index === currentStepIndex && (
-                        <div className="absolute inset-0 rounded-full border-2 border-blue-500 animate-in zoom-in duration-200" />
-                      )}
-                    </button>
+              {/* Step Indicators with Inline Navigation */}
+              <div className="flex items-center justify-between gap-4 h-10">
+                {/* Back Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBack}
+                  disabled={isFirstStep}
+                  className="gap-1.5 flex-shrink-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Back
+                </Button>
+
+                {/* Step Indicators */}
+                <div className="flex items-center justify-center gap-2">
+                  {steps.map((step, index) => {
+                    const isTargetCompleted = step.completed
+                    const isNextStep = index === currentStepIndex + 1
+                    const isPreviousStep = index < currentStepIndex
+                    const canNavigate = isTargetCompleted || isPreviousStep || (isNextStep && currentStepCompleted)
                     
-                    {/* Connector Line */}
-                    {index < steps.length - 1 && (
-                      <div
+                    return (
+                    <div key={step.id} className="flex items-center">
+                      <button
+                        onClick={() => handleStepClick(index)}
+                        disabled={!canNavigate}
                         className={cn(
-                          "h-0.5 w-8 md:w-16 transition-colors",
-                          steps[index + 1]?.completed || index < currentStepIndex
-                            ? "bg-green-500"
-                            : "bg-muted"
+                          "relative flex items-center justify-center transition-opacity",
+                          index === currentStepIndex
+                            ? "h-10 w-10"
+                            : "h-8 w-8",
+                          !canNavigate && "opacity-40 cursor-not-allowed"
                         )}
-                      />
-                    )}
-                  </div>
-                  )
-                })}
+                        title={step.title}
+                      >
+                        <div
+                          className={cn(
+                            "absolute inset-0 flex items-center justify-center rounded-full border transition-all",
+                            step.completed
+                              ? "border-green-500 bg-green-500 text-white"
+                              : index === currentStepIndex
+                              ? "border-yellow-500 bg-yellow-500 text-white"
+                              : canNavigate
+                              ? "border-yellow-500/60 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+                              : "border-muted-foreground/20 bg-muted text-muted-foreground"
+                          )}
+                        >
+                          {step.completed ? (
+                            <Check className="h-4 w-4" />
+                          ) : (
+                            <AlertTriangle className="h-4 w-4" />
+                          )}
+                        </div>
+                        
+                        {/* Active step indicator ring */}
+                        {index === currentStepIndex && (
+                          <div className="absolute inset-0 rounded-full border-2 border-blue-500 animate-in zoom-in duration-200" />
+                        )}
+                      </button>
+                      
+                      {/* Connector Line */}
+                      {index < steps.length - 1 && (
+                        <div
+                          className={cn(
+                            "h-0.5 w-8 transition-colors",
+                            steps[index + 1]?.completed || index < currentStepIndex
+                              ? "bg-green-500"
+                              : "bg-muted"
+                          )}
+                        />
+                      )}
+                    </div>
+                    )
+                  })}
+                </div>
+
+                {/* Next Button */}
+                <Button
+                  size="sm"
+                  onClick={handleNext}
+                  disabled={!canGoNext || isLastStep}
+                  className="gap-1.5 flex-shrink-0 bg-[#4B73FF] hover:bg-[#3d5fd9] disabled:opacity-50"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
 
             </div>
@@ -355,45 +381,6 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
             >
               <div className="p-6 min-h-full">
                 {currentStep.content}
-              </div>
-            </div>
-          </div>
-
-          {/* Navigation Buttons */}
-          <div className="border-t border-border bg-card px-6 py-4 flex-shrink-0">
-            <div className="max-w-5xl mx-auto flex items-center justify-between">
-              <div className="flex-1">
-                {!isFirstStep && (
-                  <Button
-                    variant="outline"
-                    onClick={handleBack}
-                    className="gap-2"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Back
-                  </Button>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                {!currentStepCompleted && (
-                  <span className="text-yellow-600 dark:text-yellow-500">
-                    Complete this step to continue
-                  </span>
-                )}
-              </div>
-
-              <div className="flex-1 flex justify-end">
-                {!isLastStep && (
-                  <Button
-                    onClick={handleNext}
-                    disabled={!canGoNext}
-                    className="gap-2 bg-[#4B73FF] hover:bg-[#3d5fd9] disabled:opacity-50"
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                )}
               </div>
             </div>
           </div>
