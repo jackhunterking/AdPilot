@@ -54,7 +54,8 @@ export async function POST(
       status = "draft",
       creative_data,
       copy_data,
-      meta_ad_id = null
+      meta_ad_id = null,
+      setup_snapshot // NEW: Accept complete wizard snapshot
     } = body
 
     if (!name) {
@@ -64,17 +65,52 @@ export async function POST(
       )
     }
 
-    // Create new ad
+    // Validate setup_snapshot if provided
+    if (setup_snapshot) {
+      // Basic validation - ensure snapshot has required structure
+      if (!setup_snapshot.creative || !setup_snapshot.copy || !setup_snapshot.goal) {
+        return NextResponse.json(
+          { error: "Invalid setup_snapshot structure" },
+          { status: 400 }
+        )
+      }
+    }
+
+    // If setup_snapshot is provided, use it as source of truth for creative_data and copy_data
+    let finalCreativeData = creative_data
+    let finalCopyData = copy_data
+
+    if (setup_snapshot) {
+      // Extract creative data from snapshot
+      finalCreativeData = {
+        imageUrl: setup_snapshot.creative.imageVariations?.[setup_snapshot.creative.selectedImageIndex ?? 0] || setup_snapshot.creative.imageUrl,
+        imageVariations: setup_snapshot.creative.imageVariations,
+        baseImageUrl: setup_snapshot.creative.baseImageUrl,
+        format: setup_snapshot.creative.format
+      }
+
+      // Extract copy data from snapshot
+      finalCopyData = {
+        headline: setup_snapshot.copy.headline,
+        primaryText: setup_snapshot.copy.primaryText,
+        description: setup_snapshot.copy.description,
+        cta: setup_snapshot.copy.cta,
+        variations: setup_snapshot.copy.variations
+      }
+    }
+
+    // Create new ad with snapshot
     const { data: ad, error } = await supabaseServer
       .from("ads")
       .insert({
         campaign_id: campaignId,
         name,
         status,
-        creative_data,
-        copy_data,
+        creative_data: finalCreativeData,
+        copy_data: finalCopyData,
         meta_ad_id,
-        metrics_snapshot: null
+        metrics_snapshot: null,
+        setup_snapshot // Store complete snapshot
       })
       .select()
       .single()

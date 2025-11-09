@@ -111,24 +111,60 @@ export function CampaignWorkspace() {
     ],
   } : undefined
 
-  // Convert CampaignAd to AdVariant
+  // Convert CampaignAd to AdVariant using snapshot data as source of truth
   const convertedAds: AdVariant[] = useMemo(() => {
-    return ads.map(ad => ({
-      id: ad.id,
-      campaign_id: ad.campaign_id,
-      name: ad.name,
-      status: ad.status as 'draft' | 'active' | 'paused' | 'archived',
-      variant_type: 'original' as const,
-      creative_data: (ad.creative_data as AdVariant['creative_data']) || {
-        headline: '',
-        body: '',
-        cta: '',
-      },
-      metrics_snapshot: ad.metrics_snapshot as AdVariant['metrics_snapshot'],
-      meta_ad_id: ad.meta_ad_id || undefined,
-      created_at: ad.created_at,
-      updated_at: ad.updated_at,
-    }))
+    return ads.map(ad => {
+      // Try to use setup_snapshot first, fall back to legacy fields
+      const snapshot = ad.setup_snapshot as Record<string, unknown> | null
+      
+      let creative_data: AdVariant['creative_data']
+      
+      if (snapshot?.creative) {
+        const creativeSnapshot = snapshot.creative as {
+          imageUrl?: string
+          imageVariations?: string[]
+          selectedImageIndex?: number | null
+        }
+        const copySnapshot = snapshot.copy as {
+          headline?: string
+          primaryText?: string
+          description?: string
+          cta?: string
+        }
+        
+        // Build creative_data from snapshot
+        const selectedIndex = creativeSnapshot.selectedImageIndex ?? 0
+        creative_data = {
+          imageUrl: creativeSnapshot.imageVariations?.[selectedIndex] || creativeSnapshot.imageUrl,
+          imageVariations: creativeSnapshot.imageVariations,
+          headline: copySnapshot?.headline || '',
+          body: copySnapshot?.primaryText || '',
+          primaryText: copySnapshot?.primaryText,
+          description: copySnapshot?.description,
+          cta: copySnapshot?.cta || 'Learn More',
+        }
+      } else {
+        // Fallback to legacy fields
+        creative_data = (ad.creative_data as AdVariant['creative_data']) || {
+          headline: '',
+          body: '',
+          cta: '',
+        }
+      }
+      
+      return {
+        id: ad.id,
+        campaign_id: ad.campaign_id,
+        name: ad.name,
+        status: ad.status as 'draft' | 'active' | 'paused' | 'archived',
+        variant_type: 'original' as const,
+        creative_data,
+        metrics_snapshot: ad.metrics_snapshot as AdVariant['metrics_snapshot'],
+        meta_ad_id: ad.meta_ad_id || undefined,
+        created_at: ad.created_at,
+        updated_at: ad.updated_at,
+      }
+    })
   }, [ads])
 
   // Track if campaign has any published ads (active or paused)
@@ -201,14 +237,29 @@ export function CampaignWorkspace() {
   const showBackButton = effectiveMode !== 'all-ads' && !(effectiveMode === 'build' && !hasPublishedAds)
 
   // Get current variant for results/edit modes
-  const getCurrentVariant = (): AdVariant => {
-    // TODO: Fetch actual variant by currentAdId from API
+  const getCurrentVariant = (): AdVariant | null => {
+    if (!currentAdId) return null
+    
+    // Find the ad by ID from our converted ads
+    const ad = convertedAds.find(a => a.id === currentAdId)
+    if (ad) return ad
+    
+    // Fallback to mock if not found (shouldn't happen in normal flow)
+    console.warn(`Ad ${currentAdId} not found in converted ads, using mock`)
     return mockVariant
   }
 
   // Get current metrics
   const getCurrentMetrics = (): AdMetrics => {
-    // TODO: Fetch actual metrics by currentAdId from API
+    if (!currentAdId) return mockMetrics
+    
+    // Find the ad by ID and return its metrics
+    const ad = convertedAds.find(a => a.id === currentAdId)
+    if (ad?.metrics_snapshot) {
+      return ad.metrics_snapshot
+    }
+    
+    // Fallback to mock metrics
     return mockMetrics
   }
 
@@ -232,19 +283,29 @@ export function CampaignWorkspace() {
           <PreviewPanel />
         )}
 
-        {(effectiveMode === 'results' || shouldFallbackToAllAds) && !shouldFallbackToAllAds && currentAdId && (
-          <div className="flex flex-1 h-full p-6">
-            <ResultsPanel
-              variant={getCurrentVariant()}
-              metrics={getCurrentMetrics()}
-              onEdit={() => handleEditAd(currentAdId!)}
-              onPause={() => handlePauseAd(currentAdId!)}
-              onCreateABTest={() => handleCreateABTest(currentAdId!)}
-              onViewAllAds={handleViewAllAds}
-              leadFormInfo={mockLeadFormInfo}
-            />
-          </div>
-        )}
+        {(effectiveMode === 'results' || shouldFallbackToAllAds) && !shouldFallbackToAllAds && currentAdId && (() => {
+          const currentVariant = getCurrentVariant()
+          if (!currentVariant) {
+            return (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-muted-foreground">Loading ad...</p>
+              </div>
+            )
+          }
+          return (
+            <div className="flex flex-1 h-full p-6">
+              <ResultsPanel
+                variant={currentVariant}
+                metrics={getCurrentMetrics()}
+                onEdit={() => handleEditAd(currentAdId!)}
+                onPause={() => handlePauseAd(currentAdId!)}
+                onCreateABTest={() => handleCreateABTest(currentAdId!)}
+                onViewAllAds={handleViewAllAds}
+                leadFormInfo={mockLeadFormInfo}
+              />
+            </div>
+          )
+        })()}
 
         {(effectiveMode === 'all-ads' || shouldFallbackToAllAds) && (
           <AllAdsGrid
@@ -261,17 +322,27 @@ export function CampaignWorkspace() {
           <PreviewPanel />
         )}
 
-        {effectiveMode === 'ab-test-builder' && (
-          <ABTestBuilder
-            campaign_id={campaignId}
-            current_variant={getCurrentVariant()}
-            onCancel={() => setWorkspaceMode('results', currentAdId || undefined)}
-            onComplete={(test) => {
-              // TODO: Handle test creation
-              setWorkspaceMode('results', currentAdId || undefined)
-            }}
-          />
-        )}
+        {effectiveMode === 'ab-test-builder' && (() => {
+          const currentVariant = getCurrentVariant()
+          if (!currentVariant) {
+            return (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-muted-foreground">Loading ad...</p>
+              </div>
+            )
+          }
+          return (
+            <ABTestBuilder
+              campaign_id={campaignId}
+              current_variant={currentVariant}
+              onCancel={() => setWorkspaceMode('results', currentAdId || undefined)}
+              onComplete={(test) => {
+                // TODO: Handle test creation
+                setWorkspaceMode('results', currentAdId || undefined)
+              }}
+            />
+          )
+        })()}
       </div>
     </div>
   )

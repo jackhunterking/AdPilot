@@ -25,6 +25,7 @@ export interface CampaignAd {
     reach?: number
     results?: number
   } | null
+  setup_snapshot: Record<string, unknown> | null // NEW: Complete wizard snapshot
   created_at: string
   updated_at: string
 }

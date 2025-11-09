@@ -260,7 +260,35 @@ export function PreviewPanel() {
     if (!campaign?.id) return
     
     try {
-      // Gather the finalized ad data from all contexts
+      // Import the snapshot builder dynamically
+      const { buildAdSnapshot, validateAdSnapshot } = await import('@/lib/services/ad-snapshot-builder')
+      
+      // Build complete snapshot from wizard contexts
+      const snapshot = buildAdSnapshot({
+        adPreview: {
+          adContent,
+          selectedImageIndex,
+          selectedCreativeVariation,
+        },
+        adCopy: adCopyState,
+        location: locationState,
+        audience: audienceState,
+        goal: goalState,
+        budget: budgetState,
+      })
+      
+      // Validate snapshot before submitting
+      const validation = validateAdSnapshot(snapshot)
+      if (!validation.isValid) {
+        console.error('Snapshot validation failed:', validation.errors)
+        throw new Error(`Cannot publish: ${validation.errors.join(', ')}`)
+      }
+      
+      if (validation.warnings.length > 0) {
+        console.warn('Snapshot warnings:', validation.warnings)
+      }
+      
+      // Gather the finalized ad data from snapshot
       const activeCopyVariations = getActiveVariations()
       const selectedCopy = adCopyState.selectedCopyIndex !== null 
         ? activeCopyVariations[adCopyState.selectedCopyIndex]
@@ -270,7 +298,7 @@ export function PreviewPanel() {
         ? adContent.imageVariations[selectedImageIndex]
         : adContent?.imageUrl || adContent?.imageVariations?.[0]
       
-      // Prepare the ad data for persistence
+      // Prepare the ad data for persistence (with snapshot as source of truth)
       const adData = {
         name: `${campaign.name} - Ad ${new Date().toLocaleDateString()}`,
         status: 'active',
@@ -286,7 +314,16 @@ export function PreviewPanel() {
           cta: adContent?.cta || 'Learn More',
         },
         meta_ad_id: null, // Will be set when actually published to Meta
+        setup_snapshot: snapshot, // NEW: Include complete snapshot
       }
+      
+      console.log('📸 Publishing ad with snapshot:', {
+        hasSnapshot: !!snapshot,
+        creative: snapshot.creative.selectedImageIndex,
+        copy: snapshot.copy.headline,
+        locations: snapshot.location.locations.length,
+        goal: snapshot.goal.type,
+      })
       
       // Persist the ad to Supabase
       const response = await fetch(`/api/campaigns/${campaign.id}/ads`, {
@@ -301,7 +338,7 @@ export function PreviewPanel() {
       }
       
       const { ad } = await response.json()
-      console.log('✅ Ad persisted:', ad.id)
+      console.log('✅ Ad persisted with snapshot:', ad.id)
       
       // Mark as published in context
       setIsPublished(true)

@@ -51,17 +51,22 @@ export function AdCard({
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
       {/* Ad preview thumbnail */}
       <div className="aspect-square bg-muted relative overflow-hidden">
-        {ad.creative_data.imageUrl ? (
-          <img
-            src={ad.creative_data.imageUrl}
-            alt={ad.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-            <span className="text-sm">No image</span>
-          </div>
-        )}
+        {(() => {
+          // Get the first available image from variations or single imageUrl
+          const imageUrl = ad.creative_data.imageVariations?.[0] || ad.creative_data.imageUrl
+          
+          return imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={ad.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+              <span className="text-sm">No image</span>
+            </div>
+          )
+        })()}
       </div>
       
       {/* Ad info */}
