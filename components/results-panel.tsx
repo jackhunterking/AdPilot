@@ -43,6 +43,17 @@ export function ResultsPanel({
 }: ResultsPanelProps) {
   const [activeFormat, setActiveFormat] = useState<'feed' | 'story' | 'reel'>('feed')
   const isPaused = variant.status === 'paused'
+  
+  // Debug: Log what copy data we received
+  console.log('[ResultsPanel] 📋 Received variant data:', {
+    id: variant.id,
+    name: variant.name,
+    headline: variant.creative_data.headline,
+    primaryText: variant.creative_data.primaryText?.substring(0, 50) + '...',
+    body: variant.creative_data.body?.substring(0, 50) + '...',
+    description: variant.creative_data.description?.substring(0, 30) + '...',
+    cta: variant.creative_data.cta,
+  })
 
   const previewFormats = [
     { id: "feed" as const, label: "Feed", icon: ImageIcon },

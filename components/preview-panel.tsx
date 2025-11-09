@@ -317,9 +317,21 @@ export function PreviewPanel() {
       console.log('📸 Publishing ad with snapshot:', {
         hasSnapshot: !!snapshot,
         creative: snapshot.creative.selectedImageIndex,
-        copy: snapshot.copy.headline,
+        copy: {
+          headline: snapshot.copy.headline,
+          primaryText: snapshot.copy.primaryText?.substring(0, 50) + '...',
+          description: snapshot.copy.description?.substring(0, 30) + '...',
+          cta: snapshot.copy.cta,
+        },
         locations: snapshot.location.locations.length,
         goal: snapshot.goal.type,
+      })
+      
+      console.log('📦 Ad data being sent to API:', {
+        name: adData.name,
+        status: adData.status,
+        copy_data: adData.copy_data,
+        hasSnapshot: !!adData.setup_snapshot,
       })
       
       // Persist the ad to Supabase

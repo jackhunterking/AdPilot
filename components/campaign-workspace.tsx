@@ -114,11 +114,22 @@ export function CampaignWorkspace() {
   // Convert CampaignAd to AdVariant using snapshot data as source of truth
   const convertedAds: AdVariant[] = useMemo(() => {
     return ads.map(ad => {
-      // Try to use setup_snapshot first, fall back to legacy fields
+      console.log('[CampaignWorkspace] 🔍 Processing ad:', {
+        id: ad.id,
+        name: ad.name,
+        hasSnapshot: !!ad.setup_snapshot,
+        hasCreativeData: !!ad.creative_data,
+        hasCopyData: !!ad.copy_data,
+      })
+      
+      // Try to use setup_snapshot first, fall back to copy_data, then creative_data
       const snapshot = ad.setup_snapshot as Record<string, unknown> | null
+      const copyData = ad.copy_data as Record<string, unknown> | null
+      const creativeData = ad.creative_data as Record<string, unknown> | null
       
       let creative_data: AdVariant['creative_data']
       
+      // First, try snapshot
       if (snapshot?.creative && snapshot?.copy) {
         const creativeSnapshot = snapshot.creative as {
           imageUrl?: string
@@ -145,19 +156,41 @@ export function CampaignWorkspace() {
           format: 'feed' as const,
         }
         
-        console.log('[CampaignWorkspace] Converted ad from snapshot:', {
+        console.log('[CampaignWorkspace] ✅ Using snapshot data:', {
           adId: ad.id,
           headline: copySnapshot.headline,
           primaryText: copySnapshot.primaryText?.substring(0, 50) + '...',
-          hasSnapshot: true
+          description: copySnapshot.description?.substring(0, 30) + '...',
         })
-      } else {
-        // Fallback to legacy fields
+      } 
+      // Second, try copy_data field (saved separately)
+      else if (copyData && (copyData.headline || copyData.primaryText)) {
+        creative_data = {
+          imageUrl: creativeData?.imageUrl as string | undefined,
+          imageVariations: creativeData?.imageVariations as string[] | undefined,
+          headline: (copyData.headline as string) || '',
+          body: (copyData.primaryText as string) || '',
+          primaryText: (copyData.primaryText as string) || '',
+          description: (copyData.description as string) || '',
+          cta: (copyData.cta as string) || 'Learn More',
+          format: 'feed' as const,
+        }
+        
+        console.log('[CampaignWorkspace] ✅ Using copy_data field:', {
+          adId: ad.id,
+          headline: copyData.headline,
+          primaryText: (copyData.primaryText as string)?.substring(0, 50) + '...',
+        })
+      }
+      // Finally, fallback to legacy creative_data
+      else {
         creative_data = (ad.creative_data as AdVariant['creative_data']) || {
           headline: '',
           body: '',
           cta: '',
         }
+        
+        console.warn('[CampaignWorkspace] ⚠️ Using legacy fallback data for ad:', ad.id)
       }
       
       return {
