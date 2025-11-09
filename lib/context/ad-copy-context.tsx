@@ -29,6 +29,7 @@ interface AdCopyContextType {
   setSelectedCopyIndex: (index: number | null) => void
   setCustomCopyVariations: (variations: AdCopyVariation[]) => void
   getActiveVariations: () => AdCopyVariation[] // Returns custom or default variations
+  getSelectedCopy: () => AdCopyVariation // Returns the selected copy variation (or first if none selected)
   isComplete: () => boolean
 }
 
@@ -114,6 +115,14 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
     return variations.slice(0, 3)
   }
 
+  const getSelectedCopy = (): AdCopyVariation => {
+    // Returns the selected copy variation, or the first variation if none selected
+    // This is the SINGLE SOURCE OF TRUTH for which copy is active
+    const variations = getActiveVariations()
+    const selectedIndex = adCopyState.selectedCopyIndex ?? 0
+    return variations[selectedIndex] || variations[0]
+  }
+
   const isComplete = () => adCopyState.status === "completed"
 
   return (
@@ -122,6 +131,7 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
       setSelectedCopyIndex, 
       setCustomCopyVariations,
       getActiveVariations,
+      getSelectedCopy,
       isComplete 
     }}>
       {children}

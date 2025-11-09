@@ -52,7 +52,7 @@ export function PreviewPanel() {
   const { locationState } = useLocation()
   const { audienceState } = useAudience()
   const { goalState } = useGoal()
-  const { adCopyState, getActiveVariations } = useAdCopy()
+  const { adCopyState, getActiveVariations, getSelectedCopy } = useAdCopy()
   const [showReelMessage, setShowReelMessage] = useState(false)
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false)
   
@@ -288,11 +288,8 @@ export function PreviewPanel() {
         console.warn('Snapshot warnings:', validation.warnings)
       }
       
-      // Gather the finalized ad data from snapshot
-      const activeCopyVariations = getActiveVariations()
-      const selectedCopy = adCopyState.selectedCopyIndex !== null 
-        ? activeCopyVariations[adCopyState.selectedCopyIndex]
-        : activeCopyVariations[0]
+      // Gather the finalized ad data from snapshot - use canonical copy source
+      const selectedCopy = getSelectedCopy()
       
       const selectedImageUrl = selectedImageIndex !== null && adContent?.imageVariations?.[selectedImageIndex]
         ? adContent.imageVariations[selectedImageIndex]
@@ -471,11 +468,8 @@ export function PreviewPanel() {
   const renderFeedAd = (variation: typeof adVariations[0], index: number) => {
     const isSelected = selectedImageIndex === index
     const isProcessing = false
-    const copyForCard =
-      activeCopyVariations[index] ??
-      (adCopyState.selectedCopyIndex != null ? activeCopyVariations[adCopyState.selectedCopyIndex] : undefined) ??
-      activeCopyVariations[0] ??
-      null
+    // Use canonical copy source - single source of truth
+    const copyForCard = getSelectedCopy()
     
     return (
       <div 
@@ -556,7 +550,7 @@ export function PreviewPanel() {
         {/* Primary Text Section - BEFORE Media */}
         <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
           <p className="text-[#050505] leading-[1.3333]" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '20px' }}>
-            {copyForCard?.primaryText ?? " "}
+            {copyForCard.primaryText}
           </p>
         </div>
 
@@ -583,11 +577,11 @@ export function PreviewPanel() {
             </p>
             {/* Headline */}
             <p className="font-bold text-[#050505] line-clamp-1" style={{ fontSize: '17px', fontWeight: 700, lineHeight: '1.1765' }}>
-              {copyForCard?.headline ?? " "}
+              {copyForCard.headline}
             </p>
             {/* Description */}
             <p className="text-[#050505] line-clamp-2" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '1.3333' }}>
-              {copyForCard?.description ?? " "}
+              {copyForCard.description}
             </p>
           </div>
           

@@ -24,7 +24,7 @@ export function AdMockup({
   imageUrl,
   logoUrl,
   brandName = 'Business Name',
-  primaryText = 'Discover our services',
+  primaryText = 'Discover our amazing services and see how we can help you achieve your goals today.',
   headline = 'Get Started Today',
   description = 'Learn more about what we offer',
   gradient = 'from-blue-600 via-blue-500 to-cyan-500',

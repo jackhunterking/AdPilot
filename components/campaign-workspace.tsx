@@ -119,29 +119,29 @@ export function CampaignWorkspace() {
       
       let creative_data: AdVariant['creative_data']
       
-      if (snapshot?.creative) {
+      if (snapshot?.creative && snapshot?.copy) {
         const creativeSnapshot = snapshot.creative as {
           imageUrl?: string
           imageVariations?: string[]
           selectedImageIndex?: number | null
         }
         const copySnapshot = snapshot.copy as {
-          headline?: string
-          primaryText?: string
-          description?: string
-          cta?: string
+          headline: string
+          primaryText: string
+          description: string
+          cta: string
         }
         
-        // Build creative_data from snapshot
+        // Build creative_data from snapshot - snapshot is the source of truth
         const selectedIndex = creativeSnapshot.selectedImageIndex ?? 0
         creative_data = {
           imageUrl: creativeSnapshot.imageVariations?.[selectedIndex] || creativeSnapshot.imageUrl,
           imageVariations: creativeSnapshot.imageVariations,
-          headline: copySnapshot?.headline || '',
-          body: copySnapshot?.primaryText || '',
-          primaryText: copySnapshot?.primaryText,
-          description: copySnapshot?.description,
-          cta: copySnapshot?.cta || 'Learn More',
+          headline: copySnapshot.headline,
+          body: copySnapshot.primaryText,
+          primaryText: copySnapshot.primaryText,
+          description: copySnapshot.description,
+          cta: copySnapshot.cta,
         }
       } else {
         // Fallback to legacy fields
