@@ -106,7 +106,7 @@ export function BudgetPanel({ open, onOpenChange, currentBudget, onSave }: Budge
               max={10000}
               step={10}
               value={[budget]}
-              onValueChange={([val]) => setBudget(val)}
+              onValueChange={([val]) => val !== undefined && setBudget(val)}
               className="w-full"
             />
             <p className="text-xs text-muted-foreground">

@@ -144,8 +144,7 @@ export function LocationTargeting({ externalLocations }: LocationTargetingProps)
       // Add marker
       if (!mapRef.current) return;
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const marker: any = window.L.circleMarker(
+      const marker = window.L.circleMarker(
         [location.coordinates[1], location.coordinates[0]], // Leaflet uses [lat, lng]
         {
           radius: 8,
@@ -155,7 +154,7 @@ export function LocationTargeting({ externalLocations }: LocationTargetingProps)
           opacity: 1,
           fillOpacity: 0.9,
         }
-      ).addTo(mapRef.current)
+      ).addTo(mapRef.current) as LeafletMarker & { bindPopup: (content: string) => void }
 
       marker.bindPopup(`<strong>${location.name}</strong>`)
       markersRef.current.push(marker)
@@ -207,8 +206,7 @@ export function LocationTargeting({ externalLocations }: LocationTargetingProps)
     })
 
     // Fit map to show all locations
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const bounds: any = window.L.latLngBounds()
+    const bounds = window.L.latLngBounds() as LeafletBounds & { extend: (coords: [number, number]) => void }
     
     locations.forEach(loc => {
       if (loc.bbox) {

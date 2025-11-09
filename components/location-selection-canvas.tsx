@@ -188,8 +188,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       const color = location.mode === "include" ? "#16A34A" : "#DC2626"
 
       // Add marker
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const marker: any = window.L.circleMarker(
+      const marker = window.L.circleMarker(
         [location.coordinates[1], location.coordinates[0]],
         {
           radius: 8,
@@ -199,7 +198,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
           opacity: 1,
           fillOpacity: 0.9,
         }
-      ).addTo(map)
+      ).addTo(map) as LeafletMarker & { bindPopup: (content: string) => void }
 
       marker.bindPopup(`<strong>${location.name}</strong>`)
       markersRef.current.push(marker)
@@ -238,8 +237,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     })
 
     // Fit map to show all locations
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const bounds: any = window.L.latLngBounds()
+    const bounds = window.L.latLngBounds() as LeafletBounds & { extend: (coords: [number, number]) => void }
     validLocations.forEach(loc => {
       if (loc.bbox) {
         bounds.extend([loc.bbox[1], loc.bbox[0]])

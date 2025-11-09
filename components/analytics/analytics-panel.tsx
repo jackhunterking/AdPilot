@@ -87,14 +87,25 @@ function mapTimeline(timeline: TimelinePoint[]): Array<{ date: string; results: 
     }))
 }
 
-function TimelineTooltip({ active, payload, label }: any) {
+interface TooltipPayloadItem {
+  name?: string
+  value?: number
+}
+
+interface TooltipProps {
+  active?: boolean
+  payload?: TooltipPayloadItem[]
+  label?: string
+}
+
+function TimelineTooltip({ active, payload, label }: TooltipProps) {
   if (!active || !payload || payload.length === 0) {
     return null
   }
 
-  const spendEntry = payload.find((item: { name?: string }) => item.name === 'Spend')
-  const resultsEntry = payload.find((item: { name?: string }) => item.name === 'Results')
-  const reachEntry = payload.find((item: { name?: string }) => item.name === 'Reach')
+  const spendEntry = payload.find((item) => item.name === 'Spend')
+  const resultsEntry = payload.find((item) => item.name === 'Results')
+  const reachEntry = payload.find((item) => item.name === 'Reach')
 
   return (
     <div className="rounded-md border bg-card/95 px-3 py-2 text-xs shadow-sm">
