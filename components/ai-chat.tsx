@@ -100,10 +100,10 @@ interface MessageMetadata {
     editSession?: { sessionId: string; variationIndex: number };
   };
   audienceContext?: {
-    demographics?: string;
-    interests?: string;
-  };
-  activeTab?: 'setup' | 'results';
+  demographics?: string;
+  interests?: string;
+};
+activeView?: 'home' | 'build' | 'view';
 }
 
 interface LocationInput {
@@ -193,13 +193,13 @@ interface AIChatProps {
   conversationId?: string | null;  // Stable conversation ID from server (AI SDK native pattern)
   messages?: UIMessage[];  // AI SDK v5 prop name
   campaignMetadata?: {
-    initialPrompt?: string;
-    initialGoal?: string | null;
-  };
-  activeTab?: 'setup' | 'results';
+  initialPrompt?: string;
+  initialGoal?: string | null;
+};
+activeView?: 'home' | 'build' | 'view';
 }
 
-const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], campaignMetadata, activeTab = 'setup' }: AIChatProps = {}) => {
+const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], campaignMetadata, activeView = 'home' }: AIChatProps = {}) => {
   const [input, setInput] = useState("");
   const [model] = useState<string>("openai/gpt-4o");
   const { campaign } = useCampaignContext();
@@ -274,14 +274,14 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
               : undefined;
           const enrichedMessage = {
             ...lastMessage,
-            metadata: {
-              ...(existingMeta || {}),
-              goalType: goalType,
-              activeTab,
-            },
-          };
-          
-          // DEBUG: Log what we're sending (AI SDK v5 pattern - metadata field)
+          metadata: {
+            ...(existingMeta || {}),
+            goalType: goalType,
+            activeView,
+          },
+        };
+        
+        // DEBUG: Log what we're sending (AI SDK v5 pattern - metadata field)
           console.log(`[TRANSPORT] ========== SENDING MESSAGE ==========`);
           console.log(`[TRANSPORT] message.id:`, lastMessage?.id);
           console.log(`[TRANSPORT] message.role:`, lastMessage?.role);
@@ -294,11 +294,11 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
               id,
               model: model,
             },
-          };
-        },
-      }),
-    [model, goalType, activeTab]
-  );
+        };
+      },
+    }),
+  [model, goalType, activeView]
+);
   
   const DEBUG = process.env.NEXT_PUBLIC_DEBUG === '1';
   if (DEBUG) {
@@ -1007,12 +1007,14 @@ Make it conversational and easy to understand for a business owner.`,
   }, [messages, status, generatingImages, processingLocations, setIsGenerating, setGenerationMessage]);
 
   useEffect(() => {
-    if (activeTab === 'results') {
-      setCustomPlaceholder('Ask how your ad is performing or how to improve it…');
-    } else {
+    if (activeView === 'view') {
+      setCustomPlaceholder('Ask how your ads are performing or how to improve them…');
+    } else if (activeView === 'build') {
       setCustomPlaceholder('Describe what you need to build…');
+    } else {
+      setCustomPlaceholder('What would you like to do with your campaign?');
     }
-  }, [activeTab]);
+  }, [activeView]);
 
   return (
     <div className="relative flex size-full flex-col overflow-hidden">

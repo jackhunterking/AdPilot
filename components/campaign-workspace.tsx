@@ -1,86 +1,78 @@
+/**
+ * Feature: Campaign Workspace - State-Based Routing
+ * Purpose: Route between Home, Build, and View states without confusing tabs
+ * References:
+ *  - AI SDK Core: https://ai-sdk.dev/docs/introduction
+ *  - AI Elements: https://ai-sdk.dev/elements/overview
+ */
+
 "use client"
 
-import { useCallback, useEffect, useMemo } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PreviewPanel } from "@/components/preview-panel"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { cn } from "@/lib/utils"
-import { ResultsPanel } from "@/components/results/results-panel"
+import { CampaignHome } from "@/components/campaign-home"
+import { AdCardsGrid } from "@/components/ad-cards-grid"
+import { AdDetailDrawer } from "@/components/ad-detail-drawer"
+import { useCampaignAds } from "@/lib/hooks/use-campaign-ads"
+import { useGoal } from "@/lib/context/goal-context"
 
-export type WorkspaceTab = typeof TAB_SETUP | typeof TAB_RESULTS
-
-const TAB_SETUP = "setup"
-const TAB_RESULTS = "results"
+export type WorkspaceView = "home" | "build" | "view"
 
 type CampaignWorkspaceProps = {
-  activeTab: WorkspaceTab
-  onTabChange: (tab: WorkspaceTab) => void
+  activeView: WorkspaceView
+  onViewChange: (view: WorkspaceView) => void
 }
 
-function computeDefaultTab(paramsTab: string | null, storageTab: string | null, resultsEnabled: boolean): WorkspaceTab {
-  const candidate = paramsTab || storageTab || TAB_SETUP
-  if (candidate === TAB_RESULTS && resultsEnabled) {
-    return TAB_RESULTS
-  }
-  return TAB_SETUP
-}
-
-export function CampaignWorkspace({ activeTab, onTabChange }: CampaignWorkspaceProps) {
+export function CampaignWorkspace({ activeView, onViewChange }: CampaignWorkspaceProps) {
   const { campaign } = useCampaignContext()
+  const { goalState } = useGoal()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-
-  const resultsEnabled = useMemo(() => {
-    const status = campaign?.published_status || ""
-    return status === "active" || status === "paused"
-  }, [campaign?.published_status])
-
+  
   const campaignId = campaign?.id ?? ""
-  const storageKey = campaignId ? `campaign-workspace-tab:${campaignId}` : null
-  const paramsTab = searchParams.get("tab")
+  const { ads, loading: adsLoading, refreshAds } = useCampaignAds(campaignId)
+  
+  const [selectedAdId, setSelectedAdId] = useState<string | null>(null)
+  const [editingAdId, setEditingAdId] = useState<string | null>(null)
+
+  const storageKey = campaignId ? `campaign-workspace-view:${campaignId}` : null
+  const paramsView = searchParams.get("view")
 
   const updateQueryString = useCallback(
-    (tab: WorkspaceTab) => {
+    (view: WorkspaceView) => {
       const params = new URLSearchParams(searchParams.toString())
-      params.set("tab", tab)
+      params.set("view", view)
       router.replace(`${pathname}?${params.toString()}`, { scroll: false })
     },
     [pathname, router, searchParams],
   )
 
-  useEffect(() => {
-    const stored = storageKey && typeof window !== "undefined"
-      ? window.localStorage.getItem(storageKey)
-      : null
-    const nextTab = computeDefaultTab(paramsTab, stored, resultsEnabled)
-    if (nextTab !== activeTab) {
-      onTabChange(nextTab)
-      updateQueryString(nextTab)
-    }
-  }, [activeTab, onTabChange, paramsTab, resultsEnabled, storageKey, updateQueryString])
-
+  // Persist view to sessionStorage
   useEffect(() => {
     if (!storageKey || typeof window === "undefined") return
-    window.localStorage.setItem(storageKey, activeTab)
-  }, [activeTab, storageKey])
+    window.sessionStorage.setItem(storageKey, activeView)
+  }, [activeView, storageKey])
 
+  // Sync URL with active view
   useEffect(() => {
-    updateQueryString(activeTab)
-  }, [activeTab, updateQueryString])
+    updateQueryString(activeView)
+  }, [activeView, updateQueryString])
 
-  const handleTabChange = useCallback(
-    (value: string) => {
-      if (value === TAB_RESULTS && !resultsEnabled) {
-        return
-      }
-      const nextTab = value === TAB_RESULTS ? TAB_RESULTS : TAB_SETUP
-      onTabChange(nextTab)
-    },
-    [onTabChange, resultsEnabled],
-  )
+  // Restore view from URL or storage on mount
+  useEffect(() => {
+    const stored = storageKey && typeof window !== "undefined"
+      ? window.sessionStorage.getItem(storageKey)
+      : null
+    const initialView = (paramsView || stored || "home") as WorkspaceView
+    if (initialView !== activeView && ["home", "build", "view"].includes(initialView)) {
+      onViewChange(initialView)
+    }
+  }, []) // Only run on mount
 
   const statusLabel = useMemo(() => {
     const status = campaign?.published_status
@@ -98,13 +90,56 @@ export function CampaignWorkspace({ activeTab, onTabChange }: CampaignWorkspaceP
     }
   }, [campaign?.published_status])
 
+  const handleNavigate = useCallback((path: "build" | "view") => {
+    onViewChange(path)
+  }, [onViewChange])
+
+  const handleViewResults = useCallback((adId: string) => {
+    setSelectedAdId(adId)
+  }, [])
+
+  const handleEdit = useCallback((adId: string) => {
+    setEditingAdId(adId)
+    onViewChange("build")
+  }, [onViewChange])
+
+  const handleCreateVariant = useCallback(() => {
+    onViewChange("build")
+  }, [onViewChange])
+
+  const handleCloseDrawer = useCallback(() => {
+    setSelectedAdId(null)
+  }, [])
+
+  // Transform ads data for grid component
+  const adsData = useMemo(() => {
+    return ads.map(ad => ({
+      id: ad.id,
+      name: ad.name,
+      status: ad.status,
+      metrics: ad.metrics_snapshot || {},
+      lastUpdated: ad.updated_at
+    }))
+  }, [ads])
+
   return (
-    <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-1 flex-col overflow-hidden h-full min-h-0">
-      <div className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3">
-        <TabsList className="w-auto">
-          <TabsTrigger value={TAB_SETUP}>Setup</TabsTrigger>
-          <TabsTrigger value={TAB_RESULTS} disabled={!resultsEnabled} className={cn(!resultsEnabled && "cursor-not-allowed opacity-60")}>Results</TabsTrigger>
-        </TabsList>
+    <div className="flex flex-1 flex-col overflow-hidden h-full min-h-0 relative">
+      {/* Header Status Bar */}
+      <div className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => onViewChange("home")}
+            className="text-sm font-medium hover:text-primary transition-colors"
+          >
+            Campaign Workspace
+          </button>
+          {activeView !== "home" && (
+            <>
+              <span className="text-muted-foreground">/</span>
+              <span className="text-sm font-medium capitalize">{activeView}</span>
+            </>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <span
             className={cn(
@@ -120,12 +155,41 @@ export function CampaignWorkspace({ activeTab, onTabChange }: CampaignWorkspaceP
           </span>
         </div>
       </div>
-      <TabsContent value={TAB_SETUP} className="flex-1 overflow-hidden h-full min-h-0">
-        <PreviewPanel />
-      </TabsContent>
-      <TabsContent value={TAB_RESULTS} className="flex-1 overflow-hidden h-full min-h-0">
-        <ResultsPanel isEnabled={resultsEnabled} />
-      </TabsContent>
-    </Tabs>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-hidden h-full min-h-0">
+        {activeView === "home" && (
+          <CampaignHome onNavigate={handleNavigate} />
+        )}
+        
+        {activeView === "build" && (
+          <div className="flex flex-1 h-full flex-col relative min-h-0">
+            <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
+              <PreviewPanel />
+            </div>
+          </div>
+        )}
+        
+        {activeView === "view" && (
+          <>
+            <AdCardsGrid
+              ads={adsData}
+              isLoading={adsLoading}
+              onViewResults={handleViewResults}
+              onEdit={handleEdit}
+              onCreateVariant={handleCreateVariant}
+            />
+            {selectedAdId && (
+              <AdDetailDrawer
+                adId={selectedAdId}
+                campaignId={campaignId}
+                goal={goalState.selectedGoal}
+                onClose={handleCloseDrawer}
+              />
+            )}
+          </>
+        )}
+      </div>
+    </div>
   )
 }
