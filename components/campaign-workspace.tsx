@@ -16,7 +16,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { PreviewPanel } from "@/components/preview-panel"
 import { ResultsPanel } from "@/components/results-panel"
 import { WorkspaceHeader } from "@/components/workspace-header"
-import { AllAdsView } from "@/components/all-ads-view"
+import { AllAdsGrid } from "@/components/all-ads-grid"
 import { ABTestBuilder } from "@/components/ab-test/ab-test-builder"
 import AIChat from "@/components/ai-chat"
 import { useCampaignContext } from "@/lib/context/campaign-context"
@@ -40,12 +40,9 @@ export function CampaignWorkspace() {
   const viewParam = searchParams.get("view") as WorkspaceMode | null
   const currentAdId = searchParams.get("adId")
   
-  // Default to build mode on initial entry
-  const workspaceMode: WorkspaceMode = viewParam || 'build'
-  
-  // After first publish, default to results mode
-  const shouldShowResults = isPublished && !viewParam
-  const effectiveMode = shouldShowResults ? 'results' : workspaceMode
+  // After first publish, default to all-ads mode (not results)
+  const shouldShowAllAds = isPublished && !viewParam && ads.length > 0
+  const effectiveMode: WorkspaceMode = shouldShowAllAds ? 'all-ads' : (viewParam || 'build')
 
   // Update URL when mode changes
   const setWorkspaceMode = useCallback((mode: WorkspaceMode, adId?: string) => {
@@ -149,10 +146,21 @@ export function CampaignWorkspace() {
   }, [effectiveMode, hasPublishedAds, setWorkspaceMode])
 
   const handleNewAd = useCallback(() => {
-    // Create new ad, go to build mode
-    // TODO: API call to create ad variant
-    setWorkspaceMode('build')
-  }, [setWorkspaceMode])
+    // When creating a new ad in an existing campaign:
+    // - Goal and budget are locked (inherited from campaign)
+    // - User can only modify creative, audience, and location
+    
+    // Navigate to build mode with variant flag if we have published ads
+    if (hasPublishedAds) {
+      // Adding variant=true to URL to signal PreviewPanel to hide goal/budget steps
+      const params = new URLSearchParams()
+      params.set("view", "build")
+      params.set("variant", "true")
+      router.replace(`${pathname}?${params.toString()}`)
+    } else {
+      setWorkspaceMode('build')
+    }
+  }, [hasPublishedAds, pathname, router, setWorkspaceMode])
 
   const handleViewAllAds = useCallback(() => {
     setWorkspaceMode('all-ads')
@@ -218,8 +226,8 @@ export function CampaignWorkspace() {
       <div className="flex-1 overflow-hidden h-full min-h-0">
         {effectiveMode === 'build' && (
           <div className="flex flex-1 h-full">
-            <div className="flex-1 border-r">
-              <AIChat campaignId={campaignId} conversationId={campaignId} />
+            <div className="w-[35%] border-r">
+              <AIChat campaignId={campaignId} conversationId={campaignId} context="build" />
             </div>
             <div className="flex-1">
               <PreviewPanel />
@@ -242,22 +250,27 @@ export function CampaignWorkspace() {
         )}
 
         {effectiveMode === 'all-ads' && (
-          <AllAdsView
-            campaignId={campaignId}
-            ads={convertedAds}
-            onViewAd={handleViewAd}
-            onEditAd={handleEditAd}
-            onPauseAd={handlePauseAd}
-            onResumeAd={handleResumeAd}
-            onCreateABTest={handleCreateABTest}
-            conversationId={campaignId}
-          />
+          <div className="flex flex-1 h-full">
+            <div className="w-[35%] border-r">
+              <AIChat campaignId={campaignId} conversationId={campaignId} context="all-ads" />
+            </div>
+            <div className="flex-1">
+              <AllAdsGrid
+                ads={convertedAds}
+                onViewAd={handleViewAd}
+                onEditAd={handleEditAd}
+                onPauseAd={handlePauseAd}
+                onResumeAd={handleResumeAd}
+                onCreateABTest={handleCreateABTest}
+              />
+            </div>
+          </div>
         )}
 
         {effectiveMode === 'edit' && (
           <div className="flex flex-1 h-full">
-            <div className="flex-1 border-r">
-              <AIChat campaignId={campaignId} conversationId={campaignId} />
+            <div className="w-[35%] border-r">
+              <AIChat campaignId={campaignId} conversationId={campaignId} context="edit" />
             </div>
             <div className="flex-1">
               <PreviewPanel />

@@ -193,13 +193,13 @@ interface AIChatProps {
   conversationId?: string | null;  // Stable conversation ID from server (AI SDK native pattern)
   messages?: UIMessage[];  // AI SDK v5 prop name
   campaignMetadata?: {
-  initialPrompt?: string;
-  initialGoal?: string | null;
-};
-activeView?: 'home' | 'build' | 'view';
+    initialPrompt?: string;
+    initialGoal?: string | null;
+  };
+  context?: 'build' | 'edit' | 'all-ads' | 'ab-test-builder' | 'results';  // NEW: Context-aware mode
 }
 
-const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], campaignMetadata, activeView = 'home' }: AIChatProps = {}) => {
+const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], campaignMetadata, context }: AIChatProps = {}) => {
   const [input, setInput] = useState("");
   const [model] = useState<string>("openai/gpt-4o");
   const { campaign } = useCampaignContext();
@@ -221,6 +221,34 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   const [activeEditSession, setActiveEditSession] = useState<{ sessionId: string; variationIndex: number } | null>(null);
   const [customPlaceholder, setCustomPlaceholder] = useState("Type your message...");
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Update placeholder based on context mode
+  useEffect(() => {
+    if (!context) {
+      setCustomPlaceholder('What would you like to do with your campaign?');
+      return;
+    }
+    
+    switch (context) {
+      case 'build':
+        setCustomPlaceholder('Describe your ad creative or ask for suggestions…');
+        break;
+      case 'edit':
+        setCustomPlaceholder('How would you like to modify this ad?');
+        break;
+      case 'all-ads':
+        setCustomPlaceholder('Ask how your ads are performing or request optimization tips…');
+        break;
+      case 'results':
+        setCustomPlaceholder('What insights can I provide about this ad?');
+        break;
+      case 'ab-test-builder':
+        setCustomPlaceholder('Ask for help setting up your A/B test…');
+        break;
+      default:
+        setCustomPlaceholder('Type your message...');
+    }
+  }, [context]);
   // Keep latest Authorization header (Bearer <token>) in a ref for sync headers
   const authHeaderRef = useRef<string | null>(null);
   const { setIsGenerating, setGenerationMessage, generationMessage } = useGeneration();
@@ -277,7 +305,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
           metadata: {
             ...(existingMeta || {}),
             goalType: goalType,
-            activeView,
           },
         };
         
@@ -297,7 +324,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
         };
       },
     }),
-  [model, goalType, activeView]
+  [model, goalType]
 );
   
   const DEBUG = process.env.NEXT_PUBLIC_DEBUG === '1';
@@ -1006,15 +1033,6 @@ Make it conversational and easy to understand for a business owner.`,
     }
   }, [messages, status, generatingImages, processingLocations, setIsGenerating, setGenerationMessage]);
 
-  useEffect(() => {
-    if (activeView === 'view') {
-      setCustomPlaceholder('Ask how your ads are performing or how to improve them…');
-    } else if (activeView === 'build') {
-      setCustomPlaceholder('Describe what you need to build…');
-    } else {
-      setCustomPlaceholder('What would you like to do with your campaign?');
-    }
-  }, [activeView]);
 
   return (
     <div className="relative flex size-full flex-col overflow-hidden">

@@ -11,6 +11,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Play, ImageIcon, Video, Layers, Sparkles, Building2, Check, Facebook, Loader2, Edit2, Palette, Type, MapPin, Target, Rocket, Flag, Link2, MoreVertical, Globe, Heart, ThumbsUp, MessageCircle, Share2, ChevronDown, AlertTriangle, ChevronUp } from "lucide-react"
 import { LocationSelectionCanvas } from "./location-selection-canvas"
@@ -40,6 +41,9 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { PublishFlowDialog } from "@/components/launch/publish-flow-dialog"
 
 export function PreviewPanel() {
+  const searchParams = useSearchParams()
+  const isCreatingVariant = searchParams.get('variant') === 'true'
+  
   const [activeFormat, setActiveFormat] = useState("feed")
   // Removed regenerate feature: no regenerating state
   const { adContent, setAdContent, isPublished, setIsPublished, selectedImageIndex, setSelectedCreativeVariation, setSelectedImageIndex } = useAdPreview()
@@ -1024,80 +1028,98 @@ export function PreviewPanel() {
     </div>
   )
 
-  const steps = [
-    {
-      id: "ads",
-      number: 1,
-      title: "Ad Creative",
-      description: "Select your ad creative design",
-      completed: selectedImageIndex !== null,
-      content: adsContent,
-      icon: Palette,
-    },
-    {
-      id: "copy",
-      number: 2,
-      title: "Ad Copy",
-      description: "Choose your ad copy with headline and description",
-      completed: adCopyState.status === "completed",
-      content: <AdCopySelectionCanvas />,
-      icon: Type,
-    },
-    {
-      id: "location",
-      number: 3,
-      title: "Target Location",
-      description: "Choose where you want your ads to be shown",
-      completed: locationState.status === "completed",
-      content: <LocationSelectionCanvas />,
-      icon: MapPin,
-    },
-    {
-      id: "audience",
-      number: 4,
-      title: "Define Audience",
-      description: "Select who should see your ads",
-      completed: audienceState.status === "completed",
-      content: <AudienceSelectionCanvas />,
-      icon: Target,
-    },
-    {
-      id: "meta-connect",
-      number: 5,
-      title: "Connect Facebook & Instagram",
-      description: "Authenticate and select Page, IG (optional) and Ad Account",
-      completed: isMetaConnectionComplete,
-      content: (
-        <div className="p-2">
-          <div className="max-w-3xl mx-auto">
-            <MetaConnectCard mode="step" />
+  // Conditionally filter steps based on whether creating a variant
+  const steps = useMemo(() => {
+    const allSteps = [
+      {
+        id: "ads",
+        number: 1,
+        title: "Ad Creative",
+        description: "Select your ad creative design",
+        completed: selectedImageIndex !== null,
+        content: adsContent,
+        icon: Palette,
+      },
+      {
+        id: "copy",
+        number: 2,
+        title: "Ad Copy",
+        description: "Choose your ad copy with headline and description",
+        completed: adCopyState.status === "completed",
+        content: <AdCopySelectionCanvas />,
+        icon: Type,
+      },
+      {
+        id: "location",
+        number: 3,
+        title: "Target Location",
+        description: "Choose where you want your ads to be shown",
+        completed: locationState.status === "completed",
+        content: <LocationSelectionCanvas />,
+        icon: MapPin,
+      },
+      {
+        id: "audience",
+        number: 4,
+        title: "Define Audience",
+        description: "Select who should see your ads",
+        completed: audienceState.status === "completed",
+        content: <AudienceSelectionCanvas />,
+        icon: Target,
+      },
+      {
+        id: "meta-connect",
+        number: 5,
+        title: "Connect Facebook & Instagram",
+        description: "Authenticate and select Page, IG (optional) and Ad Account",
+        completed: isMetaConnectionComplete,
+        content: (
+          <div className="p-2">
+            <div className="max-w-3xl mx-auto">
+              <MetaConnectCard mode="step" />
+            </div>
           </div>
-        </div>
-      ),
-      icon: Link2,
-    },
-    {
-      id: "goal",
-      number: 6,
-      title: "Set Your Goal",
-      description: "Choose what you want to achieve with your ads",
-      completed: goalState.status === "completed",
-      content: <GoalSelectionCanvas />,
-      icon: Flag,
-    },
-    {
-      id: "budget",
-      number: 7,
-      title: "Launch Campaign",
-      description: "Review details and publish your ads",
-      completed: isComplete(),
-      content: launchContent,
-      icon: Rocket,
-    },
-  ]
+        ),
+        icon: Link2,
+      },
+      // Only show goal and budget for first ad (not variants)
+      ...(!isCreatingVariant ? [
+        {
+          id: "goal",
+          number: 6,
+          title: "Set Your Goal",
+          description: "Choose what you want to achieve with your ads",
+          completed: goalState.status === "completed",
+          content: <GoalSelectionCanvas />,
+          icon: Flag,
+        },
+        {
+          id: "budget",
+          number: 7,
+          title: "Launch Campaign",
+          description: "Review details and publish your ads",
+          completed: isComplete(),
+          content: launchContent,
+          icon: Rocket,
+        },
+      ] : []),
+    ]
+    
+    // Renumber steps after filtering
+    return allSteps.map((step, index) => ({
+      ...step,
+      number: index + 1,
+    }))
+  }, [isCreatingVariant, selectedImageIndex, adCopyState.status, locationState.status, audienceState.status, isMetaConnectionComplete, goalState.status, isComplete, adsContent, launchContent])
 
   return (
     <div className="flex flex-1 h-full flex-col relative min-h-0">
+      {isCreatingVariant && (
+        <div className="px-4 py-2 bg-blue-50 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-800 text-sm text-blue-800 dark:text-blue-300 flex items-center gap-2">
+          <Sparkles className="h-4 w-4" />
+          <strong>Creating new ad variant</strong> - Goal and budget inherited from campaign
+        </div>
+      )}
       <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
         <CampaignStepper steps={steps} campaignId={campaign?.id} />
       </div>
