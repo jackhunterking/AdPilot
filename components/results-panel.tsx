@@ -52,12 +52,12 @@ export function ResultsPanel({
 
   return (
     <div className={cn("flex flex-1 h-full gap-6 overflow-auto", className)}>
-      {/* Left: Ad Preview (60%) */}
-      <div className="flex-[3] flex flex-col gap-4 min-w-0">
+      {/* Left: Ad Preview (40%) */}
+      <div className="flex-[2] flex flex-col gap-4 min-w-0">
         <Card>
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-2 pt-4 px-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Ad Preview</h3>
+              <h3 className="text-base font-semibold">Ad Preview</h3>
               <div className="flex items-center gap-2">
                 {previewFormats.map((format) => {
                   const Icon = format.icon
@@ -69,10 +69,10 @@ export function ResultsPanel({
                       variant={isActive ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setActiveFormat(format.id)}
-                      className="px-4 relative"
+                      className="px-3 py-1 h-8 text-xs relative"
                       disabled={format.comingSoon}
                     >
-                      <Icon className="h-3.5 w-3.5 mr-1.5" />
+                      <Icon className="h-3 w-3 mr-1" />
                       {format.label}
                       {format.comingSoon && (
                         <Sparkles size={10} className="absolute -top-0.5 -right-0.5 text-yellow-500 animate-pulse" />
@@ -83,7 +83,7 @@ export function ResultsPanel({
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4">
             <AdMockup
               format={activeFormat}
               imageUrl={variant.creative_data.imageVariations?.[0] || variant.creative_data.imageUrl}
@@ -99,81 +99,71 @@ export function ResultsPanel({
         </Card>
       </div>
 
-      {/* Right: Metrics & Actions (40%) */}
-      <div className="flex-[2] flex flex-col gap-4 min-w-0">
+      {/* Right: Metrics & Actions (60%) */}
+      <div className="flex-[3] flex flex-col gap-4 min-w-0">
         {/* Metrics Card */}
-        <MetricsCard metrics={metrics} />
+        <MetricsCard metrics={metrics} compactMode={true} />
 
-        {/* Lead Form Indicator (if leads campaign) */}
-        {leadFormInfo && (
-          <LeadFormIndicator leadFormInfo={leadFormInfo} />
-        )}
+        {/* Actions and Lead Form Grid */}
+        <div className={cn("grid gap-4", leadFormInfo ? "grid-cols-2" : "grid-cols-1")}>
+          {/* Action Buttons */}
+          <Card>
+            <CardContent className="p-4">
+              <h3 className="font-semibold text-sm mb-3">🎬 Actions</h3>
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2 text-sm h-9"
+                  onClick={onEdit}
+                >
+                  <Edit2 className="h-3.5 w-3.5" />
+                  Edit This Ad
+                </Button>
 
-        {/* Action Buttons */}
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="font-semibold text-sm mb-4">🎬 Actions</h3>
-            <div className="space-y-2">
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-2"
-                onClick={onEdit}
-              >
-                <Edit2 className="h-4 w-4" />
-                Edit This Ad
-              </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2 text-sm h-9"
+                  onClick={onPause}
+                >
+                  {isPaused ? (
+                    <>
+                      <Play className="h-3.5 w-3.5" />
+                      Resume Ad
+                    </>
+                  ) : (
+                    <>
+                      <Pause className="h-3.5 w-3.5" />
+                      Pause Ad
+                    </>
+                  )}
+                </Button>
 
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-2"
-                onClick={onPause}
-              >
-                {isPaused ? (
-                  <>
-                    <Play className="h-4 w-4" />
-                    Resume Ad
-                  </>
-                ) : (
-                  <>
-                    <Pause className="h-4 w-4" />
-                    Pause Ad
-                  </>
-                )}
-              </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2 text-sm h-9"
+                  onClick={onCreateABTest}
+                >
+                  <TestTube2 className="h-3.5 w-3.5" />
+                  Create A/B Test
+                </Button>
 
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-2"
-                onClick={onCreateABTest}
-              >
-                <TestTube2 className="h-4 w-4" />
-                Create A/B Test
-              </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-2 text-sm h-9"
+                  onClick={onViewAllAds}
+                >
+                  <LayoutGrid className="h-3.5 w-3.5" />
+                  View All Ads
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-2"
-                onClick={onViewAllAds}
-              >
-                <LayoutGrid className="h-4 w-4" />
-                View All Ads
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tips Card */}
-        <Card className="border-blue-500/30 bg-blue-500/5">
-          <CardContent className="p-4">
-            <h4 className="font-semibold text-sm mb-2">💡 Tips</h4>
-            <ul className="text-xs text-muted-foreground space-y-1">
-              <li>• Check metrics daily for best results</li>
-              <li>• Leads appear within 24-48 hours</li>
-              <li>• Consider A/B testing after 3 days</li>
-              <li>• Pause underperforming ads to save budget</li>
-            </ul>
-          </CardContent>
-        </Card>
+          {/* Lead Form Indicator (if leads campaign) */}
+          {leadFormInfo && (
+            <LeadFormIndicator leadFormInfo={leadFormInfo} />
+          )}
+        </div>
       </div>
     </div>
   )

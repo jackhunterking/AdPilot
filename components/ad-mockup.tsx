@@ -97,13 +97,21 @@ export function AdMockup({
 
         {/* Bottom Ad Copy/Engagement Section - Dark Background */}
         <div className="absolute bottom-0 left-0 right-0 z-20 bg-[#242526]">
-          {/* Information Text - Skeleton Loaders */}
+          {/* Information Text */}
           <div className="px-3 pt-3 pb-2" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '12px', paddingBottom: '8px' }}>
             <div className="space-y-1">
-              {/* Primary Text Skeleton */}
-              <Skeleton className="h-3.5 w-full bg-white/30" style={{ height: '14px' }} />
-              {/* Description Skeleton */}
-              <Skeleton className="h-3.5 w-3/4 bg-white/30" style={{ height: '14px' }} />
+              {/* Primary Text */}
+              {primaryText && (
+                <p className="text-white text-sm line-clamp-2" style={{ fontSize: '14px', lineHeight: '1.3' }}>
+                  {primaryText}
+                </p>
+              )}
+              {/* Headline */}
+              {headline && (
+                <p className="text-white/90 text-xs line-clamp-1" style={{ fontSize: '13px' }}>
+                  {headline}
+                </p>
+              )}
             </div>
           </div>
           
