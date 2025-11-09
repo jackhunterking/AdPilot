@@ -88,9 +88,9 @@ export function ResultsPanel({
               format={activeFormat}
               imageUrl={variant.creative_data.imageVariations?.[0] || variant.creative_data.imageUrl}
               brandName="Business Name"
-              primaryText={variant.creative_data.primaryText || variant.creative_data.body}
-              headline={variant.creative_data.headline}
-              description={variant.creative_data.description || variant.creative_data.body}
+              primaryText={variant.creative_data.primaryText || variant.creative_data.body || ""}
+              headline={variant.creative_data.headline || ""}
+              description={variant.creative_data.description || variant.creative_data.body || ""}
               ctaText={variant.creative_data.cta || "Learn More"}
               status={variant.status === 'archived' ? 'draft' : variant.status}
               showEngagement={true}

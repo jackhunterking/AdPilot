@@ -24,14 +24,18 @@ export function AdMockup({
   imageUrl,
   logoUrl,
   brandName = 'Business Name',
-  primaryText = 'Discover our amazing services and see how we can help you achieve your goals today.',
-  headline = 'Get Started Today',
-  description = 'Learn more about what we offer',
+  primaryText,
+  headline,
+  description,
   gradient = 'from-blue-600 via-blue-500 to-cyan-500',
   ctaText = 'Learn More',
   status,
   showEngagement = true,
 }: AdMockupProps) {
+  // Use provided values or fallback to safe defaults only if undefined/null
+  const safePrimaryText = primaryText || 'Discover our amazing services and see how we can help you achieve your goals today.'
+  const safeHeadline = headline || 'Get Started Today'
+  const safeDescription = description || 'Learn more about what we offer'
   
   // Reel format - Coming Soon
   if (format === 'reel') {
@@ -101,15 +105,15 @@ export function AdMockup({
           <div className="px-3 pt-3 pb-2" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '12px', paddingBottom: '8px' }}>
             <div className="space-y-1">
               {/* Primary Text */}
-              {primaryText && (
+              {safePrimaryText && (
                 <p className="text-white text-sm line-clamp-2" style={{ fontSize: '14px', lineHeight: '1.3' }}>
-                  {primaryText}
+                  {safePrimaryText}
                 </p>
               )}
               {/* Headline */}
-              {headline && (
+              {safeHeadline && (
                 <p className="text-white/90 text-xs line-clamp-1" style={{ fontSize: '13px' }}>
-                  {headline}
+                  {safeHeadline}
                 </p>
               )}
             </div>
@@ -164,14 +168,14 @@ export function AdMockup({
         <MoreVertical className="h-5 w-5 text-[#65676B] flex-shrink-0 cursor-pointer hover:bg-[#F2F3F5] rounded-full p-1" style={{ width: '20px', height: '20px' }} />
       </div>
 
-      {/* Primary Text Section - BEFORE Media */}
-      {primaryText && (
-        <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
-          <p className="text-[#050505] leading-[1.3333]" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '20px' }}>
-            {primaryText}
-          </p>
-        </div>
-      )}
+        {/* Primary Text Section - BEFORE Media */}
+        {safePrimaryText && (
+          <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
+            <p className="text-[#050505] leading-[1.3333]" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '20px' }}>
+              {safePrimaryText}
+            </p>
+          </div>
+        )}
 
       {/* Media Section - Square (1:1) aspect ratio - 1080x1080 */}
       {imageUrl ? (
@@ -193,15 +197,15 @@ export function AdMockup({
           {/* Website URL */}
           <p className="text-[#65676B] uppercase tracking-wide" style={{ fontSize: '11px', fontWeight: 400, letterSpacing: '0.5px' }}>
             YOURWEBSITE.HELLO
-          </p>
-          {/* Headline */}
-          <p className="font-bold text-[#050505] line-clamp-1" style={{ fontSize: '17px', fontWeight: 700, lineHeight: '1.1765' }}>
-            {headline}
-          </p>
-          {/* Description */}
-          <p className="text-[#050505] line-clamp-2" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '1.3333' }}>
-            {description}
-          </p>
+            </p>
+            {/* Headline */}
+            <p className="font-bold text-[#050505] line-clamp-1" style={{ fontSize: '17px', fontWeight: 700, lineHeight: '1.1765' }}>
+              {safeHeadline}
+            </p>
+            {/* Description */}
+            <p className="text-[#050505] line-clamp-2" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '1.3333' }}>
+              {safeDescription}
+            </p>
         </div>
         
         {/* Right Side - Learn more Button */}

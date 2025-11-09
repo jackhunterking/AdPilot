@@ -142,7 +142,15 @@ export function CampaignWorkspace() {
           primaryText: copySnapshot.primaryText,
           description: copySnapshot.description,
           cta: copySnapshot.cta,
+          format: 'feed' as const,
         }
+        
+        console.log('[CampaignWorkspace] Converted ad from snapshot:', {
+          adId: ad.id,
+          headline: copySnapshot.headline,
+          primaryText: copySnapshot.primaryText?.substring(0, 50) + '...',
+          hasSnapshot: true
+        })
       } else {
         // Fallback to legacy fields
         creative_data = (ad.creative_data as AdVariant['creative_data']) || {
