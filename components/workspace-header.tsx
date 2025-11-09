@@ -11,9 +11,12 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus } from "lucide-react"
+import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { WorkspaceHeaderProps } from "@/lib/types/workspace"
+import { useState } from "react"
+import { MetaConnectionModal } from "@/components/meta/meta-connection-modal"
+import { BudgetPanel } from "@/components/launch/budget-panel"
 
 export function WorkspaceHeader({
   mode,
@@ -25,8 +28,16 @@ export function WorkspaceHeader({
   abTestInfo,
   totalAds,
   hasPublishedAds,
+  metaConnectionStatus = 'disconnected',
+  paymentStatus = 'unknown',
+  campaignBudget,
+  onMetaConnect,
+  onBudgetUpdate,
   className,
 }: WorkspaceHeaderProps) {
+  const [showMetaModal, setShowMetaModal] = useState(false)
+  const [showBudgetPanel, setShowBudgetPanel] = useState(false)
+  
   // Don't show back button in all-ads mode
   const shouldShowBack = showBackButton && mode !== 'all-ads'
   
@@ -41,6 +52,68 @@ export function WorkspaceHeader({
       default:
         return 'Back'
     }
+  }
+
+  const getMetaConnectionBadge = () => {
+    if (metaConnectionStatus === 'connected' && paymentStatus === 'verified') {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowMetaModal(true)}
+          className="gap-2 bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400 hover:bg-green-500/20"
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          Meta Connected
+        </Button>
+      )
+    }
+    
+    if (metaConnectionStatus === 'error' || paymentStatus === 'missing' || paymentStatus === 'flagged') {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowMetaModal(true)}
+          className="gap-2 bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400 hover:bg-red-500/20"
+        >
+          <AlertCircle className="h-4 w-4" />
+          Meta Issue
+        </Button>
+      )
+    }
+    
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShowMetaModal(true)}
+        className="gap-2"
+      >
+        <Facebook className="h-4 w-4" />
+        Connect Meta
+      </Button>
+    )
+  }
+
+  const getBudgetPill = () => {
+    const isDisabled = metaConnectionStatus !== 'connected' || paymentStatus !== 'verified'
+    
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShowBudgetPanel(true)}
+        disabled={isDisabled}
+        className={cn(
+          "gap-2",
+          campaignBudget && !isDisabled && "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-400"
+        )}
+      >
+        <DollarSign className="h-4 w-4" />
+        {campaignBudget ? `$${campaignBudget.toLocaleString()}` : 'Set Budget'}
+      </Button>
+    )
   }
 
   // Determine status badge
@@ -113,41 +186,76 @@ export function WorkspaceHeader({
   const statusBadge = getStatusBadge()
 
   return (
-    <div className={cn(
-      "flex items-center justify-between gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-3 flex-shrink-0",
-      className
-    )}>
-      {/* Left: Back Button (conditional) */}
-      <div className="flex items-center gap-4">
-        {shouldShowBack && onBack && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onBack}
-            className="gap-2 hover:bg-muted"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            {getBackButtonText()}
-          </Button>
-        )}
+    <>
+      <div className={cn(
+        "flex items-center justify-between gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-3 flex-shrink-0 border-b border-border",
+        className
+      )}>
+        {/* Left: Back Button + Meta/Budget Pills */}
+        <div className="flex items-center gap-4">
+          {shouldShowBack && onBack && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onBack}
+              className="gap-2 hover:bg-muted"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              {getBackButtonText()}
+            </Button>
+          )}
+          
+          {/* Meta Connection + Budget Pills (only in build/edit modes) */}
+          {(mode === 'build' || mode === 'edit') && (
+            <div className="flex items-center gap-2">
+              {getMetaConnectionBadge()}
+              {getBudgetPill()}
+            </div>
+          )}
+        </div>
+
+        {/* Right: Status Badge and New Ad Button */}
+        <div className="flex items-center gap-4">
+          {statusBadge}
+          {showNewAdButton && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onNewAd}
+              className="gap-2 bg-primary hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4" />
+              New Ad
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Right: Status Badge and New Ad Button */}
-      <div className="flex items-center gap-4">
-        {statusBadge}
-        {showNewAdButton && (
-          <Button
-            variant="default"
-            size="sm"
-            onClick={onNewAd}
-            className="gap-2 bg-primary hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4" />
-            New Ad
-          </Button>
-        )}
-      </div>
-    </div>
+      {/* Meta Connection Modal */}
+      {showMetaModal && (
+        <MetaConnectionModal
+          open={showMetaModal}
+          onOpenChange={setShowMetaModal}
+          onSuccess={() => {
+            onMetaConnect?.()
+            setShowMetaModal(false)
+          }}
+        />
+      )}
+
+      {/* Budget Panel */}
+      {showBudgetPanel && (
+        <BudgetPanel
+          open={showBudgetPanel}
+          onOpenChange={setShowBudgetPanel}
+          currentBudget={campaignBudget}
+          onSave={(budget) => {
+            onBudgetUpdate?.(budget)
+            setShowBudgetPanel(false)
+          }}
+        />
+      )}
+    </>
   )
 }
 

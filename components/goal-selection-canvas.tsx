@@ -1,7 +1,7 @@
 "use client"
 
-import { Phone, Users, CheckCircle2, Loader2, Lock, Flag, Filter, FileText, Check, AlertCircle, Globe } from "lucide-react"
-import { useEffect, useRef } from "react"
+import { Phone, Users, CheckCircle2, Loader2, Lock, Flag, Filter, FileText, Check, AlertCircle, Globe, Facebook } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useGoal } from "@/lib/context/goal-context"
@@ -10,6 +10,8 @@ import { LeadFormSetup } from "@/components/forms/lead-form-setup"
 import { FormSummaryCard } from "@/components/launch/form-summary-card"
 import { CallConfiguration } from "@/components/forms/call-configuration"
 import { WebsiteConfiguration } from "@/components/forms/website-configuration"
+import { MetaConnectionModal } from "@/components/meta/meta-connection-modal"
+import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 import { cn } from "@/lib/utils"
 
 interface GoalSelectionCanvasProps {
@@ -19,6 +21,8 @@ interface GoalSelectionCanvasProps {
 export function GoalSelectionCanvas({ variant = "step" }: GoalSelectionCanvasProps = {}) {
   const { goalState, setSelectedGoal, resetGoal, setFormData } = useGoal()
   const { isPublished } = useAdPreview()
+  const { metaStatus, paymentStatus, refreshStatus, isReady } = useMetaConnection()
+  const [showMetaModal, setShowMetaModal] = useState(false)
   const isSummary = variant === "summary"
   
   // Removed AI-triggered setup; inline UI is used instead
@@ -138,7 +142,55 @@ export function GoalSelectionCanvas({ variant = "step" }: GoalSelectionCanvasPro
     )
   }
 
-  // Initial state - no goal selected
+  // Meta connection gate: if user reaches goal step without connection, show prompt
+  if (goalState.status === "idle" && !isReady) {
+    return (
+      <>
+        <div className={cn("flex flex-col items-center justify-center h-full p-8", isSummary && "p-6")}>
+          <div className="max-w-2xl w-full space-y-6">
+            <div className="text-center space-y-3">
+              <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto">
+                <Lock className="h-8 w-8 text-blue-600" />
+              </div>
+              <h2 className="text-2xl font-bold">Connect Meta to Set Goal</h2>
+              <p className="text-muted-foreground">
+                Goals require access to your Meta business account. Connect Facebook & Instagram to continue.
+              </p>
+            </div>
+
+            <Button
+              size="lg"
+              onClick={() => setShowMetaModal(true)}
+              className="w-full gap-2"
+            >
+              <Facebook className="h-5 w-5" />
+              Connect Meta & Instagram
+            </Button>
+
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
+              <AlertCircle className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-700 dark:text-blue-400">
+                For lead generation goals, we need to access your Meta instant forms and conversion tracking.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <MetaConnectionModal
+          open={showMetaModal}
+          onOpenChange={setShowMetaModal}
+          onSuccess={() => {
+            refreshStatus()
+            setShowMetaModal(false)
+            // Auto-advance to show goal options
+            window.dispatchEvent(new Event('autoAdvanceStep'))
+          }}
+        />
+      </>
+    )
+  }
+
+  // Initial state - no goal selected (only shown when Meta IS connected)
   if (goalState.status === "idle") {
     return (
       <div className={cn("flex flex-col items-center justify-center h-full p-8", isSummary && "p-6")}
