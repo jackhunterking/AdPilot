@@ -73,17 +73,17 @@ export async function GET(
       } : undefined,
     }
 
-    const campaignBudget = {
+    const campaignBudget: import('@/lib/types/meta-integration').CampaignBudget = {
       campaignId,
       totalBudget: campaign.campaign_budget || 0,
-      strategy: campaign.budget_strategy || 'ai_distribute',
-      status: campaign.budget_status || 'draft',
+      strategy: (campaign.budget_strategy as import('@/lib/types/meta-integration').BudgetStrategy) || 'ai_distribute',
+      status: (campaign.budget_status as import('@/lib/types/meta-integration').BudgetStatus) || 'draft',
       allocations: (allocations || []).map(alloc => ({
         adId: alloc.ad_id,
         adName: (alloc.ads as unknown as { name: string })?.name || 'Unnamed Ad',
         recommendedBudget: alloc.recommended_budget,
-        reasonCode: alloc.reason_code,
-        confidenceScore: alloc.confidence_score,
+        reasonCode: alloc.reason_code || 'unknown',
+        confidenceScore: alloc.confidence_score || 0,
         actualSpend: alloc.actual_spend || 0,
       })),
     }
