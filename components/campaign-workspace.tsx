@@ -381,7 +381,7 @@ export function CampaignWorkspace() {
             )
           }
           return (
-            <div className="flex flex-1 h-full p-6">
+            <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
               <ResultsPanel
                 variant={currentVariant}
                 metrics={getCurrentMetrics()}
@@ -396,16 +396,18 @@ export function CampaignWorkspace() {
         })()}
 
         {(effectiveMode === 'all-ads' || shouldFallbackToAllAds) && (
-          <AllAdsGrid
-            ads={convertedAds}
-            onViewAd={handleViewAd}
-            onEditAd={handleEditAd}
-            onPauseAd={handlePauseAd}
-            onResumeAd={handleResumeAd}
-            onCreateABTest={handleCreateABTest}
-            saveSuccessState={saveSuccessState}
-            onClearSuccessState={() => setSaveSuccessState(null)}
-          />
+          <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
+            <AllAdsGrid
+              ads={convertedAds}
+              onViewAd={handleViewAd}
+              onEditAd={handleEditAd}
+              onPauseAd={handlePauseAd}
+              onResumeAd={handleResumeAd}
+              onCreateABTest={handleCreateABTest}
+              saveSuccessState={saveSuccessState}
+              onClearSuccessState={() => setSaveSuccessState(null)}
+            />
+          </div>
         )}
 
         {effectiveMode === 'edit' && (
@@ -422,15 +424,17 @@ export function CampaignWorkspace() {
             )
           }
           return (
-            <ABTestBuilder
-              campaign_id={campaignId}
-              current_variant={currentVariant}
-              onCancel={() => setWorkspaceMode('results', currentAdId || undefined)}
-              onComplete={(test) => {
-                // TODO: Handle test creation
-                setWorkspaceMode('results', currentAdId || undefined)
-              }}
-            />
+            <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
+              <ABTestBuilder
+                campaign_id={campaignId}
+                current_variant={currentVariant}
+                onCancel={() => setWorkspaceMode('results', currentAdId || undefined)}
+                onComplete={(test) => {
+                  // TODO: Handle test creation
+                  setWorkspaceMode('results', currentAdId || undefined)
+                }}
+              />
+            </div>
           )
         })()}
       </div>

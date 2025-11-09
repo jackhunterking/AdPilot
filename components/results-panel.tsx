@@ -62,7 +62,7 @@ export function ResultsPanel({
   ]
 
   return (
-    <div className={cn("flex flex-1 h-full gap-6 overflow-auto", className)}>
+    <div className={cn("flex flex-1 h-full gap-6 p-6 overflow-auto", className)}>
       {/* Left: Ad Preview (40%) */}
       <div className="flex-[2] flex flex-col gap-4 min-w-0">
         <Card>

@@ -82,7 +82,7 @@ export function AllAdsGrid({
         </DialogContent>
       </Dialog>
       
-      <div className="flex-1 overflow-auto p-6 bg-muted">
+      <div className="flex-1 overflow-auto p-6">
         {ads.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center text-muted-foreground">
