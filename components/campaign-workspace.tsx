@@ -302,15 +302,55 @@ export function CampaignWorkspace() {
     setWorkspaceMode('edit', adId)
   }, [setWorkspaceMode])
 
-  const handlePauseAd = useCallback((adId: string) => {
-    // TODO: API call to pause ad
-    console.log('Pause ad:', adId)
-  }, [])
+  const handlePauseAd = useCallback(async (adId: string) => {
+    try {
+      console.log('[CampaignWorkspace] Pausing ad:', adId)
+      
+      const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/pause`, {
+        method: 'POST',
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('[CampaignWorkspace] Failed to pause ad:', errorData)
+        // TODO: Show error toast
+        return
+      }
+      
+      console.log('[CampaignWorkspace] Ad paused successfully:', adId)
+      
+      // Refresh ads list to update status
+      await refreshAds()
+    } catch (error) {
+      console.error('[CampaignWorkspace] Error pausing ad:', error)
+      // TODO: Show error toast
+    }
+  }, [campaignId, refreshAds])
 
-  const handleResumeAd = useCallback((adId: string) => {
-    // TODO: API call to resume ad
-    console.log('Resume ad:', adId)
-  }, [])
+  const handleResumeAd = useCallback(async (adId: string) => {
+    try {
+      console.log('[CampaignWorkspace] Resuming ad:', adId)
+      
+      const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/resume`, {
+        method: 'POST',
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('[CampaignWorkspace] Failed to resume ad:', errorData)
+        // TODO: Show error toast
+        return
+      }
+      
+      console.log('[CampaignWorkspace] Ad resumed successfully:', adId)
+      
+      // Refresh ads list to update status
+      await refreshAds()
+    } catch (error) {
+      console.error('[CampaignWorkspace] Error resuming ad:', error)
+      // TODO: Show error toast
+    }
+  }, [campaignId, refreshAds])
 
   const handleDeleteAd = useCallback(async (adId: string) => {
     try {

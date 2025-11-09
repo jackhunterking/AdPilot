@@ -195,10 +195,10 @@ export function AdCard({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={onCreateABTest}
-                className="w-full"
+                disabled
+                className="w-full cursor-not-allowed opacity-50"
               >
-                A/B Test
+                A/B Test (Coming Soon)
               </Button>
             )}
             <Button
