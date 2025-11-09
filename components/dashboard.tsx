@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import AiChat from "./ai-chat"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ArrowLeft, Edit, Moon, Sun, Check } from "lucide-react"
+import { ChevronDown, ArrowLeft, Edit, Moon, Sun, Check, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { COMPANY_NAME } from "@/lib/constants"
 import { useTheme } from "next-themes"
 import {
@@ -44,6 +44,24 @@ export function Dashboard({
   const dailyCredits = 500
   const { setTheme, resolvedTheme } = useTheme()
   const { campaign, updateCampaign } = useCampaignContext()
+  
+  // Chat collapse state with localStorage persistence
+  const [isChatCollapsed, setIsChatCollapsed] = useState(false)
+  
+  // Load collapse preference from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('adpilot-chat-collapsed')
+    if (saved !== null) {
+      setIsChatCollapsed(saved === 'true')
+    }
+  }, [])
+  
+  // Save collapse preference to localStorage whenever it changes
+  const toggleChatCollapse = () => {
+    const newValue = !isChatCollapsed
+    setIsChatCollapsed(newValue)
+    localStorage.setItem('adpilot-chat-collapsed', String(newValue))
+  }
   
   // Get workspace mode from URL to pass as context to AI Chat
   const viewMode = searchParams.get("view") as 'build' | 'edit' | 'all-ads' | 'results' | 'ab-test-builder' | null
@@ -106,21 +124,22 @@ export function Dashboard({
     <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
       {/* Main Content - Chat and Preview side by side */}
       <div className="flex flex-1 overflow-hidden">
-        {/* AI Chat - Takes 1/4 width */}
-        <div className="w-1/4 bg-preview-panel text-preview-panel-foreground flex flex-col h-full">
+        {/* AI Chat - Collapsible sidebar */}
+        <div className={`${isChatCollapsed ? 'w-14' : 'w-[30%]'} transition-all duration-300 ease-in-out bg-preview-panel text-preview-panel-foreground flex flex-col h-full`}>
           {/* Header - Only for left section */}
           <div className="flex h-12 items-center justify-between px-4 bg-preview-panel text-preview-panel-foreground shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="relative h-8 w-8">
-                <img src="/AdPilot-Logomark.svg" alt="AdPilot" className="h-8 w-8" />
-              </div>
-              <div className="flex flex-col leading-none">
-                <span className="text-sm font-semibold truncate max-w-[160px]">{campaign?.name ?? COMPANY_NAME}</span>
-                <div className="-mt-0.5">
-                  <SaveIndicator />
+            {!isChatCollapsed && (
+              <div className="flex items-center gap-2">
+                <div className="relative h-8 w-8">
+                  <img src="/AdPilot-Logomark.svg" alt="AdPilot" className="h-8 w-8" />
                 </div>
-              </div>
-              <DropdownMenu onOpenChange={setIsDropdownOpen}>
+                <div className="flex flex-col leading-none">
+                  <span className="text-sm font-semibold truncate max-w-[160px]">{campaign?.name ?? COMPANY_NAME}</span>
+                  <div className="-mt-0.5">
+                    <SaveIndicator />
+                  </div>
+                </div>
+                <DropdownMenu onOpenChange={setIsDropdownOpen}>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                     <ChevronDown className={`h-4 w-4 transition-colors ${isDropdownOpen ? 'text-foreground' : 'text-muted-foreground'}`} />
@@ -178,7 +197,24 @@ export function Dashboard({
                   </DropdownMenuSub>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </div>
+              </div>
+            )}
+
+            {/* Collapse/Expand Button */}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0"
+              onClick={toggleChatCollapse}
+              aria-label={isChatCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={isChatCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isChatCollapsed ? (
+                <PanelLeftOpen className="h-4 w-4" />
+              ) : (
+                <PanelLeftClose className="h-4 w-4" />
+              )}
+            </Button>
 
             {/* Rename Dialog mounted outside dropdown */}
             <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
@@ -211,13 +247,15 @@ export function Dashboard({
           </div>
           
           {/* AI Chat Content */}
-          <AiChat 
-            campaignId={campaignId}
-            conversationId={conversationId}
-            messages={messages}
-            campaignMetadata={campaignMetadata ?? undefined}
-            context={viewMode || 'build'}
-          />
+          {!isChatCollapsed && (
+            <AiChat 
+              campaignId={campaignId}
+              conversationId={conversationId}
+              messages={messages}
+              campaignMetadata={campaignMetadata ?? undefined}
+              context={viewMode || 'build'}
+            />
+          )}
         </div>
 
         {/* Workspace - URL-based routing */}
