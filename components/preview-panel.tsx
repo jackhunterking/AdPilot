@@ -37,6 +37,7 @@ import { SectionEditModal } from "@/components/launch/section-edit-modal"
 import { PublishBudgetCard } from "@/components/launch/publish-budget-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { PublishFlowDialog } from "@/components/launch/publish-flow-dialog"
 
 export function PreviewPanel() {
   const [activeFormat, setActiveFormat] = useState("feed")
@@ -55,6 +56,10 @@ export function PreviewPanel() {
   const [locationModalOpen, setLocationModalOpen] = useState(false)
   const [audienceModalOpen, setAudienceModalOpen] = useState(false)
   const [goalModalOpen, setGoalModalOpen] = useState(false)
+  
+  // Publish flow dialog state
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
 
   // Memoized Meta connection completion check - reacts to campaign state and budget state changes
   const isMetaConnectionComplete = useMemo(() => {
@@ -225,67 +230,39 @@ export function PreviewPanel() {
     }
   }, [campaign?.id, budgetState.selectedAdAccount])
 
+  /**
+   * Handles campaign publish action
+   * 
+   * NOTE: This currently opens a simulated publish flow dialog for UX demonstration.
+   * TODO: Wire in actual Meta API calls when ready for production:
+   *   1. Call /api/meta/ads/launch for leads campaigns
+   *   2. Call /api/meta/campaigns/create-traffic-ad + /api/meta/ads/publish for website visits
+   *   3. Call /api/meta/campaigns/create-call-ad + /api/meta/ads/publish for calls
+   *   4. Add proper error handling and retry logic
+   *   5. Verify payment method before actual publish
+   *   6. Update campaign status in Supabase after successful publish
+   */
   const handlePublish = async () => {
     if (!campaign?.id) return
     if (!allStepsComplete) return
-    try {
-      // Branch by goal: leads (existing orchestrator) vs calls/website
-      const goal = goalState.selectedGoal
-      if (goal === 'leads') {
-        const res = await fetch('/api/meta/ads/launch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campaignId: campaign.id, publish: true }),
-        })
-        if (res.ok) setIsPublished(true)
-        return
-      }
-
-      if (goal === 'website-visits') {
-        // Create Traffic assets (paused)
-        const createRes = await fetch('/api/meta/campaigns/create-traffic-ad', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campaignId: campaign.id }),
-        })
-        const created: unknown = await createRes.json()
-        if (!createRes.ok || !created || typeof created !== 'object' || created === null || typeof (created as { id?: unknown }).id !== 'string') {
-          return
-        }
-        const adId = (created as { id: string }).id
-        // Publish ad
-        const pubRes = await fetch('/api/meta/ads/publish', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campaignId: campaign.id, targetType: 'ad', targetId: adId })
-        })
-        if (pubRes.ok) setIsPublished(true)
-        return
-      }
-
-      if (goal === 'calls') {
-        // Create Calls assets (paused)
-        const createRes = await fetch('/api/meta/campaigns/create-call-ad', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campaignId: campaign.id }),
-        })
-        const created: unknown = await createRes.json()
-        if (!createRes.ok || !created || typeof created !== 'object' || created === null || typeof (created as { id?: unknown }).id !== 'string') {
-          return
-        }
-        const adId = (created as { id: string }).id
-        // Publish ad
-        const pubRes = await fetch('/api/meta/ads/publish', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ campaignId: campaign.id, targetType: 'ad', targetId: adId })
-        })
-        if (pubRes.ok) setIsPublished(true)
-        return
-      }
-    } catch {
-      // ignore
+    if (isPublishing) return // Prevent double-click
+    
+    // Open the publish flow dialog
+    setIsPublishing(true)
+    setPublishDialogOpen(true)
+  }
+  
+  const handlePublishComplete = () => {
+    // Mark campaign as published
+    setIsPublished(true)
+    setIsPublishing(false)
+  }
+  
+  const handlePublishDialogClose = (open: boolean) => {
+    setPublishDialogOpen(open)
+    if (!open && !isPublished) {
+      // User closed dialog before completion
+      setIsPublishing(false)
     }
   }
 
@@ -964,6 +941,7 @@ export function PreviewPanel() {
           <PublishBudgetCard
             allStepsComplete={allStepsComplete}
             isPublished={isPublished}
+            isPublishing={isPublishing}
             onPublish={handlePublish}
           />
         </div>
@@ -1123,6 +1101,14 @@ export function PreviewPanel() {
       <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
         <CampaignStepper steps={steps} campaignId={campaign?.id} />
       </div>
+      
+      {/* Publish Flow Dialog */}
+      <PublishFlowDialog
+        open={publishDialogOpen}
+        onOpenChange={handlePublishDialogClose}
+        campaignName={campaign?.name || "your campaign"}
+        onComplete={handlePublishComplete}
+      />
     </div>
   )
 }

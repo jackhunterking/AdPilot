@@ -8,13 +8,17 @@
  *  - AI Elements: https://ai-sdk.dev/elements/overview#components
  *  - Vercel AI Gateway: https://vercel.com/docs/ai-gateway#overview
  *  - Supabase: https://supabase.com/docs/reference/javascript/select
+ * 
+ * NOTE: This component triggers the PublishFlowDialog via onPublish callback.
+ * The isPublishing prop shows loading state during the simulated publish flow.
+ * TODO: When integrating real Meta API, ensure error states are passed down as props.
  */
 
 import { useMemo, type ChangeEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Play, CheckCircle2, DollarSign, ShieldCheck, AlertTriangle, Minus, Plus } from "lucide-react"
+import { Play, CheckCircle2, DollarSign, ShieldCheck, AlertTriangle, Minus, Plus, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useBudget } from "@/lib/context/budget-context"
 import { getCurrencySymbol } from "@/lib/utils/currency"
@@ -22,6 +26,7 @@ import { getCurrencySymbol } from "@/lib/utils/currency"
 interface PublishBudgetCardProps {
   allStepsComplete: boolean
   isPublished: boolean
+  isPublishing?: boolean
   onPublish: () => void
 }
 
@@ -32,6 +37,7 @@ const STEP = 5
 export function PublishBudgetCard({
   allStepsComplete,
   isPublished,
+  isPublishing = false,
   onPublish,
 }: PublishBudgetCardProps) {
   const { budgetState, setDailyBudget, isComplete } = useBudget()
@@ -92,7 +98,7 @@ export function PublishBudgetCard({
 
           <Button
             onClick={onPublish}
-            disabled={!allStepsComplete}
+            disabled={!allStepsComplete || isPublishing}
             className={cn(
               "w-full gap-2 h-11 text-sm font-semibold transition-colors shadow-sm sm:w-auto",
               isPublished
@@ -106,6 +112,11 @@ export function PublishBudgetCard({
               <>
                 <ShieldCheck className="h-5 w-5" />
                 Campaign Published
+              </>
+            ) : isPublishing ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Publishing...
               </>
             ) : (
               <>
