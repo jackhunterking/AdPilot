@@ -1,9 +1,11 @@
 /**
  * Feature: Campaign Workspace - State-Based Routing
- * Purpose: Route between Home, Build, and View states without confusing tabs
+ * Purpose: Route between Build and Results modes with clean navigation
  * References:
  *  - AI SDK Core: https://ai-sdk.dev/docs/introduction
  *  - AI Elements: https://ai-sdk.dev/elements/overview
+ *  - Vercel AI Gateway: https://vercel.com/docs/ai-gateway
+ *  - Supabase: https://supabase.com/docs
  */
 
 "use client"
@@ -12,13 +14,17 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { PreviewPanel } from "@/components/preview-panel"
+import { ResultsPanel } from "@/components/results-panel"
+import { WorkspaceHeader } from "@/components/workspace-header"
 import { useCampaignContext } from "@/lib/context/campaign-context"
+import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { cn } from "@/lib/utils"
 import { CampaignHome } from "@/components/campaign-home"
 import { AdCardsGrid } from "@/components/ad-cards-grid"
 import { AdDetailDrawer } from "@/components/ad-detail-drawer"
 import { useCampaignAds } from "@/lib/hooks/use-campaign-ads"
 import { useGoal } from "@/lib/context/goal-context"
+import type { WorkspaceMode, CampaignStatus, AdVariant, AdMetrics, LeadFormInfo } from "@/lib/types/workspace"
 
 export type WorkspaceView = "home" | "build" | "view"
 
@@ -30,6 +36,7 @@ type CampaignWorkspaceProps = {
 export function CampaignWorkspace({ activeView, onViewChange }: CampaignWorkspaceProps) {
   const { campaign } = useCampaignContext()
   const { goalState } = useGoal()
+  const { isPublished, adContent } = useAdPreview()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -39,6 +46,10 @@ export function CampaignWorkspace({ activeView, onViewChange }: CampaignWorkspac
   
   const [selectedAdId, setSelectedAdId] = useState<string | null>(null)
   const [editingAdId, setEditingAdId] = useState<string | null>(null)
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>('build')
+  
+  // Determine if we should show results mode
+  const shouldShowResults = isPublished && activeView === 'build'
 
   const storageKey = campaignId ? `campaign-workspace-view:${campaignId}` : null
   const paramsView = searchParams.get("view")
@@ -122,39 +133,107 @@ export function CampaignWorkspace({ activeView, onViewChange }: CampaignWorkspac
     }))
   }, [ads])
 
+  // Simulated metrics for demonstration
+  // TODO: Fetch real metrics from API
+  const mockMetrics: AdMetrics = {
+    impressions: 1234,
+    reach: 987,
+    clicks: 45,
+    leads: goalState.selectedGoal === 'leads' ? 5 : undefined,
+    cpc: 0.78,
+    ctr: 3.64,
+    cpl: goalState.selectedGoal === 'leads' ? 7.80 : undefined,
+    spend: 35.10,
+    last_updated: new Date().toISOString(),
+  }
+
+  // Simulated variant for demonstration
+  const mockVariant: AdVariant = {
+    id: 'variant-1',
+    campaign_id: campaignId,
+    name: campaign?.name || 'Ad Variant',
+    status: 'active',
+    variant_type: 'original',
+    creative_data: {
+      headline: adContent?.headline || '',
+      body: adContent?.body || '',
+      cta: adContent?.cta || 'Learn More',
+      imageUrl: adContent?.imageUrl,
+      imageVariations: adContent?.imageVariations,
+    },
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    published_at: new Date().toISOString(),
+  }
+
+  // Simulated lead form info for leads campaigns
+  const mockLeadFormInfo: LeadFormInfo | undefined = goalState.selectedGoal === 'leads' ? {
+    form_id: 'form-1',
+    form_name: 'Get Free Quote',
+    is_connected: true,
+    lead_count: 5,
+    recent_leads: [
+      {
+        id: '1',
+        name: 'John Doe',
+        email: 'john@example.com',
+        submitted_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+      },
+      {
+        id: '2',
+        name: 'Sarah Miller',
+        email: 'sarah@example.com',
+        submitted_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // 5 hours ago
+      },
+    ],
+  } : undefined
+
+  // Handle back navigation
+  const handleBack = useCallback(() => {
+    if (activeView === 'build' && shouldShowResults) {
+      // From results, go to home
+      onViewChange('home')
+      setWorkspaceMode('build')
+    } else {
+      router.push('/')
+    }
+  }, [activeView, shouldShowResults, onViewChange, router])
+
+  // Handle new ad creation
+  const handleNewAd = useCallback(() => {
+    // TODO: Implement new ad variant creation flow
+    console.log('Create new ad variant')
+  }, [])
+
+  // Handle edit ad
+  const handleEditAd = useCallback(() => {
+    setWorkspaceMode('edit')
+  }, [])
+
+  // Handle pause ad
+  const handlePauseAd = useCallback(() => {
+    // TODO: Implement pause functionality
+    console.log('Pause ad')
+  }, [])
+
+  // Handle create A/B test
+  const handleCreateABTest = useCallback(() => {
+    // TODO: Implement A/B test creation flow
+    console.log('Create A/B test')
+  }, [])
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden h-full min-h-0 relative">
-      {/* Header Status Bar */}
-      <div className="flex items-center justify-between gap-4 border-b border-border bg-background/80 px-6 py-3 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => onViewChange("home")}
-            className="text-sm font-medium hover:text-primary transition-colors"
-          >
-            Campaign Workspace
-          </button>
-          {activeView !== "home" && (
-            <>
-              <span className="text-muted-foreground">/</span>
-              <span className="text-sm font-medium capitalize">{activeView}</span>
-            </>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold",
-              statusLabel.tone === "success" && "bg-emerald-500/10 text-emerald-600",
-              statusLabel.tone === "warning" && "bg-amber-500/10 text-amber-600",
-              statusLabel.tone === "destructive" && "bg-red-500/10 text-red-600",
-              statusLabel.tone === "muted" && "bg-muted text-muted-foreground",
-              statusLabel.tone === "default" && "bg-secondary text-secondary-foreground",
-            )}
-          >
-            {statusLabel.label}
-          </span>
-        </div>
-      </div>
+      {/* Workspace Header - Only show for build/results, not home */}
+      {activeView !== "home" && (
+        <WorkspaceHeader
+          mode={shouldShowResults ? 'results' : 'build'}
+          onBack={handleBack}
+          onNewAd={shouldShowResults ? handleNewAd : undefined}
+          showNewAdButton={shouldShowResults}
+          campaignStatus={campaign?.published_status as CampaignStatus}
+        />
+      )}
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden h-full min-h-0">
@@ -162,11 +241,24 @@ export function CampaignWorkspace({ activeView, onViewChange }: CampaignWorkspac
           <CampaignHome onNavigate={handleNavigate} />
         )}
         
-        {activeView === "build" && (
+        {activeView === "build" && !shouldShowResults && (
           <div className="flex flex-1 h-full flex-col relative min-h-0">
             <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
               <PreviewPanel />
             </div>
+          </div>
+        )}
+
+        {activeView === "build" && shouldShowResults && (
+          <div className="flex flex-1 h-full flex-col relative min-h-0 p-6">
+            <ResultsPanel
+              variant={mockVariant}
+              metrics={mockMetrics}
+              onEdit={handleEditAd}
+              onPause={handlePauseAd}
+              onCreateABTest={handleCreateABTest}
+              leadFormInfo={mockLeadFormInfo}
+            />
           </div>
         )}
         
