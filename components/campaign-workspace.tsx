@@ -206,6 +206,7 @@ export function CampaignWorkspace() {
   // Get view mode from URL
   const viewParam = searchParams.get("view") as WorkspaceMode | null
   const currentAdId = searchParams.get("adId")
+  const isCreatingVariant = searchParams.get('variant') === 'true'
   
   // Show all-ads grid when:
   // 1. No explicit view parameter in URL AND
@@ -869,10 +870,11 @@ export function CampaignWorkspace() {
   // Determine header props
   // Always show New Ad button in results and all-ads modes
   const showNewAdButton = effectiveMode === 'results' || effectiveMode === 'all-ads'
-  // Show back button in all modes EXCEPT:
-  // 1. all-ads mode (it's the home base)
-  // 2. build mode when no published ads exist (first ad being built)
-  const showBackButton = effectiveMode !== 'all-ads' && !(effectiveMode === 'build' && !hasPublishedAds)
+  // Show back button when:
+  // 1. Not in all-ads mode AND
+  // 2. Either has published ads OR creating a variant (variant=true in URL)
+  const showBackButton = effectiveMode !== 'all-ads' && 
+    !(effectiveMode === 'build' && !hasPublishedAds && !isCreatingVariant)
 
   // Get current variant for results/edit modes
   const getCurrentVariant = (): AdVariant | null => {
