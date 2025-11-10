@@ -18,15 +18,23 @@ import { ResultsPanel } from "@/components/results-panel"
 import { WorkspaceHeader } from "@/components/workspace-header"
 import { AllAdsGrid } from "@/components/all-ads-grid"
 import { ABTestBuilder } from "@/components/ab-test/ab-test-builder"
+import { PublishFlowDialog } from "@/components/launch/publish-flow-dialog"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { useLocation } from "@/lib/context/location-context"
 import { useAudience } from "@/lib/context/audience-context"
+import { useAdCopy } from "@/lib/context/ad-copy-context"
+import { useBudget } from "@/lib/context/budget-context"
 import { useCampaignAds } from "@/lib/hooks/use-campaign-ads"
 import { useGoal } from "@/lib/context/goal-context"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 import { metaStorage } from "@/lib/meta/storage"
+import { validateAdForPublish, formatValidationError } from "@/lib/utils/ad-validation"
 import type { WorkspaceMode, CampaignStatus, AdVariant, AdMetrics, LeadFormInfo } from "@/lib/types/workspace"
+import { toast } from "sonner"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { AlertTriangle } from "lucide-react"
 
 interface SaveSuccessState {
   campaignName: string
@@ -38,9 +46,11 @@ interface SaveSuccessState {
 export function CampaignWorkspace() {
   const { campaign, updateBudget } = useCampaignContext()
   const { goalState } = useGoal()
-  const { adContent, resetAdPreview } = useAdPreview()
-  const { clearLocations } = useLocation()
-  const { resetAudience } = useAudience()
+  const { adContent, resetAdPreview, selectedImageIndex, selectedCreativeVariation, setIsPublished } = useAdPreview()
+  const { clearLocations, locationState } = useLocation()
+  const { resetAudience, audienceState } = useAudience()
+  const { adCopyState, getSelectedCopy } = useAdCopy()
+  const { budgetState, isComplete: isBudgetComplete } = useBudget()
   const { metaStatus, paymentStatus } = useMetaConnection()
   const router = useRouter()
   const pathname = usePathname()
@@ -51,6 +61,27 @@ export function CampaignWorkspace() {
   
   // State for save success notification
   const [saveSuccessState, setSaveSuccessState] = useState<SaveSuccessState | null>(null)
+  
+  // State for publish dialog in edit mode
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [hasPaymentMethod, setHasPaymentMethod] = useState(false)
+  
+  // State for unsaved changes tracking
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null)
+  
+  // Track unsaved changes in edit mode
+  useEffect(() => {
+    if (effectiveMode === 'edit' && currentAdId) {
+      // Mark as having unsaved changes when in edit mode
+      // This will be reset when Save & Publish is successful
+      setHasUnsavedChanges(true)
+    } else {
+      setHasUnsavedChanges(false)
+    }
+  }, [effectiveMode, currentAdId, adContent, adCopyState, locationState, audienceState])
   
   // Listen for save complete events
   useEffect(() => {
@@ -88,6 +119,100 @@ export function CampaignWorkspace() {
       window.removeEventListener('campaign:save-complete', handleSaveComplete)
     }
   }, [campaignId, refreshAds, router, pathname])
+  
+  // Check payment method status
+  useEffect(() => {
+    if (!campaign?.id || typeof window === "undefined") {
+      setHasPaymentMethod(false)
+      return
+    }
+
+    try {
+      const summary = metaStorage.getConnectionSummary(campaign.id)
+      const connection = metaStorage.getConnection(campaign.id)
+
+      if (summary?.paymentConnected || connection?.ad_account_payment_connected) {
+        setHasPaymentMethod(true)
+        return
+      }
+
+      const adAccountId =
+        summary?.adAccount?.id ??
+        connection?.selected_ad_account_id ??
+        budgetState.selectedAdAccount
+
+      if (!adAccountId) {
+        setHasPaymentMethod(false)
+        return
+      }
+
+      let cancelled = false
+
+      const verifyFunding = async () => {
+        try {
+          const res = await fetch(
+            `/api/meta/payments/capability?campaignId=${encodeURIComponent(campaign.id)}`,
+            { cache: "no-store" },
+          )
+
+          if (!res.ok) return
+
+          const data: unknown = await res.json()
+          const hasFunding = Boolean((data as { hasFunding?: unknown }).hasFunding)
+
+          if (cancelled) return
+
+          if (hasFunding) {
+            metaStorage.markPaymentConnected(campaign.id)
+            setHasPaymentMethod(true)
+          } else {
+            setHasPaymentMethod(false)
+          }
+        } catch (error) {
+          if (!cancelled) {
+            console.error("[CampaignWorkspace] Failed to verify payment capability", error)
+            setHasPaymentMethod(false)
+          }
+        }
+      }
+
+      void verifyFunding()
+
+      return () => {
+        cancelled = true
+      }
+    } catch (error) {
+      console.error("[CampaignWorkspace] Payment verification error", error)
+    }
+  }, [campaign?.id, budgetState.selectedAdAccount])
+  
+  // Check Meta connection status
+  const isMetaConnectionComplete = useMemo(() => {
+    const states = campaign?.campaign_states as { meta_connect_data?: { status?: string } } | null | undefined
+    const metaConnectData = states?.meta_connect_data
+    const serverConnected = Boolean(metaConnectData?.status === 'connected' || metaConnectData?.status === 'selected_assets')
+    
+    const budgetConnected = budgetState.isConnected === true
+    
+    let localStorageConnected = false
+    if (campaign?.id && typeof window !== 'undefined') {
+      try {
+        const connectionData = metaStorage.getConnection(campaign.id)
+        if (connectionData) {
+          const summary = metaStorage.getConnectionSummary(campaign.id)
+          localStorageConnected = Boolean(
+            summary?.status === 'connected' || 
+            summary?.status === 'selected_assets' ||
+            (summary?.adAccount?.id && summary?.business?.id)
+          )
+        }
+      } catch {
+        // Ignore localStorage errors
+      }
+    }
+    
+    return serverConnected || budgetConnected || localStorageConnected
+  }, [campaign?.campaign_states, campaign?.id, budgetState.isConnected])
   
   // Get view mode from URL
   const viewParam = searchParams.get("view") as WorkspaceMode | null
@@ -276,16 +401,26 @@ export function CampaignWorkspace() {
 
   // Navigation handlers
   const handleBack = useCallback(() => {
-    if (effectiveMode === 'results' || effectiveMode === 'edit' || effectiveMode === 'ab-test-builder') {
-      // All these modes navigate to all-ads grid
-      setWorkspaceMode('all-ads')
-    } else if (effectiveMode === 'build') {
-      // Only go to all-ads if we have published ads, otherwise do nothing (button should be hidden)
-      if (hasPublishedAds) {
+    const navigateToAllAds = () => {
+      if (effectiveMode === 'results' || effectiveMode === 'edit' || effectiveMode === 'ab-test-builder') {
+        // All these modes navigate to all-ads grid
         setWorkspaceMode('all-ads')
+      } else if (effectiveMode === 'build') {
+        // Only go to all-ads if we have published ads, otherwise do nothing (button should be hidden)
+        if (hasPublishedAds) {
+          setWorkspaceMode('all-ads')
+        }
       }
     }
-  }, [effectiveMode, hasPublishedAds, setWorkspaceMode])
+    
+    // Check for unsaved changes in edit mode
+    if (effectiveMode === 'edit' && hasUnsavedChanges) {
+      setPendingNavigation(() => navigateToAllAds)
+      setShowUnsavedDialog(true)
+    } else {
+      navigateToAllAds()
+    }
+  }, [effectiveMode, hasPublishedAds, hasUnsavedChanges, setWorkspaceMode])
 
   const handleNewAd = useCallback(() => {
     console.log('[CampaignWorkspace] Creating new ad - resetting creative state')
@@ -445,6 +580,37 @@ export function CampaignWorkspace() {
     }
   }, [ads, campaignId, convertedAds, getMetaToken, refreshAds, updateAdStatus])
 
+  const handlePublishAd = useCallback(async (adId: string) => {
+    try {
+      console.log('[CampaignWorkspace] Publishing ad:', adId)
+      
+      const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/publish`, {
+        method: 'POST',
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('[CampaignWorkspace] Failed to publish ad:', errorData)
+        toast.error(errorData.error || 'Failed to publish ad')
+        return
+      }
+      
+      const { ad } = await response.json()
+      console.log('[CampaignWorkspace] Ad published successfully:', adId)
+      
+      // Show success toast
+      toast.success('Ad published successfully!')
+      
+      // Refresh ads list to update status
+      await refreshAds()
+      
+      // Stay on all-ads view to show the published ad
+    } catch (error) {
+      console.error('[CampaignWorkspace] Error publishing ad:', error)
+      toast.error('Failed to publish ad')
+    }
+  }, [campaignId, refreshAds])
+
   const handleDeleteAd = useCallback(async (adId: string) => {
     try {
       console.log('[CampaignWorkspace] Deleting ad:', adId)
@@ -477,6 +643,204 @@ export function CampaignWorkspace() {
   const handleCreateABTest = useCallback((adId: string) => {
     setWorkspaceMode('ab-test-builder', adId)
   }, [setWorkspaceMode])
+
+  // Handle Save & Publish action from header
+  const handleSaveAndPublish = useCallback(async () => {
+    if (!campaign?.id || !currentAdId || isPublishing) return
+    
+    // Validate all sections
+    const validationState = {
+      selectedImageIndex,
+      adCopyStatus: adCopyState.status,
+      locationStatus: locationState.status,
+      audienceStatus: audienceState.status,
+      goalStatus: goalState.status,
+      isMetaConnectionComplete,
+      hasPaymentMethod,
+      isBudgetComplete: isBudgetComplete(),
+    }
+    
+    const validation = validateAdForPublish(validationState)
+    
+    if (!validation.isValid) {
+      toast.error(formatValidationError(validation))
+      return
+    }
+    
+    // Open publish dialog
+    setIsPublishing(true)
+    setPublishDialogOpen(true)
+  }, [
+    campaign?.id,
+    currentAdId,
+    isPublishing,
+    selectedImageIndex,
+    adCopyState.status,
+    locationState.status,
+    audienceState.status,
+    goalState.status,
+    isMetaConnectionComplete,
+    hasPaymentMethod,
+    isBudgetComplete,
+  ])
+  
+  // Handle publish complete
+  const handlePublishComplete = useCallback(async () => {
+    if (!campaign?.id || !currentAdId) return
+    
+    try {
+      // Import the snapshot builder dynamically
+      const { buildAdSnapshot, validateAdSnapshot } = await import('@/lib/services/ad-snapshot-builder')
+      
+      // Build complete snapshot from wizard contexts
+      const snapshot = buildAdSnapshot({
+        adPreview: {
+          adContent,
+          selectedImageIndex,
+          selectedCreativeVariation,
+        },
+        adCopy: adCopyState,
+        location: locationState,
+        audience: audienceState,
+        goal: goalState,
+        budget: budgetState,
+      })
+      
+      // Validate snapshot before submitting
+      const validation = validateAdSnapshot(snapshot)
+      if (!validation.isValid) {
+        console.error('Snapshot validation failed:', validation.errors)
+        toast.error(`Cannot publish: ${validation.errors.join(', ')}`)
+        setIsPublishing(false)
+        return
+      }
+      
+      if (validation.warnings.length > 0) {
+        console.warn('Snapshot warnings:', validation.warnings)
+      }
+      
+      // Gather the finalized ad data from snapshot - use canonical copy source
+      const selectedCopy = getSelectedCopy()
+      
+      const selectedImageUrl = selectedImageIndex !== null && adContent?.imageVariations?.[selectedImageIndex]
+        ? adContent.imageVariations[selectedImageIndex]
+        : adContent?.imageUrl || adContent?.imageVariations?.[0]
+      
+      // Prepare the ad data for persistence
+      const adData = {
+        name: `${campaign.name} - Ad ${new Date().toLocaleDateString()}`,
+        status: 'active',
+        creative_data: {
+          imageUrl: selectedImageUrl,
+          imageVariations: adContent?.imageVariations,
+          baseImageUrl: adContent?.baseImageUrl,
+        },
+        copy_data: {
+          headline: selectedCopy?.headline || adContent?.headline,
+          primaryText: selectedCopy?.primaryText || adContent?.body,
+          description: selectedCopy?.description || adContent?.body,
+          cta: adContent?.cta || 'Learn More',
+        },
+        meta_ad_id: null, // Will be set when actually published to Meta
+      }
+      
+      console.log('📸 Validated snapshot (used for deriving data):', {
+        hasSnapshot: !!snapshot,
+        creative: snapshot.creative.selectedImageIndex,
+        copy: {
+          headline: snapshot.copy.headline,
+          primaryText: snapshot.copy.primaryText?.substring(0, 50) + '...',
+        },
+        locations: snapshot.location.locations.length,
+        goal: snapshot.goal.type,
+      })
+      
+      console.log('📦 Ad data being sent to API (UPDATE):', {
+        adId: currentAdId,
+        name: adData.name,
+        status: adData.status,
+      })
+      
+      // Update the existing ad in Supabase
+      const response = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAdId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adData),
+      })
+      
+      if (!response.ok) {
+        console.error('Failed to update ad:', await response.text())
+        toast.error('Failed to save changes')
+        setIsPublishing(false)
+        return
+      }
+      
+      const { ad } = await response.json()
+      console.log(`✅ Ad updated:`, ad.id)
+      
+      // Mark as published in context and clear unsaved changes
+      setIsPublished(true)
+      setIsPublishing(false)
+      setHasUnsavedChanges(false)
+      
+      // Close the dialog immediately so navigation isn't blocked
+      setPublishDialogOpen(false)
+      
+      // Dispatch custom event to notify campaign workspace
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('campaign:save-complete', {
+          detail: {
+            campaignId: campaign.id,
+            campaignName: campaign.name,
+            isEdit: true,
+            adId: ad.id,
+            timestamp: Date.now()
+          }
+        }))
+      }
+    } catch (error) {
+      console.error('Error in handlePublishComplete:', error)
+      toast.error('Failed to save changes')
+      setIsPublishing(false)
+    }
+  }, [
+    campaign?.id,
+    campaign?.name,
+    currentAdId,
+    adContent,
+    selectedImageIndex,
+    selectedCreativeVariation,
+    adCopyState,
+    locationState,
+    audienceState,
+    goalState,
+    budgetState,
+    getSelectedCopy,
+    setIsPublished,
+  ])
+  
+  const handlePublishDialogClose = useCallback((open: boolean) => {
+    setPublishDialogOpen(open)
+    if (!open) {
+      // User closed dialog before completion
+      setIsPublishing(false)
+    }
+  }, [])
+  
+  // Unsaved changes dialog handlers
+  const handleDiscardChanges = useCallback(() => {
+    setShowUnsavedDialog(false)
+    setHasUnsavedChanges(false)
+    if (pendingNavigation) {
+      pendingNavigation()
+      setPendingNavigation(null)
+    }
+  }, [pendingNavigation])
+  
+  const handleCancelDiscard = useCallback(() => {
+    setShowUnsavedDialog(false)
+    setPendingNavigation(null)
+  }, [])
 
   // Determine header props
   // Always show New Ad button in results and all-ads modes
@@ -529,6 +893,8 @@ export function CampaignWorkspace() {
         paymentStatus={paymentStatus}
         campaignBudget={campaign?.campaign_budget ?? null}
         onBudgetUpdate={updateBudget}
+        onSaveAndPublish={effectiveMode === 'edit' ? handleSaveAndPublish : undefined}
+        isSaveAndPublishDisabled={isPublishing}
       />
 
       {/* Main Content */}
@@ -581,6 +947,7 @@ export function CampaignWorkspace() {
               ads={convertedAds}
               onViewAd={handleViewAd}
               onEditAd={handleEditAd}
+              onPublishAd={handlePublishAd}
               onPauseAd={handlePauseAd}
               onResumeAd={handleResumeAd}
               onCreateABTest={handleCreateABTest}
@@ -619,6 +986,50 @@ export function CampaignWorkspace() {
           )
         })()}
       </div>
+      
+      {/* Publish Flow Dialog for Edit Mode */}
+      {effectiveMode === 'edit' && (
+        <PublishFlowDialog
+          open={publishDialogOpen}
+          onOpenChange={handlePublishDialogClose}
+          campaignName={campaign?.name || "your ad"}
+          isEditMode={true}
+          onComplete={handlePublishComplete}
+        />
+      )}
+      
+      {/* Unsaved Changes Dialog */}
+      <Dialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader className="mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-500/10">
+                <AlertTriangle className="h-6 w-6 text-orange-600" />
+              </div>
+              <DialogTitle className="text-xl">Unsaved Changes</DialogTitle>
+            </div>
+          </DialogHeader>
+          <DialogDescription className="text-sm text-muted-foreground mb-6">
+            You have unsaved changes. If you leave now, your changes will be lost. Do you want to discard your changes?
+          </DialogDescription>
+          <DialogFooter className="flex gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={handleCancelDiscard}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="lg"
+              onClick={handleDiscardChanges}
+            >
+              Discard Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

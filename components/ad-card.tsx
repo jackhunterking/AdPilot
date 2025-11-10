@@ -15,13 +15,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
-import { AlertTriangle, Eye, Trash2 } from "lucide-react"
+import { AlertTriangle, Trash2 } from "lucide-react"
 import type { AdVariant } from "@/lib/types/workspace"
 
 export interface AdCardProps {
   ad: AdVariant
-  onView: () => void
+  onViewResults: () => void
   onEdit: () => void
+  onPublish: () => void
   onPause: () => Promise<boolean>
   onResume: () => Promise<boolean>
   onCreateABTest: () => void
@@ -42,8 +43,9 @@ function formatNumber(num: number): string {
 
 export function AdCard({
   ad,
-  onView,
+  onViewResults,
   onEdit,
+  onPublish,
   onPause,
   onResume,
   onCreateABTest,
@@ -162,15 +164,6 @@ export function AdCard({
             
             {/* Icon overlays */}
             <div className="absolute inset-0 pointer-events-none">
-              {/* Eye icon - top left */}
-              <button
-                onClick={onView}
-                className="absolute top-2 left-2 p-2 bg-black/60 hover:bg-black/80 rounded-full text-white transition-all hover:scale-110 pointer-events-auto"
-                aria-label="View ad"
-              >
-                <Eye className="h-4 w-4" />
-              </button>
-              
               {/* Trash icon - top right */}
               <button
                 onClick={handleDeleteClick}
@@ -231,14 +224,22 @@ export function AdCard({
           >
             Edit
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onViewResults}
+            className="flex-1"
+          >
+            Results
+          </Button>
           {isDraft ? (
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
-              className="flex-1 cursor-not-allowed opacity-60"
-              disabled
+              onClick={onPublish}
+              className="flex-1 bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105"
             >
-              Pause
+              Publish
             </Button>
           ) : isPaused ? (
             <Button
@@ -257,16 +258,6 @@ export function AdCard({
               className="flex-1"
             >
               Pause
-            </Button>
-          )}
-          {showABTestButton && (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled
-              className="flex-1 cursor-not-allowed opacity-50"
-            >
-              A/B Test
             </Button>
           )}
         </div>

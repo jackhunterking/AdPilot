@@ -83,6 +83,45 @@ export function ResultsPanel({
     await onResume()
   }
 
+  // Show empty state for draft ads
+  if (isDraft) {
+    return (
+      <div className={cn("flex flex-1 h-full items-center justify-center p-6", className)}>
+        <Card className="max-w-md">
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="flex justify-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10">
+                <AlertTriangle className="h-8 w-8 text-blue-600" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold">Ad Not Published Yet</h3>
+              <p className="text-sm text-muted-foreground">
+                This ad hasn&apos;t been published yet. Publish it to start seeing performance metrics and reach your audience.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 pt-4">
+              <Button
+                onClick={onEdit}
+                variant="default"
+                className="bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105"
+              >
+                <Edit2 className="h-4 w-4 mr-2" />
+                Edit Draft
+              </Button>
+              <Button
+                onClick={() => window.history.back()}
+                variant="outline"
+              >
+                Go to All Ads
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+  
   return (
     <>
       {/* Pause Confirmation Dialog */}

@@ -304,7 +304,7 @@ export function PreviewPanel() {
       // Note: setup_snapshot not included until database schema supports it
       const adData = {
         name: `${campaign.name} - Ad ${new Date().toLocaleDateString()}`,
-        status: 'active',
+        status: isEditingExistingAd ? 'active' : 'draft', // New ads are drafts, edited ads stay active
         creative_data: {
           imageUrl: selectedImageUrl,
           imageVariations: adContent?.imageVariations,
@@ -317,7 +317,7 @@ export function PreviewPanel() {
           cta: adContent?.cta || 'Learn More',
         },
         meta_ad_id: null, // Will be set when actually published to Meta
-        // setup_snapshot omitted - will be added when database schema is updated
+        setup_snapshot: snapshot, // Include setup snapshot for complete ad configuration
       }
       
       console.log('📸 Validated snapshot (used for deriving data, not persisted):', {

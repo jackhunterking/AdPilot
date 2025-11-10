@@ -170,7 +170,7 @@ export interface WorkspaceState {
   history: WorkspaceMode[]
   
   // Flags
-  has_unsaved_changes: boolean
+  hasUnsavedChanges: boolean
   is_loading: boolean
 }
 

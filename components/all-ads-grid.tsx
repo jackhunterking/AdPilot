@@ -10,12 +10,12 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { AdCard } from "@/components/ad-card"
 import type { AdVariant } from "@/lib/types/workspace"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2 } from "lucide-react"
+import { CheckCircle2, Rocket } from "lucide-react"
 
 interface SaveSuccessState {
   campaignName: string
@@ -28,6 +28,7 @@ export interface AllAdsGridProps {
   ads: AdVariant[]
   onViewAd: (adId: string) => void
   onEditAd: (adId: string) => void
+  onPublishAd: (adId: string) => void
   onPauseAd: (adId: string) => Promise<boolean>
   onResumeAd: (adId: string) => Promise<boolean>
   onCreateABTest: (adId: string) => void
@@ -40,6 +41,7 @@ export function AllAdsGrid({
   ads,
   onViewAd,
   onEditAd,
+  onPublishAd,
   onPauseAd,
   onResumeAd,
   onCreateABTest,
@@ -47,12 +49,64 @@ export function AllAdsGrid({
   saveSuccessState,
   onClearSuccessState,
 }: AllAdsGridProps) {
+  const [publishAdId, setPublishAdId] = useState<string | null>(null)
+  const [showPublishDialog, setShowPublishDialog] = useState(false)
+  
   const handleCloseSuccess = () => {
     onClearSuccessState()
   }
+  
+  const handlePublishClick = (adId: string) => {
+    setPublishAdId(adId)
+    setShowPublishDialog(true)
+  }
+  
+  const handleConfirmPublish = () => {
+    if (publishAdId) {
+      onPublishAd(publishAdId)
+    }
+    setShowPublishDialog(false)
+    setPublishAdId(null)
+  }
+  
+  const publishingAd = publishAdId ? ads.find(ad => ad.id === publishAdId) : null
 
   return (
     <>
+      {/* Publish Confirmation Dialog */}
+      <Dialog open={showPublishDialog} onOpenChange={setShowPublishDialog}>
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader className="mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10">
+                <Rocket className="h-6 w-6 text-blue-600" />
+              </div>
+              <DialogTitle className="text-xl">Publish Ad?</DialogTitle>
+            </div>
+          </DialogHeader>
+          <DialogDescription className="text-sm text-muted-foreground mb-6">
+            Are you sure you want to publish <strong>{publishingAd?.name}</strong>? The ad will go live and start spending your budget.
+          </DialogDescription>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setShowPublishDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="lg"
+              onClick={handleConfirmPublish}
+              className="bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105"
+            >
+              Publish
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Save Success Dialog */}
       <Dialog open={!!saveSuccessState} onOpenChange={(open) => !open && handleCloseSuccess()}>
         <DialogContent className="sm:max-w-md p-6">
           <DialogHeader className="mb-4">
@@ -97,8 +151,9 @@ export function AllAdsGrid({
             <AdCard
               key={ad.id}
               ad={ad}
-              onView={() => onViewAd(ad.id)}
+              onViewResults={() => onViewAd(ad.id)}
               onEdit={() => onEditAd(ad.id)}
+              onPublish={() => handlePublishClick(ad.id)}
               onPause={() => onPauseAd(ad.id)}
               onResume={() => onResumeAd(ad.id)}
               onCreateABTest={() => onCreateABTest(ad.id)}
