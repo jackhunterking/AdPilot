@@ -11,7 +11,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard } from "lucide-react"
+import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Loader2 } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +23,6 @@ import {
 import { cn } from "@/lib/utils"
 import type { WorkspaceHeaderProps } from "@/lib/types/workspace"
 import { useState, useEffect } from "react"
-import { MetaConnectionModal } from "@/components/meta/meta-connection-modal"
 import { BudgetPanel } from "@/components/launch/budget-panel"
 import { useMetaActions } from "@/lib/hooks/use-meta-actions"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
@@ -46,8 +45,8 @@ export function WorkspaceHeader({
   className,
 }: WorkspaceHeaderProps) {
   const { campaign } = useCampaignContext()
-  const [showMetaModal, setShowMetaModal] = useState(false)
   const [showBudgetPanel, setShowBudgetPanel] = useState(false)
+  const [isConnecting, setIsConnecting] = useState(false)
   const metaActions = useMetaActions()
   const { metaStatus: hookMetaStatus, paymentStatus: hookPaymentStatus, refreshStatus } = useMetaConnection()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -92,12 +91,24 @@ export function WorkspaceHeader({
     metaActions.addPayment(summary.adAccount.id)
   }
 
-  // Listen for successful connection to refresh
+  // Handle connect click - open popup immediately
+  const handleConnectClick = () => {
+    setIsConnecting(true)
+    metaActions.connect()
+    // Reset connecting state after popup opens (1 second)
+    setTimeout(() => setIsConnecting(false), 1000)
+  }
+
+  // Add window focus listener to refresh status when popup closes
   useEffect(() => {
-    if (showMetaModal === false && isConnected) {
+    const handleFocus = () => {
+      // When window regains focus (popup closed), refresh status
       refreshStatus()
     }
-  }, [showMetaModal, isConnected, refreshStatus])
+    
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [refreshStatus])
 
   // Call onMetaConnect when connection status changes to connected
   useEffect(() => {
@@ -242,11 +253,21 @@ export function WorkspaceHeader({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setShowMetaModal(true)}
+          onClick={handleConnectClick}
+          disabled={isConnecting}
           className="gap-2 bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400 hover:bg-red-500/20"
         >
-          <AlertCircle className="h-4 w-4" />
-          Meta Issue
+          {isConnecting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Connecting...
+            </>
+          ) : (
+            <>
+              <AlertCircle className="h-4 w-4" />
+              Meta Issue
+            </>
+          )}
         </Button>
       )
     }
@@ -256,11 +277,21 @@ export function WorkspaceHeader({
       <Button
         variant="outline"
         size="sm"
-        onClick={() => setShowMetaModal(true)}
+        onClick={handleConnectClick}
+        disabled={isConnecting}
         className="gap-2"
       >
-        <Facebook className="h-4 w-4" />
-        Connect Meta
+        {isConnecting ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Connecting...
+          </>
+        ) : (
+          <>
+            <Facebook className="h-4 w-4" />
+            Connect Meta
+          </>
+        )}
       </Button>
     )
   }
@@ -399,18 +430,6 @@ export function WorkspaceHeader({
           )}
         </div>
       </div>
-
-      {/* Meta Connection Modal */}
-      {showMetaModal && (
-        <MetaConnectionModal
-          open={showMetaModal}
-          onOpenChange={setShowMetaModal}
-          onSuccess={() => {
-            onMetaConnect?.()
-            setShowMetaModal(false)
-          }}
-        />
-      )}
 
       {/* Budget Panel */}
       {showBudgetPanel && (
