@@ -12,9 +12,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button"
 import { Alert } from "@/components/ui/alert"
 import { Facebook, Building2, CreditCard, CheckCircle2, AlertCircle, Loader2 } from "lucide-react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useMetaActions } from "@/lib/hooks/use-meta-actions"
+import { metaStorage } from "@/lib/meta/storage"
+import { META_EVENTS } from "@/lib/utils/meta-events"
 import type { MetaConnectionSummary } from "@/lib/types/meta-integration"
 
 interface MetaConnectionModalProps {
@@ -33,38 +35,115 @@ export function MetaConnectionModal({ open, onOpenChange, onSuccess }: MetaConne
   const [error, setError] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
 
+  // Copy pattern from MetaConnectCard: Read from localStorage directly
+  const loadConnectionStatus = useCallback(() => {
+    if (!campaign?.id) return
+    
+    setStep('loading')
+    
+    try {
+      console.log('[MetaConnectionModal] Loading connection status from localStorage', {
+        campaignId: campaign.id,
+      })
+      
+      // PATTERN FROM MetaConnectCard.hydrate(): Read from localStorage
+      const connectionData = metaStorage.getConnection(campaign.id)
+      
+      if (!connectionData) {
+        console.log('[MetaConnectionModal] No connection data found')
+        setStep('disconnected')
+        setSummary(null)
+        return
+      }
+      
+      // Get summary using same method as stepper
+      const summary = metaStorage.getConnectionSummary(campaign.id)
+      
+      console.log('[MetaConnectionModal] Connection summary loaded', {
+        hasBusinessId: !!summary?.business?.id,
+        hasPageId: !!summary?.page?.id,
+        hasAdAccountId: !!summary?.adAccount?.id,
+        hasInstagram: !!summary?.instagram?.id,
+        paymentConnected: summary?.paymentConnected,
+        status: summary?.status,
+      })
+      
+      // Determine if connected using same logic as stepper
+      const hasConnection = Boolean(
+        summary?.status === 'connected' ||
+        summary?.status === 'selected_assets' ||
+        summary?.status === 'payment_linked' ||
+        summary?.adAccount?.id
+      )
+      
+      if (hasConnection) {
+        setStep('connected')
+        
+        // Build MetaConnectionSummary interface from localStorage data
+        setSummary({
+          status: 'connected',
+          paymentStatus: summary?.paymentConnected ? 'verified' : 'missing',
+          business: summary?.business,
+          page: summary?.page,
+          instagram: summary?.instagram,
+          adAccount: summary?.adAccount,
+        })
+        
+        console.log('[MetaConnectionModal] Set to connected state', {
+          paymentStatus: summary?.paymentConnected ? 'verified' : 'missing',
+        })
+      } else {
+        setStep('disconnected')
+        setSummary(null)
+        console.log('[MetaConnectionModal] Set to disconnected state')
+      }
+    } catch (error) {
+      console.error('[MetaConnectionModal] Failed to load status:', error)
+      setStep('error')
+      setError('Failed to load connection status')
+    }
+  }, [campaign?.id])
+
   useEffect(() => {
     if (open && campaign?.id) {
       loadConnectionStatus()
     }
-  }, [open, campaign?.id])
+  }, [open, campaign?.id, loadConnectionStatus])
 
-  const loadConnectionStatus = async () => {
-    if (!campaign?.id) return
+  // Listen for Meta connection events to reload status in real-time
+  useEffect(() => {
+    if (!open || !campaign?.id) return
     
-    setStep('loading')
-    try {
-      const res = await fetch(`/api/meta/connection?campaignId=${campaign.id}`)
-      if (res.ok) {
-        const data = await res.json()
-        setSummary(data.connection)
+    const handleConnectionChange = (event: Event) => {
+      try {
+        const customEvent = event as CustomEvent<{ campaignId: string }>
         
-        if (data.connection.status === 'connected' && data.connection.paymentStatus === 'verified') {
-          setStep('connected')
-        } else if (data.connection.status === 'error' || data.connection.paymentStatus === 'missing') {
-          setStep('error')
-          setError('Connection or payment issue detected')
-        } else {
-          setStep('disconnected')
+        // Only respond to events for THIS campaign
+        if (customEvent.detail.campaignId !== campaign.id) {
+          return
         }
-      } else {
-        throw new Error('Failed to load connection')
+        
+        console.log('[MetaConnectionModal] Connection event received, reloading status')
+        loadConnectionStatus()
+      } catch (error) {
+        console.error('[MetaConnectionModal] Error handling event:', error)
       }
-    } catch (err) {
-      setStep('error')
-      setError(err instanceof Error ? err.message : 'Failed to load')
     }
-  }
+    
+    // Listen for all Meta events
+    window.addEventListener(META_EVENTS.CONNECTION_CHANGED, handleConnectionChange)
+    window.addEventListener(META_EVENTS.PAYMENT_UPDATED, handleConnectionChange)
+    window.addEventListener(META_EVENTS.DISCONNECTION, handleConnectionChange)
+    
+    console.log('[MetaConnectionModal] Event listeners registered')
+    
+    return () => {
+      window.removeEventListener(META_EVENTS.CONNECTION_CHANGED, handleConnectionChange)
+      window.removeEventListener(META_EVENTS.PAYMENT_UPDATED, handleConnectionChange)
+      window.removeEventListener(META_EVENTS.DISCONNECTION, handleConnectionChange)
+      console.log('[MetaConnectionModal] Event listeners cleaned up')
+    }
+  }, [open, campaign?.id, loadConnectionStatus])
 
   const handleConnect = () => {
     if (!campaign?.id || isConnecting) return
