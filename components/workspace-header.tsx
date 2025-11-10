@@ -11,7 +11,8 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Loader2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Loader2, Minus, Plus as PlusIcon } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,7 +26,6 @@ import { cn } from "@/lib/utils"
 import type { WorkspaceHeaderProps } from "@/lib/types/workspace"
 import { useState, useEffect, useRef } from "react"
 import { BudgetPanel } from "@/components/launch/budget-panel"
-import { BudgetSchedule } from "@/components/forms/budget-schedule"
 import { useMetaActions } from "@/lib/hooks/use-meta-actions"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 import { useCampaignContext } from "@/lib/context/campaign-context"
@@ -65,7 +65,7 @@ export function WorkspaceHeader({
   const { campaign } = useCampaignContext()
   const { budgetState, setDailyBudget } = useBudget()
   const [showBudgetPanel, setShowBudgetPanel] = useState(false)
-  const [showQuickBudget, setShowQuickBudget] = useState(false)
+  const [showBudgetConfirm, setShowBudgetConfirm] = useState(false)
   const [isBudgetSaving, setIsBudgetSaving] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
   const metaActions = useMetaActions()
@@ -107,6 +107,17 @@ export function WorkspaceHeader({
     : 'USD'
   const dailyBudgetValue = budgetState.dailyBudget
   const estimatedMonthlyBudget = Math.max(0, Math.round(dailyBudgetValue * 30))
+  const normalizedDailyBudget = Number.isFinite(dailyBudgetValue) && dailyBudgetValue > 0
+    ? Math.round(dailyBudgetValue)
+    : 20
+  const [draftDailyBudget, setDraftDailyBudget] = useState<number>(normalizedDailyBudget)
+
+  useEffect(() => {
+    const next = Number.isFinite(dailyBudgetValue) && dailyBudgetValue > 0
+      ? Math.round(dailyBudgetValue)
+      : 20
+    setDraftDailyBudget(prev => (prev === next ? prev : next))
+  }, [dailyBudgetValue])
 
   const formatCurrency = (value: number) => {
     if (!Number.isFinite(value)) {
@@ -606,54 +617,149 @@ export function WorkspaceHeader({
     )
   }
 
-  const getBudgetPill = () => {
-    const isDisabled = metaConnectionStatus !== 'connected' || paymentStatus !== 'verified'
-    const hasConfirmedBudget = typeof campaignBudget === 'number' && campaignBudget > 0
-    const label = hasConfirmedBudget
-      ? `${formatCurrency(dailyBudgetValue)}/day`
-      : 'Set Budget'
-    
-    return (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => setShowQuickBudget(true)}
-        disabled={isDisabled}
-        className={cn(
-          "gap-2",
-          hasConfirmedBudget && !isDisabled && "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-400"
-        )}
-      >
-        <DollarSign className="h-4 w-4" />
-        {label}
-      </Button>
-    )
+  const handleBudgetInputChange = (value: string) => {
+    const parsed = Number.parseFloat(value.replace(/[^\d.]/g, ''))
+    if (Number.isNaN(parsed)) {
+      setDraftDailyBudget(0)
+      return
+    }
+    const normalized = Math.max(1, Math.round(parsed))
+    setDraftDailyBudget(normalized)
+    setDailyBudget(normalized)
   }
-  const handleQuickBudgetSave = async () => {
+
+  const adjustDailyBudget = (delta: number) => {
+    setDraftDailyBudget(prev => {
+      const baseline = prev === 0 ? 0 : prev
+      const next = Math.max(1, baseline + delta)
+      setDailyBudget(next)
+      return next
+    })
+  }
+
+  const hasConfirmedBudget = typeof campaignBudget === 'number' && campaignBudget > 0
+  const confirmedDailyBudget = hasConfirmedBudget
+    ? Math.max(0, Math.round((campaignBudget ?? 0) / 30))
+    : null
+  const isBudgetControlsDisabled = metaConnectionStatus !== 'connected' || paymentStatus !== 'verified'
+  const estimatedThirtyDaySpend = Math.max(0, Math.round(draftDailyBudget * 30))
+  const isBudgetDirty = hasConfirmedBudget
+    ? draftDailyBudget !== (confirmedDailyBudget ?? 0)
+    : draftDailyBudget > 0
+  const canSaveBudget = !isBudgetControlsDisabled && isBudgetDirty && draftDailyBudget > 0
+
+  const handleBudgetSave = async () => {
     if (!onBudgetUpdate) {
-      setShowQuickBudget(false)
+      setShowBudgetConfirm(false)
       return
     }
 
-    if (!Number.isFinite(dailyBudgetValue) || dailyBudgetValue <= 0) {
+    if (!Number.isFinite(draftDailyBudget) || draftDailyBudget <= 0) {
       toast.error("Set a daily budget before saving.")
       return
     }
 
-    const totalBudget = Math.max(10, Math.round(dailyBudgetValue * 30))
+    const totalBudget = Math.max(10, Math.round(draftDailyBudget * 30))
 
     setIsBudgetSaving(true)
     try {
       await onBudgetUpdate(totalBudget)
-      toast.success(`Budget saved at ${formatCurrency(dailyBudgetValue)}/day`)
-      setShowQuickBudget(false)
+      toast.success(`Budget saved at ${formatCurrency(draftDailyBudget)}/day`)
+      setShowBudgetConfirm(false)
     } catch (error) {
-      metaLogger.error('WorkspaceHeader', 'Failed to save budget from quick adjust', error as Error)
+      metaLogger.error('WorkspaceHeader', 'Failed to save budget from header controls', error as Error)
       toast.error("We couldn't save your budget. Please try again.")
     } finally {
       setIsBudgetSaving(false)
     }
   }
+
+  const getBudgetControls = () => (
+    <div
+      className={cn(
+        "flex w-full items-center justify-between gap-4 rounded-lg border border-border px-3 py-2",
+        isBudgetControlsDisabled && "opacity-60 pointer-events-none"
+      )}
+    >
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <div className="inline-flex h-9 items-center justify-center rounded-md border bg-background px-2 text-sm font-medium text-muted-foreground">
+            <DollarSign className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+            {currencyCode}
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => adjustDailyBudget(-5)}
+              className="h-9 w-9"
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+            <Input
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={draftDailyBudget === 0 ? "" : draftDailyBudget}
+              onChange={(event) => handleBudgetInputChange(event.target.value)}
+              className="h-9 w-24 text-center text-base font-semibold"
+              placeholder="0"
+              aria-label="Daily budget amount"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => adjustDailyBudget(5)}
+              className="h-9 w-9"
+            >
+              <PlusIcon className="h-4 w-4" />
+            </Button>
+          </div>
+          <span className="text-sm text-muted-foreground whitespace-nowrap">per day</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span>Estimated 30-day spend&nbsp;
+            <span className="font-medium text-foreground">
+              {formatCurrency(estimatedThirtyDaySpend)}
+            </span>
+          </span>
+          {confirmedDailyBudget ? (
+            <span className="pl-2">
+              Previously saved {formatCurrency(confirmedDailyBudget)}/day
+            </span>
+          ) : null}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="ml-1"
+          onClick={() => setShowBudgetPanel(true)}
+        >
+          Advanced
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => setShowBudgetConfirm(true)}
+          disabled={!canSaveBudget}
+          className="gap-2"
+        >
+          {isBudgetSaving ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            'Save Changes'
+          )}
+        </Button>
+      </div>
+    </div>
+  )
 
   // Determine status badge
   const getStatusBadge = () => {
@@ -748,7 +854,7 @@ export function WorkspaceHeader({
           {(mode === 'build' || mode === 'edit' || mode === 'results' || mode === 'all-ads') && (
             <div className="flex items-center gap-2">
               {getMetaConnectionBadge()}
-              {getBudgetPill()}
+              {getBudgetControls()}
             </div>
           )}
         </div>
@@ -796,51 +902,67 @@ export function WorkspaceHeader({
         />
       )}
 
-      <Dialog open={showQuickBudget} onOpenChange={setShowQuickBudget}>
-        <DialogContent className="sm:max-w-[420px]">
-          <DialogHeader>
-            <DialogTitle>Daily Budget</DialogTitle>
-            <DialogDescription>
-              Adjust your daily spend. We’ll estimate a 30-day total and re-run AI distribution when you save.
+      <Dialog
+        open={showBudgetConfirm}
+        onOpenChange={(open) => {
+          if (!isBudgetSaving) {
+            setShowBudgetConfirm(open)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-xl">Save Budget Changes?</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              We&apos;ll apply the new budget to your campaign and redistribute spend across your ads.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <BudgetSchedule variant="inline" />
-
-            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-              Estimated 30-day spend: <span className="font-medium text-foreground">{formatCurrency(estimatedMonthlyBudget)}</span>
+          <div className="space-y-3">
+            <div className="rounded-lg border border-border px-3 py-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">New daily budget</span>
+                <span className="font-semibold text-foreground">{formatCurrency(draftDailyBudget)}</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                <span>Estimated 30-day spend</span>
+                <span className="font-medium text-foreground">{formatCurrency(estimatedThirtyDaySpend)}</span>
+              </div>
             </div>
 
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              onClick={() => {
-                setShowQuickBudget(false)
-                setShowBudgetPanel(true)
-              }}
-            >
-              Open advanced AI distribution
-            </Button>
+            {confirmedDailyBudget !== null && (
+              <div className="rounded-lg border border-dashed border-border/80 px-3 py-2 text-xs text-muted-foreground">
+                Previously saved: <span className="font-medium text-foreground">{formatCurrency(confirmedDailyBudget)}</span>/day
+              </div>
+            )}
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowQuickBudget(false)}>
+          <DialogFooter className="mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setShowBudgetConfirm(false)}
+              disabled={isBudgetSaving}
+            >
               Cancel
             </Button>
-            <Button onClick={handleQuickBudgetSave} disabled={isBudgetSaving}>
+            <Button
+              onClick={handleBudgetSave}
+              disabled={isBudgetSaving}
+              className="gap-2"
+            >
               {isBudgetSaving ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                   Saving...
                 </>
               ) : (
-                'Save Budget'
+                'Save Changes'
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </>
   )
 }
