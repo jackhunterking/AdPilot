@@ -617,8 +617,9 @@ export function WorkspaceHeader({
     const hasBudget = hasConfirmedBudget && confirmedDailyBudget && confirmedDailyBudget > 0
     const isDisabled = metaConnectionStatus !== 'connected' || paymentStatus !== 'verified'
     
-    // Budget set state - green badge with checkmark
+    // Budget set state - green badge with checkmark and amount
     if (hasBudget) {
+      const dailyAmount = formatCurrency(confirmedDailyBudget)
       return (
         <Button
           variant="outline"
@@ -631,10 +632,10 @@ export function WorkspaceHeader({
               ? "opacity-60 cursor-not-allowed" 
               : "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400 hover:bg-green-500/20"
           )}
-          title={`Current budget: ${formatCurrency(confirmedDailyBudget)}/day`}
+          title="Click to change budget"
         >
           <CheckCircle2 className="h-4 w-4" />
-          Budget Set
+          Budget Set • {dailyAmount}/day
         </Button>
       )
     }
