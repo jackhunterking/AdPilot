@@ -92,66 +92,73 @@ export function useMetaConnection() {
     }
   }, [campaign?.id])
 
-  const refreshStatus = useCallback(async () => {
+  const refreshStatus = useCallback(() => {
     if (!campaign?.id) return
-
-    setLoading(true)
+    if (typeof window === 'undefined') return
+    
+    console.log('[useMetaConnection] Refreshing from localStorage', {
+      campaignId: campaign.id,
+    })
+    
     try {
-      console.log('[useMetaConnection] Refreshing status from API', { campaignId: campaign.id })
+      const summary = metaStorage.getConnectionSummary(campaign.id)
+      const connection = metaStorage.getConnection(campaign.id)
       
-      const res = await fetch(`/api/meta/connection?campaignId=${campaign.id}`)
-      if (res.ok) {
-        const data = await res.json()
-        
-        console.log('[useMetaConnection] API response', {
-          status: data.connection.status,
-          paymentStatus: data.connection.paymentStatus,
+      console.log('[useMetaConnection] Read from localStorage', {
+        hasSummary: !!summary,
+        hasConnection: !!connection,
+        summaryStatus: summary?.status,
+        hasAdAccount: !!summary?.adAccount?.id,
+        paymentConnected: summary?.paymentConnected,
+      })
+      
+      // Same logic as initial mount - SINGLE SOURCE OF TRUTH
+      const hasAssets = Boolean(
+        summary?.adAccount?.id || 
+        connection?.selected_ad_account_id ||
+        summary?.business?.id ||
+        connection?.selected_business_id
+      )
+      
+      const isConnected = Boolean(
+        summary?.status === 'connected' ||
+        summary?.status === 'selected_assets' ||
+        summary?.status === 'payment_linked' ||
+        hasAssets
+      )
+      
+      const hasPayment = Boolean(
+        summary?.paymentConnected ||
+        connection?.ad_account_payment_connected
+      )
+      
+      // Set statuses explicitly
+      if (isConnected) {
+        setMetaStatus('connected')
+        setPaymentStatus(hasPayment ? 'verified' : 'missing')
+        console.log('[useMetaConnection] Set to connected', {
+          paymentStatus: hasPayment ? 'verified' : 'missing',
         })
-        
-        setMetaStatus(data.connection.status)
-        
-        let finalPaymentStatus: PaymentStatus = 'unknown'
-        
-        // If API doesn't return payment status, derive it from connection
-        if (data.connection.paymentStatus) {
-          finalPaymentStatus = data.connection.paymentStatus
-          setPaymentStatus(data.connection.paymentStatus)
-        } else {
-          // Fallback: check localStorage for payment status
-          const summary = metaStorage.getConnectionSummary(campaign.id)
-          if (data.connection.status === 'connected') {
-            finalPaymentStatus = summary?.paymentConnected ? 'verified' : 'missing'
-            setPaymentStatus(finalPaymentStatus)
-          } else {
-            setPaymentStatus('unknown')
-          }
-        }
-        
-        setLastChecked(new Date())
-        
-        console.log('[useMetaConnection] Status updated from API', {
-          metaStatus: data.connection.status,
-          paymentStatus: finalPaymentStatus,
-        })
+      } else {
+        setMetaStatus('disconnected')
+        setPaymentStatus('unknown')
+        console.log('[useMetaConnection] Set to disconnected')
       }
-    } catch (err) {
-      console.error('[useMetaConnection] Failed to refresh Meta status:', err)
-    } finally {
-      setLoading(false)
+      
+      setLastChecked(new Date())
+      
+      console.log('[useMetaConnection] Refreshed from localStorage - FINAL STATE', {
+        metaStatus: isConnected ? 'connected' : 'disconnected',
+        paymentStatus: isConnected ? (hasPayment ? 'verified' : 'missing') : 'unknown',
+      })
+    } catch (error) {
+      console.error('[useMetaConnection] Refresh failed:', error)
     }
   }, [campaign?.id])
 
   useEffect(() => {
     refreshStatus()
   }, [refreshStatus])
-
-  // Poll every 30 seconds if connection is pending
-  useEffect(() => {
-    if (metaStatus === 'pending') {
-      const interval = setInterval(refreshStatus, 30000)
-      return () => clearInterval(interval)
-    }
-  }, [metaStatus, refreshStatus])
 
   // Debounced refresh to prevent excessive calls
   const debouncedRefresh = useCallback(() => {
