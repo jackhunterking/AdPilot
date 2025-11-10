@@ -216,16 +216,39 @@ export function CampaignWorkspace() {
   // If we're in results mode but don't have the specific ad yet, show all-ads instead
   const shouldFallbackToAllAds = effectiveMode === 'results' && !currentAdId && ads.length > 0
 
-  // Track unsaved changes in edit mode
+  // Helper to detect if user has made progress in build mode
+  const hasBuildProgress = useMemo(() => {
+    if (effectiveMode !== 'build') return false
+    
+    // Check if any creative work has been done
+    const hasCreativeWork = Boolean(
+      adContent?.imageUrl || 
+      adContent?.imageVariations?.length ||
+      adContent?.headline ||
+      adContent?.body ||
+      adContent?.cta
+    )
+    
+    const hasLocationWork = locationState.locations.length > 0
+    const hasAudienceWork = audienceState.status === 'complete'
+    const hasCopyWork = adCopyState.variations.length > 0
+    
+    return hasCreativeWork || hasLocationWork || hasAudienceWork || hasCopyWork
+  }, [effectiveMode, adContent, locationState.locations, audienceState.status, adCopyState.variations])
+
+  // Track unsaved changes in edit mode and progress in build mode
   useEffect(() => {
     if (effectiveMode === 'edit' && currentAdId) {
       // Mark as having unsaved changes when in edit mode
       // This will be reset when Save & Publish is successful
       setHasUnsavedChanges(true)
+    } else if (effectiveMode === 'build' && hasPublishedAds) {
+      // In build mode with existing ads, track if there's any progress
+      setHasUnsavedChanges(hasBuildProgress)
     } else {
       setHasUnsavedChanges(false)
     }
-  }, [effectiveMode, currentAdId, adContent, adCopyState, locationState, audienceState])
+  }, [effectiveMode, currentAdId, hasPublishedAds, hasBuildProgress])
 
   // Update URL when mode changes
   const setWorkspaceMode = useCallback((mode: WorkspaceMode, adId?: string) => {
@@ -413,8 +436,8 @@ export function CampaignWorkspace() {
       }
     }
     
-    // Check for unsaved changes in edit mode
-    if (effectiveMode === 'edit' && hasUnsavedChanges) {
+    // Check for unsaved changes in BOTH edit and build modes
+    if ((effectiveMode === 'edit' || effectiveMode === 'build') && hasUnsavedChanges) {
       setPendingNavigation(() => navigateToAllAds)
       setShowUnsavedDialog(true)
     } else {
@@ -1007,11 +1030,16 @@ export function CampaignWorkspace() {
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-500/10">
                 <AlertTriangle className="h-6 w-6 text-orange-600" />
               </div>
-              <DialogTitle className="text-xl">Unsaved Changes</DialogTitle>
+              <DialogTitle className="text-xl">
+                {effectiveMode === 'edit' ? 'Unsaved Changes' : 'Discard Progress?'}
+              </DialogTitle>
             </div>
           </DialogHeader>
           <DialogDescription className="text-sm text-muted-foreground mb-6">
-            You have unsaved changes. If you leave now, your changes will be lost. Do you want to discard your changes?
+            {effectiveMode === 'edit' 
+              ? "You have unsaved changes. If you leave now, your changes will be lost. Do you want to discard your changes?"
+              : "You have unsaved work on this new ad. If you go back now, all your progress will be lost. Do you want to discard your progress?"
+            }
           </DialogDescription>
           <DialogFooter className="flex gap-2 sm:gap-2">
             <Button
@@ -1026,7 +1054,7 @@ export function CampaignWorkspace() {
               size="lg"
               onClick={handleDiscardChanges}
             >
-              Discard Changes
+              {effectiveMode === 'edit' ? 'Discard Changes' : 'Discard Progress'}
             </Button>
           </DialogFooter>
         </DialogContent>
