@@ -68,6 +68,7 @@ export function WorkspaceHeader({
   const [showBudgetConfirm, setShowBudgetConfirm] = useState(false)
   const [isBudgetSaving, setIsBudgetSaving] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
+  const [showNewAdConfirm, setShowNewAdConfirm] = useState(false)
   const metaActions = useMetaActions()
   const { metaStatus: hookMetaStatus, paymentStatus: hookPaymentStatus, refreshStatus } = useMetaConnection()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -642,7 +643,6 @@ export function WorkspaceHeader({
     ? Math.max(0, Math.round((campaignBudget ?? 0) / 30))
     : null
   const isBudgetControlsDisabled = metaConnectionStatus !== 'connected' || paymentStatus !== 'verified'
-  const estimatedThirtyDaySpend = Math.max(0, Math.round(draftDailyBudget * 30))
   const isBudgetDirty = hasConfirmedBudget
     ? draftDailyBudget !== (confirmedDailyBudget ?? 0)
     : draftDailyBudget > 0
@@ -681,66 +681,42 @@ export function WorkspaceHeader({
         isBudgetControlsDisabled && "opacity-60 pointer-events-none"
       )}
     >
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <div className="inline-flex h-9 items-center justify-center rounded-md border bg-background px-2 text-sm font-medium text-muted-foreground">
-            <DollarSign className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-            {currencyCode}
-          </div>
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => adjustDailyBudget(-5)}
-              className="h-9 w-9"
-            >
-              <Minus className="h-4 w-4" />
-            </Button>
-            <Input
-              inputMode="numeric"
-              pattern="[0-9]*"
-              value={draftDailyBudget === 0 ? "" : draftDailyBudget}
-              onChange={(event) => handleBudgetInputChange(event.target.value)}
-              className="h-9 w-24 text-center text-base font-semibold"
-              placeholder="0"
-              aria-label="Daily budget amount"
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => adjustDailyBudget(5)}
-              className="h-9 w-9"
-            >
-              <PlusIcon className="h-4 w-4" />
-            </Button>
-          </div>
-          <span className="text-sm text-muted-foreground whitespace-nowrap">per day</span>
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-medium text-muted-foreground">Budget</span>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => adjustDailyBudget(-5)}
+            className="h-9 w-9"
+          >
+            <Minus className="h-4 w-4" />
+          </Button>
+          <Input
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={draftDailyBudget === 0 ? "" : draftDailyBudget}
+            onChange={(event) => handleBudgetInputChange(event.target.value)}
+            className="h-9 w-24 text-center text-base font-semibold"
+            placeholder="0"
+            aria-label="Daily budget amount"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => adjustDailyBudget(5)}
+            className="h-9 w-9"
+          >
+            <PlusIcon className="h-4 w-4" />
+          </Button>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>Estimated 30-day spend&nbsp;
-            <span className="font-medium text-foreground">
-              {formatCurrency(estimatedThirtyDaySpend)}
-            </span>
-          </span>
-          {confirmedDailyBudget ? (
-            <span className="pl-2">
-              Previously saved {formatCurrency(confirmedDailyBudget)}/day
-            </span>
-          ) : null}
-        </div>
+        <span className="text-sm text-muted-foreground whitespace-nowrap">
+          {currencyCode} per day
+        </span>
       </div>
       <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="ml-1"
-          onClick={() => setShowBudgetPanel(true)}
-        >
-          Advanced
-        </Button>
         <Button
           type="button"
           size="sm"
@@ -763,15 +739,6 @@ export function WorkspaceHeader({
 
   // Determine status badge
   const getStatusBadge = () => {
-    // All-ads mode: show ad count
-    if (mode === 'all-ads' && totalAds) {
-      return (
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted text-foreground text-sm font-medium">
-          📊 {totalAds} {totalAds === 1 ? 'Ad' : 'Ads'} in Campaign
-        </div>
-      )
-    }
-    
     if (abTestInfo) {
       return (
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-sm font-medium">
@@ -918,21 +885,14 @@ export function WorkspaceHeader({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3">
-            <div className="rounded-lg border border-border px-3 py-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">New daily budget</span>
-                <span className="font-semibold text-foreground">{formatCurrency(draftDailyBudget)}</span>
-              </div>
-              <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-                <span>Estimated 30-day spend</span>
-                <span className="font-medium text-foreground">{formatCurrency(estimatedThirtyDaySpend)}</span>
-              </div>
+          <div className="rounded-lg border border-border px-3 py-2 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">New daily budget</span>
+              <span className="font-semibold text-foreground">{formatCurrency(draftDailyBudget)}</span>
             </div>
-
             {confirmedDailyBudget !== null && (
-              <div className="rounded-lg border border-dashed border-border/80 px-3 py-2 text-xs text-muted-foreground">
-                Previously saved: <span className="font-medium text-foreground">{formatCurrency(confirmedDailyBudget)}</span>/day
+              <div className="mt-1 text-xs text-muted-foreground">
+                Previously saved {formatCurrency(confirmedDailyBudget)}/day
               </div>
             )}
           </div>
