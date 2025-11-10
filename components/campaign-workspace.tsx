@@ -72,17 +72,6 @@ export function CampaignWorkspace() {
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null)
   
-  // Track unsaved changes in edit mode
-  useEffect(() => {
-    if (effectiveMode === 'edit' && currentAdId) {
-      // Mark as having unsaved changes when in edit mode
-      // This will be reset when Save & Publish is successful
-      setHasUnsavedChanges(true)
-    } else {
-      setHasUnsavedChanges(false)
-    }
-  }, [effectiveMode, currentAdId, adContent, adCopyState, locationState, audienceState])
-  
   // Listen for save complete events
   useEffect(() => {
     const handleSaveComplete = (event: Event) => {
@@ -226,6 +215,17 @@ export function CampaignWorkspace() {
   
   // If we're in results mode but don't have the specific ad yet, show all-ads instead
   const shouldFallbackToAllAds = effectiveMode === 'results' && !currentAdId && ads.length > 0
+
+  // Track unsaved changes in edit mode
+  useEffect(() => {
+    if (effectiveMode === 'edit' && currentAdId) {
+      // Mark as having unsaved changes when in edit mode
+      // This will be reset when Save & Publish is successful
+      setHasUnsavedChanges(true)
+    } else {
+      setHasUnsavedChanges(false)
+    }
+  }, [effectiveMode, currentAdId, adContent, adCopyState, locationState, audienceState])
 
   // Update URL when mode changes
   const setWorkspaceMode = useCallback((mode: WorkspaceMode, adId?: string) => {

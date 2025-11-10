@@ -177,21 +177,23 @@ export function CampaignProvider({
   const updateBudget = async (budget: number) => {
     if (!campaign?.id) return
     try {
-      const response = await fetch('/api/budget/distribute', {
-        method: 'POST',
+      // Convert total budget to daily budget for the API
+      const dailyBudget = Math.max(1, Math.round(budget / 30))
+      
+      const response = await fetch(`/api/campaigns/${campaign.id}/budget`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          campaignId: campaign.id,
-          totalBudget: budget,
-          strategy: 'ai_distribute',
+          dailyBudget,
         }),
       })
       
       if (!response.ok) {
-        throw new Error('Failed to update budget')
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update budget' }))
+        throw new Error(errorData.error || 'Failed to update budget')
       }
       
-      // Update local campaign state
+      // Update local campaign state with total budget
       setCampaign(prev => prev ? { ...prev, campaign_budget: budget } : null)
     } catch (error) {
       console.error('Error updating budget:', error)

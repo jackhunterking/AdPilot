@@ -26,8 +26,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       : {}
 
     const dailyBudget = typeof body.dailyBudget === 'number' ? body.dailyBudget : null
-    if (dailyBudget === null || Number.isNaN(dailyBudget)) {
-      return NextResponse.json({ error: 'dailyBudget required' }, { status: 400 })
+    if (dailyBudget === null || Number.isNaN(dailyBudget) || dailyBudget <= 0) {
+      return NextResponse.json({ error: 'dailyBudget required and must be greater than 0' }, { status: 400 })
     }
 
     const supabase = await createServerClient()
@@ -38,7 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const { data: campaign, error: campaignError } = await supabaseServer
       .from('campaigns')
-      .select('id,user_id')
+      .select('id,user_id,published_status')
       .eq('id', id)
       .maybeSingle()
 
@@ -51,14 +51,59 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const result = await updateBudgetAndSchedule({
-      campaignId: id,
-      dailyBudget,
-      startTime: body.startTime ?? null,
-      endTime: body.endTime ?? null,
-    })
+    // Calculate total budget for storage
+    const totalBudget = dailyBudget * 30
 
-    return NextResponse.json({ success: true, budget: result })
+    // Check if campaign is published - if so, update Meta as well
+    const isPublished = campaign.published_status === 'active' || campaign.published_status === 'paused'
+    
+    if (isPublished) {
+      // For published campaigns, update Meta and sync back to database
+      const result = await updateBudgetAndSchedule({
+        campaignId: id,
+        dailyBudget,
+        startTime: body.startTime ?? null,
+        endTime: body.endTime ?? null,
+      })
+      
+      // Also update campaign_budget in campaigns table
+      await supabaseServer
+        .from('campaigns')
+        .update({ campaign_budget: totalBudget })
+        .eq('id', id)
+      
+      return NextResponse.json({ success: true, budget: result })
+    } else {
+      // For unpublished campaigns, just update the database
+      const { error: updateError } = await supabaseServer
+        .from('campaigns')
+        .update({ campaign_budget: totalBudget })
+        .eq('id', id)
+      
+      if (updateError) {
+        console.error('[BudgetUpdate] Database update failed:', updateError)
+        return NextResponse.json({ error: 'Failed to update campaign budget' }, { status: 500 })
+      }
+      
+      // Also update campaign_states budget_data for consistency
+      await supabaseServer
+        .from('campaign_states')
+        .upsert(
+          {
+            campaign_id: id,
+            budget_data: {
+              dailyBudget,
+              totalBudget,
+            },
+          },
+          { onConflict: 'campaign_id' }
+        )
+      
+      return NextResponse.json({ 
+        success: true, 
+        budget: { dailyBudget, totalBudget } 
+      })
+    }
   } catch (error) {
     console.error('[BudgetUpdate] PATCH error:', error)
     const message = error instanceof Error ? error.message : 'Failed to update budget'

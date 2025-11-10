@@ -13,7 +13,7 @@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { DollarSign, Loader2, Minus, Plus } from "lucide-react"
+import { Loader2, Minus, Plus } from "lucide-react"
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
 
@@ -106,94 +106,88 @@ export function BudgetDialog({
 
   return (
     <Dialog open={open} onOpenChange={(open) => !isSaving && onOpenChange(open)}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md p-6">
+        <DialogHeader className="mb-4">
           <DialogTitle className="text-xl">{dialogTitle}</DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm text-muted-foreground">
             Set your daily budget. We&apos;ll optimize spend across your ads automatically.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* Current Budget Display */}
-          {currentDailyBudget && (
-            <div className="rounded-lg bg-muted px-4 py-3 text-sm">
-              <span className="text-muted-foreground">Current budget: </span>
-              <span className="font-semibold">{formatCurrency(currentDailyBudget)}/day</span>
-            </div>
-          )}
+        {/* Current Budget Display */}
+        {currentDailyBudget && (
+          <div className="rounded-lg bg-muted px-4 py-3 text-sm mb-4">
+            <span className="text-muted-foreground">Current: </span>
+            <span className="font-semibold">{formatCurrency(currentDailyBudget)}/day</span>
+          </div>
+        )}
 
-          {/* Budget Input Controls */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => adjustBudget(-5)}
-                disabled={dailyBudget <= 1 || isSaving}
-                className="h-10 w-10"
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              
-              <div className="relative flex-1">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={dailyBudget || ''}
-                  onChange={(e) => handleBudgetChange(e.target.value)}
-                  disabled={isSaving}
-                  className={cn(
-                    "h-12 pl-10 pr-4 text-center text-2xl font-bold",
-                    error && "border-red-500 focus-visible:ring-red-500"
-                  )}
-                  placeholder="0"
-                />
-              </div>
-              
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => adjustBudget(5)}
+        {/* Budget Input Controls */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => adjustBudget(-5)}
+              disabled={dailyBudget <= 1 || isSaving}
+              className="h-12 w-12 rounded-lg"
+            >
+              <Minus className="h-5 w-5" />
+            </Button>
+            
+            <div className="flex flex-col items-center gap-1">
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                value={dailyBudget || ''}
+                onChange={(e) => handleBudgetChange(e.target.value)}
                 disabled={isSaving}
-                className="h-10 w-10"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">
+                className={cn(
+                  "h-16 w-32 text-center text-4xl font-bold border-2",
+                  error && "border-red-500 focus-visible:ring-red-500"
+                )}
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground">
                 {currency} per day
               </p>
             </div>
-
-            {/* Error Message */}
-            {error && (
-              <p className="text-sm text-red-600 dark:text-red-400 text-center">
-                {error}
-              </p>
-            )}
+            
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => adjustBudget(5)}
+              disabled={isSaving}
+              className="h-12 w-12 rounded-lg"
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <p className="text-sm text-red-600 dark:text-red-400 text-center">
+              {error}
+            </p>
+          )}
+
           {/* Monthly Estimate */}
-          <div className="rounded-lg border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/20 px-4 py-3">
+          <div className="rounded-lg border border-border bg-muted px-4 py-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-blue-700 dark:text-blue-300">
+              <span className="text-sm text-muted-foreground">
                 Estimated monthly spend
               </span>
-              <span className="text-lg font-bold text-blue-900 dark:text-blue-100">
+              <span className="text-lg font-bold">
                 {formatCurrency(monthlyEstimate)}
               </span>
             </div>
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="mt-6">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
