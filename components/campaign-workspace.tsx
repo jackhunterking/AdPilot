@@ -471,14 +471,15 @@ export function CampaignWorkspace() {
     params.set("view", "build")
     params.set("conversationId", newConversationId)
     
-    if (hasPublishedAds) {
-      // Adding variant=true to URL to signal PreviewPanel to hide goal/budget steps
+    // If clicking "New Ad" from all-ads or results view, we're creating a variant
+    // (The button is only shown in these modes, which means published ads exist)
+    if (effectiveMode === 'all-ads' || effectiveMode === 'results') {
       params.set("variant", "true")
     }
     
     console.log('[CampaignWorkspace] Navigating to build mode with conversation ID:', newConversationId)
     router.replace(`${pathname}?${params.toString()}`)
-  }, [campaignId, hasPublishedAds, pathname, router, resetAdPreview, resetAdCopy, clearLocations, resetAudience])
+  }, [campaignId, effectiveMode, pathname, router, resetAdPreview, resetAdCopy, clearLocations, resetAudience])
 
   const handleViewAllAds = useCallback(() => {
     setWorkspaceMode('all-ads')
