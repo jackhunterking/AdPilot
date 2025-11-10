@@ -216,103 +216,6 @@ export function CampaignWorkspace() {
   // If we're in results mode but don't have the specific ad yet, show all-ads instead
   const shouldFallbackToAllAds = effectiveMode === 'results' && !currentAdId && ads.length > 0
 
-  // Helper to detect if user has made progress in build mode
-  const hasBuildProgress = useMemo(() => {
-    if (effectiveMode !== 'build') return false
-    
-    // Check if any creative work has been done
-    const hasCreativeWork = Boolean(
-      adContent?.imageUrl || 
-      adContent?.imageVariations?.length ||
-      adContent?.headline ||
-      adContent?.body ||
-      adContent?.cta
-    )
-    
-    const hasLocationWork = locationState.locations.length > 0
-    const hasAudienceWork = audienceState.status === 'completed'
-    const hasCopyWork = adCopyState.variations.length > 0
-    
-    return hasCreativeWork || hasLocationWork || hasAudienceWork || hasCopyWork
-  }, [effectiveMode, adContent, locationState.locations, audienceState.status, adCopyState.variations])
-
-  // Track unsaved changes in edit mode and progress in build mode
-  useEffect(() => {
-    if (effectiveMode === 'edit' && currentAdId) {
-      // Mark as having unsaved changes when in edit mode
-      // This will be reset when Save & Publish is successful
-      setHasUnsavedChanges(true)
-    } else if (effectiveMode === 'build' && hasPublishedAds) {
-      // In build mode with existing ads, track if there's any progress
-      setHasUnsavedChanges(hasBuildProgress)
-    } else {
-      setHasUnsavedChanges(false)
-    }
-  }, [effectiveMode, currentAdId, hasPublishedAds, hasBuildProgress])
-
-  // Update URL when mode changes
-  const setWorkspaceMode = useCallback((mode: WorkspaceMode, adId?: string) => {
-    const params = new URLSearchParams()
-    params.set("view", mode)
-    if (adId) params.set("adId", adId)
-    router.replace(`${pathname}?${params.toString()}`)
-  }, [pathname, router])
-
-  // Simulated metrics for demonstration
-  // TODO: Fetch real metrics from API
-  const mockMetrics: AdMetrics = {
-    impressions: 1234,
-    reach: 987,
-    clicks: 45,
-    leads: goalState.selectedGoal === 'leads' ? 5 : undefined,
-    cpc: 0.78,
-    ctr: 3.64,
-    cpl: goalState.selectedGoal === 'leads' ? 7.80 : undefined,
-    spend: 35.10,
-    last_updated: new Date().toISOString(),
-  }
-
-  // Simulated variant for demonstration
-  const mockVariant: AdVariant = {
-    id: 'variant-1',
-    campaign_id: campaignId,
-    name: campaign?.name || 'Ad Variant',
-    status: 'active',
-    variant_type: 'original',
-    creative_data: {
-      headline: adContent?.headline || '',
-      body: adContent?.body || '',
-      cta: adContent?.cta || 'Learn More',
-      imageUrl: adContent?.imageUrl,
-      imageVariations: adContent?.imageVariations,
-    },
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    published_at: new Date().toISOString(),
-  }
-
-  // Simulated lead form info for leads campaigns
-  const mockLeadFormInfo: LeadFormInfo | undefined = goalState.selectedGoal === 'leads' ? {
-    form_id: 'form-1',
-    form_name: 'Get Free Quote',
-    is_connected: true,
-    lead_count: 5,
-    recent_leads: [
-      {
-        id: '1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        submitted_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-      },
-      {
-        id: '2',
-        name: 'Sarah Miller',
-        email: 'sarah@example.com',
-        submitted_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // 5 hours ago
-      },
-    ],
-  } : undefined
-
   // Convert CampaignAd to AdVariant using snapshot data as source of truth
   const convertedAds: AdVariant[] = useMemo(() => {
     return ads.map(ad => {
@@ -421,6 +324,103 @@ export function CampaignWorkspace() {
   const hasPublishedAds = useMemo(() => {
     return convertedAds.some(ad => ad.status === 'active' || ad.status === 'paused')
   }, [convertedAds])
+
+  // Helper to detect if user has made progress in build mode
+  const hasBuildProgress = useMemo(() => {
+    if (effectiveMode !== 'build') return false
+    
+    // Check if any creative work has been done
+    const hasCreativeWork = Boolean(
+      adContent?.imageUrl || 
+      adContent?.imageVariations?.length ||
+      adContent?.headline ||
+      adContent?.body ||
+      adContent?.cta
+    )
+    
+    const hasLocationWork = locationState.locations.length > 0
+    const hasAudienceWork = audienceState.status === 'completed'
+    const hasCopyWork = (adCopyState.customCopyVariations?.length ?? 0) > 0
+    
+    return hasCreativeWork || hasLocationWork || hasAudienceWork || hasCopyWork
+  }, [effectiveMode, adContent, locationState.locations, audienceState.status, adCopyState.customCopyVariations])
+
+  // Track unsaved changes in edit mode and progress in build mode
+  useEffect(() => {
+    if (effectiveMode === 'edit' && currentAdId) {
+      // Mark as having unsaved changes when in edit mode
+      // This will be reset when Save & Publish is successful
+      setHasUnsavedChanges(true)
+    } else if (effectiveMode === 'build' && hasPublishedAds) {
+      // In build mode with existing ads, track if there's any progress
+      setHasUnsavedChanges(hasBuildProgress)
+    } else {
+      setHasUnsavedChanges(false)
+    }
+  }, [effectiveMode, currentAdId, hasPublishedAds, hasBuildProgress])
+
+  // Update URL when mode changes
+  const setWorkspaceMode = useCallback((mode: WorkspaceMode, adId?: string) => {
+    const params = new URLSearchParams()
+    params.set("view", mode)
+    if (adId) params.set("adId", adId)
+    router.replace(`${pathname}?${params.toString()}`)
+  }, [pathname, router])
+
+  // Simulated metrics for demonstration
+  // TODO: Fetch real metrics from API
+  const mockMetrics: AdMetrics = {
+    impressions: 1234,
+    reach: 987,
+    clicks: 45,
+    leads: goalState.selectedGoal === 'leads' ? 5 : undefined,
+    cpc: 0.78,
+    ctr: 3.64,
+    cpl: goalState.selectedGoal === 'leads' ? 7.80 : undefined,
+    spend: 35.10,
+    last_updated: new Date().toISOString(),
+  }
+
+  // Simulated variant for demonstration
+  const mockVariant: AdVariant = {
+    id: 'variant-1',
+    campaign_id: campaignId,
+    name: campaign?.name || 'Ad Variant',
+    status: 'active',
+    variant_type: 'original',
+    creative_data: {
+      headline: adContent?.headline || '',
+      body: adContent?.body || '',
+      cta: adContent?.cta || 'Learn More',
+      imageUrl: adContent?.imageUrl,
+      imageVariations: adContent?.imageVariations,
+    },
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    published_at: new Date().toISOString(),
+  }
+
+  // Simulated lead form info for leads campaigns
+  const mockLeadFormInfo: LeadFormInfo | undefined = goalState.selectedGoal === 'leads' ? {
+    form_id: 'form-1',
+    form_name: 'Get Free Quote',
+    is_connected: true,
+    lead_count: 5,
+    recent_leads: [
+      {
+        id: '1',
+        name: 'John Doe',
+        email: 'john@example.com',
+        submitted_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+      },
+      {
+        id: '2',
+        name: 'Sarah Miller',
+        email: 'sarah@example.com',
+        submitted_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // 5 hours ago
+      },
+    ],
+  } : undefined
 
   // Navigation handlers
   const handleBack = useCallback(() => {
