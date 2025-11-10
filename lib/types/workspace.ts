@@ -197,7 +197,7 @@ export interface WorkspaceHeaderProps {
   paymentStatus?: 'unknown' | 'verified' | 'missing' | 'flagged' | 'processing'
   campaignBudget?: number | null
   onMetaConnect?: () => void
-  onBudgetUpdate?: (budget: number) => void
+  onBudgetUpdate?: (budget: number) => Promise<void> | void
   className?: string
 }
 

@@ -24,7 +24,7 @@ interface BudgetPanelProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   currentBudget?: number | null
-  onSave: (budget: number) => void
+  onSave: (budget: number) => Promise<void> | void
 }
 
 export function BudgetPanel({ open, onOpenChange, currentBudget, onSave }: BudgetPanelProps) {
@@ -71,8 +71,8 @@ export function BudgetPanel({ open, onOpenChange, currentBudget, onSave }: Budge
     }
   }
 
-  const handleSave = () => {
-    onSave(budget)
+  const handleSave = async () => {
+    await onSave(budget)
   }
 
   return (

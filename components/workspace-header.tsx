@@ -20,15 +20,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import type { WorkspaceHeaderProps } from "@/lib/types/workspace"
 import { useState, useEffect, useRef } from "react"
 import { BudgetPanel } from "@/components/launch/budget-panel"
+import { BudgetSchedule } from "@/components/forms/budget-schedule"
 import { useMetaActions } from "@/lib/hooks/use-meta-actions"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 import { useCampaignContext } from "@/lib/context/campaign-context"
+import { useBudget } from "@/lib/context/budget-context"
 import { metaStorage } from "@/lib/meta/storage"
 import { metaLogger } from "@/lib/meta/logger"
+import { toast } from "sonner"
 
 // Meta Account Status Constants (from Graph API docs)
 const META_ACCOUNT_STATUS = {
@@ -59,7 +63,10 @@ export function WorkspaceHeader({
   className,
 }: WorkspaceHeaderProps) {
   const { campaign } = useCampaignContext()
+  const { budgetState, setDailyBudget } = useBudget()
   const [showBudgetPanel, setShowBudgetPanel] = useState(false)
+  const [showQuickBudget, setShowQuickBudget] = useState(false)
+  const [isBudgetSaving, setIsBudgetSaving] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
   const metaActions = useMetaActions()
   const { metaStatus: hookMetaStatus, paymentStatus: hookPaymentStatus, refreshStatus } = useMetaConnection()
@@ -95,6 +102,28 @@ export function WorkspaceHeader({
   const summary = metaActions.getSummary()
   const isConnected = metaConnectionStatus === 'connected'
   const hasPaymentIssue = paymentStatus === 'missing' || paymentStatus === 'flagged'
+  const currencyCode = typeof budgetState.currency === 'string' && budgetState.currency.trim().length === 3
+    ? budgetState.currency.trim().toUpperCase()
+    : 'USD'
+  const dailyBudgetValue = budgetState.dailyBudget
+  const estimatedMonthlyBudget = Math.max(0, Math.round(dailyBudgetValue * 30))
+
+  const formatCurrency = (value: number) => {
+    if (!Number.isFinite(value)) {
+      return '$0'
+    }
+
+    try {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: currencyCode,
+        maximumFractionDigits: 0,
+      }).format(value)
+    } catch (error) {
+      console.warn("[WorkspaceHeader] Currency formatting failed, falling back to USD.", error)
+      return `$${Math.round(value).toLocaleString()}`
+    }
+  }
   
   // Handle disconnect with refresh
   const handleDisconnect = async () => {
@@ -579,22 +608,51 @@ export function WorkspaceHeader({
 
   const getBudgetPill = () => {
     const isDisabled = metaConnectionStatus !== 'connected' || paymentStatus !== 'verified'
+    const hasConfirmedBudget = typeof campaignBudget === 'number' && campaignBudget > 0
+    const label = hasConfirmedBudget
+      ? `${formatCurrency(dailyBudgetValue)}/day`
+      : 'Set Budget'
     
     return (
       <Button
         variant="outline"
         size="sm"
-        onClick={() => setShowBudgetPanel(true)}
+        onClick={() => setShowQuickBudget(true)}
         disabled={isDisabled}
         className={cn(
           "gap-2",
-          campaignBudget && !isDisabled && "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-400"
+          hasConfirmedBudget && !isDisabled && "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-400"
         )}
       >
         <DollarSign className="h-4 w-4" />
-        {campaignBudget ? `$${campaignBudget.toLocaleString()}` : 'Set Budget'}
+        {label}
       </Button>
     )
+  }
+  const handleQuickBudgetSave = async () => {
+    if (!onBudgetUpdate) {
+      setShowQuickBudget(false)
+      return
+    }
+
+    if (!Number.isFinite(dailyBudgetValue) || dailyBudgetValue <= 0) {
+      toast.error("Set a daily budget before saving.")
+      return
+    }
+
+    const totalBudget = Math.max(10, Math.round(dailyBudgetValue * 30))
+
+    setIsBudgetSaving(true)
+    try {
+      await onBudgetUpdate(totalBudget)
+      toast.success(`Budget saved at ${formatCurrency(dailyBudgetValue)}/day`)
+      setShowQuickBudget(false)
+    } catch (error) {
+      metaLogger.error('WorkspaceHeader', 'Failed to save budget from quick adjust', error as Error)
+      toast.error("We couldn't save your budget. Please try again.")
+    } finally {
+      setIsBudgetSaving(false)
+    }
   }
 
   // Determine status badge
@@ -717,13 +775,72 @@ export function WorkspaceHeader({
         <BudgetPanel
           open={showBudgetPanel}
           onOpenChange={setShowBudgetPanel}
-          currentBudget={campaignBudget}
-          onSave={(budget) => {
-            onBudgetUpdate?.(budget)
-            setShowBudgetPanel(false)
+          currentBudget={typeof campaignBudget === 'number' ? campaignBudget : estimatedMonthlyBudget || undefined}
+          onSave={async (budget) => {
+            if (!onBudgetUpdate) {
+              setShowBudgetPanel(false)
+              return
+            }
+
+            const derivedDaily = Math.max(1, Math.round(budget / 30))
+            try {
+              await onBudgetUpdate(budget)
+              setDailyBudget(derivedDaily)
+              toast.success(`Budget saved at ${formatCurrency(derivedDaily)}/day`)
+              setShowBudgetPanel(false)
+            } catch (error) {
+              metaLogger.error('WorkspaceHeader', 'Failed to save budget from advanced panel', error as Error)
+              toast.error("We couldn't save your budget. Please try again.")
+            }
           }}
         />
       )}
+
+      <Dialog open={showQuickBudget} onOpenChange={setShowQuickBudget}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Daily Budget</DialogTitle>
+            <DialogDescription>
+              Adjust your daily spend. We’ll estimate a 30-day total and re-run AI distribution when you save.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <BudgetSchedule variant="inline" />
+
+            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+              Estimated 30-day spend: <span className="font-medium text-foreground">{formatCurrency(estimatedMonthlyBudget)}</span>
+            </div>
+
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              onClick={() => {
+                setShowQuickBudget(false)
+                setShowBudgetPanel(true)
+              }}
+            >
+              Open advanced AI distribution
+            </Button>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowQuickBudget(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleQuickBudgetSave} disabled={isBudgetSaving}>
+              {isBudgetSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Budget'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
