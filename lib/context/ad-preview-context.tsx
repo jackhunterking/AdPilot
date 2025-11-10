@@ -30,6 +30,7 @@ interface AdPreviewContextType {
   setSelectedImageIndex: (index: number | null) => void
   loadingVariations: boolean[]
   generateImageVariations: (baseImageUrl: string, campaignId?: string) => Promise<void>
+  resetAdPreview: () => void
   isSaving: boolean
   lastSaved: Date | null
   saveError: Error | null
@@ -132,6 +133,15 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
     return Promise.resolve();
   }
 
+  // Reset function to clear all ad preview state
+  const resetAdPreview = useCallback(() => {
+    console.log('[AdPreviewContext] Resetting ad preview state');
+    setAdContent(null);
+    setIsPublished(false);
+    setSelectedCreativeVariation(null);
+    setSelectedImageIndex(null);
+  }, []);
+
   return (
     <AdPreviewContext.Provider value={{ 
       adContent, 
@@ -144,6 +154,7 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
       setSelectedImageIndex,
       loadingVariations,
       generateImageVariations,
+      resetAdPreview,
       isSaving,
       lastSaved,
       saveError: error

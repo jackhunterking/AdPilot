@@ -817,6 +817,19 @@ export function WorkspaceHeader({
             </Button>
           )}
           
+          {/* Back to All Ads Button - visible when there are ads and not in all-ads mode */}
+          {totalAds && totalAds > 0 && mode !== 'all-ads' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onBack}
+              className="gap-2 hover:bg-muted"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to All Ads
+            </Button>
+          )}
+          
           {/* Meta Connection + Budget Pills (visible in build, edit, results, and all-ads modes) */}
           {(mode === 'build' || mode === 'edit' || mode === 'results' || mode === 'all-ads') && (
             <div className="flex items-center gap-2">
@@ -833,7 +846,7 @@ export function WorkspaceHeader({
             <Button
               variant="default"
               size="sm"
-              onClick={onNewAd}
+              onClick={() => setShowNewAdConfirm(true)}
               className="gap-2 bg-primary hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" />
@@ -918,6 +931,43 @@ export function WorkspaceHeader({
               ) : (
                 'Save Changes'
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Ad Confirmation Dialog */}
+      <Dialog open={showNewAdConfirm} onOpenChange={setShowNewAdConfirm}>
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader className="mb-4">
+            <DialogTitle className="text-xl">Create New Ad?</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Starting a new ad will reset your current creative work. Any unsaved changes will be lost.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+            <p className="text-amber-900 dark:text-amber-100">
+              Your campaign settings (goal and budget) will be preserved. Only the ad creative will be reset.
+            </p>
+          </div>
+
+          <DialogFooter className="mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setShowNewAdConfirm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setShowNewAdConfirm(false)
+                onNewAd?.()
+              }}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Create New Ad
             </Button>
           </DialogFooter>
         </DialogContent>

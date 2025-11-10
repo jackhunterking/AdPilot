@@ -40,6 +40,10 @@ export function Dashboard({
   const router = useRouter()
   const searchParams = useSearchParams()
   const [credits] = useState(205.5)
+  
+  // Check for conversationId override in URL (used when resetting for new ad)
+  const conversationIdOverride = searchParams.get('conversationId')
+  const effectiveConversationId = conversationIdOverride || conversationId
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const dailyCredits = 500
   const { setTheme, resolvedTheme } = useTheme()
@@ -266,8 +270,8 @@ export function Dashboard({
           {!isChatCollapsed && (
             <AiChat 
               campaignId={campaignId}
-              conversationId={conversationId}
-              messages={messages}
+              conversationId={effectiveConversationId}
+              messages={conversationIdOverride ? [] : messages}
               campaignMetadata={campaignMetadata ?? undefined}
               context={viewMode || 'build'}
             />

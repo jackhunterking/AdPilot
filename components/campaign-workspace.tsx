@@ -36,7 +36,9 @@ interface SaveSuccessState {
 export function CampaignWorkspace() {
   const { campaign, updateBudget } = useCampaignContext()
   const { goalState } = useGoal()
-  const { adContent } = useAdPreview()
+  const { adContent, resetAdPreview } = useAdPreview()
+  const { clearLocations } = useLocation()
+  const { resetAudience } = useAudience()
   const { metaStatus, paymentStatus } = useMetaConnection()
   const router = useRouter()
   const pathname = usePathname()
@@ -284,21 +286,37 @@ export function CampaignWorkspace() {
   }, [effectiveMode, hasPublishedAds, setWorkspaceMode])
 
   const handleNewAd = useCallback(() => {
-    // When creating a new ad in an existing campaign:
-    // - Goal and budget are locked (inherited from campaign)
-    // - User can only modify creative, audience, and location
+    console.log('[CampaignWorkspace] Creating new ad - resetting creative state')
     
-    // Navigate to build mode with variant flag if we have published ads
+    // Reset all creative-related contexts
+    resetAdPreview()
+    clearLocations()
+    resetAudience()
+    
+    // Generate new conversation ID to force AI chat reset
+    const newConversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    // Clear the auto-submit flag so AI will proactively ask about creative
+    if (campaignId) {
+      sessionStorage.removeItem(`auto-submitted-${campaignId}`)
+      console.log('[CampaignWorkspace] Cleared auto-submit flag for campaign:', campaignId)
+    }
+    
+    // Navigate to build mode with new conversation ID
+    // Goal and budget are locked (inherited from campaign)
+    // User can only modify creative, audience, and location
+    const params = new URLSearchParams()
+    params.set("view", "build")
+    params.set("conversationId", newConversationId)
+    
     if (hasPublishedAds) {
       // Adding variant=true to URL to signal PreviewPanel to hide goal/budget steps
-      const params = new URLSearchParams()
-      params.set("view", "build")
       params.set("variant", "true")
-      router.replace(`${pathname}?${params.toString()}`)
-    } else {
-      setWorkspaceMode('build')
     }
-  }, [hasPublishedAds, pathname, router, setWorkspaceMode])
+    
+    console.log('[CampaignWorkspace] Navigating to build mode with conversation ID:', newConversationId)
+    router.replace(`${pathname}?${params.toString()}`)
+  }, [campaignId, hasPublishedAds, pathname, router, resetAdPreview, clearLocations, resetAudience])
 
   const handleViewAllAds = useCallback(() => {
     setWorkspaceMode('all-ads')
@@ -503,7 +521,7 @@ export function CampaignWorkspace() {
         showBackButton={showBackButton}
         showNewAdButton={showNewAdButton}
         campaignStatus={campaign?.published_status as CampaignStatus}
-        totalAds={effectiveMode === 'all-ads' ? convertedAds.length : undefined}
+        totalAds={convertedAds.length}
         hasPublishedAds={hasPublishedAds}
         metaConnectionStatus={metaStatus}
         paymentStatus={paymentStatus}
