@@ -27,6 +27,8 @@ import { BudgetPanel } from "@/components/launch/budget-panel"
 import { useMetaActions } from "@/lib/hooks/use-meta-actions"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 import { useCampaignContext } from "@/lib/context/campaign-context"
+import { metaStorage } from "@/lib/meta/storage"
+import { metaLogger } from "@/lib/meta/logger"
 
 export function WorkspaceHeader({
   mode,
@@ -99,6 +101,83 @@ export function WorkspaceHeader({
     setTimeout(() => setIsConnecting(false), 1000)
   }
 
+  // Listen for META_CONNECTED postMessage from OAuth popup
+  useEffect(() => {
+    if (!campaign?.id) return
+    
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        // Validate origin
+        if (event.origin !== window.location.origin) return
+        
+        const data = event.data as unknown
+        const messageType = (data && typeof data === 'object' && data !== null ? (data as { type?: string }).type : undefined)
+        
+        if (messageType === 'META_CONNECTED' || messageType === 'meta-connected') {
+          metaLogger.info('WorkspaceHeader', 'Received META_CONNECTED message')
+          
+          // Extract connection data from message
+          const messageData = data as {
+            type: string
+            campaignId?: string
+            status: string
+            connectionData?: {
+              type: 'system' | 'user_app'
+              user_id?: string
+              fb_user_id: string
+              long_lived_user_token?: string
+              token_expires_at?: string
+              user_app_token?: string
+              user_app_token_expires_at?: string
+              user_app_fb_user_id?: string
+              selected_business_id?: string
+              selected_business_name?: string
+              selected_page_id?: string
+              selected_page_name?: string
+              selected_page_access_token?: string
+              selected_ig_user_id?: string
+              selected_ig_username?: string
+              selected_ad_account_id?: string
+              selected_ad_account_name?: string
+              ad_account_currency_code?: string
+              ad_account_payment_connected?: boolean
+              admin_connected?: boolean
+              admin_business_role?: string
+              admin_ad_account_role?: string
+              status?: string
+            }
+          }
+          
+          // Store connection data in localStorage
+          if (messageData.connectionData) {
+            metaLogger.info('WorkspaceHeader', 'Storing connection data', {
+              campaignId: campaign.id,
+              type: messageData.connectionData.type,
+              hasToken: !!(messageData.connectionData.long_lived_user_token || messageData.connectionData.user_app_token),
+            })
+            
+            // Save to localStorage with CURRENT campaign ID
+            metaStorage.setConnection(campaign.id, messageData.connectionData)
+            
+            // Refresh status immediately
+            refreshStatus()
+            
+            // Call onMetaConnect callback
+            onMetaConnect?.()
+          }
+        }
+      } catch (error) {
+        metaLogger.error('WorkspaceHeader', 'Error handling META_CONNECTED message', error as Error)
+      }
+    }
+    
+    window.addEventListener('message', handleMessage)
+    
+    return () => {
+      window.removeEventListener('message', handleMessage)
+    }
+  }, [campaign?.id, refreshStatus, onMetaConnect])
+  
   // Add window focus listener to refresh status when popup closes
   useEffect(() => {
     const handleFocus = () => {
