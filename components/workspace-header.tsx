@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import type { WorkspaceHeaderProps } from "@/lib/types/workspace"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { BudgetPanel } from "@/components/launch/budget-panel"
 import { useMetaActions } from "@/lib/hooks/use-meta-actions"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
@@ -52,6 +52,7 @@ export function WorkspaceHeader({
   const metaActions = useMetaActions()
   const { metaStatus: hookMetaStatus, paymentStatus: hookPaymentStatus, refreshStatus } = useMetaConnection()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const paymentVerifiedRef = useRef(false)
   
   // Use real-time hook status, fallback to props for SSR/initial render
   const metaConnectionStatus = hookMetaStatus || propsMetaStatus
@@ -82,6 +83,8 @@ export function WorkspaceHeader({
   const handleDisconnect = async () => {
     const success = await metaActions.disconnect()
     if (success) {
+      // Reset payment verification ref so it can re-verify on reconnect
+      paymentVerifiedRef.current = false
       await refreshStatus()
       onMetaConnect?.()
     }
@@ -219,6 +222,63 @@ export function WorkspaceHeader({
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
   }, [refreshStatus])
+
+  // Auto-verify payment status for existing connections (fixes old data with hardcoded false)
+  useEffect(() => {
+    // Only verify if connected but payment shows missing
+    if (metaConnectionStatus !== 'connected') return
+    if (paymentStatus !== 'missing') return
+    if (!campaign?.id) return
+    
+    // Get ad account ID from summary
+    const summary = metaActions.getSummary()
+    if (!summary?.adAccount?.id) return
+    
+    // Prevent repeated verification in same session
+    if (paymentVerifiedRef.current) return
+    paymentVerifiedRef.current = true
+    
+    metaLogger.info('WorkspaceHeader', 'Auto-verifying payment status on load', {
+      campaignId: campaign.id,
+      adAccountId: summary.adAccount.id,
+      currentPaymentStatus: paymentStatus,
+    })
+    
+    // Verify payment via API
+    fetch(`/api/meta/payments/capability?campaignId=${encodeURIComponent(campaign.id)}`, {
+      cache: 'no-store'
+    })
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json() as { hasFunding?: boolean }
+          
+          metaLogger.info('WorkspaceHeader', 'Payment verification API response', {
+            campaignId: campaign.id,
+            hasFunding: data.hasFunding,
+          })
+          
+          if (data.hasFunding) {
+            // Payment exists! Update localStorage
+            metaLogger.info('WorkspaceHeader', 'Payment verified as connected, updating localStorage', {
+              campaignId: campaign.id,
+            })
+            metaStorage.markPaymentConnected(campaign.id)
+            
+            // Refresh status to update button color
+            refreshStatus()
+          } else {
+            metaLogger.info('WorkspaceHeader', 'Payment confirmed as missing', {
+              campaignId: campaign.id,
+            })
+          }
+        } else {
+          metaLogger.error('WorkspaceHeader', 'Payment verification API failed', new Error(`Status: ${res.status}`))
+        }
+      })
+      .catch((err) => {
+        metaLogger.error('WorkspaceHeader', 'Payment verification request failed', err as Error)
+      })
+  }, [metaConnectionStatus, paymentStatus, campaign?.id, metaActions, refreshStatus])
 
   // Call onMetaConnect when connection status changes to connected
   useEffect(() => {
