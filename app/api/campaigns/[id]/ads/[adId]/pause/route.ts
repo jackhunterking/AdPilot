@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { supabaseServer } from '@/lib/supabase/server'
+import { createServerClient, supabaseServer } from '@/lib/supabase/server'
 import { pauseAd } from '@/lib/meta/ad-operations'
 
 export async function POST(
@@ -19,9 +19,15 @@ export async function POST(
 
     console.log('[MetaPauseAd] POST request:', { campaignId, adId })
 
+    const supabase = await createServerClient()
+
     // Verify user owns the campaign
-    const { data: user } = await supabaseServer.auth.getUser()
+    const { data: user, error: authError } = await supabase.auth.getUser()
+    if (authError) {
+      console.error('[MetaPauseAd] Auth getUser error:', authError)
+    }
     if (!user?.user) {
+      console.warn('[MetaPauseAd] Unauthorized request', { campaignId, adId })
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -37,6 +43,12 @@ export async function POST(
     }
 
     if (!campaign || campaign.user_id !== user.user.id) {
+      console.warn('[MetaPauseAd] Forbidden request', {
+        campaignId,
+        adId,
+        requesterId: user.user.id,
+        campaignOwner: campaign?.user_id,
+      })
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
