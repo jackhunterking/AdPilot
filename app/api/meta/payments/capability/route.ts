@@ -63,9 +63,27 @@ export async function GET(req: NextRequest) {
     }
 
     // Validate ad account and check funding
+    console.log('[PaymentCapability] Validating ad account', {
+      campaignId,
+      adAccountId,
+      hasToken: !!tokenRow.token,
+    })
+    
     const validation = await validateAdAccount({
       token: tokenRow.token,
       actId: adAccountId,
+    })
+
+    console.log('[PaymentCapability] Validation result', {
+      campaignId,
+      adAccountId,
+      hasFunding: validation.hasFunding,
+      isActive: validation.isActive,
+      status: validation.status,
+      disableReason: validation.disableReason,
+      rawDataKeys: Object.keys(validation.rawData),
+      fundingSource: validation.rawData.funding_source,
+      fundingSourceDetails: validation.rawData.funding_source_details,
     })
 
     return NextResponse.json({
@@ -73,6 +91,12 @@ export async function GET(req: NextRequest) {
       hasFinance: false, // Simplified for now
       hasManage: false, // Simplified for now
       adAccountId,
+      debug: {
+        isActive: validation.isActive,
+        status: validation.status,
+        fundingSource: validation.rawData.funding_source,
+        fundingSourceDetails: validation.rawData.funding_source_details,
+      }
     })
   } catch (e) {
     console.error('[PaymentCapability] Server error:', e)
