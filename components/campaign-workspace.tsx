@@ -446,39 +446,64 @@ export function CampaignWorkspace() {
     }
   }, [effectiveMode, hasPublishedAds, hasUnsavedChanges, setWorkspaceMode])
 
-  const handleNewAd = useCallback(() => {
+  const handleNewAd = useCallback(async () => {
     console.log('[CampaignWorkspace] Creating new ad - resetting creative state')
     
-    // Reset all creative-related contexts
-    resetAdPreview()
-    resetAdCopy()
-    clearLocations()
-    resetAudience()
-    
-    // Generate new conversation ID to force AI chat reset
-    const newConversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    
-    // Clear the auto-submit flag so AI will proactively ask about creative
-    if (campaignId) {
-      sessionStorage.removeItem(`auto-submitted-${campaignId}`)
-      console.log('[CampaignWorkspace] Cleared auto-submit flag for campaign:', campaignId)
+    // Step 1: Create draft ad record in database
+    try {
+      const response = await fetch(`/api/campaigns/${campaignId}/ads/draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      
+      if (!response.ok) {
+        console.error('[CampaignWorkspace] Failed to create draft ad')
+        toast.error('Failed to create new ad')
+        return
+      }
+      
+      const { ad } = await response.json()
+      const newAdId = ad.id
+      console.log('[CampaignWorkspace] ✅ Created draft ad:', newAdId)
+      
+      // Step 2: Reset all creative-related contexts
+      resetAdPreview()
+      resetAdCopy()
+      clearLocations()
+      resetAudience()
+      
+      // Step 3: Generate new conversation ID to force AI chat reset
+      const newConversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      
+      // Step 4: Clear session storage for stepper to force step 0
+      if (campaignId) {
+        sessionStorage.removeItem(`campaign:${campaignId}:lastStepId`)
+        sessionStorage.removeItem(`auto-submitted-${campaignId}`)
+        sessionStorage.removeItem(`new-ad-auto-submitted-${campaignId}`)
+        console.log('[CampaignWorkspace] Cleared session storage for campaign:', campaignId)
+      }
+      
+      // Step 5: Navigate to build mode with adId and newAd flag
+      // Goal and budget are locked (inherited from campaign)
+      // User can only modify creative, audience, and location
+      const params = new URLSearchParams()
+      params.set("view", "build")
+      params.set("adId", newAdId)
+      params.set("newAd", "true")
+      params.set("conversationId", newConversationId)
+      
+      // If clicking "New Ad" from all-ads or results view, we're creating a variant
+      // (The button is only shown in these modes, which means published ads exist)
+      if (effectiveMode === 'all-ads' || effectiveMode === 'results') {
+        params.set("variant", "true")
+      }
+      
+      console.log('[CampaignWorkspace] Navigating to build mode with adId:', newAdId)
+      router.replace(`${pathname}?${params.toString()}`)
+    } catch (error) {
+      console.error('[CampaignWorkspace] Error creating draft ad:', error)
+      toast.error('Failed to create new ad')
     }
-    
-    // Navigate to build mode with new conversation ID
-    // Goal and budget are locked (inherited from campaign)
-    // User can only modify creative, audience, and location
-    const params = new URLSearchParams()
-    params.set("view", "build")
-    params.set("conversationId", newConversationId)
-    
-    // If clicking "New Ad" from all-ads or results view, we're creating a variant
-    // (The button is only shown in these modes, which means published ads exist)
-    if (effectiveMode === 'all-ads' || effectiveMode === 'results') {
-      params.set("variant", "true")
-    }
-    
-    console.log('[CampaignWorkspace] Navigating to build mode with conversation ID:', newConversationId)
-    router.replace(`${pathname}?${params.toString()}`)
   }, [campaignId, effectiveMode, pathname, router, resetAdPreview, resetAdCopy, clearLocations, resetAudience])
 
   const handleViewAllAds = useCallback(() => {

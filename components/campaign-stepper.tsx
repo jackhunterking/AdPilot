@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -55,6 +56,8 @@ interface CampaignStepperProps {
 }
 
 export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
+  const searchParams = useSearchParams()
+  const isNewAd = searchParams.get('newAd') === 'true'
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward')
   const hasInitializedRef = useRef(false)
@@ -64,6 +67,14 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
   // Auto-jump once only for restored sessions (not during live progression)
   useEffect(() => {
     if (hasInitializedRef.current) return
+
+    // If newAd=true, force step 0 (Ad Creative) regardless of any other state
+    if (isNewAd) {
+      console.log('[CampaignStepper] New ad creation detected - forcing step 0')
+      setCurrentStepIndex(0)
+      hasInitializedRef.current = true
+      return
+    }
 
     const completedCount = steps.filter(s => s.completed).length
     if (completedCount < 1) return // wait until at least one step reports completed
@@ -86,7 +97,7 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
 
     setCurrentStepIndex(initialIndex)
     hasInitializedRef.current = true
-  }, [steps, campaignId])
+  }, [steps, campaignId, isNewAd])
 
   // Clamp currentStepIndex whenever steps array size or ordering changes
   useEffect(() => {

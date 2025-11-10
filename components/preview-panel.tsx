@@ -301,7 +301,6 @@ export function PreviewPanel() {
         : adContent?.imageUrl || adContent?.imageVariations?.[0]
       
       // Prepare the ad data for persistence
-      // Note: setup_snapshot not included until database schema supports it
       const adData = {
         name: `${campaign.name} - Ad ${new Date().toLocaleDateString()}`,
         status: isEditingExistingAd ? 'active' : 'draft', // New ads are drafts, edited ads stay active
@@ -317,10 +316,10 @@ export function PreviewPanel() {
           cta: adContent?.cta || 'Learn More',
         },
         meta_ad_id: null, // Will be set when actually published to Meta
-        // setup_snapshot omitted - will be added when database schema is updated
+        setup_snapshot: snapshot, // Include complete wizard snapshot
       }
       
-      console.log('📸 Validated snapshot (used for deriving data, not persisted):', {
+      console.log('📸 Validated snapshot (will be persisted):', {
         hasSnapshot: !!snapshot,
         creative: snapshot.creative.selectedImageIndex,
         copy: {
@@ -340,15 +339,18 @@ export function PreviewPanel() {
         status: adData.status,
         copy_data: adData.copy_data,
         creative_data: adData.creative_data,
+        hasSnapshot: !!adData.setup_snapshot,
       })
       
-      // Persist the ad to Supabase (UPDATE existing or CREATE new)
-      const apiUrl = isEditingExistingAd 
+      // Persist the ad to Supabase
+      // If currentAdId exists (from URL), update that ad (PATCH)
+      // Otherwise, create new ad (POST) - though with new flow, we should always have currentAdId
+      const apiUrl = currentAdId 
         ? `/api/campaigns/${campaign.id}/ads/${currentAdId}`
         : `/api/campaigns/${campaign.id}/ads`
       
       const response = await fetch(apiUrl, {
-        method: isEditingExistingAd ? 'PATCH' : 'POST',
+        method: currentAdId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(adData),
       })
@@ -831,6 +833,24 @@ export function PreviewPanel() {
     )
   }
 
+  // Helper to check if we're waiting for creative generation
+  const isWaitingForCreative = !adContent?.imageVariations || adContent.imageVariations.length === 0
+
+  // Loading card for creative generation
+  const renderLoadingCard = (index: number) => (
+    <div
+      key={`loading-${index}`}
+      className="rounded-lg border-2 border-dashed border-border bg-muted/30 overflow-hidden relative"
+      style={{ aspectRatio: activeFormat === "story" ? "9/16" : "1/1" }}
+    >
+      <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500 mb-3" />
+        <p className="text-sm font-medium text-foreground">Waiting for creative generation...</p>
+        <p className="text-xs text-muted-foreground mt-1">AI is creating your ad creative</p>
+      </div>
+    </div>
+  )
+
   // Step 1: Ads Content with 3x2 Grid
   const adsContent = (
     <div className="space-y-6">
@@ -883,14 +903,26 @@ export function PreviewPanel() {
         </div>
       </div>
 
-      {/* 3x2 Grid of Ad Mockups */}
+      {/* 3x2 Grid of Ad Mockups or Loading Cards */}
       <div className="grid grid-cols-3 gap-4 max-w-6xl mx-auto">
-        {activeFormat === "feed" && adVariations.map((variation, index) => renderFeedAd(variation, index))}
-        {activeFormat === "story" && adVariations.map((variation, index) => renderStoryAd(variation, index))}
+        {isWaitingForCreative ? (
+          // Show loading cards while waiting for creative generation
+          <>
+            {renderLoadingCard(0)}
+            {renderLoadingCard(1)}
+            {renderLoadingCard(2)}
+          </>
+        ) : (
+          // Show actual ad variations once generated
+          <>
+            {activeFormat === "feed" && adVariations.map((variation, index) => renderFeedAd(variation, index))}
+            {activeFormat === "story" && adVariations.map((variation, index) => renderStoryAd(variation, index))}
+          </>
+        )}
       </div>
 
       {/* Info Section */}
-      {!adContent?.imageVariations && (
+      {!isWaitingForCreative && !adContent?.imageVariations && (
         <div className="text-center py-6">
           <p className="text-sm text-muted-foreground">Hover over any ad to select or edit</p>
         </div>

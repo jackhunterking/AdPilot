@@ -32,6 +32,7 @@ import {
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import { useState, useEffect, useMemo, Fragment, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import { Response } from "@/components/ai-elements/response";
 import { ThumbsUpIcon, ThumbsDownIcon, CopyIcon, Sparkles, ChevronRight, MapPin, CheckCircle2, XCircle, Reply, X, Check } from "lucide-react";
@@ -200,6 +201,8 @@ interface AIChatProps {
 }
 
 const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], campaignMetadata, context }: AIChatProps = {}) => {
+  const searchParams = useSearchParams();
+  const isNewAd = searchParams.get('newAd') === 'true';
   const [input, setInput] = useState("");
   const [model] = useState<string>("openai/gpt-4o");
   const { campaign } = useCampaignContext();
@@ -479,6 +482,32 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       text: campaignMetadata.initialPrompt,
     })
   }, [campaignId, campaignMetadata, initialMessages.length, status, sendMessage]);
+
+  // AUTO-SUBMIT FOR NEW AD CREATION (Trigger Creative Generation)
+  useEffect(() => {
+    // Only run for new ad creation
+    if (!isNewAd || !campaignId) return
+    
+    // Don't auto-submit if already streaming
+    if (status === 'streaming') return
+    
+    // Check if we've already auto-submitted for this new ad
+    const newAdAutoSubmitKey = `new-ad-auto-submitted-${campaignId}`
+    if (sessionStorage.getItem(newAdAutoSubmitKey)) {
+      console.log('[CLIENT] Already auto-submitted for new ad creation')
+      return
+    }
+    
+    console.log('[CLIENT] New ad creation detected - auto-submitting creative generation request')
+    
+    // Mark as submitted BEFORE calling sendMessage
+    sessionStorage.setItem(newAdAutoSubmitKey, 'true')
+    
+    // Use AI SDK's sendMessage() to submit the creative generation message
+    sendMessage({
+      text: 'Generate ad creative for my campaign',
+    })
+  }, [isNewAd, campaignId, status, sendMessage]);
 
   const handleSubmit = (message: PromptInputMessage, e: React.FormEvent) => {
     e.preventDefault();
