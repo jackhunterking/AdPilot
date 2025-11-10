@@ -281,11 +281,19 @@ export function WorkspaceHeader({
     })
       .then(async (res) => {
         if (res.ok) {
-          const data = await res.json() as { hasFunding?: boolean }
+          const data = await res.json() as { 
+            hasFunding?: boolean
+            isActive?: boolean
+            accountStatus?: number
+            disableReason?: string
+          }
           
           metaLogger.info('WorkspaceHeader', 'Payment verification API response', {
             campaignId: campaign.id,
             hasFunding: data.hasFunding,
+            isActive: data.isActive,
+            accountStatus: data.accountStatus,
+            disableReason: data.disableReason,
           })
           
           if (data.hasFunding) {
@@ -297,9 +305,20 @@ export function WorkspaceHeader({
             
             // Refresh status to update button color
             refreshStatus()
+          } else if (!data.isActive && data.disableReason) {
+            // Account is restricted/disabled
+            metaLogger.warn('WorkspaceHeader', 'Ad account is restricted', {
+              campaignId: campaign.id,
+              disableReason: data.disableReason,
+              accountStatus: data.accountStatus,
+            })
+            
+            // Show alert to user
+            alert(`⚠️ Ad Account Issue\n\nYour ad account is currently restricted by Meta.\n\nReason: ${data.disableReason}\n\nPlease resolve this issue in Facebook Business Manager before launching ads.`)
           } else {
             metaLogger.info('WorkspaceHeader', 'Payment confirmed as missing', {
               campaignId: campaign.id,
+              isActive: data.isActive,
             })
           }
         } else {
@@ -354,6 +373,10 @@ export function WorkspaceHeader({
   const getMetaConnectionBadge = () => {
     // Connected state - show dropdown
     if (isConnected) {
+      const buttonText = paymentStatus === 'verified' ? 'Meta Connected' : 
+                         paymentStatus === 'flagged' ? 'Account Issue' :
+                         'Payment Required'
+      
       return (
         <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
           <DropdownMenuTrigger asChild>
@@ -372,7 +395,7 @@ export function WorkspaceHeader({
               ) : (
                 <AlertCircle className="h-4 w-4" />
               )}
-              Meta Connected
+              {buttonText}
               <ChevronDown className="h-3 w-3 opacity-50" />
             </Button>
           </DropdownMenuTrigger>

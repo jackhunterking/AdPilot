@@ -91,6 +91,9 @@ export async function GET(req: NextRequest) {
       hasFinance: false, // Simplified for now
       hasManage: false, // Simplified for now
       adAccountId,
+      isActive: validation.isActive,
+      accountStatus: validation.status,
+      disableReason: validation.disableReason,
       debug: {
         isActive: validation.isActive,
         status: validation.status,
