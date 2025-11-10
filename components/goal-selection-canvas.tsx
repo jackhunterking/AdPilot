@@ -26,13 +26,13 @@ export function GoalSelectionCanvas({ variant = "step" }: GoalSelectionCanvasPro
   const metaActions = useMetaActions()
   const [isConnecting, setIsConnecting] = useState(false)
   const [showMetaRequiredDialog, setShowMetaRequiredDialog] = useState(false)
-  const [pendingGoal, setPendingGoal] = useState<string | null>(null)
+  const [pendingGoal, setPendingGoal] = useState<"leads" | "calls" | "website-visits" | null>(null)
   const isSummary = variant === "summary"
   
   // Removed AI-triggered setup; inline UI is used instead
 
   // Handle goal selection with Meta connection check
-  const handleGoalSelect = (goal: string) => {
+  const handleGoalSelect = (goal: "leads" | "calls" | "website-visits") => {
     // Check if Meta is connected
     if (metaStatus !== 'connected') {
       console.log('[GoalSelectionCanvas] Meta not connected, showing dialog')

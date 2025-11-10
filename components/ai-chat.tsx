@@ -249,6 +249,15 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
         setCustomPlaceholder('Type your message...');
     }
   }, [context]);
+  // Keep latest Authorization header (Bearer <token>) in a ref for sync headers
+  const authHeaderRef = useRef<string | null>(null);
+  const { setIsGenerating, setGenerationMessage, generationMessage } = useGeneration();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Extract goal from campaign metadata for context enrichment
+  const goalType = campaignMetadata?.initialGoal || goalState?.selectedGoal || null;
+  
+  console.log('[AI-CHAT] Goal context:', { goalType, campaignMetadata, goalState: goalState?.selectedGoal });
 
   // Reset AI chat local state when conversation ID changes (new ad creation)
   useEffect(() => {
@@ -259,7 +268,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       // Clear generation states
       setGeneratingImages(new Set())
       setIsGenerating(false)
-      setGenerationMessage(null)
+      setGenerationMessage('')
       
       // Clear edit sessions and contexts
       setActiveEditSession(null)
@@ -276,15 +285,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       console.log('[AI-CHAT] ✅ Local state reset complete for new conversation')
     }
   }, [conversationId, setIsGenerating, setGenerationMessage]);
-  // Keep latest Authorization header (Bearer <token>) in a ref for sync headers
-  const authHeaderRef = useRef<string | null>(null);
-  const { setIsGenerating, setGenerationMessage, generationMessage } = useGeneration();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Extract goal from campaign metadata for context enrichment
-  const goalType = campaignMetadata?.initialGoal || goalState?.selectedGoal || null;
-  
-  console.log('[AI-CHAT] Goal context:', { goalType, campaignMetadata, goalState: goalState?.selectedGoal });
 
   // Load current session token and subscribe to auth changes
   useEffect(() => {
