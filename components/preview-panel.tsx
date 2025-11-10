@@ -317,7 +317,7 @@ export function PreviewPanel() {
           cta: adContent?.cta || 'Learn More',
         },
         meta_ad_id: null, // Will be set when actually published to Meta
-        setup_snapshot: snapshot, // Include setup snapshot for complete ad configuration
+        // setup_snapshot omitted - will be added when database schema is updated
       }
       
       console.log('📸 Validated snapshot (used for deriving data, not persisted):', {

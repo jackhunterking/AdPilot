@@ -70,9 +70,9 @@ export async function POST(
       return NextResponse.json({ error: 'Only draft ads can be published' }, { status: 400 })
     }
 
-    // Validate ad has required data
-    const setupSnapshot = ad.setup_snapshot as Record<string, unknown> | null
-    if (!setupSnapshot) {
+    // Validate ad has required data (creative_data and copy_data)
+    if (!ad.creative_data || !ad.copy_data) {
+      console.warn('[PublishAd] Ad is missing required data:', { adId, hasCreative: !!ad.creative_data, hasCopy: !!ad.copy_data })
       return NextResponse.json({ error: 'Ad setup is incomplete' }, { status: 400 })
     }
 
