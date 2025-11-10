@@ -51,6 +51,7 @@ export function AdCard({
   showABTestButton,
 }: AdCardProps) {
   const isPaused = ad.status === 'paused'
+  const isDraft = ad.status === 'draft'
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showPauseDialog, setShowPauseDialog] = useState(false)
   
@@ -230,7 +231,16 @@ export function AdCard({
           >
             Edit
           </Button>
-          {isPaused ? (
+          {isDraft ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 cursor-not-allowed opacity-60"
+              disabled
+            >
+              Pause
+            </Button>
+          ) : isPaused ? (
             <Button
               variant="outline"
               size="sm"

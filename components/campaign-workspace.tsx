@@ -243,15 +243,22 @@ export function CampaignWorkspace() {
         console.warn('[CampaignWorkspace] ⚠️ Using legacy fallback data for ad:', ad.id)
       }
       
+      const metaAdId = typeof ad.meta_ad_id === 'string' && ad.meta_ad_id.trim().length > 0
+        ? ad.meta_ad_id
+        : null
+
+      const normalizedStatus: 'draft' | 'active' | 'paused' | 'archived' =
+        metaAdId ? (ad.status as 'draft' | 'active' | 'paused' | 'archived') : 'draft'
+
       return {
         id: ad.id,
         campaign_id: ad.campaign_id,
         name: ad.name,
-        status: ad.status as 'draft' | 'active' | 'paused' | 'archived',
+        status: normalizedStatus,
         variant_type: 'original' as const,
         creative_data,
         metrics_snapshot: ad.metrics_snapshot as AdVariant['metrics_snapshot'],
-        meta_ad_id: ad.meta_ad_id || undefined,
+        meta_ad_id: metaAdId || undefined,
         created_at: ad.created_at,
         updated_at: ad.updated_at,
       }
@@ -322,6 +329,14 @@ export function CampaignWorkspace() {
 
   const handlePauseAd = useCallback(async (adId: string): Promise<boolean> => {
     const previousStatus = ads.find(ad => ad.id === adId)?.status ?? null
+    const targetAd = convertedAds.find(ad => ad.id === adId)
+    const hasMetaId = Boolean(targetAd?.meta_ad_id)
+
+    if (!hasMetaId) {
+      console.warn('[CampaignWorkspace] Pause skipped: ad has no meta_ad_id (draft)', { adId })
+      return false
+    }
+
     console.log('[CampaignWorkspace] Pausing ad (optimistic):', { adId, previousStatus })
     updateAdStatus(adId, 'paused')
 
@@ -359,10 +374,18 @@ export function CampaignWorkspace() {
       // TODO: Show error toast
       return false
     }
-  }, [ads, campaignId, getMetaToken, refreshAds, updateAdStatus])
+  }, [ads, campaignId, convertedAds, getMetaToken, refreshAds, updateAdStatus])
 
   const handleResumeAd = useCallback(async (adId: string): Promise<boolean> => {
     const previousStatus = ads.find(ad => ad.id === adId)?.status ?? null
+    const targetAd = convertedAds.find(ad => ad.id === adId)
+    const hasMetaId = Boolean(targetAd?.meta_ad_id)
+
+    if (!hasMetaId) {
+      console.warn('[CampaignWorkspace] Resume skipped: ad has no meta_ad_id (draft)', { adId })
+      return false
+    }
+
     console.log('[CampaignWorkspace] Resuming ad (optimistic):', { adId, previousStatus })
     updateAdStatus(adId, 'active')
 
@@ -400,7 +423,7 @@ export function CampaignWorkspace() {
       // TODO: Show error toast
       return false
     }
-  }, [ads, campaignId, getMetaToken, refreshAds, updateAdStatus])
+  }, [ads, campaignId, convertedAds, getMetaToken, refreshAds, updateAdStatus])
 
   const handleDeleteAd = useCallback(async (adId: string) => {
     try {

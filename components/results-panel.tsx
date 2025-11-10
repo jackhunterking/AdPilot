@@ -46,6 +46,7 @@ export function ResultsPanel({
   const [showPauseDialog, setShowPauseDialog] = useState(false)
   const [showResumeDialog, setShowResumeDialog] = useState(false)
   const isPaused = variant.status === 'paused'
+  const isDraft = variant.status === 'draft'
   
   // Debug: Log what copy data we received
   console.log('[ResultsPanel] 📋 Received variant data:', {
@@ -219,23 +220,34 @@ export function ResultsPanel({
                   Edit This Ad
                 </Button>
 
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-2 text-sm h-9"
-                  onClick={isPaused ? handleResumeClick : handlePauseClick}
-                >
-                  {isPaused ? (
-                    <>
-                      <Play className="h-3.5 w-3.5" />
-                      Resume Ad
-                    </>
-                  ) : (
-                    <>
-                      <Pause className="h-3.5 w-3.5" />
-                      Pause Ad
-                    </>
-                  )}
-                </Button>
+                {isDraft ? (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-2 text-sm h-9 cursor-not-allowed opacity-60"
+                    disabled
+                  >
+                    <Pause className="h-3.5 w-3.5" />
+                    Pause Ad
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-2 text-sm h-9"
+                    onClick={isPaused ? handleResumeClick : handlePauseClick}
+                  >
+                    {isPaused ? (
+                      <>
+                        <Play className="h-3.5 w-3.5" />
+                        Resume Ad
+                      </>
+                    ) : (
+                      <>
+                        <Pause className="h-3.5 w-3.5" />
+                        Pause Ad
+                      </>
+                    )}
+                  </Button>
+                )}
 
                 <Button
                   variant="outline"
