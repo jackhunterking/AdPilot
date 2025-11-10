@@ -30,6 +30,18 @@ import { useCampaignContext } from "@/lib/context/campaign-context"
 import { metaStorage } from "@/lib/meta/storage"
 import { metaLogger } from "@/lib/meta/logger"
 
+// Meta Account Status Constants (from Graph API docs)
+const META_ACCOUNT_STATUS = {
+  ACTIVE: 1,
+  DISABLED: 2,
+  UNSETTLED: 3,
+  PENDING_RISK_REVIEW: 7,
+  PENDING_SETTLEMENT: 8,
+  IN_GRACE_PERIOD: 9,
+  PENDING_CLOSURE: 100,
+  CLOSED: 101,
+} as const
+
 export function WorkspaceHeader({
   mode,
   onBack,
@@ -53,6 +65,11 @@ export function WorkspaceHeader({
   const { metaStatus: hookMetaStatus, paymentStatus: hookPaymentStatus, refreshStatus } = useMetaConnection()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const paymentVerifiedRef = useRef(false)
+  const [accountRestriction, setAccountRestriction] = useState<{
+    isRestricted: boolean
+    accountStatus?: number
+    disableReason?: string
+  } | null>(null)
   
   // Use real-time hook status, fallback to props for SSR/initial render
   const metaConnectionStatus = hookMetaStatus || propsMetaStatus
@@ -302,24 +319,34 @@ export function WorkspaceHeader({
               campaignId: campaign.id,
             })
             metaStorage.markPaymentConnected(campaign.id)
+            setAccountRestriction(null)
             
             // Refresh status to update button color
             refreshStatus()
-          } else if (!data.isActive && data.disableReason) {
-            // Account is restricted/disabled
-            metaLogger.warn('WorkspaceHeader', 'Ad account is restricted', {
+          } else if (data.accountStatus === META_ACCOUNT_STATUS.DISABLED || data.accountStatus === META_ACCOUNT_STATUS.CLOSED) {
+            // Account is restricted/disabled by Meta
+            metaLogger.warn('WorkspaceHeader', 'Ad account is restricted by Meta', {
               campaignId: campaign.id,
               disableReason: data.disableReason,
               accountStatus: data.accountStatus,
             })
             
-            // Show alert to user
-            alert(`⚠️ Ad Account Issue\n\nYour ad account is currently restricted by Meta.\n\nReason: ${data.disableReason}\n\nPlease resolve this issue in Facebook Business Manager before launching ads.`)
+            // Store restriction info for UI display
+            setAccountRestriction({
+              isRestricted: true,
+              accountStatus: data.accountStatus,
+              disableReason: data.disableReason,
+            })
+            
+            // Refresh status
+            refreshStatus()
           } else {
             metaLogger.info('WorkspaceHeader', 'Payment confirmed as missing', {
               campaignId: campaign.id,
               isActive: data.isActive,
+              accountStatus: data.accountStatus,
             })
+            setAccountRestriction(null)
           }
         } else {
           metaLogger.error('WorkspaceHeader', 'Payment verification API failed', new Error(`Status: ${res.status}`))
@@ -373,9 +400,15 @@ export function WorkspaceHeader({
   const getMetaConnectionBadge = () => {
     // Connected state - show dropdown
     if (isConnected) {
-      const buttonText = paymentStatus === 'verified' ? 'Meta Connected' : 
-                         paymentStatus === 'flagged' ? 'Account Issue' :
-                         'Payment Required'
+      // Determine button text based on restriction and payment status
+      let buttonText = 'Meta Connected'
+      if (accountRestriction?.isRestricted) {
+        buttonText = 'Account Restricted'
+      } else if (paymentStatus === 'flagged') {
+        buttonText = 'Account Issue'
+      } else if (paymentStatus === 'missing') {
+        buttonText = 'Payment Required'
+      }
       
       return (
         <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
@@ -385,12 +418,12 @@ export function WorkspaceHeader({
               size="sm"
               className={cn(
                 "gap-2",
-                paymentStatus === 'verified' 
+                paymentStatus === 'verified' && !accountRestriction?.isRestricted
                   ? "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400 hover:bg-green-500/20"
                   : "bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400 hover:bg-red-500/20"
               )}
             >
-              {paymentStatus === 'verified' ? (
+              {paymentStatus === 'verified' && !accountRestriction?.isRestricted ? (
                 <CheckCircle2 className="h-4 w-4" />
               ) : (
                 <AlertCircle className="h-4 w-4" />
@@ -455,7 +488,31 @@ export function WorkspaceHeader({
             
             <DropdownMenuSeparator />
             
-            {hasPaymentIssue && (
+            {/* Show restriction notice if account is restricted */}
+            {accountRestriction?.isRestricted && (
+              <>
+                <div className="px-2 py-3 text-sm">
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                    <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-red-900 dark:text-red-100 text-xs mb-1">
+                        Account Restricted
+                      </p>
+                      <p className="text-xs text-red-700 dark:text-red-300 mb-2">
+                        {accountRestriction.disableReason || 'This account has been disabled by Meta'}
+                      </p>
+                      <p className="text-xs text-red-600 dark:text-red-400">
+                        Visit Facebook Business Manager to request a review
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            
+            {/* Only show Add Payment if NOT restricted (payment won't help with restriction) */}
+            {hasPaymentIssue && !accountRestriction?.isRestricted && (
               <DropdownMenuItem onClick={handleAddPayment}>
                 <CreditCard className="h-4 w-4 mr-2" />
                 Add Payment
