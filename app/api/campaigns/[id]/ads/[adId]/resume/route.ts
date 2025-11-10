@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, supabaseServer } from '@/lib/supabase/server'
-import { resumeAd } from '@/lib/meta/ad-operations'
+import { resumeAd, resumeAdWithToken } from '@/lib/meta/ad-operations'
 
 export async function POST(
   request: NextRequest,
@@ -52,8 +52,32 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Resume the ad
-    const result = await resumeAd(adId, campaignId)
+    let tokenOverride: string | null = null
+    const contentType = request.headers.get('content-type') || ''
+    if (contentType.includes('application/json')) {
+      try {
+        const bodyUnknown: unknown = await request.json()
+        if (
+          bodyUnknown &&
+          typeof bodyUnknown === 'object' &&
+          !Array.isArray(bodyUnknown) &&
+          'token' in bodyUnknown &&
+          typeof (bodyUnknown as { token: unknown }).token === 'string'
+        ) {
+          tokenOverride = (bodyUnknown as { token: string }).token.trim() || null
+        }
+      } catch (parseError) {
+        console.warn('[MetaResumeAd] Failed to parse request body for token override:', parseError)
+      }
+    }
+
+    console.log('[MetaResumeAd] Determined token override:', {
+      hasToken: Boolean(tokenOverride),
+    })
+
+    const result = tokenOverride
+      ? await resumeAdWithToken(adId, campaignId, tokenOverride)
+      : await resumeAd(adId, campaignId)
 
     return NextResponse.json({ success: true, status: result.status })
   } catch (error) {

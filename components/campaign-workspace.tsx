@@ -23,6 +23,7 @@ import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { useCampaignAds } from "@/lib/hooks/use-campaign-ads"
 import { useGoal } from "@/lib/context/goal-context"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
+import { metaStorage } from "@/lib/meta/storage"
 import type { WorkspaceMode, CampaignStatus, AdVariant, AdMetrics, LeadFormInfo } from "@/lib/types/workspace"
 
 interface SaveSuccessState {
@@ -304,16 +305,35 @@ export function CampaignWorkspace() {
     setWorkspaceMode('edit', adId)
   }, [setWorkspaceMode])
 
+  const getMetaToken = useCallback(() => {
+    if (typeof window === 'undefined' || !campaignId) return null
+    try {
+      const connection = metaStorage.getConnectionWithToken?.(campaignId) ?? metaStorage.getConnection(campaignId)
+      const token = connection?.long_lived_user_token || connection?.user_app_token || null
+      if (!token) {
+        console.warn('[CampaignWorkspace] No Meta token found in localStorage for campaign', campaignId)
+      }
+      return token
+    } catch (error) {
+      console.error('[CampaignWorkspace] Failed to read Meta token from localStorage:', error)
+      return null
+    }
+  }, [campaignId])
+
   const handlePauseAd = useCallback(async (adId: string): Promise<boolean> => {
     const previousStatus = ads.find(ad => ad.id === adId)?.status ?? null
     console.log('[CampaignWorkspace] Pausing ad (optimistic):', { adId, previousStatus })
     updateAdStatus(adId, 'paused')
 
+    const token = getMetaToken()
+
     try {
       const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/pause`, {
         method: 'POST',
+        headers: token ? { 'Content-Type': 'application/json' } : undefined,
+        body: token ? JSON.stringify({ token }) : undefined,
       })
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         console.error('[CampaignWorkspace] Failed to pause ad:', errorData)
@@ -339,16 +359,20 @@ export function CampaignWorkspace() {
       // TODO: Show error toast
       return false
     }
-  }, [ads, campaignId, refreshAds, updateAdStatus])
+  }, [ads, campaignId, getMetaToken, refreshAds, updateAdStatus])
 
   const handleResumeAd = useCallback(async (adId: string): Promise<boolean> => {
     const previousStatus = ads.find(ad => ad.id === adId)?.status ?? null
     console.log('[CampaignWorkspace] Resuming ad (optimistic):', { adId, previousStatus })
     updateAdStatus(adId, 'active')
 
+    const token = getMetaToken()
+
     try {
       const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/resume`, {
         method: 'POST',
+        headers: token ? { 'Content-Type': 'application/json' } : undefined,
+        body: token ? JSON.stringify({ token }) : undefined,
       })
       
       if (!response.ok) {
@@ -376,7 +400,7 @@ export function CampaignWorkspace() {
       // TODO: Show error toast
       return false
     }
-  }, [ads, campaignId, refreshAds, updateAdStatus])
+  }, [ads, campaignId, getMetaToken, refreshAds, updateAdStatus])
 
   const handleDeleteAd = useCallback(async (adId: string) => {
     try {

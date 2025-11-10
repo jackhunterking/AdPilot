@@ -71,12 +71,14 @@ async function graphPost(token: string, path: string, payload: Record<string, un
 async function updateAdStatus(
   adId: string,
   campaignId: string,
-  targetStatus: 'ACTIVE' | 'PAUSED'
+  targetStatus: 'ACTIVE' | 'PAUSED',
+  options?: { tokenOverride?: string | null }
 ): Promise<AdOperationResult> {
   console.log('[AdOperations] updateAdStatus start:', {
     adId,
     campaignId,
     targetStatus,
+    hasTokenOverride: Boolean(options?.tokenOverride),
   })
 
   // Fetch the ad's meta_ad_id from database
@@ -98,11 +100,21 @@ async function updateAdStatus(
 
   // Get Meta connection token
   const connection = await getConnectionWithToken({ campaignId })
-  if (!connection || !connection.long_lived_user_token) {
+  const token =
+    options?.tokenOverride ||
+    connection?.long_lived_user_token ||
+    connection?.user_app_token ||
+    null
+
+  if (!token) {
+    console.error('[AdOperations] Missing Meta token for ad status update', {
+      campaignId,
+      hasOverride: Boolean(options?.tokenOverride),
+      hasStoredToken: Boolean(connection?.long_lived_user_token),
+      hasUserAppToken: Boolean(connection?.user_app_token),
+    })
     throw new Error('Missing Meta token. Please reconnect Meta before updating ad status.')
   }
-
-  const token = connection.long_lived_user_token
 
   // Update ad status on Meta
   console.log('[AdOperations] Sending status update to Meta:', {
@@ -145,5 +157,31 @@ export async function pauseAd(adId: string, campaignId: string): Promise<AdOpera
 export async function resumeAd(adId: string, campaignId: string): Promise<AdOperationResult> {
   console.log('[AdOperations] Resuming ad:', { adId, campaignId })
   return updateAdStatus(adId, campaignId, 'ACTIVE')
+}
+
+export async function pauseAdWithToken(
+  adId: string,
+  campaignId: string,
+  token: string | null | undefined
+): Promise<AdOperationResult> {
+  console.log('[AdOperations] Pausing ad with token override:', {
+    adId,
+    campaignId,
+    hasToken: Boolean(token),
+  })
+  return updateAdStatus(adId, campaignId, 'PAUSED', { tokenOverride: token ?? null })
+}
+
+export async function resumeAdWithToken(
+  adId: string,
+  campaignId: string,
+  token: string | null | undefined
+): Promise<AdOperationResult> {
+  console.log('[AdOperations] Resuming ad with token override:', {
+    adId,
+    campaignId,
+    hasToken: Boolean(token),
+  })
+  return updateAdStatus(adId, campaignId, 'ACTIVE', { tokenOverride: token ?? null })
 }
 
