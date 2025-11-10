@@ -12,7 +12,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Loader2, Minus, Plus as PlusIcon } from "lucide-react"
+import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Loader2, Minus, Plus as PlusIcon, Rocket } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +60,8 @@ export function WorkspaceHeader({
   campaignBudget,
   onMetaConnect,
   onBudgetUpdate,
+  onSaveAndPublish,
+  isSaveAndPublishDisabled = false,
   className,
 }: WorkspaceHeaderProps) {
   const { campaign } = useCampaignContext()
@@ -817,19 +819,6 @@ export function WorkspaceHeader({
             </Button>
           )}
           
-          {/* Back to All Ads Button - visible when there are ads and not in all-ads mode */}
-          {totalAds && totalAds > 0 && mode !== 'all-ads' && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onBack}
-              className="gap-2 hover:bg-muted"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to All Ads
-            </Button>
-          )}
-          
           {/* Meta Connection + Budget Pills (visible in build, edit, results, and all-ads modes) */}
           {(mode === 'build' || mode === 'edit' || mode === 'results' || mode === 'all-ads') && (
             <div className="flex items-center gap-2">
@@ -839,9 +828,21 @@ export function WorkspaceHeader({
           )}
         </div>
 
-        {/* Right: Status Badge and New Ad Button */}
+        {/* Right: Status Badge, Save & Publish Button, and New Ad Button */}
         <div className="flex items-center gap-4">
           {statusBadge}
+          {mode === 'edit' && onSaveAndPublish && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onSaveAndPublish}
+              disabled={isSaveAndPublishDisabled}
+              className="gap-2 bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Rocket className="h-4 w-4" />
+              Save & Publish
+            </Button>
+          )}
           {showNewAdButton && (
             <Button
               variant="default"
