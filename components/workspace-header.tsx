@@ -225,17 +225,48 @@ export function WorkspaceHeader({
 
   // Auto-verify payment status for existing connections (fixes old data with hardcoded false)
   useEffect(() => {
+    console.log('[WorkspaceHeader] Auto-verify useEffect triggered', {
+      metaConnectionStatus,
+      paymentStatus,
+      campaignId: campaign?.id,
+    })
+    
     // Only verify if connected but payment shows missing
-    if (metaConnectionStatus !== 'connected') return
-    if (paymentStatus !== 'missing') return
-    if (!campaign?.id) return
+    if (metaConnectionStatus !== 'connected') {
+      console.log('[WorkspaceHeader] Auto-verify SKIPPED: not connected', { metaConnectionStatus })
+      return
+    }
+    
+    if (paymentStatus !== 'missing') {
+      console.log('[WorkspaceHeader] Auto-verify SKIPPED: payment not missing', { paymentStatus })
+      return
+    }
+    
+    if (!campaign?.id) {
+      console.log('[WorkspaceHeader] Auto-verify SKIPPED: no campaign ID')
+      return
+    }
     
     // Get ad account ID from summary
     const summary = metaActions.getSummary()
-    if (!summary?.adAccount?.id) return
+    console.log('[WorkspaceHeader] Got summary for auto-verify', {
+      hasSummary: !!summary,
+      hasAdAccount: !!summary?.adAccount,
+      adAccountId: summary?.adAccount?.id,
+    })
+    
+    if (!summary?.adAccount?.id) {
+      console.log('[WorkspaceHeader] Auto-verify SKIPPED: no ad account in summary')
+      return
+    }
     
     // Prevent repeated verification in same session
-    if (paymentVerifiedRef.current) return
+    if (paymentVerifiedRef.current) {
+      console.log('[WorkspaceHeader] Auto-verify SKIPPED: already verified this session')
+      return
+    }
+    
+    console.log('[WorkspaceHeader] Auto-verify PROCEEDING - all conditions met!')
     paymentVerifiedRef.current = true
     
     metaLogger.info('WorkspaceHeader', 'Auto-verifying payment status on load', {
