@@ -230,7 +230,7 @@ export function CampaignWorkspace() {
     )
     
     const hasLocationWork = locationState.locations.length > 0
-    const hasAudienceWork = audienceState.status === 'complete'
+    const hasAudienceWork = audienceState.status === 'completed'
     const hasCopyWork = adCopyState.variations.length > 0
     
     return hasCreativeWork || hasLocationWork || hasAudienceWork || hasCopyWork
