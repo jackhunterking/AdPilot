@@ -170,8 +170,8 @@ export function PublishFlowDialog({
             <div>
               <h2 className="text-xl font-semibold">
                 {isComplete 
-                  ? (isEditMode ? "Changes Saved!" : "Ad Published!")
-                  : (isEditMode ? "Saving Changes" : "Publishing Ad")
+                  ? (isEditMode ? "Changes Saved!" : "Ad Created!")
+                  : (isEditMode ? "Saving Changes" : "Creating Ad")
                 }
               </h2>
               <p className="text-sm text-muted-foreground">

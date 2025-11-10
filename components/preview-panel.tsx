@@ -1189,26 +1189,11 @@ export function PreviewPanel() {
         content: <AudienceSelectionCanvas />,
         icon: Target,
       },
-      {
-        id: "meta-connect",
-        number: 5,
-        title: "Connect Facebook & Instagram",
-        description: "Authenticate and select Page, IG (optional) and Ad Account",
-        completed: isMetaConnectionComplete,
-        content: (
-          <div className="p-2">
-            <div className="max-w-3xl mx-auto">
-              <MetaConnectCard />
-            </div>
-          </div>
-        ),
-        icon: Link2,
-      },
       // Only show goal and budget for first ad (not variants)
       ...(!isCreatingVariant ? [
         {
           id: "goal",
-          number: 6,
+          number: 5,
           title: "Set Your Goal",
           description: "Choose what you want to achieve with your ads",
           completed: goalState.status === "completed",
@@ -1217,7 +1202,7 @@ export function PreviewPanel() {
         },
         {
           id: "budget",
-          number: 7,
+          number: 6,
           title: "Launch Ad",
           description: "Review details and publish your ad",
           completed: isComplete(),

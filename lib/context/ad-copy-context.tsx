@@ -30,6 +30,7 @@ interface AdCopyContextType {
   setCustomCopyVariations: (variations: AdCopyVariation[]) => void
   getActiveVariations: () => AdCopyVariation[] // Returns custom or default variations
   getSelectedCopy: () => AdCopyVariation // Returns the selected copy variation (or first if none selected)
+  resetAdCopy: () => void
   isComplete: () => boolean
 }
 
@@ -135,6 +136,15 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
     return selectedVariation
   }
 
+  const resetAdCopy = () => {
+    console.log('[AdCopyContext] 🔄 Resetting ad copy state')
+    setAdCopyState({
+      selectedCopyIndex: null,
+      status: "idle",
+      customCopyVariations: null,
+    })
+  }
+
   const isComplete = () => adCopyState.status === "completed"
 
   return (
@@ -144,6 +154,7 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
       setCustomCopyVariations,
       getActiveVariations,
       getSelectedCopy,
+      resetAdCopy,
       isComplete 
     }}>
       {children}

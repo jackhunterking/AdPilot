@@ -49,7 +49,7 @@ export function CampaignWorkspace() {
   const { adContent, resetAdPreview, selectedImageIndex, selectedCreativeVariation, setIsPublished } = useAdPreview()
   const { clearLocations, locationState } = useLocation()
   const { resetAudience, audienceState } = useAudience()
-  const { adCopyState, getSelectedCopy } = useAdCopy()
+  const { adCopyState, getSelectedCopy, resetAdCopy } = useAdCopy()
   const { budgetState, isComplete: isBudgetComplete } = useBudget()
   const { metaStatus, paymentStatus } = useMetaConnection()
   const router = useRouter()
@@ -427,6 +427,7 @@ export function CampaignWorkspace() {
     
     // Reset all creative-related contexts
     resetAdPreview()
+    resetAdCopy()
     clearLocations()
     resetAudience()
     
@@ -453,7 +454,7 @@ export function CampaignWorkspace() {
     
     console.log('[CampaignWorkspace] Navigating to build mode with conversation ID:', newConversationId)
     router.replace(`${pathname}?${params.toString()}`)
-  }, [campaignId, hasPublishedAds, pathname, router, resetAdPreview, clearLocations, resetAudience])
+  }, [campaignId, hasPublishedAds, pathname, router, resetAdPreview, resetAdCopy, clearLocations, resetAudience])
 
   const handleViewAllAds = useCallback(() => {
     setWorkspaceMode('all-ads')

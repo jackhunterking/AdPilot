@@ -69,7 +69,6 @@ export function WorkspaceHeader({
   const [showBudgetPanel, setShowBudgetPanel] = useState(false)
   const [showBudgetDialog, setShowBudgetDialog] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
-  const [showNewAdConfirm, setShowNewAdConfirm] = useState(false)
   const metaActions = useMetaActions()
   const { metaStatus: hookMetaStatus, paymentStatus: hookPaymentStatus, refreshStatus } = useMetaConnection()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -766,7 +765,7 @@ export function WorkspaceHeader({
             <Button
               variant="default"
               size="sm"
-              onClick={() => setShowNewAdConfirm(true)}
+              onClick={onNewAd}
               className="gap-2 bg-primary hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" />
@@ -826,43 +825,6 @@ export function WorkspaceHeader({
           }
         }}
       />
-
-      {/* New Ad Confirmation Dialog */}
-      <Dialog open={showNewAdConfirm} onOpenChange={setShowNewAdConfirm}>
-        <DialogContent className="sm:max-w-md p-6">
-          <DialogHeader className="mb-4">
-            <DialogTitle className="text-xl">Create New Ad?</DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
-              Starting a new ad will reset your current creative work. Any unsaved changes will be lost.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
-            <p className="text-amber-900 dark:text-amber-100">
-              Your campaign settings (goal and budget) will be preserved. Only the ad creative will be reset.
-            </p>
-          </div>
-
-          <DialogFooter className="mt-6">
-            <Button
-              variant="outline"
-              onClick={() => setShowNewAdConfirm(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                setShowNewAdConfirm(false)
-                onNewAd?.()
-              }}
-              className="gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Create New Ad
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
     </>
   )

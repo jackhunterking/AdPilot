@@ -249,6 +249,33 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
         setCustomPlaceholder('Type your message...');
     }
   }, [context]);
+
+  // Reset AI chat local state when conversation ID changes (new ad creation)
+  useEffect(() => {
+    // Check if this is a new temporary conversation (created for new ad)
+    if (conversationId?.startsWith('conv_')) {
+      console.log('[AI-CHAT] New conversation detected, resetting local state:', conversationId)
+      
+      // Clear generation states
+      setGeneratingImages(new Set())
+      setIsGenerating(false)
+      setGenerationMessage(null)
+      
+      // Clear edit sessions and contexts
+      setActiveEditSession(null)
+      setAdEditReference(null)
+      setAudienceContext(null)
+      
+      // Clear processing states
+      setProcessingLocations(new Set())
+      setPendingLocationCalls([])
+      
+      // Reset placeholder to build mode default
+      setCustomPlaceholder('Describe your ad creative or ask for suggestions…')
+      
+      console.log('[AI-CHAT] ✅ Local state reset complete for new conversation')
+    }
+  }, [conversationId, setIsGenerating, setGenerationMessage]);
   // Keep latest Authorization header (Bearer <token>) in a ref for sync headers
   const authHeaderRef = useRef<string | null>(null);
   const { setIsGenerating, setGenerationMessage, generationMessage } = useGeneration();

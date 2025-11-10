@@ -4,6 +4,7 @@ import { Phone, Users, CheckCircle2, Loader2, Lock, Flag, Filter, FileText, Chec
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { useGoal } from "@/lib/context/goal-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { LeadFormSetup } from "@/components/forms/lead-form-setup"
@@ -24,9 +25,44 @@ export function GoalSelectionCanvas({ variant = "step" }: GoalSelectionCanvasPro
   const { metaStatus, paymentStatus, refreshStatus, isReady } = useMetaConnection()
   const metaActions = useMetaActions()
   const [isConnecting, setIsConnecting] = useState(false)
+  const [showMetaRequiredDialog, setShowMetaRequiredDialog] = useState(false)
+  const [pendingGoal, setPendingGoal] = useState<string | null>(null)
   const isSummary = variant === "summary"
   
   // Removed AI-triggered setup; inline UI is used instead
+
+  // Handle goal selection with Meta connection check
+  const handleGoalSelect = (goal: string) => {
+    // Check if Meta is connected
+    if (metaStatus !== 'connected') {
+      console.log('[GoalSelectionCanvas] Meta not connected, showing dialog')
+      setPendingGoal(goal)
+      setShowMetaRequiredDialog(true)
+      return
+    }
+    
+    // Proceed with goal selection
+    console.log('[GoalSelectionCanvas] Meta connected, proceeding with goal:', goal)
+    setSelectedGoal(goal)
+  }
+
+  // Handle Meta connection click from dialog
+  const handleConnectMeta = () => {
+    setIsConnecting(true)
+    setShowMetaRequiredDialog(false)
+    metaActions.connect()
+    // Reset connecting state after popup opens (1 second)
+    setTimeout(() => setIsConnecting(false), 1000)
+  }
+
+  // When Meta connection completes and we have a pending goal, proceed with selection
+  useEffect(() => {
+    if (metaStatus === 'connected' && pendingGoal) {
+      console.log('[GoalSelectionCanvas] Meta connected, proceeding with pending goal:', pendingGoal)
+      setSelectedGoal(pendingGoal)
+      setPendingGoal(null)
+    }
+  }, [metaStatus, pendingGoal, setSelectedGoal])
 
   // Auto-advance to next step when this step transitions to completed during this session
   const prevStatusRef = useRef(goalState.status)
@@ -230,9 +266,7 @@ export function GoalSelectionCanvas({ variant = "step" }: GoalSelectionCanvasPro
               </div>
               <Button
                 size="sm"
-                onClick={() => {
-                  setSelectedGoal("leads")
-                }}
+                onClick={() => handleGoalSelect("leads")}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 mt-auto"
               >
                 Get Leads
@@ -252,9 +286,7 @@ export function GoalSelectionCanvas({ variant = "step" }: GoalSelectionCanvasPro
               </div>
               <Button
                 size="sm"
-                onClick={() => {
-                  setSelectedGoal("calls")
-                }}
+                onClick={() => handleGoalSelect("calls")}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 mt-auto"
               >
                 Get Calls
@@ -274,9 +306,7 @@ export function GoalSelectionCanvas({ variant = "step" }: GoalSelectionCanvasPro
               </div>
               <Button
                 size="sm"
-                onClick={() => {
-                  setSelectedGoal("website-visits")
-                }}
+                onClick={() => handleGoalSelect("website-visits")}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 mt-auto"
               >
                 Get visits
@@ -380,5 +410,54 @@ export function GoalSelectionCanvas({ variant = "step" }: GoalSelectionCanvasPro
     )
   }
 
-  return null
+  return (
+    <>
+      {/* Meta Connection Required Dialog */}
+      <Dialog open={showMetaRequiredDialog} onOpenChange={setShowMetaRequiredDialog}>
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader className="mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10">
+                <Facebook className="h-6 w-6 text-blue-600" />
+              </div>
+              <DialogTitle className="text-xl">Connect Meta Account</DialogTitle>
+            </div>
+          </DialogHeader>
+          <DialogDescription className="text-sm text-muted-foreground mb-6">
+            You need to connect your Meta account to select a campaign goal. This will allow you to publish ads to Facebook and Instagram.
+          </DialogDescription>
+          <DialogFooter className="flex gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => {
+                setShowMetaRequiredDialog(false)
+                setPendingGoal(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="lg"
+              onClick={handleConnectMeta}
+              disabled={isConnecting}
+              className="gap-2 bg-blue-600 hover:bg-blue-700"
+            >
+              {isConnecting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <Facebook className="h-4 w-4" />
+                  Connect Meta
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
 }
