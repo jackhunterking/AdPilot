@@ -11,8 +11,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Loader2, Minus, Plus as PlusIcon, Rocket } from "lucide-react"
+import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Rocket, Loader2 } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +25,7 @@ import { cn } from "@/lib/utils"
 import type { WorkspaceHeaderProps } from "@/lib/types/workspace"
 import { useState, useEffect, useRef } from "react"
 import { BudgetPanel } from "@/components/launch/budget-panel"
+import { BudgetDialog } from "@/components/launch/budget-dialog"
 import { useMetaActions } from "@/lib/hooks/use-meta-actions"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 import { useCampaignContext } from "@/lib/context/campaign-context"
@@ -67,8 +67,7 @@ export function WorkspaceHeader({
   const { campaign } = useCampaignContext()
   const { budgetState, setDailyBudget } = useBudget()
   const [showBudgetPanel, setShowBudgetPanel] = useState(false)
-  const [showBudgetConfirm, setShowBudgetConfirm] = useState(false)
-  const [isBudgetSaving, setIsBudgetSaving] = useState(false)
+  const [showBudgetDialog, setShowBudgetDialog] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
   const [showNewAdConfirm, setShowNewAdConfirm] = useState(false)
   const metaActions = useMetaActions()
@@ -110,17 +109,6 @@ export function WorkspaceHeader({
     : 'USD'
   const dailyBudgetValue = budgetState.dailyBudget
   const estimatedMonthlyBudget = Math.max(0, Math.round(dailyBudgetValue * 30))
-  const normalizedDailyBudget = Number.isFinite(dailyBudgetValue) && dailyBudgetValue > 0
-    ? Math.round(dailyBudgetValue)
-    : 20
-  const [draftDailyBudget, setDraftDailyBudget] = useState<number>(normalizedDailyBudget)
-
-  useEffect(() => {
-    const next = Number.isFinite(dailyBudgetValue) && dailyBudgetValue > 0
-      ? Math.round(dailyBudgetValue)
-      : 20
-    setDraftDailyBudget(prev => (prev === next ? prev : next))
-  }, [dailyBudgetValue])
 
   const formatCurrency = (value: number) => {
     if (!Number.isFinite(value)) {
@@ -620,124 +608,54 @@ export function WorkspaceHeader({
     )
   }
 
-  const handleBudgetInputChange = (value: string) => {
-    const parsed = Number.parseFloat(value.replace(/[^\d.]/g, ''))
-    if (Number.isNaN(parsed)) {
-      setDraftDailyBudget(0)
-      return
-    }
-    const normalized = Math.max(1, Math.round(parsed))
-    setDraftDailyBudget(normalized)
-    setDailyBudget(normalized)
-  }
-
-  const adjustDailyBudget = (delta: number) => {
-    setDraftDailyBudget(prev => {
-      const baseline = prev === 0 ? 0 : prev
-      const next = Math.max(1, baseline + delta)
-      setDailyBudget(next)
-      return next
-    })
-  }
-
   const hasConfirmedBudget = typeof campaignBudget === 'number' && campaignBudget > 0
   const confirmedDailyBudget = hasConfirmedBudget
     ? Math.max(0, Math.round((campaignBudget ?? 0) / 30))
     : null
-  const isBudgetControlsDisabled = metaConnectionStatus !== 'connected' || paymentStatus !== 'verified'
-  const isBudgetDirty = hasConfirmedBudget
-    ? draftDailyBudget !== (confirmedDailyBudget ?? 0)
-    : draftDailyBudget > 0
-  const canSaveBudget = !isBudgetControlsDisabled && isBudgetDirty && draftDailyBudget > 0
 
-  const handleBudgetSave = async () => {
-    if (!onBudgetUpdate) {
-      setShowBudgetConfirm(false)
-      return
-    }
-
-    if (!Number.isFinite(draftDailyBudget) || draftDailyBudget <= 0) {
-      toast.error("Set a daily budget before saving.")
-      return
-    }
-
-    const totalBudget = Math.max(10, Math.round(draftDailyBudget * 30))
-
-    setIsBudgetSaving(true)
-    try {
-      await onBudgetUpdate(totalBudget)
-      toast.success(`Budget saved at ${formatCurrency(draftDailyBudget)}/day`)
-      setShowBudgetConfirm(false)
-    } catch (error) {
-      metaLogger.error('WorkspaceHeader', 'Failed to save budget from header controls', error as Error)
-      toast.error("We couldn't save your budget. Please try again.")
-    } finally {
-      setIsBudgetSaving(false)
-    }
-  }
-
-  const getBudgetControls = () => (
-    <div
-      className={cn(
-        "flex w-full items-center justify-between gap-4 rounded-lg border border-border px-3 py-2",
-        isBudgetControlsDisabled && "opacity-60 pointer-events-none"
-      )}
-    >
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-medium text-muted-foreground">Budget</span>
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => adjustDailyBudget(-5)}
-            className="h-9 w-9"
-          >
-            <Minus className="h-4 w-4" />
-          </Button>
-          <Input
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={draftDailyBudget === 0 ? "" : draftDailyBudget}
-            onChange={(event) => handleBudgetInputChange(event.target.value)}
-            className="h-9 w-24 text-center text-base font-semibold"
-            placeholder="0"
-            aria-label="Daily budget amount"
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => adjustDailyBudget(5)}
-            className="h-9 w-9"
-          >
-            <PlusIcon className="h-4 w-4" />
-          </Button>
-        </div>
-        <span className="text-sm text-muted-foreground whitespace-nowrap">
-          {currencyCode} per day
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
+  const getBudgetBadge = () => {
+    const hasBudget = hasConfirmedBudget && confirmedDailyBudget && confirmedDailyBudget > 0
+    const isDisabled = metaConnectionStatus !== 'connected' || paymentStatus !== 'verified'
+    
+    // Budget set state - green badge with checkmark
+    if (hasBudget) {
+      return (
         <Button
-          type="button"
+          variant="outline"
           size="sm"
-          onClick={() => setShowBudgetConfirm(true)}
-          disabled={!canSaveBudget}
-          className="gap-2"
-        >
-          {isBudgetSaving ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            'Save Changes'
+          onClick={() => setShowBudgetDialog(true)}
+          disabled={isDisabled}
+          className={cn(
+            "gap-2",
+            isDisabled 
+              ? "opacity-60 cursor-not-allowed" 
+              : "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400 hover:bg-green-500/20"
           )}
+          title={`Current budget: ${formatCurrency(confirmedDailyBudget)}/day`}
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          Budget Set
         </Button>
-      </div>
-    </div>
-  )
+      )
+    }
+    
+    // Budget not set state - neutral button
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShowBudgetDialog(true)}
+        disabled={isDisabled}
+        className={cn(
+          "gap-2",
+          isDisabled && "opacity-60 cursor-not-allowed"
+        )}
+      >
+        <DollarSign className="h-4 w-4" />
+        Set Budget
+      </Button>
+    )
+  }
 
   // Determine status badge
   const getStatusBadge = () => {
@@ -823,7 +741,7 @@ export function WorkspaceHeader({
           {(mode === 'build' || mode === 'edit' || mode === 'results' || mode === 'all-ads') && (
             <div className="flex items-center gap-2">
               {getMetaConnectionBadge()}
-              {getBudgetControls()}
+              {getBudgetBadge()}
             </div>
           )}
         </div>
@@ -883,59 +801,30 @@ export function WorkspaceHeader({
         />
       )}
 
-      <Dialog
-        open={showBudgetConfirm}
-        onOpenChange={(open) => {
-          if (!isBudgetSaving) {
-            setShowBudgetConfirm(open)
+      {/* Budget Dialog */}
+      <BudgetDialog
+        open={showBudgetDialog}
+        onOpenChange={setShowBudgetDialog}
+        currentBudget={campaignBudget}
+        currency={currencyCode}
+        onSave={async (dailyBudget) => {
+          if (!onBudgetUpdate) {
+            return
+          }
+
+          const totalBudget = Math.max(10, Math.round(dailyBudget * 30))
+          
+          try {
+            await onBudgetUpdate(totalBudget)
+            setDailyBudget(dailyBudget)
+            toast.success(`Budget saved at ${formatCurrency(dailyBudget)}/day`)
+          } catch (error) {
+            metaLogger.error('WorkspaceHeader', 'Failed to save budget from dialog', error as Error)
+            toast.error("We couldn't save your budget. Please try again.")
+            throw error // Re-throw so dialog can show error state
           }
         }}
-      >
-        <DialogContent className="sm:max-w-md p-6">
-          <DialogHeader className="mb-4">
-            <DialogTitle className="text-xl">Save Budget Changes?</DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
-              We&apos;ll apply the new budget to your campaign and redistribute spend across your ads.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="rounded-lg border border-border px-3 py-2 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">New daily budget</span>
-              <span className="font-semibold text-foreground">{formatCurrency(draftDailyBudget)}</span>
-            </div>
-            {confirmedDailyBudget !== null && (
-              <div className="mt-1 text-xs text-muted-foreground">
-                Previously saved {formatCurrency(confirmedDailyBudget)}/day
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="mt-6">
-            <Button
-              variant="outline"
-              onClick={() => setShowBudgetConfirm(false)}
-              disabled={isBudgetSaving}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleBudgetSave}
-              disabled={isBudgetSaving}
-              className="gap-2"
-            >
-              {isBudgetSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      />
 
       {/* New Ad Confirmation Dialog */}
       <Dialog open={showNewAdConfirm} onOpenChange={setShowNewAdConfirm}>
