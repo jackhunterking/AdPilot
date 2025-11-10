@@ -139,6 +139,30 @@ export function MetaConnectCard() {
 
   useEffect(() => { void hydrate() }, [hydrate])
 
+  // Emit events on mount/summary change to ensure all components sync
+  useEffect(() => {
+    if (!enabled || !campaign?.id || !summary) return
+    
+    // If we have a connection, emit current state
+    if (summary.status === 'connected' || summary.status === 'selected_assets' || summary.status === 'payment_linked' || summary.adAccount?.id) {
+      console.log('[MetaConnectCard] Emitting connection state on mount/update', {
+        campaignId: campaign.id,
+        status: summary.status,
+        hasAdAccount: !!summary.adAccount?.id,
+        paymentConnected: summary.paymentConnected,
+      })
+      
+      emitMetaConnectionChange(campaign.id, 'connected')
+      
+      // Emit payment status
+      if (summary.paymentConnected) {
+        emitMetaPaymentUpdate(campaign.id, 'verified')
+      } else {
+        emitMetaPaymentUpdate(campaign.id, 'missing')
+      }
+    }
+  }, [enabled, campaign?.id, summary?.status, summary?.adAccount?.id, summary?.paymentConnected])
+
   // Fetch payment capability when ad account is selected
   useEffect(() => {
     const run = async () => {

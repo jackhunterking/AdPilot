@@ -27,6 +27,7 @@ import { MetaConnectionModal } from "@/components/meta/meta-connection-modal"
 import { BudgetPanel } from "@/components/launch/budget-panel"
 import { useMetaActions } from "@/lib/hooks/use-meta-actions"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
+import { useCampaignContext } from "@/lib/context/campaign-context"
 
 export function WorkspaceHeader({
   mode,
@@ -44,6 +45,7 @@ export function WorkspaceHeader({
   onBudgetUpdate,
   className,
 }: WorkspaceHeaderProps) {
+  const { campaign } = useCampaignContext()
   const [showMetaModal, setShowMetaModal] = useState(false)
   const [showBudgetPanel, setShowBudgetPanel] = useState(false)
   const metaActions = useMetaActions()
@@ -103,6 +105,39 @@ export function WorkspaceHeader({
       onMetaConnect()
     }
   }, [metaConnectionStatus, onMetaConnect])
+
+  // Fallback check: If hook has default values but localStorage has connection, force refresh
+  useEffect(() => {
+    if (!campaign?.id) return
+    
+    console.log('[WorkspaceHeader] Current status from hook', {
+      campaignId: campaign.id,
+      hookMetaStatus,
+      hookPaymentStatus,
+      propsMetaStatus,
+      propsPaymentStatus,
+      effectiveMetaStatus: metaConnectionStatus,
+      effectivePaymentStatus: paymentStatus,
+    })
+    
+    // If hook still has default values, check localStorage directly
+    if (hookMetaStatus === 'disconnected' && hookPaymentStatus === 'unknown') {
+      const summary = metaActions.getSummary()
+      
+      console.log('[WorkspaceHeader] Checking localStorage directly', {
+        hasSummary: !!summary,
+        summaryStatus: summary?.status,
+        hasAdAccount: !!summary?.adAccount?.id,
+        paymentConnected: summary?.paymentConnected,
+      })
+      
+      if (summary?.status === 'connected' || summary?.status === 'selected_assets' || summary?.status === 'payment_linked' || summary?.adAccount?.id) {
+        // We have a connection that hook hasn't detected yet
+        console.log('[WorkspaceHeader] Found connection in localStorage, forcing refresh')
+        refreshStatus()
+      }
+    }
+  }, [campaign?.id, hookMetaStatus, hookPaymentStatus, metaActions, refreshStatus, propsMetaStatus, propsPaymentStatus, metaConnectionStatus, paymentStatus])
 
   const getMetaConnectionBadge = () => {
     // Connected state - show dropdown

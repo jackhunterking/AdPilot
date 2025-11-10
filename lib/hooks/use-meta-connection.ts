@@ -30,6 +30,14 @@ export function useMetaConnection() {
       const summary = metaStorage.getConnectionSummary(campaign.id)
       const connection = metaStorage.getConnection(campaign.id)
       
+      console.log('[useMetaConnection] Reading localStorage on mount', {
+        campaignId: campaign.id,
+        hasSummary: !!summary,
+        hasConnection: !!connection,
+        summaryStatus: summary?.status,
+        paymentConnected: summary?.paymentConnected,
+      })
+      
       if (summary || connection) {
         // Auto-detect from localStorage
         const hasAssets = Boolean(
@@ -42,21 +50,42 @@ export function useMetaConnection() {
         const isConnected = Boolean(
           summary?.status === 'connected' ||
           summary?.status === 'selected_assets' ||
+          summary?.status === 'payment_linked' ||
           hasAssets
         )
-        
-        if (isConnected) {
-          setMetaStatus('connected')
-        }
         
         const hasPayment = Boolean(
           summary?.paymentConnected ||
           connection?.ad_account_payment_connected
         )
         
-        if (hasPayment) {
-          setPaymentStatus('verified')
+        // Set connection status explicitly
+        if (isConnected) {
+          setMetaStatus('connected')
+          console.log('[useMetaConnection] Set metaStatus to: connected')
+        } else {
+          setMetaStatus('disconnected')
+          console.log('[useMetaConnection] Set metaStatus to: disconnected')
         }
+        
+        // Set payment status explicitly based on connection state
+        if (isConnected) {
+          if (hasPayment) {
+            setPaymentStatus('verified')
+            console.log('[useMetaConnection] Set paymentStatus to: verified')
+          } else {
+            setPaymentStatus('missing')
+            console.log('[useMetaConnection] Set paymentStatus to: missing (connected but no payment)')
+          }
+        } else {
+          setPaymentStatus('unknown')
+          console.log('[useMetaConnection] Set paymentStatus to: unknown (no connection)')
+        }
+      } else {
+        // No connection data at all
+        setMetaStatus('disconnected')
+        setPaymentStatus('unknown')
+        console.log('[useMetaConnection] No connection data found, set to disconnected/unknown')
       }
     } catch (error) {
       console.error('[useMetaConnection] localStorage check failed:', error)
@@ -68,15 +97,45 @@ export function useMetaConnection() {
 
     setLoading(true)
     try {
+      console.log('[useMetaConnection] Refreshing status from API', { campaignId: campaign.id })
+      
       const res = await fetch(`/api/meta/connection?campaignId=${campaign.id}`)
       if (res.ok) {
         const data = await res.json()
+        
+        console.log('[useMetaConnection] API response', {
+          status: data.connection.status,
+          paymentStatus: data.connection.paymentStatus,
+        })
+        
         setMetaStatus(data.connection.status)
-        setPaymentStatus(data.connection.paymentStatus)
+        
+        let finalPaymentStatus: PaymentStatus = 'unknown'
+        
+        // If API doesn't return payment status, derive it from connection
+        if (data.connection.paymentStatus) {
+          finalPaymentStatus = data.connection.paymentStatus
+          setPaymentStatus(data.connection.paymentStatus)
+        } else {
+          // Fallback: check localStorage for payment status
+          const summary = metaStorage.getConnectionSummary(campaign.id)
+          if (data.connection.status === 'connected') {
+            finalPaymentStatus = summary?.paymentConnected ? 'verified' : 'missing'
+            setPaymentStatus(finalPaymentStatus)
+          } else {
+            setPaymentStatus('unknown')
+          }
+        }
+        
         setLastChecked(new Date())
+        
+        console.log('[useMetaConnection] Status updated from API', {
+          metaStatus: data.connection.status,
+          paymentStatus: finalPaymentStatus,
+        })
       }
     } catch (err) {
-      console.error('Failed to refresh Meta status:', err)
+      console.error('[useMetaConnection] Failed to refresh Meta status:', err)
     } finally {
       setLoading(false)
     }
