@@ -68,18 +68,23 @@ export function MetaConnectionModal({ open, onOpenChange, onSuccess }: MetaConne
     
     setStep('selecting')
     try {
-      // Initiate Meta OAuth flow
+      // Initiate Meta OAuth flow with proper callback endpoint
       const res = await fetch('/api/meta/connection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           campaignId: campaign.id,
-          redirectUrl: window.location.href,
+          redirectUrl: `${window.location.origin}/api/meta/auth/callback?type=system`,
         }),
       })
       
       if (res.ok) {
         const data = await res.json()
+        
+        // Set cookie for callback to retrieve campaign ID
+        const expires = new Date(Date.now() + 10 * 60 * 1000).toUTCString()
+        document.cookie = `meta_cid=${encodeURIComponent(campaign.id)}; Path=/; Expires=${expires}; SameSite=Lax`
+        
         // Redirect to Meta OAuth
         window.location.href = data.authUrl
       } else {
