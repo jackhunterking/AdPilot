@@ -871,11 +871,23 @@ export function CampaignWorkspace() {
   // Determine header props
   // Always show New Ad button in results and all-ads modes
   const showNewAdButton = effectiveMode === 'results' || effectiveMode === 'all-ads'
-  // Show back button when:
-  // 1. Not in all-ads mode AND
-  // 2. Either has published ads OR creating a variant (variant=true in URL)
-  const showBackButton = effectiveMode !== 'all-ads' && 
-    !(effectiveMode === 'build' && !hasPublishedAds && !isCreatingVariant)
+  // Show back button in all modes except all-ads, with special handling for build mode
+  const showBackButton = (() => {
+    // Never show in all-ads mode (it's the home base)
+    if (effectiveMode === 'all-ads') return false
+    
+    // Always show in results, edit, and ab-test-builder modes  
+    if (effectiveMode === 'results' || effectiveMode === 'edit' || effectiveMode === 'ab-test-builder') {
+      return true
+    }
+    
+    // Build mode: show button if we have published ads OR variant param indicates we came from all-ads
+    if (effectiveMode === 'build') {
+      return hasPublishedAds || isCreatingVariant
+    }
+    
+    return false
+  })()
 
   // Get current variant for results/edit modes
   const getCurrentVariant = (): AdVariant | null => {
