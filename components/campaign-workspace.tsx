@@ -22,6 +22,7 @@ import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { useCampaignAds } from "@/lib/hooks/use-campaign-ads"
 import { useGoal } from "@/lib/context/goal-context"
+import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 import type { WorkspaceMode, CampaignStatus, AdVariant, AdMetrics, LeadFormInfo } from "@/lib/types/workspace"
 
 interface SaveSuccessState {
@@ -32,15 +33,16 @@ interface SaveSuccessState {
 }
 
 export function CampaignWorkspace() {
-  const { campaign } = useCampaignContext()
+  const { campaign, updateBudget } = useCampaignContext()
   const { goalState } = useGoal()
-  const { isPublished, adContent } = useAdPreview()
+  const { adContent } = useAdPreview()
+  const { metaStatus, paymentStatus } = useMetaConnection()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   
   const campaignId = campaign?.id ?? ""
-  const { ads, loading: adsLoading, refreshAds } = useCampaignAds(campaignId)
+  const { ads, refreshAds } = useCampaignAds(campaignId)
   
   // State for save success notification
   const [saveSuccessState, setSaveSuccessState] = useState<SaveSuccessState | null>(null)
@@ -438,6 +440,10 @@ export function CampaignWorkspace() {
         campaignStatus={campaign?.published_status as CampaignStatus}
         totalAds={effectiveMode === 'all-ads' ? convertedAds.length : undefined}
         hasPublishedAds={hasPublishedAds}
+        metaConnectionStatus={metaStatus}
+        paymentStatus={paymentStatus}
+        campaignBudget={campaign?.campaign_budget ?? null}
+        onBudgetUpdate={updateBudget}
       />
 
       {/* Main Content */}
@@ -519,7 +525,7 @@ export function CampaignWorkspace() {
                 campaign_id={campaignId}
                 current_variant={currentVariant}
                 onCancel={() => setWorkspaceMode('results', currentAdId || undefined)}
-                onComplete={(test) => {
+                onComplete={() => {
                   // TODO: Handle test creation
                   setWorkspaceMode('results', currentAdId || undefined)
                 }}

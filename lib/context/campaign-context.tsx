@@ -28,6 +28,9 @@ interface Campaign {
   published_status?: string | null
   last_metrics_sync_at?: string | null
   conversationId?: string // Link to AI SDK conversation
+  campaign_budget?: number | null // Total campaign budget
+  budget_strategy?: string | null
+  budget_status?: string | null
 }
 
 interface CampaignContextType {
@@ -37,6 +40,7 @@ interface CampaignContextType {
   createCampaign: (name: string, prompt?: string, goal?: string) => Promise<Campaign | null>
   loadCampaign: (id: string) => Promise<void>
   updateCampaign: (updates: Partial<Campaign>) => Promise<void>
+  updateBudget: (budget: number) => Promise<void>
   saveCampaignState: (field: string, value: Record<string, unknown> | null, options?: { retries?: number; silent?: boolean }) => Promise<boolean>
   clearCampaign: () => void
 }
@@ -169,6 +173,32 @@ export function CampaignProvider({
     setCampaign(data.campaign)
   }
 
+  // Update campaign budget
+  const updateBudget = async (budget: number) => {
+    if (!campaign?.id) return
+    try {
+      const response = await fetch('/api/budget/distribute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          totalBudget: budget,
+          strategy: 'ai_distribute',
+        }),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to update budget')
+      }
+      
+      // Update local campaign state
+      setCampaign(prev => prev ? { ...prev, campaign_budget: budget } : null)
+    } catch (error) {
+      console.error('Error updating budget:', error)
+      throw error
+    }
+  }
+
   // Save campaign state (goal, location, audience, etc.) with retry logic
   const saveCampaignState = async (
     field: string, 
@@ -257,6 +287,7 @@ export function CampaignProvider({
       createCampaign,
       loadCampaign,
       updateCampaign,
+      updateBudget,
       saveCampaignState,
       clearCampaign,
     }}>

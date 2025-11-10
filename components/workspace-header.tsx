@@ -27,7 +27,6 @@ export function WorkspaceHeader({
   campaignStatus,
   abTestInfo,
   totalAds,
-  hasPublishedAds,
   metaConnectionStatus = 'disconnected',
   paymentStatus = 'unknown',
   campaignBudget,
@@ -205,8 +204,8 @@ export function WorkspaceHeader({
             </Button>
           )}
           
-          {/* Meta Connection + Budget Pills (only in build/edit modes) */}
-          {(mode === 'build' || mode === 'edit') && (
+          {/* Meta Connection + Budget Pills (visible in build, edit, results, and all-ads modes) */}
+          {(mode === 'build' || mode === 'edit' || mode === 'results' || mode === 'all-ads') && (
             <div className="flex items-center gap-2">
               {getMetaConnectionBadge()}
               {getBudgetPill()}

@@ -1,8 +1,8 @@
 "use client"
 
 /**
- * Feature: Launch - Publish Budget Card
- * Purpose: Combined card component that merges Complete All Steps and Budget sections
+ * Feature: Launch - Publish Card
+ * Purpose: Simplified publish card showing completion status and publish button
  * References:
  *  - AI SDK Core: https://ai-sdk.dev/docs/introduction#core-concepts
  *  - AI Elements: https://ai-sdk.dev/elements/overview#components
@@ -11,17 +11,13 @@
  * 
  * NOTE: This component triggers the PublishFlowDialog via onPublish callback.
  * The isPublishing prop shows loading state during the simulated publish flow.
- * TODO: When integrating real Meta API, ensure error states are passed down as props.
+ * Budget management is now handled via the WorkspaceHeader.
  */
 
-import { useMemo, type ChangeEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Play, CheckCircle2, DollarSign, ShieldCheck, AlertTriangle, Minus, Plus, Loader2 } from "lucide-react"
+import { Play, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useBudget } from "@/lib/context/budget-context"
-import { getCurrencySymbol } from "@/lib/utils/currency"
 
 interface PublishBudgetCardProps {
   allStepsComplete: boolean
@@ -30,46 +26,15 @@ interface PublishBudgetCardProps {
   onPublish: () => void
 }
 
-const MIN_BUDGET = 5
-const MAX_BUDGET = 100
-const STEP = 5
-
 export function PublishBudgetCard({
   allStepsComplete,
   isPublished,
   isPublishing = false,
   onPublish,
 }: PublishBudgetCardProps) {
-  const { budgetState, setDailyBudget, isComplete } = useBudget()
-
-  const { symbol, code } = useMemo(
-    () => getCurrencySymbol(budgetState.currency),
-    [budgetState.currency],
-  )
-
-  const handleIncrement = () => {
-    const next = Math.min(budgetState.dailyBudget + STEP, MAX_BUDGET)
-    setDailyBudget(next)
-  }
-
-  const handleDecrement = () => {
-    const next = Math.max(budgetState.dailyBudget - STEP, MIN_BUDGET)
-    setDailyBudget(next)
-  }
-
-  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const sanitized = event.target.value.replace(/[^0-9]/g, "")
-    const parsed = Number.parseInt(sanitized, 10)
-    const value = Number.isFinite(parsed) ? parsed : budgetState.dailyBudget
-    const clamped = Math.max(MIN_BUDGET, Math.min(MAX_BUDGET, value))
-    setDailyBudget(clamped)
-  }
-
-  const isBudgetComplete = isComplete()
-
   return (
     <Card className="rounded-lg border border-border bg-card shadow-sm">
-      <CardContent className="space-y-6 p-6">
+      <CardContent className="space-y-4 p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <div
@@ -125,57 +90,11 @@ export function PublishBudgetCard({
           </Button>
         </div>
 
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/40 px-4 py-3">
-          <div
-            className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-lg",
-              isBudgetComplete
-                ? "bg-green-500/10 text-green-600 dark:text-green-400"
-                : "bg-muted text-muted-foreground",
-            )}
-          >
-            <DollarSign className="h-4 w-4" />
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={handleDecrement}
-            disabled={budgetState.dailyBudget <= MIN_BUDGET}
-            className="h-9 w-9 shrink-0"
-          >
-            <Minus className="h-4 w-4" />
-          </Button>
-
-          <label htmlFor="publish-budget-input" className="sr-only">
-            Daily budget
-          </label>
-          <Input
-            id="publish-budget-input"
-            inputMode="numeric"
-            value={String(budgetState.dailyBudget)}
-            onChange={handleInputChange}
-            className="max-w-[80px] text-center"
-          />
-
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            onClick={handleIncrement}
-            disabled={budgetState.dailyBudget >= MAX_BUDGET}
-            className="h-9 w-9 shrink-0"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-
-          <div className="ml-auto text-right">
-            <p className="text-lg font-semibold leading-none">
-              {symbol}
-              {budgetState.dailyBudget}
+        <div className="flex items-center gap-2 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 px-4 py-3">
+          <div className="flex-1">
+            <p className="text-xs text-blue-700 dark:text-blue-300">
+              Budget and Meta connection are managed in the header above. Make sure to set your campaign budget and connect your accounts before publishing.
             </p>
-            <p className="text-xs text-muted-foreground leading-tight">{code} / day</p>
           </div>
         </div>
       </CardContent>

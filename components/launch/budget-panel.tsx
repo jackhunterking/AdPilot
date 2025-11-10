@@ -6,6 +6,8 @@
  * References:
  *  - AI SDK Core: https://ai-sdk.dev/docs/introduction
  *  - AI Elements: https://ai-sdk.dev/elements/overview
+ *  - Vercel AI Gateway: https://vercel.com/docs/ai-gateway
+ *  - Supabase: https://supabase.com/docs
  */
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
