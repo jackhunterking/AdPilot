@@ -11,12 +11,22 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2 } from "lucide-react"
+import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import type { WorkspaceHeaderProps } from "@/lib/types/workspace"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { MetaConnectionModal } from "@/components/meta/meta-connection-modal"
 import { BudgetPanel } from "@/components/launch/budget-panel"
+import { useMetaActions } from "@/lib/hooks/use-meta-actions"
+import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 
 export function WorkspaceHeader({
   mode,
@@ -27,8 +37,8 @@ export function WorkspaceHeader({
   campaignStatus,
   abTestInfo,
   totalAds,
-  metaConnectionStatus = 'disconnected',
-  paymentStatus = 'unknown',
+  metaConnectionStatus: propsMetaStatus = 'disconnected',
+  paymentStatus: propsPaymentStatus = 'unknown',
   campaignBudget,
   onMetaConnect,
   onBudgetUpdate,
@@ -36,6 +46,13 @@ export function WorkspaceHeader({
 }: WorkspaceHeaderProps) {
   const [showMetaModal, setShowMetaModal] = useState(false)
   const [showBudgetPanel, setShowBudgetPanel] = useState(false)
+  const metaActions = useMetaActions()
+  const { metaStatus: hookMetaStatus, paymentStatus: hookPaymentStatus, refreshStatus } = useMetaConnection()
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  
+  // Use real-time hook status, fallback to props for SSR/initial render
+  const metaConnectionStatus = hookMetaStatus || propsMetaStatus
+  const paymentStatus = hookPaymentStatus || propsPaymentStatus
   
   // Don't show back button in all-ads mode
   const shouldShowBack = showBackButton && mode !== 'all-ads'
@@ -53,22 +70,139 @@ export function WorkspaceHeader({
     }
   }
 
+  // Get summary for dropdown
+  const summary = metaActions.getSummary()
+  const isConnected = metaConnectionStatus === 'connected'
+  const hasPaymentIssue = paymentStatus === 'missing' || paymentStatus === 'flagged'
+  
+  // Handle disconnect with refresh
+  const handleDisconnect = async () => {
+    const success = await metaActions.disconnect()
+    if (success) {
+      await refreshStatus()
+      onMetaConnect?.()
+    }
+  }
+
+  // Handle add payment with refresh
+  const handleAddPayment = () => {
+    if (!summary?.adAccount?.id) return
+    metaActions.addPayment(summary.adAccount.id)
+  }
+
+  // Listen for successful connection to refresh
+  useEffect(() => {
+    if (showMetaModal === false && isConnected) {
+      refreshStatus()
+    }
+  }, [showMetaModal, isConnected, refreshStatus])
+
+  // Call onMetaConnect when connection status changes to connected
+  useEffect(() => {
+    if (metaConnectionStatus === 'connected' && onMetaConnect) {
+      onMetaConnect()
+    }
+  }, [metaConnectionStatus, onMetaConnect])
+
   const getMetaConnectionBadge = () => {
-    if (metaConnectionStatus === 'connected' && paymentStatus === 'verified') {
+    // Connected state - show dropdown
+    if (isConnected) {
       return (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowMetaModal(true)}
-          className="gap-2 bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400 hover:bg-green-500/20"
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          Meta Connected
-        </Button>
+        <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                "gap-2",
+                paymentStatus === 'verified' 
+                  ? "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400 hover:bg-green-500/20"
+                  : "bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400 hover:bg-red-500/20"
+              )}
+            >
+              {paymentStatus === 'verified' ? (
+                <CheckCircle2 className="h-4 w-4" />
+              ) : (
+                <AlertCircle className="h-4 w-4" />
+              )}
+              Meta Connected
+              <ChevronDown className="h-3 w-3 opacity-50" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-72">
+            <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+              Connected Accounts
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            
+            {summary?.business && (
+              <div className="px-2 py-2 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                  <Building2 className="h-3.5 w-3.5" />
+                  <span className="text-xs">Business</span>
+                </div>
+                <div className="font-medium text-xs ml-5">
+                  {summary.business.name || summary.business.id}
+                </div>
+              </div>
+            )}
+            
+            {summary?.page && (
+              <div className="px-2 py-2 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                  <Facebook className="h-3.5 w-3.5" />
+                  <span className="text-xs">Facebook Page</span>
+                </div>
+                <div className="font-medium text-xs ml-5">
+                  {summary.page.name || summary.page.id}
+                </div>
+              </div>
+            )}
+            
+            {summary?.instagram && (
+              <div className="px-2 py-2 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                  <Facebook className="h-3.5 w-3.5" />
+                  <span className="text-xs">Instagram</span>
+                </div>
+                <div className="font-medium text-xs ml-5">
+                  @{summary.instagram.username || summary.instagram.id}
+                </div>
+              </div>
+            )}
+            
+            {summary?.adAccount && (
+              <div className="px-2 py-2 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                  <CreditCard className="h-3.5 w-3.5" />
+                  <span className="text-xs">Ad Account</span>
+                </div>
+                <div className="font-medium text-xs ml-5">
+                  {summary.adAccount.name || summary.adAccount.id}
+                </div>
+              </div>
+            )}
+            
+            <DropdownMenuSeparator />
+            
+            {hasPaymentIssue && (
+              <DropdownMenuItem onClick={handleAddPayment}>
+                <CreditCard className="h-4 w-4 mr-2" />
+                Add Payment
+              </DropdownMenuItem>
+            )}
+            
+            <DropdownMenuItem onClick={handleDisconnect} variant="destructive">
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Disconnect
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )
     }
     
-    if (metaConnectionStatus === 'error' || paymentStatus === 'missing' || paymentStatus === 'flagged') {
+    // Error state
+    if (metaConnectionStatus === 'error' || hasPaymentIssue) {
       return (
         <Button
           variant="outline"
@@ -82,6 +216,7 @@ export function WorkspaceHeader({
       )
     }
     
+    // Disconnected state - show connect button
     return (
       <Button
         variant="outline"

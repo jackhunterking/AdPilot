@@ -194,7 +194,7 @@ export interface WorkspaceHeaderProps {
   hasPublishedAds?: boolean  // Track if campaign has published ads
   // Meta Integration & Budget props
   metaConnectionStatus?: 'disconnected' | 'pending' | 'connected' | 'error' | 'expired'
-  paymentStatus?: 'unknown' | 'verified' | 'missing' | 'flagged'
+  paymentStatus?: 'unknown' | 'verified' | 'missing' | 'flagged' | 'processing'
   campaignBudget?: number | null
   onMetaConnect?: () => void
   onBudgetUpdate?: (budget: number) => void

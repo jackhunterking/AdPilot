@@ -11,9 +11,10 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Alert } from "@/components/ui/alert"
-import { Facebook, Instagram, Building2, CreditCard, CheckCircle2, AlertCircle, Loader2 } from "lucide-react"
+import { Facebook, Building2, CreditCard, CheckCircle2, AlertCircle, Loader2 } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useCampaignContext } from "@/lib/context/campaign-context"
+import { useMetaActions } from "@/lib/hooks/use-meta-actions"
 import type { MetaConnectionSummary } from "@/lib/types/meta-integration"
 
 interface MetaConnectionModalProps {
@@ -26,9 +27,11 @@ type ConnectionStep = 'loading' | 'disconnected' | 'selecting' | 'verifying' | '
 
 export function MetaConnectionModal({ open, onOpenChange, onSuccess }: MetaConnectionModalProps) {
   const { campaign } = useCampaignContext()
+  const metaActions = useMetaActions()
   const [step, setStep] = useState<ConnectionStep>('loading')
   const [summary, setSummary] = useState<MetaConnectionSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isConnecting, setIsConnecting] = useState(false)
 
   useEffect(() => {
     if (open && campaign?.id) {
@@ -63,37 +66,16 @@ export function MetaConnectionModal({ open, onOpenChange, onSuccess }: MetaConne
     }
   }
 
-  const handleConnect = async () => {
-    if (!campaign?.id) return
-    
+  const handleConnect = () => {
+    if (!campaign?.id || isConnecting) return
+    setIsConnecting(true)
     setStep('selecting')
-    try {
-      // Initiate Meta OAuth flow with proper callback endpoint
-      const res = await fetch('/api/meta/connection', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          campaignId: campaign.id,
-          redirectUrl: `${window.location.origin}/api/meta/auth/callback?type=system`,
-        }),
-      })
-      
-      if (res.ok) {
-        const data = await res.json()
-        
-        // Set cookie for callback to retrieve campaign ID
-        const expires = new Date(Date.now() + 10 * 60 * 1000).toUTCString()
-        document.cookie = `meta_cid=${encodeURIComponent(campaign.id)}; Path=/; Expires=${expires}; SameSite=Lax`
-        
-        // Redirect to Meta OAuth
-        window.location.href = data.authUrl
-      } else {
-        throw new Error('Failed to initiate connection')
-      }
-    } catch (err) {
-      setStep('error')
-      setError(err instanceof Error ? err.message : 'Connection failed')
-    }
+    metaActions.connect()
+    
+    // Reset connecting state after a delay (popup launch)
+    setTimeout(() => {
+      setIsConnecting(false)
+    }, 1000)
   }
 
   const handleReconnect = async () => {
@@ -228,12 +210,12 @@ export function MetaConnectionModal({ open, onOpenChange, onSuccess }: MetaConne
       case 'disconnected':
         return (
           <DialogFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isConnecting}>
               Cancel
             </Button>
-            <Button onClick={handleConnect}>
+            <Button onClick={handleConnect} disabled={isConnecting}>
               <Facebook className="h-4 w-4 mr-2" />
-              Connect Now
+              {isConnecting ? 'Connecting...' : 'Connect Now'}
             </Button>
           </DialogFooter>
         )

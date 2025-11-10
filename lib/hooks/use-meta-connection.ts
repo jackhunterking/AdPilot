@@ -7,9 +7,10 @@
  *  - AI SDK Core: https://ai-sdk.dev/docs/introduction
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useCampaignContext } from '@/lib/context/campaign-context'
 import { metaStorage } from '@/lib/meta/storage'
+import { META_EVENTS, type MetaConnectionChangeEvent, type MetaPaymentUpdateEvent, type MetaDisconnectionEvent } from '@/lib/utils/meta-events'
 import type { MetaConnectionStatus, PaymentStatus } from '@/lib/types/meta-integration'
 
 export function useMetaConnection() {
@@ -18,6 +19,7 @@ export function useMetaConnection() {
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('unknown')
   const [loading, setLoading] = useState(false)
   const [lastChecked, setLastChecked] = useState<Date | null>(null)
+  const refreshDebounceTimer = useRef<NodeJS.Timeout | null>(null)
 
   // Check localStorage first for immediate status update
   useEffect(() => {
@@ -91,6 +93,163 @@ export function useMetaConnection() {
       return () => clearInterval(interval)
     }
   }, [metaStatus, refreshStatus])
+
+  // Debounced refresh to prevent excessive calls
+  const debouncedRefresh = useCallback(() => {
+    // Clear any pending refresh
+    if (refreshDebounceTimer.current) {
+      clearTimeout(refreshDebounceTimer.current)
+    }
+
+    // Schedule new refresh (300ms debounce)
+    refreshDebounceTimer.current = setTimeout(() => {
+      refreshStatus()
+    }, 300)
+  }, [refreshStatus])
+
+  // Listen for Meta connection events
+  useEffect(() => {
+    if (typeof window === 'undefined' || !campaign?.id) return
+
+    const handleConnectionChange = (event: Event) => {
+      try {
+        const customEvent = event as MetaConnectionChangeEvent
+        const { campaignId, status } = customEvent.detail
+
+        // Only respond to events for THIS campaign
+        if (campaignId !== campaign.id) {
+          console.log('[useMetaConnection] Ignoring event for different campaign', {
+            eventCampaignId: campaignId,
+            currentCampaignId: campaign.id,
+          })
+          return
+        }
+
+        console.log('[useMetaConnection] Connection changed event received', {
+          campaignId,
+          status,
+        })
+
+        // Update status immediately from event
+        if (status === 'connected') {
+          setMetaStatus('connected')
+        } else if (status === 'disconnected') {
+          setMetaStatus('disconnected')
+          setPaymentStatus('unknown')
+        }
+
+        // Refresh from localStorage with debounce
+        debouncedRefresh()
+      } catch (error) {
+        console.error('[useMetaConnection] Error handling connection change event:', error)
+      }
+    }
+
+    const handleDisconnection = (event: Event) => {
+      try {
+        const customEvent = event as MetaDisconnectionEvent
+        const { campaignId } = customEvent.detail
+
+        // Only respond to events for THIS campaign
+        if (campaignId !== campaign.id) {
+          return
+        }
+
+        console.log('[useMetaConnection] Disconnection event received', { campaignId })
+
+        // Update status immediately
+        setMetaStatus('disconnected')
+        setPaymentStatus('unknown')
+
+        // Refresh from localStorage with debounce
+        debouncedRefresh()
+      } catch (error) {
+        console.error('[useMetaConnection] Error handling disconnection event:', error)
+      }
+    }
+
+    const handlePaymentUpdate = (event: Event) => {
+      try {
+        const customEvent = event as MetaPaymentUpdateEvent
+        const { campaignId, paymentStatus: newPaymentStatus } = customEvent.detail
+
+        // Only respond to events for THIS campaign
+        if (campaignId !== campaign.id) {
+          return
+        }
+
+        console.log('[useMetaConnection] Payment update event received', {
+          campaignId,
+          paymentStatus: newPaymentStatus,
+        })
+
+        // Update payment status immediately from event
+        setPaymentStatus(newPaymentStatus)
+
+        // Refresh from localStorage with debounce
+        debouncedRefresh()
+      } catch (error) {
+        console.error('[useMetaConnection] Error handling payment update event:', error)
+      }
+    }
+
+    // Add event listeners
+    window.addEventListener(META_EVENTS.CONNECTION_CHANGED, handleConnectionChange)
+    window.addEventListener(META_EVENTS.DISCONNECTION, handleDisconnection)
+    window.addEventListener(META_EVENTS.PAYMENT_UPDATED, handlePaymentUpdate)
+
+    console.log('[useMetaConnection] Event listeners registered for campaign:', campaign.id)
+
+    // Cleanup
+    return () => {
+      window.removeEventListener(META_EVENTS.CONNECTION_CHANGED, handleConnectionChange)
+      window.removeEventListener(META_EVENTS.DISCONNECTION, handleDisconnection)
+      window.removeEventListener(META_EVENTS.PAYMENT_UPDATED, handlePaymentUpdate)
+      
+      // Clear debounce timer
+      if (refreshDebounceTimer.current) {
+        clearTimeout(refreshDebounceTimer.current)
+      }
+
+      console.log('[useMetaConnection] Event listeners cleaned up for campaign:', campaign.id)
+    }
+  }, [campaign?.id, debouncedRefresh])
+
+  // Listen for storage events (multi-tab sync)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !campaign?.id) return
+
+    const handleStorageChange = (event: StorageEvent) => {
+      try {
+        // Only respond to Meta connection changes
+        if (!event.key || !event.key.startsWith('meta_connection_')) {
+          return
+        }
+
+        // Check if this is for our campaign
+        const storedCampaignId = event.key.replace('meta_connection_', '')
+        if (storedCampaignId !== campaign.id) {
+          return
+        }
+
+        console.log('[useMetaConnection] Storage changed in another tab', {
+          key: event.key,
+          campaignId: storedCampaignId,
+        })
+
+        // Refresh status with debounce
+        debouncedRefresh()
+      } catch (error) {
+        console.error('[useMetaConnection] Error handling storage event:', error)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+    }
+  }, [campaign?.id, debouncedRefresh])
 
   return {
     metaStatus,

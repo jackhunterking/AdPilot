@@ -8,7 +8,7 @@
  */
 
 export type MetaConnectionStatus = 'disconnected' | 'pending' | 'connected' | 'error' | 'expired'
-export type PaymentStatus = 'unknown' | 'verified' | 'missing' | 'flagged'
+export type PaymentStatus = 'unknown' | 'verified' | 'missing' | 'flagged' | 'processing'
 export type BudgetStrategy = 'ai_distribute' | 'manual_override' | 'equal_split'
 export type BudgetStatus = 'draft' | 'confirmed' | 'active' | 'paused' | 'depleted'
 

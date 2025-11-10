@@ -902,7 +902,7 @@ export function PreviewPanel() {
   const metaSummaryContent = (
     <div className="p-2">
       <div className="max-w-3xl mx-auto">
-        <MetaConnectCard mode="step" />
+        <MetaConnectCard />
       </div>
     </div>
   )
@@ -1198,7 +1198,7 @@ export function PreviewPanel() {
         content: (
           <div className="p-2">
             <div className="max-w-3xl mx-auto">
-              <MetaConnectCard mode="step" />
+              <MetaConnectCard />
             </div>
           </div>
         ),
