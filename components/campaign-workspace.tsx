@@ -42,7 +42,7 @@ export function CampaignWorkspace() {
   const searchParams = useSearchParams()
   
   const campaignId = campaign?.id ?? ""
-  const { ads, refreshAds } = useCampaignAds(campaignId)
+  const { ads, refreshAds, updateAdStatus } = useCampaignAds(campaignId)
   
   // State for save success notification
   const [saveSuccessState, setSaveSuccessState] = useState<SaveSuccessState | null>(null)
@@ -305,9 +305,11 @@ export function CampaignWorkspace() {
   }, [setWorkspaceMode])
 
   const handlePauseAd = useCallback(async (adId: string): Promise<boolean> => {
+    const previousStatus = ads.find(ad => ad.id === adId)?.status ?? null
+    console.log('[CampaignWorkspace] Pausing ad (optimistic):', { adId, previousStatus })
+    updateAdStatus(adId, 'paused')
+
     try {
-      console.log('[CampaignWorkspace] Pausing ad:', adId)
-      
       const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/pause`, {
         method: 'POST',
       })
@@ -315,6 +317,9 @@ export function CampaignWorkspace() {
       if (!response.ok) {
         const errorData = await response.json()
         console.error('[CampaignWorkspace] Failed to pause ad:', errorData)
+        if (previousStatus) {
+          updateAdStatus(adId, previousStatus)
+        }
         // TODO: Show error toast
         return false
       }
@@ -323,19 +328,25 @@ export function CampaignWorkspace() {
       
       // Refresh ads list to update status
       await refreshAds()
+      console.log('[CampaignWorkspace] Ads refreshed after pause:', { adId })
       
       return true
     } catch (error) {
       console.error('[CampaignWorkspace] Error pausing ad:', error)
+      if (previousStatus) {
+        updateAdStatus(adId, previousStatus)
+      }
       // TODO: Show error toast
       return false
     }
-  }, [campaignId, refreshAds])
+  }, [ads, campaignId, refreshAds, updateAdStatus])
 
   const handleResumeAd = useCallback(async (adId: string): Promise<boolean> => {
+    const previousStatus = ads.find(ad => ad.id === adId)?.status ?? null
+    console.log('[CampaignWorkspace] Resuming ad (optimistic):', { adId, previousStatus })
+    updateAdStatus(adId, 'active')
+
     try {
-      console.log('[CampaignWorkspace] Resuming ad:', adId)
-      
       const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/resume`, {
         method: 'POST',
       })
@@ -343,6 +354,9 @@ export function CampaignWorkspace() {
       if (!response.ok) {
         const errorData = await response.json()
         console.error('[CampaignWorkspace] Failed to resume ad:', errorData)
+        if (previousStatus) {
+          updateAdStatus(adId, previousStatus)
+        }
         // TODO: Show error toast
         return false
       }
@@ -351,14 +365,18 @@ export function CampaignWorkspace() {
       
       // Refresh ads list to update status
       await refreshAds()
+      console.log('[CampaignWorkspace] Ads refreshed after resume:', { adId })
       
       return true
     } catch (error) {
       console.error('[CampaignWorkspace] Error resuming ad:', error)
+      if (previousStatus) {
+        updateAdStatus(adId, previousStatus)
+      }
       // TODO: Show error toast
       return false
     }
-  }, [campaignId, refreshAds])
+  }, [ads, campaignId, refreshAds, updateAdStatus])
 
   const handleDeleteAd = useCallback(async (adId: string) => {
     try {

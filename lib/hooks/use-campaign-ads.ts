@@ -35,6 +35,7 @@ interface UseCampaignAdsResult {
   loading: boolean
   error: string | null
   refreshAds: () => Promise<void>
+  updateAdStatus: (adId: string, status: CampaignAd['status']) => void
   createAd: (adData: Partial<CampaignAd>) => Promise<CampaignAd | null>
   updateAd: (adId: string, updates: Partial<CampaignAd>) => Promise<boolean>
   deleteAd: (adId: string) => Promise<boolean>
@@ -51,10 +52,12 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
       return
     }
 
+    console.log('[useCampaignAds] fetchAds start:', { campaignId })
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/ads`, {
+      const cacheBuster = Date.now()
+      const res = await fetch(`/api/campaigns/${campaignId}/ads?ts=${cacheBuster}`, {
         cache: "no-store"
       })
       
@@ -64,6 +67,10 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
       }
 
       const data = await res.json()
+      console.log('[useCampaignAds] fetchAds success:', {
+        campaignId,
+        adCount: Array.isArray(data.ads) ? data.ads.length : 0,
+      })
       setAds(data.ads || [])
     } catch (err) {
       console.error("[useCampaignAds] fetchAds error:", err)
@@ -73,6 +80,24 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
       setLoading(false)
     }
   }, [campaignId])
+
+  const updateAdStatus = useCallback((adId: string, status: CampaignAd['status']) => {
+    console.log('[useCampaignAds] updateAdStatus optimistic update:', {
+      adId,
+      status,
+    })
+    setAds(prev =>
+      prev.map(ad =>
+        ad.id === adId
+          ? {
+              ...ad,
+              status,
+              updated_at: new Date().toISOString(),
+            }
+          : ad
+      )
+    )
+  }, [])
 
   const refreshAds = useCallback(async () => {
     await fetchAds()
@@ -169,6 +194,7 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
     loading,
     error,
     refreshAds,
+    updateAdStatus,
     createAd,
     updateAd,
     deleteAd

@@ -73,6 +73,12 @@ async function updateAdStatus(
   campaignId: string,
   targetStatus: 'ACTIVE' | 'PAUSED'
 ): Promise<AdOperationResult> {
+  console.log('[AdOperations] updateAdStatus start:', {
+    adId,
+    campaignId,
+    targetStatus,
+  })
+
   // Fetch the ad's meta_ad_id from database
   const { data: ad, error: adError } = await supabaseServer
     .from('ads')
@@ -99,6 +105,10 @@ async function updateAdStatus(
   const token = connection.long_lived_user_token
 
   // Update ad status on Meta
+  console.log('[AdOperations] Sending status update to Meta:', {
+    metaAdId: ad.meta_ad_id,
+    targetStatus,
+  })
   const statusPayload = { status: targetStatus }
   await graphPost(token, ad.meta_ad_id, statusPayload)
 
@@ -113,6 +123,12 @@ async function updateAdStatus(
     console.error('[AdOperations] Failed to update ad status in database:', updateError)
     throw new Error('Failed to update ad status in database.')
   }
+
+  console.log('[AdOperations] updateAdStatus success:', {
+    adId,
+    metaAdId: ad.meta_ad_id,
+    status: dbStatus,
+  })
 
   return {
     success: true,
