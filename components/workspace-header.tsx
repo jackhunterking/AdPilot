@@ -159,6 +159,37 @@ export function WorkspaceHeader({
             // Save to localStorage with CURRENT campaign ID
             metaStorage.setConnection(campaign.id, messageData.connectionData)
             
+            // If payment status wasn't checked or is false, verify it now
+            const adAccountId = messageData.connectionData.selected_ad_account_id
+            if (adAccountId && !messageData.connectionData.ad_account_payment_connected) {
+              metaLogger.info('WorkspaceHeader', 'Verifying payment status', {
+                campaignId: campaign.id,
+                adAccountId,
+              })
+              
+              // Verify payment status via API (non-blocking)
+              fetch(`/api/meta/payments/capability?campaignId=${encodeURIComponent(campaign.id)}`, {
+                cache: 'no-store'
+              })
+                .then(async (res) => {
+                  if (res.ok) {
+                    const data = await res.json() as { hasFunding?: boolean }
+                    if (data.hasFunding) {
+                      metaLogger.info('WorkspaceHeader', 'Payment verified via API, updating storage', {
+                        campaignId: campaign.id,
+                      })
+                      // Update localStorage with payment connected
+                      metaStorage.markPaymentConnected(campaign.id)
+                      // Refresh status to update button
+                      refreshStatus()
+                    }
+                  }
+                })
+                .catch((err) => {
+                  metaLogger.error('WorkspaceHeader', 'Payment verification failed', err as Error)
+                })
+            }
+            
             // Refresh status immediately
             refreshStatus()
             
