@@ -28,11 +28,21 @@ export async function GET(req: NextRequest) {
     // Authorize campaign ownership
     const { data: campaign } = await supabaseServer
       .from('campaigns')
-      .select('id,user_id,workspace_state')
+      .select('id,user_id')
       .eq('id', campaignId)
       .single()
     if (!campaign || campaign.user_id !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Ad account ID must be provided as query parameter
+    if (!adAccountId) {
+      return NextResponse.json({ 
+        error: 'adAccountId required',
+        hasFunding: false,
+        hasFinance: false,
+        hasManage: false,
+      }, { status: 400 })
     }
 
     // Get user's Meta token from meta_tokens table
@@ -52,39 +62,17 @@ export async function GET(req: NextRequest) {
       }, { status: 200 })
     }
 
-    // Get ad account ID from query param or workspace state
-    let actId = adAccountId
-    
-    if (!actId) {
-      // Try to parse from workspace_state
-      try {
-        const workspaceState = campaign.workspace_state as { meta_integration?: { adAccount?: { id?: string } } } | null
-        actId = workspaceState?.meta_integration?.adAccount?.id || null
-      } catch {
-        // Ignore parse errors
-      }
-    }
-
-    if (!actId) {
-      return NextResponse.json({ 
-        error: 'No ad account ID found',
-        hasFunding: false,
-        hasFinance: false,
-        hasManage: false,
-      }, { status: 200 })
-    }
-
     // Validate ad account and check funding
     const validation = await validateAdAccount({
       token: tokenRow.token,
-      actId,
+      actId: adAccountId,
     })
 
     return NextResponse.json({
       hasFunding: validation.hasFunding || false,
       hasFinance: false, // Simplified for now
       hasManage: false, // Simplified for now
-      adAccountId: actId,
+      adAccountId,
     })
   } catch (e) {
     console.error('[PaymentCapability] Server error:', e)
