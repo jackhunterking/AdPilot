@@ -10,12 +10,16 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { AdCard } from "@/components/ad-card"
-import type { AdVariant } from "@/lib/types/workspace"
+import type { AdVariant, AdStatus } from "@/lib/types/workspace"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, Rocket } from "lucide-react"
+import { getStatusConfig, sortByStatusPriority, filterByStatus } from "@/lib/utils/ad-status"
+import { cn } from "@/lib/utils"
+import { AdApprovalPanel } from "@/components/admin/ad-approval-panel"
 
 interface SaveSuccessState {
   campaignName: string
@@ -26,6 +30,7 @@ interface SaveSuccessState {
 
 export interface AllAdsGridProps {
   ads: AdVariant[]
+  campaignId: string
   onViewAd: (adId: string) => void
   onEditAd: (adId: string) => void
   onPublishAd: (adId: string) => void
@@ -33,12 +38,16 @@ export interface AllAdsGridProps {
   onResumeAd: (adId: string) => Promise<boolean>
   onCreateABTest: (adId: string) => void
   onDeleteAd: (adId: string) => void
+  onRefreshAds?: () => void
   saveSuccessState: SaveSuccessState | null
   onClearSuccessState: () => void
 }
 
+type StatusFilter = 'all' | AdStatus
+
 export function AllAdsGrid({
   ads,
+  campaignId,
   onViewAd,
   onEditAd,
   onPublishAd,
@@ -46,11 +55,13 @@ export function AllAdsGrid({
   onResumeAd,
   onCreateABTest,
   onDeleteAd,
+  onRefreshAds,
   saveSuccessState,
   onClearSuccessState,
 }: AllAdsGridProps) {
   const [publishAdId, setPublishAdId] = useState<string | null>(null)
   const [showPublishDialog, setShowPublishDialog] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   
   const handleCloseSuccess = () => {
     onClearSuccessState()
@@ -70,6 +81,32 @@ export function AllAdsGrid({
   }
   
   const publishingAd = publishAdId ? ads.find(ad => ad.id === publishAdId) : null
+  
+  // Filter and sort ads
+  const filteredAds = useMemo(() => {
+    let result = statusFilter === 'all' ? ads : filterByStatus(ads, [statusFilter])
+    return sortByStatusPriority(result)
+  }, [ads, statusFilter])
+  
+  // Count ads by status
+  const statusCounts = useMemo(() => {
+    const counts: Record<StatusFilter, number> = { all: ads.length } as Record<StatusFilter, number>
+    ads.forEach(ad => {
+      counts[ad.status] = (counts[ad.status] || 0) + 1
+    })
+    return counts
+  }, [ads])
+  
+  // Define filter options
+  const filterOptions: { value: StatusFilter; label: string }[] = [
+    { value: 'all', label: 'All Ads' },
+    { value: 'draft', label: 'Draft' },
+    { value: 'pending_approval', label: 'Under Review' },
+    { value: 'active', label: 'Live' },
+    { value: 'learning', label: 'Learning' },
+    { value: 'paused', label: 'Paused' },
+    { value: 'rejected', label: 'Needs Changes' },
+  ]
 
   return (
     <>
@@ -137,32 +174,83 @@ export function AllAdsGrid({
         </DialogContent>
       </Dialog>
       
-      <div className="flex-1 overflow-auto p-6">
-        {ads.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center text-muted-foreground">
-              <p className="text-lg font-semibold mb-2">No ads yet</p>
-              <p className="text-sm">Create your first ad to get started</p>
-            </div>
+      <div className="flex-1 overflow-auto">
+        <div className="p-6 space-y-4">
+          {/* Status Filter Bar */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {filterOptions.map((option) => {
+              const count = statusCounts[option.value] || 0
+              const isActive = statusFilter === option.value
+              
+              // Skip options with 0 ads (except 'all')
+              if (option.value !== 'all' && count === 0) return null
+              
+              return (
+                <Button
+                  key={option.value}
+                  variant={isActive ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setStatusFilter(option.value)}
+                  className={cn(
+                    "gap-2",
+                    isActive && "bg-blue-600 hover:bg-blue-700"
+                  )}
+                >
+                  {option.label}
+                  <Badge 
+                    variant={isActive ? "secondary" : "outline"}
+                    className="ml-1"
+                  >
+                    {count}
+                  </Badge>
+                </Button>
+              )
+            })}
           </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-6">
-            {ads.map((ad) => (
-            <AdCard
-              key={ad.id}
-              ad={ad}
-              onViewResults={() => onViewAd(ad.id)}
-              onEdit={() => onEditAd(ad.id)}
-              onPublish={() => handlePublishClick(ad.id)}
-              onPause={() => onPauseAd(ad.id)}
-              onResume={() => onResumeAd(ad.id)}
-              onCreateABTest={() => onCreateABTest(ad.id)}
-              onDelete={() => onDeleteAd(ad.id)}
-              showABTestButton={ad.status === 'active'}
+          
+          {/* Admin Approval Panel (dev only) */}
+          {onRefreshAds && (
+            <AdApprovalPanel
+              ads={ads}
+              campaignId={campaignId}
+              onAdUpdated={onRefreshAds}
             />
-            ))}
-          </div>
-        )}
+          )}
+          
+          {/* Ads Grid */}
+          {filteredAds.length === 0 ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center text-muted-foreground">
+                <p className="text-lg font-semibold mb-2">
+                  {statusFilter === 'all' ? 'No ads yet' : `No ${filterOptions.find(o => o.value === statusFilter)?.label.toLowerCase()} ads`}
+                </p>
+                <p className="text-sm">
+                  {statusFilter === 'all' 
+                    ? 'Create your first ad to get started'
+                    : 'Try selecting a different filter'
+                  }
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-6">
+              {filteredAds.map((ad) => (
+              <AdCard
+                key={ad.id}
+                ad={ad}
+                onViewResults={() => onViewAd(ad.id)}
+                onEdit={() => onEditAd(ad.id)}
+                onPublish={() => handlePublishClick(ad.id)}
+                onPause={() => onPauseAd(ad.id)}
+                onResume={() => onResumeAd(ad.id)}
+                onCreateABTest={() => onCreateABTest(ad.id)}
+                onDelete={() => onDeleteAd(ad.id)}
+                showABTestButton={ad.status === 'active'}
+              />
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </>
   )

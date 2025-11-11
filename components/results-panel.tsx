@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils"
 import { MetricsCard } from "@/components/results/metrics-card"
 import { LeadFormIndicator } from "@/components/results/lead-form-indicator"
 import { AdMockup } from "@/components/ad-mockup"
+import { AdStatusTimeline } from "@/components/ui/ad-status-timeline"
+import { AdStatusBadge } from "@/components/ui/ad-status-badge"
 import type { AdVariant, AdMetrics, LeadFormInfo } from "@/lib/types/workspace"
 
 export interface ResultsPanelProps {
@@ -240,6 +242,19 @@ export function ResultsPanel({
 
       {/* Right: Metrics & Actions (60%) */}
       <div className="flex-[3] flex flex-col gap-4 min-w-0">
+        {/* Status Timeline Card */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold">Ad Status</h3>
+              <AdStatusBadge status={variant.status} size="sm" showTooltip={false} />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <AdStatusTimeline ad={variant} />
+          </CardContent>
+        </Card>
+        
         {/* Metrics Card */}
         <MetricsCard metrics={metrics} compactMode={true} />
 

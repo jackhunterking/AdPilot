@@ -36,11 +36,29 @@ export type CampaignStatus =
 // Ad Variant Types
 // ============================================================================
 
+// Ad status values representing the publishing lifecycle
+export type AdStatus = 
+  | 'draft'              // Being built, not published yet
+  | 'pending_approval'   // Submitted for Meta review
+  | 'active'             // Approved and running
+  | 'learning'           // Active but in learning phase
+  | 'paused'             // Temporarily stopped
+  | 'rejected'           // Rejected by Meta, needs changes
+  | 'archived'           // Historical/inactive
+
+// Meta review status tracking
+export type MetaReviewStatus =
+  | 'not_submitted'      // Draft, not sent to Meta
+  | 'pending'            // Under review by Meta
+  | 'approved'           // Approved and live
+  | 'rejected'           // Rejected, needs changes
+  | 'changes_requested'  // Specific changes requested
+
 export interface AdVariant {
   id: string
   campaign_id: string
   name: string
-  status: 'draft' | 'active' | 'learning' | 'paused' | 'archived'
+  status: AdStatus
   variant_type: 'original' | 'ab_test' | 'manual' | 'ai_generated'
   
   // Creative data
@@ -63,11 +81,14 @@ export interface AdVariant {
   
   // Meta data
   meta_ad_id?: string
+  meta_review_status?: MetaReviewStatus
   
   // Timestamps
   created_at: string
   updated_at: string
-  published_at?: string
+  published_at?: string      // When submitted for review
+  approved_at?: string       // When approved by Meta
+  rejected_at?: string       // When rejected by Meta
 }
 
 export interface AdMetrics {

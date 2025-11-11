@@ -64,10 +64,14 @@ export async function POST(
       return NextResponse.json({ error: 'Ad not found' }, { status: 404 })
     }
 
-    // Validate that ad is in draft status
-    if (ad.status !== 'draft') {
-      console.warn('[PublishAd] Ad is not in draft status:', { adId, status: ad.status })
-      return NextResponse.json({ error: 'Only draft ads can be published' }, { status: 400 })
+    // Validate that ad is in draft or rejected status (can republish rejected ads)
+    if (ad.status !== 'draft' && ad.status !== 'rejected') {
+      console.warn('[PublishAd] Ad cannot be published:', { adId, status: ad.status })
+      return NextResponse.json({ 
+        error: ad.status === 'pending_approval' 
+          ? 'Ad is already under review' 
+          : 'Only draft or rejected ads can be published' 
+      }, { status: 400 })
     }
 
     // Validate ad has required data (creative_data and copy_data)
@@ -76,17 +80,24 @@ export async function POST(
       return NextResponse.json({ error: 'Ad setup is incomplete' }, { status: 400 })
     }
 
-    // TODO: Integrate with Meta API to actually publish the ad
-    // For now, we'll just update the status in our database
-    // When Meta integration is ready, we'll create the ad in Meta and get a meta_ad_id
+    // TODO: Integrate with Meta API to actually submit the ad
+    // For now, we'll update status to pending_approval
+    // When Meta integration is ready:
+    // 1. Submit ad to Meta API
+    // 2. Get Meta Ad ID
+    // 3. Set status to pending_approval
+    // 4. Meta webhook will update to 'active' when approved
 
-    // Update ad status to active
+    // Update ad status to pending_approval (submitted for review)
     const { data: updatedAd, error: updateError } = await supabaseServer
       .from('ads')
       .update({
-        status: 'active',
+        status: 'pending_approval',
+        meta_review_status: 'pending',
         published_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        // Clear rejection timestamp if resubmitting
+        rejected_at: null,
       })
       .eq('id', adId)
       .eq('campaign_id', campaignId)
@@ -98,12 +109,14 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to publish ad' }, { status: 500 })
     }
 
-    console.log('[PublishAd] Ad published successfully:', { adId, campaignId })
+    console.log('[PublishAd] Ad submitted for review:', { adId, campaignId, status: 'pending_approval' })
 
     return NextResponse.json({
       success: true,
       ad: updatedAd,
-      publishedAt: new Date().toISOString(),
+      status: 'pending_approval',
+      publishedAt: updatedAd.published_at,
+      message: 'Ad submitted for review'
     })
   } catch (error) {
     console.error('[PublishAd] POST error:', error)

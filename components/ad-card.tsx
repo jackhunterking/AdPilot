@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { AlertTriangle, Trash2 } from "lucide-react"
 import type { AdVariant } from "@/lib/types/workspace"
+import { AdStatusBadge } from "@/components/ui/ad-status-badge"
 
 export interface AdCardProps {
   ad: AdVariant
@@ -181,17 +182,7 @@ export function AdCard({
             {ad.name}
             </h3>
             <div className="flex items-center gap-2 mb-3">
-              {ad.status === 'active' && (
-                <Badge className="bg-green-500 text-white hover:bg-green-600">
-                  🟢 Active
-                </Badge>
-              )}
-              {ad.status === 'paused' && (
-                <Badge variant="secondary">⏸️ Paused</Badge>
-              )}
-              {ad.status === 'draft' && (
-                <Badge variant="outline">Draft</Badge>
-              )}
+              <AdStatusBadge status={ad.status} size="sm" showTooltip={true} />
             </div>
             
             {/* Metrics */}

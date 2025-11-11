@@ -170,14 +170,14 @@ export function PublishFlowDialog({
             <div>
               <h2 className="text-xl font-semibold">
                 {isComplete 
-                  ? (isEditMode ? "Changes Saved!" : "Ad Created!")
-                  : (isEditMode ? "Saving Changes" : "Creating Ad")
+                  ? (isEditMode ? "Changes Saved!" : "Ad Submitted!")
+                  : (isEditMode ? "Saving Changes" : "Submitting Ad")
                 }
               </h2>
               <p className="text-sm text-muted-foreground">
                 {isComplete 
-                  ? (isEditMode ? `${campaignName} has been updated` : `${campaignName} is now live`)
-                  : (isEditMode ? `Updating ${campaignName}...` : `Setting up ${campaignName}...`)
+                  ? (isEditMode ? `${campaignName} has been updated` : `${campaignName} is under review`)
+                  : (isEditMode ? `Updating ${campaignName}...` : `Submitting ${campaignName}...`)
                 }
               </p>
             </div>
@@ -234,21 +234,22 @@ export function PublishFlowDialog({
               <Response isAnimating={false}>
                 {isEditMode 
                   ? "Your changes have been saved successfully. The ad will continue running with the updated settings."
-                  : "Your ad has been successfully published to Meta Ads Manager. It will begin running according to your schedule and budget settings."
+                  : "Your ad has been submitted for review by Meta. You'll be notified once it's approved and live."
                 }
               </Response>
               
               {!isEditMode && (
-                <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-4">
+                <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-4">
                   <div className="flex items-start gap-3">
-                    <Sparkles className="h-5 w-5 text-green-600 mt-0.5" />
+                    <Sparkles className="h-5 w-5 text-blue-600 mt-0.5" />
                     <div className="flex-1">
                       <h3 className="font-medium text-sm mb-1">What happens next?</h3>
                       <ul className="text-sm text-muted-foreground space-y-1">
-                        <li>• Your ad will be reviewed by Meta (typically within 24 hours)</li>
-                        <li>• Once approved, it'll start showing to your target audience</li>
-                        <li>• You can monitor performance in the Results view</li>
-                        <li>• Edit or pause your ad anytime from the dashboard</li>
+                        <li>• Your ad is now <strong>Under Review</strong> by Meta</li>
+                        <li>• Review typically takes up to 24 hours</li>
+                        <li>• Once approved, it'll automatically start showing to your audience</li>
+                        <li>• You can check the status anytime in the All Ads view</li>
+                        <li>• You'll be able to monitor performance once it's live</li>
                       </ul>
                     </div>
                   </div>

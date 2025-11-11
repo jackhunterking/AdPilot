@@ -1217,6 +1217,7 @@ export function CampaignWorkspace() {
           <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
             <AllAdsGrid
               ads={convertedAds}
+              campaignId={campaignId}
               onViewAd={handleViewAd}
               onEditAd={handleEditAd}
               onPublishAd={handlePublishAd}
@@ -1224,6 +1225,7 @@ export function CampaignWorkspace() {
               onResumeAd={handleResumeAd}
               onCreateABTest={handleCreateABTest}
               onDeleteAd={handleDeleteAd}
+              onRefreshAds={refreshAds}
               saveSuccessState={saveSuccessState}
               onClearSuccessState={() => setSaveSuccessState(null)}
             />
