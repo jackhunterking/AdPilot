@@ -9,6 +9,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, supabaseServer } from '@/lib/supabase/server'
 
+interface AdWithPublishData {
+  id: string
+  campaign_id: string
+  name: string
+  status: string
+  meta_ad_id: string | null
+  meta_review_status?: string
+  setup_snapshot?: unknown
+  creative_data: unknown
+  copy_data: unknown
+  metrics_snapshot: unknown
+  published_at?: string
+  approved_at?: string
+  rejected_at?: string | null
+  created_at: string
+  updated_at: string
+}
+
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string; adId: string }> }
@@ -57,7 +75,7 @@ export async function POST(
       .select('*')
       .eq('id', adId)
       .eq('campaign_id', campaignId)
-      .single()
+      .single() as { data: AdWithPublishData | null; error: unknown }
 
     if (adError || !ad) {
       console.error('[PublishAd] Failed to fetch ad:', adError)
@@ -113,9 +131,9 @@ export async function POST(
       .eq('id', adId)
       .eq('campaign_id', campaignId)
       .select()
-      .single()
+      .single() as { data: AdWithPublishData | null; error: unknown }
 
-    if (updateError) {
+    if (updateError || !updatedAd) {
       console.error('[PublishAd] Failed to update ad status:', updateError)
       return NextResponse.json({ error: 'Failed to publish ad' }, { status: 500 })
     }
