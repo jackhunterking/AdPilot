@@ -100,12 +100,13 @@ export function isValidSnapshot(snapshot: unknown): snapshot is AdSetupSnapshot 
   const s = snapshot as Record<string, unknown>
   
   // Check required top-level keys
-  const hasRequiredKeys = 
+  const hasRequiredKeys = Boolean(
     s.creative && typeof s.creative === 'object' &&
     s.copy && typeof s.copy === 'object' &&
     s.location && typeof s.location === 'object' &&
     s.audience && typeof s.audience === 'object' &&
     s.goal && typeof s.goal === 'object'
+  )
   
   return hasRequiredKeys
 }
