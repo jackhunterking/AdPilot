@@ -70,6 +70,7 @@ export function CampaignWorkspace() {
   // State for unsaved changes tracking
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
+  const [showCancelNewAdDialog, setShowCancelNewAdDialog] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null)
   
   // Listen for save complete events
@@ -430,21 +431,26 @@ export function CampaignWorkspace() {
         // All these modes navigate to all-ads grid
         setWorkspaceMode('all-ads')
       } else if (effectiveMode === 'build') {
-        // Only go to all-ads if we have published ads, otherwise do nothing (button should be hidden)
-        if (hasPublishedAds) {
-          setWorkspaceMode('all-ads')
-        }
+        // Navigate to all-ads (button only shows when ads exist)
+        setWorkspaceMode('all-ads')
       }
     }
+    
+    const isCreatingNewAd = searchParams.get('newAd') === 'true'
     
     // Check for unsaved changes in BOTH edit and build modes
     if ((effectiveMode === 'edit' || effectiveMode === 'build') && hasUnsavedChanges) {
       setPendingNavigation(() => navigateToAllAds)
-      setShowUnsavedDialog(true)
+      // Show different dialog for new ad creation vs edits
+      if (isCreatingNewAd && effectiveMode === 'build') {
+        setShowCancelNewAdDialog(true)
+      } else {
+        setShowUnsavedDialog(true)
+      }
     } else {
       navigateToAllAds()
     }
-  }, [effectiveMode, hasPublishedAds, hasUnsavedChanges, setWorkspaceMode])
+  }, [effectiveMode, hasPublishedAds, hasUnsavedChanges, setWorkspaceMode, searchParams])
 
   const handleNewAd = useCallback(async () => {
     console.log('[CampaignWorkspace] Creating new ad - resetting creative state')
@@ -1097,6 +1103,60 @@ export function CampaignWorkspace() {
               {effectiveMode === 'edit' ? 'Discard Changes' : 'Discard Progress'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Cancel New Ad Dialog */}
+      <Dialog open={showCancelNewAdDialog} onOpenChange={setShowCancelNewAdDialog}>
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader className="mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-500/10">
+                <AlertTriangle className="h-6 w-6 text-orange-600" />
+              </div>
+              <DialogTitle className="text-xl">Cancel New Ad?</DialogTitle>
+            </div>
+          </DialogHeader>
+          <DialogDescription className="text-sm text-muted-foreground mb-6">
+            Are you sure you want to cancel creating this new ad? All your progress will be lost.
+          </DialogDescription>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setShowCancelNewAdDialog(false)}
+            >
+              Keep Working
+            </Button>
+            <Button
+              variant="destructive"
+              size="lg"
+              onClick={async () => {
+                setShowCancelNewAdDialog(false)
+                setHasUnsavedChanges(false)
+                
+                // Delete draft ad if it exists
+                const draftAdId = searchParams.get('adId')
+                if (draftAdId && campaignId) {
+                  try {
+                    await fetch(`/api/campaigns/${campaignId}/ads/${draftAdId}`, {
+                      method: 'DELETE'
+                    })
+                    console.log('[CampaignWorkspace] Deleted draft ad:', draftAdId)
+                  } catch (error) {
+                    console.error('[CampaignWorkspace] Error deleting draft ad:', error)
+                  }
+                }
+                
+                if (pendingNavigation) {
+                  pendingNavigation()
+                  setPendingNavigation(null)
+                }
+              }}
+            >
+              Cancel Ad
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
