@@ -701,6 +701,70 @@ export function CampaignWorkspace() {
     setWorkspaceMode('ab-test-builder', adId)
   }, [setWorkspaceMode])
 
+  // Validation function to check if ad is ready to create
+  const isAdReadyToCreate = useCallback((): boolean => {
+    // Check all campaign states are completed
+    const statesComplete = 
+      goalState.status === 'completed' &&
+      locationState.status === 'completed' &&
+      audienceState.status === 'completed' &&
+      adCopyState.status === 'completed'
+    
+    // Check ad content exists (images + copy)
+    const hasAdContent = 
+      adContent &&
+      adContent.imageVariations &&
+      adContent.imageVariations.length > 0 &&
+      adContent.headline &&
+      adContent.body &&
+      adContent.cta
+    
+    // Check Meta connection and payment
+    const metaReady = 
+      metaStatus === 'connected' &&
+      paymentStatus === 'verified'
+    
+    // Check budget is set
+    const budgetReady = isBudgetComplete()
+    
+    return !!(statesComplete && hasAdContent && metaReady && budgetReady)
+  }, [
+    goalState.status,
+    locationState.status,
+    audienceState.status,
+    adCopyState.status,
+    adContent,
+    metaStatus,
+    paymentStatus,
+    isBudgetComplete,
+  ])
+
+  // Handle Save action from header (build mode)
+  const handleSave = useCallback(async () => {
+    if (!campaign?.id) return
+    
+    // Force save is handled by auto-save hooks, just show success and navigate
+    toast.success('Campaign saved successfully')
+    
+    // Navigate to all-ads view
+    router.push(`/${campaign.id}?view=all-ads`)
+  }, [campaign?.id, router])
+
+  // Handle Create Ad action from header (build mode)
+  const handleCreateAd = useCallback(async () => {
+    if (!campaign?.id || isPublishing) return
+    
+    // Validate all required data
+    if (!isAdReadyToCreate()) {
+      toast.error('Please complete all required steps before creating the ad')
+      return
+    }
+    
+    // Open publish dialog (reuse existing publish flow)
+    setIsPublishing(true)
+    setPublishDialogOpen(true)
+  }, [campaign?.id, isPublishing, isAdReadyToCreate])
+
   // Handle Save & Publish action from header
   const handleSaveAndPublish = useCallback(async () => {
     if (!campaign?.id || !currentAdId || isPublishing) return
@@ -965,6 +1029,9 @@ export function CampaignWorkspace() {
         onBudgetUpdate={updateBudget}
         onSaveAndPublish={effectiveMode === 'edit' ? handleSaveAndPublish : undefined}
         isSaveAndPublishDisabled={isPublishing}
+        onSave={effectiveMode === 'build' ? handleSave : undefined}
+        onCreateAd={effectiveMode === 'build' ? handleCreateAd : undefined}
+        isCreateAdDisabled={!isAdReadyToCreate()}
       />
 
       {/* Main Content */}

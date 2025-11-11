@@ -11,7 +11,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Rocket, Loader2 } from "lucide-react"
+import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Rocket, Loader2, Save } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -62,6 +62,9 @@ export function WorkspaceHeader({
   onBudgetUpdate,
   onSaveAndPublish,
   isSaveAndPublishDisabled = false,
+  onSave,
+  onCreateAd,
+  isCreateAdDisabled = false,
   className,
 }: WorkspaceHeaderProps) {
   const { campaign } = useCampaignContext()
@@ -746,9 +749,36 @@ export function WorkspaceHeader({
           )}
         </div>
 
-        {/* Right: Status Badge, Save & Publish Button, and New Ad Button */}
+        {/* Right: Status Badge, Action Buttons */}
         <div className="flex items-center gap-4">
           {statusBadge}
+          
+          {/* Build mode buttons: Save and Create Ad */}
+          {mode === 'build' && onSave && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onSave}
+              className="gap-2"
+            >
+              <Save className="h-4 w-4" />
+              Save
+            </Button>
+          )}
+          {mode === 'build' && onCreateAd && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onCreateAd}
+              disabled={isCreateAdDisabled}
+              className="gap-2 bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Rocket className="h-4 w-4" />
+              Create Ad
+            </Button>
+          )}
+          
+          {/* Edit mode button: Save & Publish */}
           {mode === 'edit' && onSaveAndPublish && (
             <Button
               variant="default"
@@ -761,6 +791,8 @@ export function WorkspaceHeader({
               Save & Publish
             </Button>
           )}
+          
+          {/* New Ad button (shown after first publish) */}
           {showNewAdButton && (
             <Button
               variant="default"
