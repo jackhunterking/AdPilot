@@ -533,10 +533,10 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
     const detailedTargeting = audienceState.targeting.detailedTargeting
     
     const content = (
-      <div className="space-y-6">
+      <>
         {/* Published Warning Banner */}
         {isPublished && !isSummary && (
-          <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4 mb-6">
             <div className="flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
               <div className="text-left text-sm space-y-1">
@@ -636,7 +636,7 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
 
         {/* Reset button for editing */}
         {!isSummary && (
-          <div className="flex justify-center">
+          <div className="flex justify-center mt-6">
             <Button
               variant="outline"
               size="lg"
@@ -646,7 +646,7 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
             </Button>
           </div>
         )}
-      </div>
+      </>
     )
 
     return renderLayout(content)

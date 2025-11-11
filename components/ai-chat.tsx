@@ -1034,11 +1034,15 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       const { mode } = event.detail;
       
       if (mode === 'ai') {
+        // Set AI Advantage+ targeting and mark as completed
+        setAudienceTargeting({ mode: 'ai', advantage_plus_enabled: true });
+        updateAudienceStatus('completed');
         sendMessageRef.current({
-          text: `AI Advantage+ targeting Enabled`,
+          text: `Enable AI Advantage+ targeting`,
         });
       } else {
-        // Set status to gathering-info for conversational flow
+        // Set manual targeting mode and move to gathering-info status
+        setAudienceTargeting({ mode: 'manual' });
         updateAudienceStatus('gathering-info');
         sendMessageRef.current({
           text: `Set up manual targeting`,
@@ -1048,7 +1052,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
 
     window.addEventListener('triggerAudienceModeSelection', handleAudienceModeSelection as EventListener);
     return () => window.removeEventListener('triggerAudienceModeSelection', handleAudienceModeSelection as EventListener);
-  }, [updateAudienceStatus]);
+  }, [setAudienceTargeting, updateAudienceStatus]);
 
   // Listen for audience parameters confirmation (when user clicks "Confirm Targeting" in chat)
   useEffect(() => {

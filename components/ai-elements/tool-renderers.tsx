@@ -126,43 +126,37 @@ export function renderAudienceModeResult(opts: {
 }): React.JSX.Element {
   const { callId, keyId, input, output } = opts;
   const mode = output.mode || input.mode;
-  const explanation = output.explanation || input.explanation || '';
   const isAI = mode === 'ai';
 
   return (
-    <Fragment key={keyId || callId}>
-      <div 
-        key={(keyId || callId) + "-card"} 
-        className={`border rounded-lg p-3 my-2 ${
-          isAI 
-            ? 'bg-green-500/5 border-green-500/30' 
-            : 'bg-blue-500/5 border-blue-500/30'
-        }`}
-      >
-        <div className="flex items-center gap-2">
-          {isAI ? (
-            <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-          ) : (
-            <Target className="h-4 w-4 text-blue-600 flex-shrink-0" />
-          )}
-          <div className="flex-1">
-            <p className={`text-sm font-medium ${
-              isAI ? 'text-green-600' : 'text-blue-600'
-            }`}>
-              {isAI ? 'AI Advantage+ Enabled' : 'Manual Targeting Selected'}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {isAI 
-                ? 'AI will automatically optimize your audience' 
-                : 'Describe your ideal customer to set up targeting'}
-            </p>
-          </div>
+    <div 
+      key={keyId || callId} 
+      className={`border rounded-lg p-3 my-2 ${
+        isAI 
+          ? 'bg-green-500/5 border-green-500/30' 
+          : 'bg-blue-500/5 border-blue-500/30'
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        {isAI ? (
+          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+        ) : (
+          <Target className="h-4 w-4 text-blue-600 flex-shrink-0" />
+        )}
+        <div className="flex-1">
+          <p className={`text-sm font-medium ${
+            isAI ? 'text-green-600' : 'text-blue-600'
+          }`}>
+            {isAI ? 'AI Advantage+ Enabled' : 'Manual Targeting Selected'}
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {isAI 
+              ? 'Automatic optimization enabled' 
+              : 'Answer questions in chat to define your audience'}
+          </p>
         </div>
       </div>
-      {explanation && (
-        <p className="text-sm text-muted-foreground my-2">{explanation}</p>
-      )}
-    </Fragment>
+    </div>
   );
 }
 

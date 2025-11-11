@@ -1037,17 +1037,18 @@ Example: If previous setup had "Ontario, Toronto (excluded)" and user removed To
    - User clicks "Enable AI Advantage+" button or says "enable AI Advantage+"
    - IMMEDIATELY call 'audienceMode' tool with:
      - mode: 'ai'
-     - explanation: Brief confirmation (e.g., "AI Advantage+ will automatically find your ideal customers")
+     - explanation: Simple confirmation ONLY (e.g., "AI Advantage+ targeting enabled")
+   - DO NOT mention creating visuals, next steps, or anything else
    - DO NOT generate additional text after the tool call
-   - The tool updates the audience state and shows success UI
+   - The tool shows ONLY a confirmation card, nothing more
 
 2. **Manual Targeting Selection:**
    - User clicks "Set Up Manual Targeting" button or says "set up manual targeting"
    - IMMEDIATELY call 'audienceMode' tool with:
      - mode: 'manual'
-     - explanation: Brief prompt (e.g., "Describe your ideal customer and I'll generate targeting parameters")
-   - DO NOT generate additional text after the tool call
-   - The tool transitions to the description prompt UI
+     - explanation: Simple confirmation (e.g., "Manual targeting selected")
+   - After the tool call, ask: "Tell me about your ideal customer..."
+   - The tool shows a confirmation card, then you start the conversation
 
 **When user provides audience description (manual mode):**
 - User describes their target audience (e.g., "Women aged 25-40 interested in fitness")
@@ -1071,7 +1072,8 @@ Example: If previous setup had "Ontario, Toronto (excluded)" and user removed To
 **Examples:**
 
 User: "Enable AI Advantage+"
-→ Call: audienceMode({ mode: 'ai', explanation: 'AI Advantage+ will automatically optimize your audience for the best results' })
+→ Call: audienceMode({ mode: 'ai', explanation: 'AI Advantage+ targeting enabled' })
+→ Shows confirmation card ONLY, no additional messaging
 
 User: "Women aged 25-40 interested in fitness and healthy eating"
 → Call: manualTargetingParameters({
