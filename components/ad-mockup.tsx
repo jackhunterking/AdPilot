@@ -15,7 +15,7 @@ interface AdMockupProps {
   description?: string
   gradient?: string
   ctaText?: string
-  status?: 'active' | 'paused' | 'draft'
+  status?: 'active' | 'paused' | 'draft' | 'learning' | 'archived'
   showEngagement?: boolean
 }
 

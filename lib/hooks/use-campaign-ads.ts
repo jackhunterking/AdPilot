@@ -14,7 +14,7 @@ export interface CampaignAd {
   campaign_id: string
   meta_ad_id: string | null
   name: string
-  status: "active" | "learning" | "paused" | "draft"
+  status: "active" | "learning" | "paused" | "draft" | "archived"
   creative_data: Record<string, unknown> | null
   copy_data: Record<string, unknown> | null
   metrics_snapshot: {
