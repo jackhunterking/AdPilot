@@ -38,6 +38,7 @@ export type Database = {
           name: string
           published_at: string | null
           rejected_at: string | null
+          setup_snapshot: Json | null
           status: string
           updated_at: string
         }
@@ -54,6 +55,7 @@ export type Database = {
           name: string
           published_at?: string | null
           rejected_at?: string | null
+          setup_snapshot?: Json | null
           status?: string
           updated_at?: string
         }
@@ -70,6 +72,7 @@ export type Database = {
           name?: string
           published_at?: string | null
           rejected_at?: string | null
+          setup_snapshot?: Json | null
           status?: string
           updated_at?: string
         }

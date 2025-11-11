@@ -1170,12 +1170,6 @@ export function PreviewPanel() {
 
   return (
     <div className="flex flex-1 h-full flex-col relative min-h-0">
-      {isCreatingVariant && (
-        <div className="px-4 py-2 bg-blue-50 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-800 text-sm text-blue-800 dark:text-blue-300 flex items-center gap-2">
-          <Sparkles className="h-4 w-4" />
-          <strong>Creating new ad variant</strong> - Goal and budget inherited from campaign
-        </div>
-      )}
       <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
         <CampaignStepper steps={steps} campaignId={campaign?.id} />
       </div>

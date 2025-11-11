@@ -48,11 +48,11 @@ interface SaveSuccessState {
 export function CampaignWorkspace() {
   const { campaign, updateBudget } = useCampaignContext()
   const { goalState } = useGoal()
-  const { destinationState, clearDestination } = useDestination()
-  const { adContent, resetAdPreview, selectedImageIndex, selectedCreativeVariation, setIsPublished } = useAdPreview()
-  const { clearLocations, locationState } = useLocation()
-  const { resetAudience, audienceState } = useAudience()
-  const { adCopyState, getSelectedCopy, resetAdCopy } = useAdCopy()
+  const { destinationState, clearDestination, setDestination } = useDestination()
+  const { adContent, resetAdPreview, selectedImageIndex, selectedCreativeVariation, setIsPublished, setAdContent, setSelectedImageIndex, setSelectedCreativeVariation } = useAdPreview()
+  const { clearLocations, locationState, addLocations } = useLocation()
+  const { resetAudience, audienceState, setAudienceTargeting } = useAudience()
+  const { adCopyState, getSelectedCopy, resetAdCopy, setCustomCopyVariations, setSelectedCopyIndex } = useAdCopy()
   const { budgetState, isComplete: isBudgetComplete } = useBudget()
   const { metaStatus, paymentStatus } = useMetaConnection()
   const router = useRouter()
@@ -603,9 +603,108 @@ export function CampaignWorkspace() {
     setWorkspaceMode('results', adId)
   }, [setWorkspaceMode])
 
-  const handleEditAd = useCallback((adId: string) => {
-    setWorkspaceMode('edit', adId)
-  }, [setWorkspaceMode])
+  const handleEditAd = useCallback(async (adId: string) => {
+    const traceId = `edit_ad_${adId.substring(0, 8)}_${Date.now()}`
+    console.log(`[${traceId}] Entering edit mode for ad:`, adId)
+    
+    try {
+      // Find the ad being edited
+      const adToEdit = ads.find(ad => ad.id === adId)
+      
+      if (!adToEdit) {
+        console.error(`[${traceId}] Ad not found:`, adId)
+        toast.error('Ad not found')
+        return
+      }
+      
+      // Check if ad has a setup_snapshot
+      const snapshot = adToEdit.setup_snapshot as Record<string, unknown> | null
+      
+      if (snapshot) {
+        console.log(`[${traceId}] Found snapshot, hydrating contexts...`)
+        
+        // Import hydration utilities
+        const { 
+          hydrateAdPreviewFromSnapshot, 
+          hydrateAdCopyFromSnapshot, 
+          hydrateLocationFromSnapshot, 
+          hydrateAudienceFromSnapshot,
+          hydrateDestinationFromSnapshot,
+          isValidSnapshot
+        } = await import('@/lib/utils/snapshot-hydration')
+        
+        // Validate snapshot structure
+        if (!isValidSnapshot(snapshot)) {
+          console.warn(`[${traceId}] Invalid snapshot structure, using legacy fallback`)
+        } else {
+          // Hydrate ad preview context
+          const adPreviewData = hydrateAdPreviewFromSnapshot(snapshot)
+          setAdContent(adPreviewData.adContent)
+          setSelectedImageIndex(adPreviewData.selectedImageIndex)
+          setSelectedCreativeVariation(adPreviewData.selectedCreativeVariation)
+          console.log(`[${traceId}] ✅ Hydrated ad preview from snapshot`)
+          
+          // Hydrate ad copy context
+          const adCopyData = hydrateAdCopyFromSnapshot(snapshot)
+          if (adCopyData.customCopyVariations) {
+            setCustomCopyVariations(adCopyData.customCopyVariations)
+          }
+          setSelectedCopyIndex(adCopyData.selectedCopyIndex)
+          console.log(`[${traceId}] ✅ Hydrated ad copy from snapshot`)
+          
+          // Hydrate location context
+          const locationData = hydrateLocationFromSnapshot(snapshot)
+          if (locationData.locations.length > 0) {
+            addLocations(locationData.locations, false) // Replace, don't merge
+          }
+          console.log(`[${traceId}] ✅ Hydrated locations from snapshot`)
+          
+          // Hydrate audience context
+          const audienceData = hydrateAudienceFromSnapshot(snapshot)
+          setAudienceTargeting(audienceData.targeting)
+          console.log(`[${traceId}] ✅ Hydrated audience from snapshot`)
+          
+          // Hydrate destination context
+          const destinationData = hydrateDestinationFromSnapshot(snapshot)
+          if (destinationData.data) {
+            setDestination(destinationData.data)
+          }
+          console.log(`[${traceId}] ✅ Hydrated destination from snapshot`)
+        }
+      } else {
+        console.log(`[${traceId}] No snapshot found, using legacy data from creative_data and copy_data`)
+        
+        // Fallback: Use legacy creative_data and copy_data if available
+        const creativeData = adToEdit.creative_data as Record<string, unknown> | null
+        const copyData = adToEdit.copy_data as Record<string, unknown> | null
+        
+        if (creativeData) {
+          setAdContent({
+            imageUrl: creativeData.imageUrl as string | undefined,
+            imageVariations: (creativeData.imageVariations as string[]) || [],
+            baseImageUrl: creativeData.baseImageUrl as string | undefined,
+            headline: (copyData?.headline as string) || (creativeData.headline as string) || '',
+            body: (copyData?.primaryText as string) || (creativeData.body as string) || '',
+            cta: (copyData?.cta as string) || (creativeData.cta as string) || 'Learn More',
+          })
+          console.log(`[${traceId}] ✅ Loaded creative from legacy creative_data`)
+        }
+        
+        if (copyData && (copyData.headline || copyData.primaryText)) {
+          // Copy data exists, we've already set it above
+          console.log(`[${traceId}] ✅ Loaded copy from legacy copy_data`)
+        }
+      }
+      
+      // Navigate to edit mode
+      setWorkspaceMode('edit', adId)
+      console.log(`[${traceId}] Successfully entered edit mode`)
+      
+    } catch (error) {
+      console.error(`[${traceId}] Error entering edit mode:`, error)
+      toast.error('Failed to load ad for editing')
+    }
+  }, [ads, setAdContent, setSelectedImageIndex, setSelectedCreativeVariation, setCustomCopyVariations, setSelectedCopyIndex, addLocations, setAudienceTargeting, setDestination, setWorkspaceMode])
 
   const getMetaToken = useCallback(() => {
     if (typeof window === 'undefined' || !campaignId) return null

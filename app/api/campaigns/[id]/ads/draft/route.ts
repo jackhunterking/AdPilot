@@ -92,7 +92,8 @@ export async function POST(
             creative_data: null,
             copy_data: null,
             meta_ad_id: null,
-            metrics_snapshot: null
+            metrics_snapshot: null,
+            setup_snapshot: null
           })
           .select()
           .single()
