@@ -48,7 +48,7 @@ interface SaveSuccessState {
 export function CampaignWorkspace() {
   const { campaign, updateBudget } = useCampaignContext()
   const { goalState } = useGoal()
-  const { destinationState } = useDestination()
+  const { destinationState, clearDestination } = useDestination()
   const { adContent, resetAdPreview, selectedImageIndex, selectedCreativeVariation, setIsPublished } = useAdPreview()
   const { clearLocations, locationState } = useLocation()
   const { resetAudience, audienceState } = useAudience()
@@ -534,6 +534,7 @@ export function CampaignWorkspace() {
       // Step 2: Reset all creative-related contexts
       resetAdPreview()
       resetAdCopy()
+      clearDestination()
       clearLocations()
       resetAudience()
       
@@ -590,7 +591,7 @@ export function CampaignWorkspace() {
       // Always release lock
       releaseLock()
     }
-  }, [campaignId, effectiveMode, pathname, router, resetAdPreview, resetAdCopy, clearLocations, resetAudience])
+  }, [campaignId, effectiveMode, pathname, router, resetAdPreview, resetAdCopy, clearDestination, clearLocations, resetAudience])
 
   const handleViewAllAds = useCallback(() => {
     setWorkspaceMode('all-ads')
