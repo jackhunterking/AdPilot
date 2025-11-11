@@ -234,29 +234,23 @@ export function PreviewPanel() {
   }, [campaign?.id, budgetState.selectedAdAccount])
 
   /**
-   * Handles ad publish action
-   * 
-   * NOTE: This currently opens a simulated publish flow dialog for UX demonstration.
-   * TODO: Wire in actual Meta API calls when ready for production:
-   *   1. Call /api/meta/ads/launch for leads campaigns
-   *   2. Call /api/meta/campaigns/create-traffic-ad + /api/meta/ads/publish for website visits
-   *   3. Call /api/meta/campaigns/create-call-ad + /api/meta/ads/publish for calls
-   *   4. Add proper error handling and retry logic
-   *   5. Verify payment method before actual publish
-   *   6. Update campaign status in Supabase after successful publish
+   * Handles ad publish action - opens confirmation dialog
    */
   const handlePublish = async () => {
     if (!campaign?.id) return
     if (!allStepsComplete) return
     if (isPublishing) return // Prevent double-click
     
-    // Open the publish flow dialog
-    setIsPublishing(true)
+    // Open the publish flow dialog in confirmation phase
     setPublishDialogOpen(true)
   }
   
   const handlePublishComplete = async () => {
-    if (!campaign?.id) return
+    if (!campaign?.id || !currentAdId) {
+      throw new Error('Missing campaign or ad ID')
+    }
+    
+    setIsPublishing(true)
     
     try {
       // Import the snapshot builder dynamically
@@ -298,7 +292,6 @@ export function PreviewPanel() {
       // Prepare the ad data for persistence
       const adData = {
         name: `${campaign.name} - Ad ${new Date().toLocaleDateString()}`,
-        status: isEditingExistingAd ? 'active' : 'draft', // New ads are drafts, edited ads stay active
         creative_data: {
           imageUrl: selectedImageUrl,
           imageVariations: adContent?.imageVariations,
@@ -310,7 +303,6 @@ export function PreviewPanel() {
           description: selectedCopy?.description || adContent?.body,
           cta: adContent?.cta || 'Learn More',
         },
-        meta_ad_id: null, // Will be set when actually published to Meta
         setup_snapshot: snapshot, // Include complete wizard snapshot
       }
       
@@ -327,60 +319,60 @@ export function PreviewPanel() {
         goal: snapshot.goal.type,
       })
       
-      console.log('📦 Ad data being sent to API:', {
-        isEdit: isEditingExistingAd,
-        adId: currentAdId,
-        name: adData.name,
-        status: adData.status,
-        copy_data: adData.copy_data,
-        creative_data: adData.creative_data,
-        hasSnapshot: !!adData.setup_snapshot,
-      })
+      console.log('📦 Step 1: Saving ad snapshot to database...')
       
-      // Persist the ad to Supabase
-      // If currentAdId exists (from URL), update that ad (PATCH)
-      // Otherwise, create new ad (POST) - though with new flow, we should always have currentAdId
-      const apiUrl = currentAdId 
-        ? `/api/campaigns/${campaign.id}/ads/${currentAdId}`
-        : `/api/campaigns/${campaign.id}/ads`
-      
-      const response = await fetch(apiUrl, {
-        method: currentAdId ? 'PATCH' : 'POST',
+      // Step 1: Save the ad snapshot
+      const saveResponse = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAdId}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(adData),
       })
       
-      if (!response.ok) {
-        console.error('Failed to persist ad:', await response.text())
-        throw new Error(isEditingExistingAd ? 'Failed to update ad' : 'Failed to create ad')
+      if (!saveResponse.ok) {
+        const errorText = await saveResponse.text()
+        console.error('Failed to save ad:', errorText)
+        throw new Error('Failed to save ad data')
       }
       
-      const { ad } = await response.json()
-      console.log(`✅ Ad ${isEditingExistingAd ? 'updated' : 'created'}:`, ad.id)
+      const { ad } = await saveResponse.json()
+      console.log(`✅ Step 1 complete: Ad saved (${ad.id})`)
+      
+      // Step 2: Publish the ad
+      console.log('📦 Step 2: Publishing ad to Meta...')
+      
+      const publishResponse = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAdId}/publish`, {
+        method: 'POST',
+      })
+      
+      if (!publishResponse.ok) {
+        const errorData = await publishResponse.json()
+        console.error('Failed to publish ad:', errorData)
+        throw new Error(errorData.error || 'Failed to publish ad')
+      }
+      
+      const publishResult = await publishResponse.json()
+      console.log(`✅ Step 2 complete: Ad published (status: ${publishResult.status})`)
       
       // Mark as published in context
       setIsPublished(true)
-      setIsPublishing(false)
-      
-      // Close the dialog immediately so navigation isn't blocked
-      setPublishDialogOpen(false)
       
       // Dispatch custom event to notify campaign workspace
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('campaign:save-complete', {
+        window.dispatchEvent(new CustomEvent('campaign:publish-complete', {
           detail: {
             campaignId: campaign.id,
             campaignName: campaign.name,
-            isEdit: isEditingExistingAd, // Use actual edit state from URL
             adId: ad.id,
+            published: true,
             timestamp: Date.now()
           }
         }))
       }
     } catch (error) {
       console.error('Error in handlePublishComplete:', error)
+      throw error // Re-throw so dialog can handle error state
+    } finally {
       setIsPublishing(false)
-      // TODO: Show error toast to user
     }
   }
   

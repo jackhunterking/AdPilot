@@ -19,20 +19,11 @@
 
 import { useEffect, useState } from "react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { Task, TaskTrigger, TaskContent, TaskItem } from "@/components/ai-elements/task"
 import { Loader } from "@/components/ai-elements/loader"
-import { Response } from "@/components/ai-elements/response"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2, Rocket, Sparkles } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { CheckCircle2, Rocket } from "lucide-react"
 
-export type PublishStep = 
-  | "validating"
-  | "creating-campaign"
-  | "uploading-assets"
-  | "configuring-targeting"
-  | "scheduling"
-  | "complete"
+export type PublishPhase = "confirm" | "publishing" | "success"
 
 interface PublishFlowDialogProps {
   open: boolean
@@ -42,46 +33,6 @@ interface PublishFlowDialogProps {
   onComplete?: () => void | Promise<void>
 }
 
-interface StepConfig {
-  id: PublishStep
-  title: string
-  description: string
-  duration: number // milliseconds
-}
-
-const PUBLISH_STEPS: StepConfig[] = [
-  {
-    id: "validating",
-    title: "Validating ad settings",
-    description: "Checking all requirements are met",
-    duration: 1200,
-  },
-  {
-    id: "creating-campaign",
-    title: "Creating ad structure",
-    description: "Setting up ad in Meta Ads Manager",
-    duration: 1500,
-  },
-  {
-    id: "uploading-assets",
-    title: "Uploading creative assets",
-    description: "Uploading images and ad copy to Meta",
-    duration: 2000,
-  },
-  {
-    id: "configuring-targeting",
-    title: "Configuring audience targeting",
-    description: "Setting location, demographics, and interests",
-    duration: 1200,
-  },
-  {
-    id: "scheduling",
-    title: "Scheduling ad",
-    description: "Setting budget and schedule parameters",
-    duration: 1000,
-  },
-]
-
 export function PublishFlowDialog({
   open,
   onOpenChange,
@@ -89,194 +40,133 @@ export function PublishFlowDialog({
   isEditMode = false,
   onComplete,
 }: PublishFlowDialogProps) {
-  const [currentStep, setCurrentStep] = useState<PublishStep | null>(null)
-  const [completedSteps, setCompletedSteps] = useState<Set<PublishStep>>(new Set())
-  const [isComplete, setIsComplete] = useState(false)
+  const [phase, setPhase] = useState<PublishPhase>("confirm")
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) {
       // Reset state when dialog closes
-      setCurrentStep(null)
-      setCompletedSteps(new Set())
-      setIsComplete(false)
-      return
+      setPhase("confirm")
+      setError(null)
     }
+  }, [open])
 
-    // Start the publish flow
-    let isCancelled = false
+  const handleConfirm = async () => {
+    setPhase("publishing")
+    setError(null)
     
-    const runPublishFlow = async () => {
-      for (const step of PUBLISH_STEPS) {
-        if (isCancelled) return
-        
-        setCurrentStep(step.id)
-        
-        // Simulate step execution
-        await new Promise(resolve => setTimeout(resolve, step.duration))
-        
-        if (isCancelled) return
-        
-        setCompletedSteps(prev => new Set([...prev, step.id]))
-      }
+    try {
+      // Call the onComplete callback which handles API calls
+      await onComplete?.()
       
-      if (!isCancelled) {
-        setCurrentStep("complete")
-        setIsComplete(true)
-        await onComplete?.()
-        
-        // Close dialog immediately after onComplete for all modes
-        // Success feedback now handled by campaign workspace
+      // Show success state for 2 seconds
+      setPhase("success")
+      
+      // Auto-close after 2 seconds and fire event
+      setTimeout(() => {
         onOpenChange(false)
-      }
+      }, 2000)
+    } catch (err) {
+      console.error('[PublishFlowDialog] Publish failed:', err)
+      setError(err instanceof Error ? err.message : 'Failed to publish ad')
+      setPhase("confirm")
     }
+  }
 
-    void runPublishFlow()
-
-    return () => {
-      isCancelled = true
-    }
-  }, [open, onComplete, isEditMode, onOpenChange])
-
-  const handleClose = () => {
-    if (isComplete) {
+  const handleCancel = () => {
+    if (phase === "confirm") {
       onOpenChange(false)
     }
   }
 
-  const getStepStatus = (stepId: PublishStep): "pending" | "active" | "complete" => {
-    if (completedSteps.has(stepId)) return "complete"
-    if (currentStep === stepId) return "active"
-    return "pending"
-  }
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
-            <div className={cn(
-              "flex h-12 w-12 items-center justify-center rounded-full transition-colors",
-              isComplete 
-                ? "bg-green-500/10 text-green-600"
-                : "bg-gradient-to-br from-blue-500/10 to-cyan-500/10 text-blue-600"
-            )}>
-              {isComplete ? (
-                <CheckCircle2 className="h-6 w-6" />
-              ) : (
-                <Rocket className="h-6 w-6" />
-              )}
+    <Dialog open={open} onOpenChange={phase === "confirm" ? onOpenChange : undefined}>
+      <DialogContent className="sm:max-w-md p-6">
+        {/* Phase 1: Confirmation */}
+        {phase === "confirm" && (
+          <>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10">
+                <Rocket className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold">Ready to Publish?</h2>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-semibold">
-                {isComplete 
-                  ? (isEditMode ? "Changes Saved!" : "Ad Submitted!")
-                  : (isEditMode ? "Saving Changes" : "Submitting Ad")
-                }
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {isComplete 
-                  ? (isEditMode ? `${campaignName} has been updated` : `${campaignName} is under review`)
-                  : (isEditMode ? `Updating ${campaignName}...` : `Submitting ${campaignName}...`)
-                }
-              </p>
-            </div>
-          </div>
-
-          {/* Progress Steps */}
-          {!isComplete && (
-            <div className="space-y-4 mb-6">
-              {PUBLISH_STEPS.map((step, index) => {
-                const status = getStepStatus(step.id)
-                
-                return (
-                  <Task key={step.id} defaultOpen={status === "active"}>
-                    <TaskTrigger title={step.title}>
-                      <div className="flex items-center gap-3 w-full">
-                        <div className={cn(
-                          "flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors",
-                          status === "complete" && "border-green-500 bg-green-500/10 text-green-600",
-                          status === "active" && "border-blue-500 bg-blue-500/10 text-blue-600",
-                          status === "pending" && "border-muted-foreground/30 bg-muted text-muted-foreground"
-                        )}>
-                          {status === "complete" ? (
-                            <CheckCircle2 className="h-4 w-4" />
-                          ) : status === "active" ? (
-                            <Loader size={16} />
-                          ) : (
-                            <span className="text-xs font-medium">{index + 1}</span>
-                          )}
-                        </div>
-                        <div className="flex-1 text-left">
-                          <p className={cn(
-                            "text-sm font-medium",
-                            status === "pending" && "text-muted-foreground"
-                          )}>
-                            {step.title}
-                          </p>
-                        </div>
-                      </div>
-                    </TaskTrigger>
-                    {status === "active" && (
-                      <TaskContent>
-                        <TaskItem>{step.description}</TaskItem>
-                      </TaskContent>
-                    )}
-                  </Task>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Success State */}
-          {isComplete && (
-            <div className="space-y-4 mb-6">
-              <Response isAnimating={false}>
-                {isEditMode 
-                  ? "Your changes have been saved successfully. The ad will continue running with the updated settings."
-                  : "Your ad has been submitted for review by Meta. You'll be notified once it's approved and live."
-                }
-              </Response>
-              
-              {!isEditMode && (
-                <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-4">
-                  <div className="flex items-start gap-3">
-                    <Sparkles className="h-5 w-5 text-blue-600 mt-0.5" />
-                    <div className="flex-1">
-                      <h3 className="font-medium text-sm mb-1">What happens next?</h3>
-                      <ul className="text-sm text-muted-foreground space-y-1">
-                        <li>• Your ad is now <strong>Under Review</strong> by Meta</li>
-                        <li>• Review typically takes up to 24 hours</li>
-                        <li>• Once approved, it'll automatically start showing to your audience</li>
-                        <li>• You can check the status anytime in the All Ads view</li>
-                        <li>• You'll be able to monitor performance once it's live</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Footer Actions */}
-          {isComplete && (
-            <div className="flex justify-end">
+            
+            <p className="text-sm text-muted-foreground mb-6">
+              Your ad is ready to go live. You can still edit later if needed.
+            </p>
+            
+            {error && (
+              <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+                <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+              </div>
+            )}
+            
+            <div className="flex justify-end gap-2">
               <Button
-                onClick={handleClose}
+                variant="outline"
+                size="lg"
+                onClick={handleCancel}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                size="lg"
+                onClick={handleConfirm}
                 className="bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105"
               >
-                Close
+                Confirm & Publish
               </Button>
             </div>
-          )}
+          </>
+        )}
 
-          {/* Loading State Footer */}
-          {!isComplete && (
-            <div className="text-center text-xs text-muted-foreground">
-              Please don't close this window...
+        {/* Phase 2: Publishing */}
+        {phase === "publishing" && (
+          <>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10">
+                <Loader className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold">Publishing...</h2>
+              </div>
             </div>
-          )}
-        </div>
+            
+            <p className="text-sm text-muted-foreground mb-6">
+              Please wait while we publish your ad.
+            </p>
+            
+            <div className="flex justify-center">
+              <Loader className="h-8 w-8 animate-spin text-blue-500" />
+            </div>
+          </>
+        )}
+
+        {/* Phase 3: Success */}
+        {phase === "success" && (
+          <>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
+                <CheckCircle2 className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold">Success!</h2>
+              </div>
+            </div>
+            
+            <p className="text-sm text-muted-foreground mb-6">
+              Your ad has been published successfully.
+            </p>
+            
+            <div className="flex justify-center">
+              <CheckCircle2 className="h-16 w-16 text-green-500 animate-in zoom-in duration-300" />
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   )

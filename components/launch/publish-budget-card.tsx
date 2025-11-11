@@ -52,11 +52,11 @@ export function PublishBudgetCard({
               )}
             </div>
             <div>
-              <h3 className="text-base font-semibold text-foreground">{isPublished ? "Save changes" : "Create ad"}</h3>
+              <h3 className="text-base font-semibold text-foreground">{isPublished ? "Republish ad" : "Publish your ad"}</h3>
               <p className="text-sm text-muted-foreground">
                 {allStepsComplete
-                  ? isPublished ? "Save your changes and republish the ad." : "Everything looks good. Create your ad as a draft."
-                  : "Complete the remaining items before creating."}
+                  ? isPublished ? "Save your changes and republish the ad." : "Your ad is ready to go live."
+                  : "Complete the remaining items before publishing."}
               </p>
             </div>
           </div>
@@ -74,17 +74,17 @@ export function PublishBudgetCard({
             {isPublishing ? (
               <>
                 <Loader2 className="h-5 w-5 animate-spin" />
-                Creating...
+                Publishing...
               </>
             ) : isPublished ? (
               <>
                 <Play className="h-5 w-5" />
-                Save Changes
+                Republish
               </>
             ) : (
               <>
                 <Play className="h-5 w-5" />
-                Create Ad
+                Publish
               </>
             )}
           </Button>

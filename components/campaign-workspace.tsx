@@ -38,13 +38,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button"
 import { AlertTriangle } from "lucide-react"
 
-interface SaveSuccessState {
-  campaignName: string
-  isEdit: boolean
-  adId: string
-  timestamp: number
-}
-
 export function CampaignWorkspace() {
   const { campaign, updateBudget } = useCampaignContext()
   const { goalState } = useGoal()
@@ -62,8 +55,7 @@ export function CampaignWorkspace() {
   const campaignId = campaign?.id ?? ""
   const { ads, refreshAds, updateAdStatus, deleteAd } = useCampaignAds(campaignId)
   
-  // State for save success notification
-  const [saveSuccessState, setSaveSuccessState] = useState<SaveSuccessState | null>(null)
+  // Removed saveSuccessState - now using toast notifications instead
   
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -78,21 +70,21 @@ export function CampaignWorkspace() {
   const [showCancelNewAdDialog, setShowCancelNewAdDialog] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null)
   
-  // Listen for save complete events
+  // Listen for publish complete events
   useEffect(() => {
-    const handleSaveComplete = (event: Event) => {
+    const handlePublishComplete = (event: Event) => {
       const customEvent = event as CustomEvent<{
         campaignId: string
         campaignName: string
-        isEdit: boolean
         adId: string
+        published: boolean
         timestamp: number
       }>
       
       // Only handle events for this campaign
       if (customEvent.detail.campaignId !== campaignId) return
       
-      console.log('[CampaignWorkspace] Save complete event received:', customEvent.detail)
+      console.log('[CampaignWorkspace] Publish complete event received:', customEvent.detail)
       
       // Refresh ads data
       void refreshAds()
@@ -100,18 +92,17 @@ export function CampaignWorkspace() {
       // Switch to all-ads view (no query params = all-ads grid)
       router.replace(pathname)
       
-      // Store success state for modal
-      setSaveSuccessState({
-        campaignName: customEvent.detail.campaignName,
-        isEdit: customEvent.detail.isEdit,
-        adId: customEvent.detail.adId,
-        timestamp: customEvent.detail.timestamp
-      })
+      // Show success toast
+      if (customEvent.detail.published) {
+        toast.success('Your ad has been published successfully.')
+      } else {
+        toast.success('Ad saved successfully!')
+      }
     }
     
-    window.addEventListener('campaign:save-complete', handleSaveComplete)
+    window.addEventListener('campaign:publish-complete', handlePublishComplete)
     return () => {
-      window.removeEventListener('campaign:save-complete', handleSaveComplete)
+      window.removeEventListener('campaign:publish-complete', handlePublishComplete)
     }
   }, [campaignId, refreshAds, router, pathname])
   
@@ -1113,14 +1104,6 @@ export function CampaignWorkspace() {
       
       // Navigate to All Ads view
       router.replace(pathname)
-      
-      // Store success state for modal
-      setSaveSuccessState({
-        campaignName: campaign.name,
-        isEdit: false,
-        adId,
-        timestamp: Date.now()
-      })
     }
   }, [campaign?.id, campaign?.name, isSaving, searchParams, handleSaveAdData, setIsPublished, refreshAds, router, pathname])
 
@@ -1143,14 +1126,6 @@ export function CampaignWorkspace() {
       
       // Navigate to All Ads view
       router.replace(pathname)
-      
-      // Store success state for modal
-      setSaveSuccessState({
-        campaignName: campaign.name,
-        isEdit: true,
-        adId: currentAdId,
-        timestamp: Date.now()
-      })
     }
   }, [campaign?.id, campaign?.name, currentAdId, isSaving, handleSaveAdData, refreshAds, router, pathname])
 
@@ -1297,8 +1272,6 @@ export function CampaignWorkspace() {
               onCreateABTest={handleCreateABTest}
               onDeleteAd={handleDeleteAd}
               onRefreshAds={refreshAds}
-              saveSuccessState={saveSuccessState}
-              onClearSuccessState={() => setSaveSuccessState(null)}
             />
           </div>
         )}

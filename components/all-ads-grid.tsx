@@ -21,13 +21,6 @@ import { getStatusConfig, sortByStatusPriority, filterByStatus } from "@/lib/uti
 import { cn } from "@/lib/utils"
 import { AdApprovalPanel } from "@/components/admin/ad-approval-panel"
 
-interface SaveSuccessState {
-  campaignName: string
-  isEdit: boolean
-  adId: string
-  timestamp: number
-}
-
 export interface AllAdsGridProps {
   ads: AdVariant[]
   campaignId: string
@@ -39,8 +32,6 @@ export interface AllAdsGridProps {
   onCreateABTest: (adId: string) => void
   onDeleteAd: (adId: string) => void
   onRefreshAds?: () => void
-  saveSuccessState: SaveSuccessState | null
-  onClearSuccessState: () => void
 }
 
 type StatusFilter = 'all' | AdStatus
@@ -56,16 +47,10 @@ export function AllAdsGrid({
   onCreateABTest,
   onDeleteAd,
   onRefreshAds,
-  saveSuccessState,
-  onClearSuccessState,
 }: AllAdsGridProps) {
   const [publishAdId, setPublishAdId] = useState<string | null>(null)
   const [showPublishDialog, setShowPublishDialog] = useState(false)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  
-  const handleCloseSuccess = () => {
-    onClearSuccessState()
-  }
   
   const handlePublishClick = (adId: string) => {
     setPublishAdId(adId)
@@ -138,37 +123,6 @@ export function AllAdsGrid({
               onClick={handleConfirmPublish}
             >
               Publish
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Save Success Dialog */}
-      <Dialog open={!!saveSuccessState} onOpenChange={(open) => !open && handleCloseSuccess()}>
-        <DialogContent className="sm:max-w-md p-6">
-          <DialogHeader className="mb-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/10">
-                <CheckCircle2 className="h-6 w-6 text-green-600" />
-              </div>
-              <DialogTitle className="text-xl">
-                {saveSuccessState?.isEdit ? 'Changes Saved!' : 'Ad Created!'}
-              </DialogTitle>
-            </div>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground mb-6">
-            {saveSuccessState?.isEdit 
-              ? `${saveSuccessState.campaignName} has been updated successfully.`
-              : `${saveSuccessState?.campaignName} has been saved as a draft. You can publish it when ready.`
-            }
-          </p>
-          <div className="flex justify-end">
-            <Button
-              variant="default"
-              onClick={handleCloseSuccess}
-              size="lg"
-            >
-              Close
             </Button>
           </div>
         </DialogContent>
