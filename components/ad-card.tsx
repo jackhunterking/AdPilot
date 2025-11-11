@@ -228,7 +228,7 @@ export function AdCard({
               variant="default"
               size="sm"
               onClick={onPublish}
-              className="flex-1 bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105"
+              className="flex-1"
             >
               Publish
             </Button>

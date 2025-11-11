@@ -133,9 +133,9 @@ export function AllAdsGrid({
               Cancel
             </Button>
             <Button
+              variant="default"
               size="lg"
               onClick={handleConfirmPublish}
-              className="bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105"
             >
               Publish
             </Button>
@@ -164,9 +164,9 @@ export function AllAdsGrid({
           </p>
           <div className="flex justify-end">
             <Button
+              variant="default"
               onClick={handleCloseSuccess}
               size="lg"
-              className="bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105"
             >
               Close
             </Button>
@@ -191,10 +191,7 @@ export function AllAdsGrid({
                   variant={isActive ? "default" : "outline"}
                   size="sm"
                   onClick={() => setStatusFilter(option.value)}
-                  className={cn(
-                    "gap-2",
-                    isActive && "bg-blue-600 hover:bg-blue-700"
-                  )}
+                  className="gap-2"
                 >
                   {option.label}
                   <Badge 

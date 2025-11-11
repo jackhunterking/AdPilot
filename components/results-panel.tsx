@@ -106,7 +106,6 @@ export function ResultsPanel({
               <Button
                 onClick={onEdit}
                 variant="default"
-                className="bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105"
               >
                 <Edit2 className="h-4 w-4 mr-2" />
                 Edit Draft

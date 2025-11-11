@@ -783,7 +783,7 @@ export function WorkspaceHeader({
               size="sm"
               onClick={onCreateAd}
               disabled={isCreateAdDisabled}
-              className="gap-2 bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="gap-2"
             >
               <Rocket className="h-4 w-4" />
               Create Ad
@@ -797,7 +797,7 @@ export function WorkspaceHeader({
               size="sm"
               onClick={onSave}
               disabled={isSaveDisabled}
-              className="gap-2 bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="gap-2"
             >
               <Save className="h-4 w-4" />
               Save
@@ -810,10 +810,10 @@ export function WorkspaceHeader({
               variant="default"
               size="sm"
               onClick={onNewAd}
-              className="gap-2 bg-primary hover:bg-primary/90"
+              className="gap-2"
             >
               <Plus className="h-4 w-4" />
-              New Ad
+              Create Ad
             </Button>
           )}
         </div>

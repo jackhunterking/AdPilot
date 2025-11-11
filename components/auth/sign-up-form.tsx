@@ -198,7 +198,8 @@ export function SignUpForm({ onSuccess }: SignUpFormProps) {
       
       <Button 
         type="submit" 
-        className="w-full h-11 text-base font-medium bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 transition-all" 
+        variant="default"
+        className="w-full h-11 text-base font-medium" 
         disabled={loading}
       >
         {loading ? (

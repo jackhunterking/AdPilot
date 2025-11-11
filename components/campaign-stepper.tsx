@@ -290,11 +290,8 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
           {/* Progress Header */}
           <div className="px-6 pt-4 pb-4 border-b border-border bg-card flex-shrink-0">
             <div className="max-w-5xl mx-auto">
-              <div className="text-center mb-4 h-14">
-                <h1 className="text-xl font-bold mb-1 leading-tight">{currentStepHeader.title}</h1>
-                <p className="text-xs text-muted-foreground leading-tight">
-                  {currentStepHeader.subtext}
-                </p>
+              <div className="text-center mb-4">
+                <h1 className="text-xl font-bold leading-tight">{currentStepHeader.title}</h1>
               </div>
 
               {/* Step Indicators with Inline Navigation */}
