@@ -116,7 +116,7 @@ export function BudgetDialog({
 
         {/* Current Budget Display */}
         {currentDailyBudget && (
-          <div className="rounded-lg bg-muted px-4 py-3 text-sm mb-4">
+          <div className="rounded-lg border border-border bg-muted/50 px-4 py-3 text-sm mb-4">
             <span className="text-muted-foreground">Current: </span>
             <span className="font-semibold">{formatCurrency(currentDailyBudget)}/day</span>
           </div>
@@ -124,47 +124,53 @@ export function BudgetDialog({
 
         {/* Budget Input Controls */}
         <div className="space-y-4">
-          <div className="flex items-center justify-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => adjustBudget(-5)}
-              disabled={dailyBudget <= 1 || isSaving}
-              className="h-12 w-12 rounded-lg"
-            >
-              <Minus className="h-5 w-5" />
-            </Button>
-            
-            <div className="flex flex-col items-center gap-1">
-              <Input
-                type="number"
-                min={1}
-                step={1}
-                value={dailyBudget || ''}
-                onChange={(e) => handleBudgetChange(e.target.value)}
+          {/* Main Budget Card */}
+          <div className="rounded-lg border border-border bg-muted/50 p-6">
+            <div className="flex items-center justify-center gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => adjustBudget(-5)}
+                disabled={dailyBudget <= 1 || isSaving}
+                className="h-14 w-14 rounded-xl border-2 hover:bg-background transition-colors"
+              >
+                <Minus className="h-5 w-5" />
+              </Button>
+              
+              <div className="flex flex-col items-center gap-2 min-w-[200px]">
+                <div className="relative w-full">
+                  <Input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={dailyBudget || ''}
+                    onChange={(e) => handleBudgetChange(e.target.value)}
+                    disabled={isSaving}
+                    className={cn(
+                      "h-20 w-full text-center text-5xl font-bold border-2 bg-background/50 rounded-xl",
+                      "focus-visible:ring-2 focus-visible:ring-offset-2",
+                      error ? "border-red-500 focus-visible:ring-red-500" : "border-border"
+                    )}
+                    placeholder="0"
+                  />
+                </div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  {currency} per day
+                </p>
+              </div>
+              
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => adjustBudget(5)}
                 disabled={isSaving}
-                className={cn(
-                  "h-16 w-32 text-center text-4xl font-bold border-2",
-                  error && "border-red-500 focus-visible:ring-red-500"
-                )}
-                placeholder="0"
-              />
-              <p className="text-xs text-muted-foreground">
-                {currency} per day
-              </p>
+                className="h-14 w-14 rounded-xl border-2 hover:bg-background transition-colors"
+              >
+                <Plus className="h-5 w-5" />
+              </Button>
             </div>
-            
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => adjustBudget(5)}
-              disabled={isSaving}
-              className="h-12 w-12 rounded-lg"
-            >
-              <Plus className="h-5 w-5" />
-            </Button>
           </div>
 
           {/* Error Message */}
@@ -175,7 +181,7 @@ export function BudgetDialog({
           )}
 
           {/* Monthly Estimate */}
-          <div className="rounded-lg border border-border bg-muted px-4 py-3">
+          <div className="rounded-lg border border-border bg-muted/50 px-4 py-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
                 Estimated monthly spend
