@@ -4,6 +4,7 @@
  * References:
  *  - AI SDK Core: https://ai-sdk.dev/docs/introduction
  *  - Supabase: https://supabase.com/docs
+ *  - Meta Call Ads: https://developers.facebook.com/docs/marketing-api/call-ads
  */
 
 "use client"
@@ -16,8 +17,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { normalizePhoneForMeta } from "@/lib/utils/normalize"
 import { COUNTRY_CALLING_CODES } from "@/lib/meta/country-codes"
-import { Phone, CheckCircle2, AlertCircle } from "lucide-react"
+import { Phone, CheckCircle2, AlertCircle, Loader2 } from "lucide-react"
 import { useDestination } from "@/lib/context/destination-context"
+import { useCampaignContext } from "@/lib/context/campaign-context"
+import { toast } from "sonner"
 
 interface PhoneNumberSetupProps {
   initialPhone?: string
@@ -25,10 +28,12 @@ interface PhoneNumberSetupProps {
 
 export function PhoneNumberSetup({ initialPhone = '' }: PhoneNumberSetupProps) {
   const { destinationState, setDestination } = useDestination()
+  const { campaign } = useCampaignContext()
   const [phone, setPhone] = useState(initialPhone)
   const [countryCode, setCountryCode] = useState("+1")
   const [error, setError] = useState<string | null>(null)
   const [isValidating, setIsValidating] = useState(false)
+  const [validationSuccess, setValidationSuccess] = useState(false)
   
   // Load existing destination data
   useEffect(() => {
@@ -40,23 +45,62 @@ export function PhoneNumberSetup({ initialPhone = '' }: PhoneNumberSetupProps) {
   // Normalize phone number in real-time
   const normalized = useMemo(() => normalizePhoneForMeta(phone, countryCode), [phone, countryCode])
   
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsValidating(true)
     setError(null)
+    setValidationSuccess(false)
     
+    // First check format validity
     if (!normalized.valid) {
       setError('Please enter a valid phone number in international format')
       setIsValidating(false)
       return
     }
     
-    setDestination({
-      type: 'phone_number',
-      phoneNumber: normalized.e164,
-      phoneFormatted: phone,
-    })
+    if (!campaign?.id) {
+      setError('Campaign not found. Please refresh and try again.')
+      setIsValidating(false)
+      return
+    }
     
-    setIsValidating(false)
+    try {
+      // Call Meta validation API
+      const response = await fetch('/api/meta/destination/phone', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          phoneNumber: normalized.e164,
+        }),
+      })
+      
+      const result = await response.json()
+      
+      if (result.valid) {
+        // Validation passed - save the phone number
+        setDestination({
+          type: 'phone_number',
+          phoneNumber: result.e164Phone,
+          phoneFormatted: phone,
+        })
+        
+        setValidationSuccess(true)
+        toast.success('Phone number validated and saved successfully')
+      } else {
+        // Validation failed - show Meta's error message
+        const errorMsg = result.error || 'Meta rejected this phone number. Please verify it is correct.'
+        setError(errorMsg)
+        toast.error(errorMsg)
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to validate phone number'
+      setError(errorMsg)
+      toast.error(errorMsg)
+    } finally {
+      setIsValidating(false)
+    }
   }
   
   const isCompleted = destinationState.status === 'completed' && destinationState.data?.type === 'phone_number'
@@ -108,20 +152,32 @@ export function PhoneNumberSetup({ initialPhone = '' }: PhoneNumberSetupProps) {
               className={error ? "border-red-500" : ""}
             />
             {error && (
-              <div className="flex items-center gap-2 text-sm text-red-600">
-                <AlertCircle className="h-4 w-4" />
-                <span>{error}</span>
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm text-red-600 font-medium">Validation Failed</p>
+                  <p className="text-sm text-red-600">{error}</p>
+                </div>
               </div>
             )}
-            {isCompleted && !error && (
+            {validationSuccess && !error && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm text-green-600 font-medium">Phone Number Validated</p>
+                  <p className="text-sm text-green-600">Meta confirmed: {normalized.e164}</p>
+                </div>
+              </div>
+            )}
+            {isCompleted && !validationSuccess && !error && (
               <div className="flex items-center gap-2 text-sm text-green-600">
                 <CheckCircle2 className="h-4 w-4" />
                 <span>Phone number configured: {normalized.e164}</span>
               </div>
             )}
-            {!error && phone && normalized.valid && (
+            {!error && !validationSuccess && phone && normalized.valid && (
               <p className="text-xs text-muted-foreground">
-                Will be saved as: {normalized.e164}
+                Will be validated and saved as: {normalized.e164}
               </p>
             )}
           </div>
@@ -132,8 +188,16 @@ export function PhoneNumberSetup({ initialPhone = '' }: PhoneNumberSetupProps) {
               disabled={!phone.trim() || isValidating || !normalized.valid}
               className="w-full sm:w-auto"
             >
-              {isValidating ? 'Validating...' : isCompleted ? 'Update Phone Number' : 'Save Phone Number'}
+              {isValidating && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              {isValidating ? 'Validating with Meta...' : isCompleted ? 'Update Phone Number' : 'Save Phone Number'}
             </Button>
+            {isValidating && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Verifying phone number with Meta Marketing API...
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>

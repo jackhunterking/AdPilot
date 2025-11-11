@@ -75,38 +75,17 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const markersRef = useRef<LeafletMarker[]>([])
   const shapesRef = useRef<LeafletShape[]>([])
-  const [isMapReady, setIsMapReady] = useState(false)
   const isSummary = variant === "summary"
 
-  // Initialize map when container is ready
+  // Initialize map once when container is ready (persistent pattern)
   useEffect(() => {
-    // Initialize map for both idle and completed states
-    const shouldInitialize = locationState.status === "idle" || locationState.status === "completed"
-    
-    if (!shouldInitialize) {
-      // Clean up map if status changed away from idle/completed
-      if (mapRef.current) {
-        mapRef.current.remove()
-        mapRef.current = null
-        setIsMapReady(false)
-      }
-      return
-    }
-
+    // Only initialize if we don't have a map yet
+    if (mapRef.current) return
     if (!mapContainerRef.current) return
     if (typeof window === "undefined" || !window.L) return
-    if (isMapReady) return // Already initialized
 
-    // Initialize map
-    const initTimer = setTimeout(() => {
-      try {
-        // Clear any existing map first
-        if (mapRef.current) {
-          mapRef.current.remove()
-          mapRef.current = null
-        }
-
-        if (!mapContainerRef.current) return
+    try {
+      console.log("[Map] Initializing persistent map instance")
 
         mapRef.current = window.L.map(mapContainerRef.current, {
           center: [20, 0],
@@ -122,33 +101,30 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
           maxZoom: 19,
         }).addTo(mapRef.current)
 
-        // Force immediate size calculation
-        mapRef.current.invalidateSize(true)
-        
-        // Invalidate size again after render to ensure proper rendering
-        setTimeout(() => {
-          if (mapRef.current) {
+      // Immediate size calculation
             mapRef.current.invalidateSize(true)
-            setIsMapReady(true) // Trigger re-render to add markers
             console.log("[Map] Initialized successfully")
-          }
-        }, 150)
       } catch (error) {
         console.error("[OpenStreetMap] Error initializing map:", error)
       }
-    }, 150)
 
-    return () => clearTimeout(initTimer)
-  }, [locationState.status, isMapReady])
+    // Cleanup only on unmount
+    return () => {
+      if (mapRef.current) {
+        console.log("[Map] Cleaning up map instance")
+        mapRef.current.remove()
+        mapRef.current = null
+      }
+    }
+  }, [])
 
   // Update map markers when locations change
   useEffect(() => {
-    if (!isMapReady || !mapRef.current || !window.L) {
-      console.log("[Map] Not ready yet, waiting...")
+    if (!mapRef.current || !window.L) {
       return
     }
 
-    const map = mapRef.current // Store in local variable for TypeScript
+    const map = mapRef.current
 
     // Clear existing markers and shapes
     markersRef.current.forEach(marker => marker.remove())
@@ -254,13 +230,9 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       console.log("[Map] Fitted bounds successfully")
     }
 
-    // Invalidate size to ensure proper rendering after adding markers
-    setTimeout(() => {
-      if (mapRef.current) {
-        mapRef.current.invalidateSize(true)
-      }
-    }, 100)
-  }, [isMapReady, locationState.locations])
+    // Immediate size recalculation after adding markers
+    map.invalidateSize(true)
+  }, [locationState.locations])
 
   const handleAddMore = () => {
     window.dispatchEvent(new CustomEvent('triggerLocationSetup'))
@@ -279,7 +251,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
           {/* Map Display */}
           <div className="rounded-lg border-2 border-blue-600 bg-card overflow-hidden">
             <div ref={mapContainerRef} className="w-full h-[400px]" style={{ position: 'relative', isolation: 'isolate' }} />
-          </div>
+              </div>
 
           {/* Add Location Button */}
           {!isSummary && (
@@ -300,18 +272,74 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     )
   }
 
-  // Setup in progress
+  // Setup in progress - show map with loading overlay
   if (locationState.status === "setup-in-progress") {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
-        <div className="max-w-xl w-full space-y-6 text-center">
-          <Loader2 className="h-16 w-16 animate-spin text-blue-600 mx-auto" />
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold">Setting up locations...</h2>
-            <p className="text-muted-foreground">
-              AI is geocoding and mapping your locations. This may take a few seconds.
-            </p>
+      <div
+        className={cn(
+          "flex flex-col",
+          isSummary ? "gap-6" : "h-full overflow-auto p-8"
+        )}
+      >
+        <div className={cn("w-full space-y-6", "max-w-3xl mx-auto")}>
+          {/* Map Display with Loading Overlay */}
+          <div className="rounded-lg border-2 border-blue-600 bg-card overflow-hidden relative">
+            <div ref={mapContainerRef} className="w-full h-[400px]" style={{ position: 'relative', isolation: 'isolate' }} />
+            {/* Loading Overlay Badge */}
+            <div className="absolute top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-[1000]">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm font-medium">Adding location...</span>
+            </div>
           </div>
+
+          {/* Show existing locations if any */}
+          {locationState.locations.length > 0 && (
+            <div className="flex flex-col gap-4">
+              {locationState.locations.filter(loc => loc.mode === "include").length > 0 && (
+                <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <h3 className="text-base font-semibold">Included</h3>
+                    <Badge className="badge-muted">{locationState.locations.filter(loc => loc.mode === "include").length}</Badge>
+                  </div>
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                    {locationState.locations.filter(loc => loc.mode === "include").map((location) => (
+                      <LocationCard
+                        key={location.id}
+                        location={location as LocationData}
+                        readonly
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Buttons disabled during setup */}
+          {!isSummary && (
+            <div className="flex justify-center gap-4 pt-4 pb-8">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={handleAddMore}
+                disabled
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add Location
+              </Button>
+              {locationState.locations.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={clearLocations}
+                  disabled
+                >
+                  Clear All
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -407,13 +435,13 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
                 Add Location
               </Button>
               {locationState.locations.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={clearLocations}
-                >
-                  Clear All
-                </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={clearLocations}
+              >
+                Clear All
+              </Button>
               )}
             </div>
           )}

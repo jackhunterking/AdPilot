@@ -50,8 +50,8 @@ const stepHeaders: Record<string, { title: string; subtitle: string; subtext: st
   },
   budget: {
     title: "Ad Preview",
-    subtitle: "Set budget and go live",
-    subtext: "Configure spending and publish your ads"
+    subtitle: "Review and launch your ad",
+    subtext: "Preview your ad and configure budget before publishing"
   }
 }
 
