@@ -1058,26 +1058,12 @@ export function PreviewPanel() {
         headline={selectedCopy?.headline || adContent?.headline}
         description={selectedCopy?.description || adContent?.body}
         ctaText={adContent?.cta || "Learn More"}
-        hasCreative={selectedImageIndex !== null}
-        hasCopy={adCopyState.status === "completed"}
-        hasLocation={locationState.status === "completed"}
-        hasAudience={audienceState.status === "completed"}
-        hasDestination={destinationState.status === "completed"}
-        isMetaConnected={isMetaConnectionComplete && hasPaymentMethod}
-        hasBudget={isComplete()}
       />
     )
   }, [
     selectedImageIndex,
     adContent,
     campaign?.name,
-    adCopyState.status,
-    locationState.status,
-    audienceState.status,
-    destinationState.status,
-    isMetaConnectionComplete,
-    hasPaymentMethod,
-    isComplete,
     getSelectedCopy,
   ])
 
@@ -1318,8 +1304,40 @@ export function PreviewPanel() {
         campaignName={campaign?.name || "your ad"}
         isEditMode={isEditingExistingAd}
         onComplete={handlePublishComplete}
+        goalType={(() => {
+          const goalLabels: Record<string, string> = {
+            'leads': 'Leads',
+            'website-visits': 'Website Visits',
+            'calls': 'Calls',
+          }
+          const goal = goalState.selectedGoal || campaign?.initial_goal
+          return goal ? goalLabels[goal] || goal : undefined
+        })()}
         dailyBudget={budgetState.dailyBudget > 0 ? `$${budgetState.dailyBudget}` : undefined}
         locationCount={locationState.locations.length}
+        audienceSummary={(() => {
+          const targeting = audienceState.targeting
+          if (!targeting) return undefined
+          
+          const parts: string[] = []
+          if (targeting.demographics?.ageMin !== undefined && targeting.demographics?.ageMax !== undefined) {
+            parts.push(`Ages ${targeting.demographics.ageMin}-${targeting.demographics.ageMax}`)
+          }
+          if (targeting.interests && targeting.interests.length > 0) {
+            parts.push(`${targeting.interests.length} ${targeting.interests.length === 1 ? 'interest' : 'interests'}`)
+          }
+          
+          return parts.length > 0 ? parts.join(', ') : 'Custom audience'
+        })()}
+        adAccountName={(() => {
+          if (!campaign?.id) return undefined
+          const summary = metaStorage.getConnectionSummary(campaign.id)
+          return summary?.adAccount?.name || summary?.adAccount?.id
+        })()}
+        creativeSummary={(() => {
+          const selectedCopy = getSelectedCopy()
+          return selectedCopy?.headline || adContent?.headline
+        })()}
       />
     </div>
   )

@@ -32,9 +32,12 @@ interface PublishFlowDialogProps {
   isEditMode?: boolean
   onComplete?: () => void | Promise<void>
   // Summary details for confirmation
+  goalType?: string
   dailyBudget?: string
   locationCount?: number
+  audienceSummary?: string
   adAccountName?: string
+  creativeSummary?: string
 }
 
 export function PublishFlowDialog({
@@ -43,9 +46,12 @@ export function PublishFlowDialog({
   campaignName = "your ad",
   isEditMode = false,
   onComplete,
+  goalType,
   dailyBudget,
   locationCount,
+  audienceSummary,
   adAccountName,
+  creativeSummary,
 }: PublishFlowDialogProps) {
   const [phase, setPhase] = useState<PublishPhase>("confirm")
   const [error, setError] = useState<string | null>(null)
@@ -101,39 +107,63 @@ export function PublishFlowDialog({
               </div>
             </div>
             
-            <div className="space-y-3 mb-6">
+            <div className="space-y-4 mb-6">
               <p className="text-sm text-muted-foreground">
                 {isEditMode 
                   ? "Your changes will update the live ad. This may require Meta re-review."
-                  : "Your ad is ready to go live. Please review:"}
+                  : "Your ad is ready to go live. Please review your campaign setup:"}
               </p>
               
-              {/* Summary info */}
-              {(dailyBudget || locationCount || adAccountName) && !isEditMode && (
-                <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2 text-sm">
+              {/* Comprehensive Summary */}
+              {!isEditMode && (
+                <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3 text-sm">
+                  {goalType && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Goal:</span>
+                      <span className="font-medium">{goalType}</span>
+                    </div>
+                  )}
+                  {creativeSummary && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Creative:</span>
+                      <span className="font-medium truncate ml-4 text-right max-w-[200px]" title={creativeSummary}>
+                        {creativeSummary}
+                      </span>
+                    </div>
+                  )}
                   {dailyBudget && (
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Budget:</span>
                       <span className="font-medium">{dailyBudget}/day</span>
                     </div>
                   )}
                   {locationCount !== undefined && (
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Locations:</span>
                       <span className="font-medium">{locationCount} {locationCount === 1 ? 'location' : 'locations'}</span>
                     </div>
                   )}
+                  {audienceSummary && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Audience:</span>
+                      <span className="font-medium text-right">{audienceSummary}</span>
+                    </div>
+                  )}
                   {adAccountName && (
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Ad Account:</span>
-                      <span className="font-medium truncate ml-2">{adAccountName}</span>
+                      <span className="font-medium truncate ml-4 text-right max-w-[200px]" title={adAccountName}>
+                        {adAccountName}
+                      </span>
                     </div>
                   )}
                 </div>
               )}
               
               <p className="text-xs text-muted-foreground">
-                You can edit this ad anytime after publishing.
+                {isEditMode 
+                  ? "Your ad will be submitted for re-review after changes are published."
+                  : "You can edit or pause this ad anytime after publishing."}
               </p>
             </div>
             

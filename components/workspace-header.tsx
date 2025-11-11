@@ -100,6 +100,9 @@ export function WorkspaceHeader({
   // Determine if on final step (budget/launch step)
   const isOnFinalStep = currentStepId === 'budget'
   
+  // Make badges read-only on launch step (budget step) - they are locked for the campaign
+  const badgesReadOnly = isOnFinalStep
+  
   // Check if editing a published ad (has meta_ad_id)
   const isEditingPublishedAd = mode === 'edit' && currentAdId
   
@@ -458,17 +461,21 @@ export function WorkspaceHeader({
       }
       
       return (
-        <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+        <DropdownMenu open={!badgesReadOnly && isDropdownOpen} onOpenChange={badgesReadOnly ? undefined : setIsDropdownOpen}>
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
               size="sm"
+              onClick={badgesReadOnly ? (e) => e.preventDefault() : undefined}
               className={cn(
                 "gap-2",
                 paymentStatus === 'verified' && !accountRestriction?.isRestricted
-                  ? "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400 hover:bg-green-500/20"
+                  ? badgesReadOnly
+                    ? "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400 cursor-default opacity-90"
+                    : "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400 hover:bg-green-500/20"
                   : "bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400 hover:bg-red-500/20"
               )}
+              title={badgesReadOnly ? "Meta account is locked for this campaign" : undefined}
             >
               {paymentStatus === 'verified' && !accountRestriction?.isRestricted ? (
                 <CheckCircle2 className="h-4 w-4" />
@@ -476,7 +483,7 @@ export function WorkspaceHeader({
                 <AlertCircle className="h-4 w-4" />
               )}
               {buttonText}
-              <ChevronDown className="h-3 w-3 opacity-50" />
+              {!badgesReadOnly && <ChevronDown className="h-3 w-3 opacity-50" />}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-72">
@@ -640,15 +647,17 @@ export function WorkspaceHeader({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setShowBudgetDialog(true)}
+          onClick={badgesReadOnly ? undefined : () => setShowBudgetDialog(true)}
           disabled={isDisabled}
           className={cn(
             "gap-2",
             isDisabled 
               ? "opacity-60 cursor-not-allowed" 
+              : badgesReadOnly
+              ? "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400 cursor-default opacity-90"
               : "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400 hover:bg-green-500/20"
           )}
-          title="Click to change budget"
+          title={badgesReadOnly ? "Budget is locked for this campaign" : "Click to change budget"}
         >
           <CheckCircle2 className="h-4 w-4" />
           Budget Set • {dailyAmount}/day
@@ -661,12 +670,14 @@ export function WorkspaceHeader({
       <Button
         variant="outline"
         size="sm"
-        onClick={() => setShowBudgetDialog(true)}
+        onClick={badgesReadOnly ? undefined : () => setShowBudgetDialog(true)}
         disabled={isDisabled}
         className={cn(
           "gap-2",
-          isDisabled && "opacity-60 cursor-not-allowed"
+          isDisabled && "opacity-60 cursor-not-allowed",
+          badgesReadOnly && "cursor-default opacity-80"
         )}
+        title={badgesReadOnly ? "Budget is locked for this campaign" : undefined}
       >
         <DollarSign className="h-4 w-4" />
         Set Budget
