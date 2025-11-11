@@ -947,6 +947,19 @@ export function PreviewPanel() {
   // Step 1: Ads Content with 3x2 Grid
   const adsContent = (
     <div className="space-y-6">
+      {/* AI Advantage+ Enabled Badge */}
+      {audienceState.status === "completed" && audienceState.targeting.mode === "ai" && (
+        <div className="flex justify-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/30">
+            <Sparkles className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-700 dark:text-blue-400">
+              AI Advantage+ Enabled
+            </span>
+            <Check className="h-4 w-4 text-green-600" />
+          </div>
+        </div>
+      )}
+      
       <div className="flex justify-center pb-4">
         <div className="inline-flex rounded-lg border border-border p-1 bg-card">
           {previewFormats.map((format) => {

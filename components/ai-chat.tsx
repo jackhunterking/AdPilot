@@ -1034,7 +1034,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       
       if (mode === 'ai') {
         sendMessageRef.current({
-          text: `Enable AI Advantage+ targeting`,
+          text: `AI Advantage+ targeting Enabled`,
         });
       } else {
         sendMessageRef.current({

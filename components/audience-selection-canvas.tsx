@@ -12,6 +12,7 @@ import { useState } from "react"
 import { useAudience } from "@/lib/context/audience-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
 
 interface AudienceSelectionCanvasProps {
   variant?: "step" | "summary"
@@ -56,7 +57,10 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
       <div className="max-w-4xl mx-auto w-full">
         <div className="grid grid-cols-2 gap-6">
           {/* AI Advantage+ Card (Recommended) */}
-          <div className="group relative flex flex-col items-center p-8 rounded-2xl border-2 border-blue-500 bg-blue-500/5 hover:bg-blue-500/10 transition-all duration-300 shadow-lg hover:shadow-xl">
+          <div className={cn(
+            "group relative flex flex-col items-center p-8 rounded-2xl border-2 border-blue-500 bg-blue-500/5 hover:bg-blue-500/10 transition-all duration-300 shadow-lg hover:shadow-xl",
+            isEnabling && "animate-pulse"
+          )}>
             {/* Recommended Badge */}
             <div className="absolute -top-3 left-1/2 -translate-x-1/2">
               <Badge className="bg-blue-600 text-white px-3 py-1 text-xs font-semibold shadow-md">
@@ -64,8 +68,15 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
               </Badge>
             </div>
             
-            <div className="h-16 w-16 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors mb-4 mt-2">
-              <Sparkles className="h-8 w-8 text-blue-600" />
+            <div className={cn(
+              "h-16 w-16 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors mb-4 mt-2",
+              isEnabling && "relative"
+            )}>
+              {isEnabling ? (
+                <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+              ) : (
+                <Sparkles className="h-8 w-8 text-blue-600" />
+              )}
             </div>
             
             <div className="text-center space-y-2 flex-1 flex flex-col justify-start mb-4">
@@ -97,14 +108,25 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
                 if (isEnabling) return
                 setIsEnabling(true)
                 
-                // Emit event to trigger AI chat tool call for visual feedback
+                // Update audience state immediately
+                setAudienceTargeting({ 
+                  mode: 'ai', 
+                  advantage_plus_enabled: true 
+                })
+                updateStatus('completed')
+                
+                // Show success toast
+                toast.success('AI Advantage+ enabled')
+                
+                // Emit event to trigger AI chat message for visual feedback
                 window.dispatchEvent(new CustomEvent('triggerAudienceModeSelection', { 
                   detail: { mode: 'ai' } 
-                }));
+                }))
                 
+                // Keep loader visible briefly for smooth transition
                 setTimeout(() => {
                   setIsEnabling(false)
-                }, 500)
+                }, 800)
               }}
               disabled={isEnabling}
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-8 mt-auto w-full"
