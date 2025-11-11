@@ -301,7 +301,7 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
       ) : (
         <>
           {/* Progress Header */}
-          <div className="px-6 pt-4 pb-4 border-b border-border bg-card flex-shrink-0">
+          <div className="px-6 pt-4 pb-4 bg-card flex-shrink-0">
             <div className="max-w-5xl mx-auto">
               <div className="text-center mb-4">
                 <h1 className="text-xl font-bold leading-tight">{currentStepHeader.title}</h1>
