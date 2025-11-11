@@ -8,12 +8,14 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { normalizePhoneNumber } from "@/lib/utils/normalize-phone"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { normalizePhoneForMeta } from "@/lib/utils/normalize"
+import { COUNTRY_CALLING_CODES } from "@/lib/meta/country-codes"
 import { Phone, CheckCircle2, AlertCircle } from "lucide-react"
 import { useDestination } from "@/lib/context/destination-context"
 
@@ -24,6 +26,7 @@ interface PhoneNumberSetupProps {
 export function PhoneNumberSetup({ initialPhone = '' }: PhoneNumberSetupProps) {
   const { destinationState, setDestination } = useDestination()
   const [phone, setPhone] = useState(initialPhone)
+  const [countryCode, setCountryCode] = useState("+1")
   const [error, setError] = useState<string | null>(null)
   const [isValidating, setIsValidating] = useState(false)
   
@@ -34,24 +37,26 @@ export function PhoneNumberSetup({ initialPhone = '' }: PhoneNumberSetupProps) {
     }
   }, [destinationState.data?.phoneNumber, destinationState.data?.phoneFormatted])
   
+  // Normalize phone number in real-time
+  const normalized = useMemo(() => normalizePhoneForMeta(phone, countryCode), [phone, countryCode])
+  
   const handleSave = () => {
     setIsValidating(true)
     setError(null)
     
-    try {
-      const normalized = normalizePhoneNumber(phone)
-      
-      setDestination({
-        type: 'phone_number',
-        phoneNumber: normalized,
-        phoneFormatted: phone,
-      })
-      
+    if (!normalized.valid) {
+      setError('Please enter a valid phone number in international format')
       setIsValidating(false)
-    } catch (e) {
-      setError('Please enter a valid phone number (e.g., +1 (555) 123-4567)')
-      setIsValidating(false)
+      return
     }
+    
+    setDestination({
+      type: 'phone_number',
+      phoneNumber: normalized.e164,
+      phoneFormatted: phone,
+    })
+    
+    setIsValidating(false)
   }
   
   const isCompleted = destinationState.status === 'completed' && destinationState.data?.type === 'phone_number'
@@ -74,6 +79,22 @@ export function PhoneNumberSetup({ initialPhone = '' }: PhoneNumberSetupProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
+            <Label htmlFor="country-code">Country Code *</Label>
+            <Select value={countryCode} onValueChange={setCountryCode}>
+              <SelectTrigger id="country-code">
+                <SelectValue placeholder="Select country" />
+              </SelectTrigger>
+              <SelectContent>
+                {COUNTRY_CALLING_CODES.map((country) => (
+                  <SelectItem key={country.code} value={country.code}>
+                    {country.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
             <Label htmlFor="phone-number">Phone Number *</Label>
             <Input
               id="phone-number"
@@ -83,7 +104,7 @@ export function PhoneNumberSetup({ initialPhone = '' }: PhoneNumberSetupProps) {
                 setPhone(e.target.value)
                 setError(null)
               }}
-              placeholder="+1 (555) 123-4567"
+              placeholder="(555) 123-4567"
               className={error ? "border-red-500" : ""}
             />
             {error && (
@@ -95,18 +116,20 @@ export function PhoneNumberSetup({ initialPhone = '' }: PhoneNumberSetupProps) {
             {isCompleted && !error && (
               <div className="flex items-center gap-2 text-sm text-green-600">
                 <CheckCircle2 className="h-4 w-4" />
-                <span>Phone number configured</span>
+                <span>Phone number configured: {normalized.e164}</span>
               </div>
             )}
-            <p className="text-xs text-muted-foreground">
-              Include country code for international calls
-            </p>
+            {!error && phone && normalized.valid && (
+              <p className="text-xs text-muted-foreground">
+                Will be saved as: {normalized.e164}
+              </p>
+            )}
           </div>
           
           <div className="pt-4 border-t">
             <Button 
               onClick={handleSave} 
-              disabled={!phone.trim() || isValidating}
+              disabled={!phone.trim() || isValidating || !normalized.valid}
               className="w-full sm:w-auto"
             >
               {isValidating ? 'Validating...' : isCompleted ? 'Update Phone Number' : 'Save Phone Number'}

@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { normalizeUrl } from "@/lib/utils/normalize-url"
+import { normalizeUrlForMeta } from "@/lib/utils/normalize"
 import { Globe, CheckCircle2, AlertCircle } from "lucide-react"
 import { useDestination } from "@/lib/context/destination-context"
 
@@ -38,14 +38,21 @@ export function WebsiteUrlSetup({ initialUrl = '' }: WebsiteUrlSetupProps) {
     setIsValidating(true)
     setError(null)
     
+    const result = normalizeUrlForMeta(url)
+    
+    if (!result.valid) {
+      setError('Please enter a valid URL (e.g., https://example.com)')
+      setIsValidating(false)
+      return
+    }
+    
     try {
-      const normalized = normalizeUrl(url)
-      const urlObj = new URL(normalized)
+      const urlObj = new URL(result.normalized)
       const displayUrl = urlObj.hostname.replace(/^www\./, '')
       
       setDestination({
         type: 'website_url',
-        websiteUrl: normalized,
+        websiteUrl: result.normalized,
         displayLink: displayUrl,
       })
       
