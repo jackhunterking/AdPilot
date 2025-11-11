@@ -39,6 +39,7 @@ import { PublishBudgetCard } from "@/components/launch/publish-budget-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { PublishFlowDialog } from "@/components/launch/publish-flow-dialog"
+import { LaunchCampaignView } from "@/components/launch/launch-campaign-view"
 
 export function PreviewPanel() {
   const searchParams = useSearchParams()
@@ -1039,8 +1040,49 @@ export function PreviewPanel() {
     <AudienceSelectionCanvas variant="summary" />
   )
 
-  // Step 5: Launch Content (new unified layout with collapsible sections)
-  const launchContent = (
+  // Launch Content - New minimal UX for final step
+  const launchContent = useMemo(() => {
+    // Get selected copy for display
+    const selectedCopy = getSelectedCopy()
+    
+    // Get selected image URL
+    const selectedImageUrl = selectedImageIndex !== null && adContent?.imageVariations?.[selectedImageIndex]
+      ? adContent.imageVariations[selectedImageIndex]
+      : adContent?.imageUrl || adContent?.imageVariations?.[0]
+    
+    return (
+      <LaunchCampaignView
+        imageUrl={selectedImageUrl}
+        brandName={campaign?.name || "Business Name"}
+        primaryText={selectedCopy?.primaryText || adContent?.body}
+        headline={selectedCopy?.headline || adContent?.headline}
+        description={selectedCopy?.description || adContent?.body}
+        ctaText={adContent?.cta || "Learn More"}
+        hasCreative={selectedImageIndex !== null}
+        hasCopy={adCopyState.status === "completed"}
+        hasLocation={locationState.status === "completed"}
+        hasAudience={audienceState.status === "completed"}
+        hasDestination={destinationState.status === "completed"}
+        isMetaConnected={isMetaConnectionComplete && hasPaymentMethod}
+        hasBudget={isComplete()}
+      />
+    )
+  }, [
+    selectedImageIndex,
+    adContent,
+    campaign?.name,
+    adCopyState.status,
+    locationState.status,
+    audienceState.status,
+    destinationState.status,
+    isMetaConnectionComplete,
+    hasPaymentMethod,
+    isComplete,
+    getSelectedCopy,
+  ])
+
+  // OLD launchContent (keeping for reference, can be removed)
+  const OLD_launchContent = (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] items-start">
       {/* Left: Full ad mockup using selected variation */}
       <div className="self-start lg:sticky lg:top-4 lg:-mt-4">
