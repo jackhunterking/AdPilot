@@ -836,9 +836,9 @@ export function CampaignWorkspace() {
 
   // Validation function to check if ad is ready to create
   const isAdReadyToCreate = useCallback((): boolean => {
-    // Check all campaign states are completed
+    // Check all ad-level states are completed
     const statesComplete = 
-      goalState.status === 'completed' &&
+      destinationState.status === 'completed' &&
       locationState.status === 'completed' &&
       audienceState.status === 'completed' &&
       adCopyState.status === 'completed'
@@ -862,7 +862,7 @@ export function CampaignWorkspace() {
     
     return !!(statesComplete && hasAdContent && metaReady && budgetReady)
   }, [
-    goalState.status,
+    destinationState.status,
     locationState.status,
     audienceState.status,
     adCopyState.status,

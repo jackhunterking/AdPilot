@@ -270,6 +270,7 @@ export function PreviewPanel() {
           selectedCreativeVariation,
         },
         adCopy: adCopyState,
+        destination: destinationState,
         location: locationState,
         audience: audienceState,
         goal: goalState,
@@ -472,9 +473,9 @@ export function PreviewPanel() {
   const allStepsComplete = 
     selectedImageIndex !== null &&
     adCopyState.status === "completed" &&
+    destinationState.status === "completed" &&
     locationState.status === "completed" &&
     audienceState.status === "completed" &&
-    goalState.status === "completed" &&
     isMetaConnectionComplete &&
     hasPaymentMethod &&
     isComplete()
