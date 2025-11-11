@@ -30,6 +30,7 @@ import { useGoal } from "@/lib/context/goal-context"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 import { metaStorage } from "@/lib/meta/storage"
 import { validateAdForPublish, formatValidationError } from "@/lib/utils/ad-validation"
+import { operationLocks } from "@/lib/utils/ad-operations"
 import type { WorkspaceMode, CampaignStatus, AdVariant, AdMetrics, LeadFormInfo } from "@/lib/types/workspace"
 import { toast } from "sonner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
@@ -57,7 +58,7 @@ export function CampaignWorkspace() {
   const searchParams = useSearchParams()
   
   const campaignId = campaign?.id ?? ""
-  const { ads, refreshAds, updateAdStatus } = useCampaignAds(campaignId)
+  const { ads, refreshAds, updateAdStatus, deleteAd } = useCampaignAds(campaignId)
   
   // State for save success notification
   const [saveSuccessState, setSaveSuccessState] = useState<SaveSuccessState | null>(null)
@@ -463,24 +464,70 @@ export function CampaignWorkspace() {
   }, [effectiveMode, hasPublishedAds, hasUnsavedChanges, setWorkspaceMode, searchParams])
 
   const handleNewAd = useCallback(async () => {
-    console.log('[CampaignWorkspace] Creating new ad - resetting creative state')
+    const traceId = `new_ad_${Date.now()}`
+    const lockKey = `create_ad_${campaignId}`
+    
+    // Check if operation is already in progress
+    if (operationLocks.isLocked(lockKey)) {
+      console.warn(`[${traceId}] Create operation already in progress`)
+      toast.info('Already creating an ad - please wait')
+      return
+    }
+    
+    // Acquire lock
+    const releaseLock = await operationLocks.acquire(lockKey)
+    
+    console.log(`[${traceId}] Creating new ad - resetting creative state`)
     
     // Step 1: Create draft ad record in database
     try {
+      // Show loading toast
+      const loadingToast = toast.loading('Creating new ad...')
+      
       const response = await fetch(`/api/campaigns/${campaignId}/ads/draft`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
       
+      // Dismiss loading toast
+      toast.dismiss(loadingToast)
+      
       if (!response.ok) {
-        console.error('[CampaignWorkspace] Failed to create draft ad')
-        toast.error('Failed to create new ad')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        const errorMsg = errorData.error || `Failed to create draft ad (${response.status})`
+        
+        console.error(`[${traceId}] Failed to create draft ad:`, {
+          status: response.status,
+          error: errorMsg
+        })
+        
+        // User-friendly error messages
+        if (response.status === 403) {
+          toast.error("You don't have permission to create ads in this campaign")
+        } else if (response.status === 404) {
+          toast.error('Campaign not found')
+        } else if (response.status === 500) {
+          toast.error('Server error - please try again')
+        } else {
+          toast.error(errorMsg)
+        }
         return
       }
       
-      const { ad } = await response.json()
-      const newAdId = ad.id
-      console.log('[CampaignWorkspace] ✅ Created draft ad:', newAdId)
+      const data = await response.json()
+      
+      // Validate response structure
+      if (!data || !data.ad || !data.ad.id) {
+        console.error(`[${traceId}] Invalid response structure:`, data)
+        toast.error('Invalid response from server')
+        return
+      }
+      
+      const newAdId = data.ad.id
+      console.log(`[${traceId}] ✅ Created draft ad:`, {
+        adId: newAdId,
+        name: data.ad.name
+      })
       
       // Step 2: Reset all creative-related contexts
       resetAdPreview()
@@ -493,10 +540,15 @@ export function CampaignWorkspace() {
       
       // Step 4: Clear session storage for stepper to force step 0
       if (campaignId) {
-        sessionStorage.removeItem(`campaign:${campaignId}:lastStepId`)
-        sessionStorage.removeItem(`auto-submitted-${campaignId}`)
-        sessionStorage.removeItem(`new-ad-auto-submitted-${campaignId}`)
-        console.log('[CampaignWorkspace] Cleared session storage for campaign:', campaignId)
+        try {
+          sessionStorage.removeItem(`campaign:${campaignId}:lastStepId`)
+          sessionStorage.removeItem(`auto-submitted-${campaignId}`)
+          sessionStorage.removeItem(`new-ad-auto-submitted-${campaignId}`)
+          console.log(`[${traceId}] Cleared session storage for campaign:`, campaignId)
+        } catch (storageError) {
+          console.warn(`[${traceId}] Failed to clear session storage:`, storageError)
+          // Continue anyway - not critical
+        }
       }
       
       // Step 5: Navigate to build mode with adId and newAd flag
@@ -514,11 +566,27 @@ export function CampaignWorkspace() {
         params.set("variant", "true")
       }
       
-      console.log('[CampaignWorkspace] Navigating to build mode with adId:', newAdId)
+      console.log(`[${traceId}] Navigating to build mode with adId:`, newAdId)
       router.replace(`${pathname}?${params.toString()}`)
+      
+      // Show success toast
+      toast.success('New ad created - start building!')
+      
     } catch (error) {
-      console.error('[CampaignWorkspace] Error creating draft ad:', error)
-      toast.error('Failed to create new ad')
+      console.error(`[${traceId}] Unexpected error creating draft ad:`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      })
+      
+      // Network error or other exception
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        toast.error('Network error - check your connection and try again')
+      } else {
+        toast.error('Failed to create new ad - please try again')
+      }
+    } finally {
+      // Always release lock
+      releaseLock()
     }
   }, [campaignId, effectiveMode, pathname, router, resetAdPreview, resetAdCopy, clearLocations, resetAudience])
 
@@ -679,33 +747,86 @@ export function CampaignWorkspace() {
   }, [campaignId, refreshAds])
 
   const handleDeleteAd = useCallback(async (adId: string) => {
+    const traceId = `delete_ad_workspace_${adId.substring(0, 8)}_${Date.now()}`
+    const lockKey = `delete_ad_${adId}`
+    
+    // Check if operation is already in progress
+    if (operationLocks.isLocked(lockKey)) {
+      console.warn(`[${traceId}] Delete operation already in progress for ad:`, adId)
+      toast.info('Delete already in progress')
+      return
+    }
+    
+    // Acquire lock
+    const releaseLock = await operationLocks.acquire(lockKey)
+    
     try {
-      console.log('[CampaignWorkspace] Deleting ad:', adId)
+      console.log(`[${traceId}] Delete ad initiated:`, { adId, campaignId })
       
-      const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}`, {
-        method: 'DELETE',
-      })
+      // Show loading toast
+      const loadingToast = toast.loading('Deleting ad...')
       
-      if (!response.ok) {
-        console.error('[CampaignWorkspace] Failed to delete ad:', await response.text())
-        // TODO: Show error toast
+      // Call the delete function from hook (which handles the API call)
+      const result = await deleteAd(adId)
+      
+      // Dismiss loading toast
+      toast.dismiss(loadingToast)
+      
+      if (!result.success) {
+        console.error(`[${traceId}] Delete failed:`, result.error)
+        
+        // Show user-friendly error message
+        if (result.error?.includes('already deleted')) {
+          toast.info('Ad was already deleted')
+        } else {
+          toast.error(result.error || 'Failed to delete ad')
+        }
+        
+        // Even if backend says already deleted, refresh to sync state
+        await refreshAds()
         return
       }
       
-      console.log('[CampaignWorkspace] Ad deleted successfully:', adId)
+      console.log(`[${traceId}] Delete successful, refreshing ads list`)
       
-      // Refresh ads list to remove deleted ad
+      // Force refresh ads list to ensure UI is in sync
       await refreshAds()
       
-      // If we're viewing the deleted ad, go back to all-ads grid
+      // If we're viewing the deleted ad, navigate away
       if (currentAdId === adId) {
+        console.log(`[${traceId}] Currently viewing deleted ad, navigating to all-ads`)
         setWorkspaceMode('all-ads')
       }
+      
+      // Show success message
+      toast.success('Ad deleted successfully')
+      
+      console.log(`[${traceId}] Delete operation completed successfully`)
+      
     } catch (error) {
-      console.error('[CampaignWorkspace] Error deleting ad:', error)
-      // TODO: Show error toast
+      console.error(`[${traceId}] Unexpected error during deletion:`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      })
+      
+      // Show error toast
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        toast.error('Network error - check your connection')
+      } else {
+        toast.error('Failed to delete ad - please try again')
+      }
+      
+      // Try to refresh anyway to sync state
+      try {
+        await refreshAds()
+      } catch (refreshError) {
+        console.error(`[${traceId}] Failed to refresh after error:`, refreshError)
+      }
+    } finally {
+      // Always release lock
+      releaseLock()
     }
-  }, [campaignId, currentAdId, refreshAds, setWorkspaceMode])
+  }, [campaignId, currentAdId, deleteAd, refreshAds, setWorkspaceMode])
 
   const handleCreateABTest = useCallback((adId: string) => {
     setWorkspaceMode('ab-test-builder', adId)
@@ -1209,6 +1330,8 @@ export function CampaignWorkspace() {
               variant="destructive"
               size="lg"
               onClick={async () => {
+                const traceId = `cancel_draft_${Date.now()}`
+                
                 setShowCancelNewAdDialog(false)
                 setHasUnsavedChanges(false)
                 
@@ -1216,12 +1339,31 @@ export function CampaignWorkspace() {
                 const draftAdId = searchParams.get('adId')
                 if (draftAdId && campaignId) {
                   try {
-                    await fetch(`/api/campaigns/${campaignId}/ads/${draftAdId}`, {
+                    console.log(`[${traceId}] Attempting to delete draft ad:`, draftAdId)
+                    
+                    const response = await fetch(`/api/campaigns/${campaignId}/ads/${draftAdId}`, {
                       method: 'DELETE'
                     })
-                    console.log('[CampaignWorkspace] Deleted draft ad:', draftAdId)
+                    
+                    if (response.ok || response.status === 404) {
+                      console.log(`[${traceId}] Draft ad deleted or already gone:`, draftAdId)
+                    } else {
+                      console.warn(`[${traceId}] Failed to delete draft ad:`, {
+                        status: response.status,
+                        statusText: response.statusText
+                      })
+                    }
                   } catch (error) {
-                    console.error('[CampaignWorkspace] Error deleting draft ad:', error)
+                    console.error(`[${traceId}] Error deleting draft ad:`, error)
+                    // Don't block navigation on error
+                  }
+                  
+                  // Force refresh ads list to ensure cleanup
+                  try {
+                    await refreshAds()
+                    console.log(`[${traceId}] Ads list refreshed after draft cleanup`)
+                  } catch (refreshError) {
+                    console.error(`[${traceId}] Failed to refresh ads after cleanup:`, refreshError)
                   }
                 }
                 

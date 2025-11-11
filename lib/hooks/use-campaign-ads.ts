@@ -38,7 +38,7 @@ interface UseCampaignAdsResult {
   updateAdStatus: (adId: string, status: CampaignAd['status']) => void
   createAd: (adData: Partial<CampaignAd>) => Promise<CampaignAd | null>
   updateAd: (adId: string, updates: Partial<CampaignAd>) => Promise<boolean>
-  deleteAd: (adId: string) => Promise<boolean>
+  deleteAd: (adId: string) => Promise<{ success: boolean; error?: string; deletedAd?: unknown }>
 }
 
 export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsResult {
@@ -52,28 +52,53 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
       return
     }
 
-    console.log('[useCampaignAds] fetchAds start:', { campaignId })
+    const traceId = `fetch_ads_${Date.now()}`
+    console.log(`[${traceId}] fetchAds start:`, { campaignId })
+    
     setLoading(true)
     setError(null)
+    
+    const startTime = Date.now()
+    
     try {
+      // Add timestamp-based cache busting
       const cacheBuster = Date.now()
       const res = await fetch(`/api/campaigns/${campaignId}/ads?ts=${cacheBuster}`, {
         cache: "no-store"
       })
       
       if (!res.ok) {
-        const json = await res.json()
-        throw new Error(json?.error || "Failed to fetch ads")
+        const json = await res.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(json?.error || `Failed to fetch ads (${res.status})`)
       }
 
       const data = await res.json()
-      console.log('[useCampaignAds] fetchAds success:', {
+      
+      // Validate response structure
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response structure from API')
+      }
+      
+      if (!Array.isArray(data.ads)) {
+        console.warn(`[${traceId}] Response missing ads array, using empty array`)
+        data.ads = []
+      }
+      
+      const duration = Date.now() - startTime
+      console.log(`[${traceId}] fetchAds success:`, {
         campaignId,
-        adCount: Array.isArray(data.ads) ? data.ads.length : 0,
+        adCount: data.ads.length,
+        duration: `${duration}ms`
       })
-      setAds(data.ads || [])
+      
+      setAds(data.ads)
+      
     } catch (err) {
-      console.error("[useCampaignAds] fetchAds error:", err)
+      const duration = Date.now() - startTime
+      console.error(`[${traceId}] fetchAds error after ${duration}ms:`, {
+        error: err instanceof Error ? err.message : 'Unknown error',
+        campaignId
+      })
       setError(err instanceof Error ? err.message : "Failed to fetch ads")
       setAds([])
     } finally {
@@ -161,27 +186,67 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
     }
   }, [campaignId])
 
-  const deleteAd = useCallback(async (adId: string): Promise<boolean> => {
-    if (!campaignId) return false
+  const deleteAd = useCallback(async (adId: string): Promise<{ success: boolean; error?: string; deletedAd?: unknown }> => {
+    if (!campaignId) {
+      return { success: false, error: 'No campaign ID provided' }
+    }
+
+    const traceId = `delete_ad_${adId.substring(0, 8)}_${Date.now()}`
+    
+    console.log(`[${traceId}] Delete operation started:`, { campaignId, adId })
 
     try {
       const res = await fetch(`/api/campaigns/${campaignId}/ads/${adId}`, {
         method: "DELETE"
       })
 
-      if (!res.ok) {
-        const json = await res.json()
-        throw new Error(json?.error || "Failed to delete ad")
+      // Handle different response statuses
+      if (res.status === 404) {
+        console.warn(`[${traceId}] Ad not found (already deleted)`)
+        // Remove from local state anyway (idempotent)
+        setAds(prev => prev.filter(ad => ad.id !== adId))
+        return { 
+          success: true, 
+          error: 'Ad was already deleted'
+        }
       }
 
-      // Remove from local state
-      setAds(prev => prev.filter(ad => ad.id !== adId))
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({ error: 'Unknown error' }))
+        const errorMsg = json?.error || `Failed to delete ad (${res.status})`
+        console.error(`[${traceId}] Delete failed:`, errorMsg)
+        return { success: false, error: errorMsg }
+      }
+
+      const data = await res.json()
+      console.log(`[${traceId}] Delete succeeded:`, {
+        deletedAd: data.deletedAd?.id
+      })
+
+      // Remove from local state after confirmed deletion
+      setAds(prev => {
+        const newAds = prev.filter(ad => ad.id !== adId)
+        console.log(`[${traceId}] Local state updated:`, {
+          previousCount: prev.length,
+          newCount: newAds.length
+        })
+        return newAds
+      })
       
-      return true
+      return { 
+        success: true, 
+        deletedAd: data.deletedAd 
+      }
+      
     } catch (err) {
-      console.error("[useCampaignAds] deleteAd error:", err)
-      setError(err instanceof Error ? err.message : "Failed to delete ad")
-      return false
+      const errorMsg = err instanceof Error ? err.message : "Failed to delete ad"
+      console.error(`[${traceId}] Delete exception:`, {
+        error: errorMsg,
+        campaignId,
+        adId
+      })
+      setError(errorMsg)
+      return { success: false, error: errorMsg }
     }
   }, [campaignId])
 
