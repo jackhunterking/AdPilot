@@ -153,7 +153,29 @@ export function HeroSection({ onAuthRequired }: HeroSectionProps) {
         )
         
         if (campaign) {
-          router.push(`/${campaign.id}`)
+          try {
+            // Fetch ads to get the draft ad ID that was auto-created
+            const adsResponse = await fetch(`/api/campaigns/${campaign.id}/ads`)
+            if (adsResponse.ok) {
+              const { ads } = await adsResponse.json()
+              const draftAd = ads.find((ad: { status: string }) => ad.status === 'draft')
+              
+              if (draftAd) {
+                // Navigate to builder view with draft ad and firstVisit flag
+                router.push(`/${campaign.id}?view=build&adId=${draftAd.id}&firstVisit=true`)
+              } else {
+                // Fallback if no draft found
+                router.push(`/${campaign.id}`)
+              }
+            } else {
+              // Fallback on error
+              router.push(`/${campaign.id}`)
+            }
+          } catch (error) {
+            console.error('Error fetching draft ad:', error)
+            // Fallback on error
+            router.push(`/${campaign.id}`)
+          }
         }
       }
     } catch (error) {

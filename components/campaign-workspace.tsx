@@ -226,11 +226,16 @@ export function CampaignWorkspace() {
   const currentAdId = searchParams.get("adId")
   const isCreatingVariant = searchParams.get('variant') === 'true'
   
-  // Show all-ads grid when:
-  // 1. No explicit view parameter in URL
-  // Always show All Ads as default view (even with 0 ads - will show empty state)
-  const shouldShowAllAds = !viewParam
-  const effectiveMode: WorkspaceMode = shouldShowAllAds ? 'all-ads' : viewParam
+  // Check if this is first visit after campaign creation
+  const isFirstVisit = searchParams.get('firstVisit') === 'true'
+  
+  // Default view logic:
+  // - First visit with view=build → Builder mode (with draft ad)
+  // - Has explicit view param → Use that view
+  // - Otherwise → All Ads view
+  const effectiveMode: WorkspaceMode = isFirstVisit && viewParam === 'build' 
+    ? 'build' 
+    : viewParam || 'all-ads'
   
   // If we're in results mode but don't have the specific ad yet, show all-ads instead
   const shouldFallbackToAllAds = effectiveMode === 'results' && !currentAdId && ads.length > 0
@@ -1222,22 +1227,13 @@ export function CampaignWorkspace() {
   // Determine header props
   // Always show New Ad button in results and all-ads modes
   const showNewAdButton = effectiveMode === 'results' || effectiveMode === 'all-ads'
-  // Show back button in all modes except all-ads, with special handling for build mode
+  // Show back button in all modes except all-ads
   const showBackButton = (() => {
     // Never show in all-ads mode (it's the home base)
     if (effectiveMode === 'all-ads') return false
     
-    // Always show in results, edit, and ab-test-builder modes  
-    if (effectiveMode === 'results' || effectiveMode === 'edit' || effectiveMode === 'ab-test-builder') {
-      return true
-    }
-    
-    // Build mode: show button if we have published ads OR variant param indicates we came from all-ads
-    if (effectiveMode === 'build') {
-      return hasPublishedAds || isCreatingVariant
-    }
-    
-    return false
+    // Always show in other modes (results, edit, ab-test-builder, build)
+    return true
   })()
 
   // Get current variant for results/edit modes
