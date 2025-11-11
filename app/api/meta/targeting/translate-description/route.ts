@@ -9,7 +9,7 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { generateObject } from 'ai'
 import { z } from 'zod'
-import { openai } from '@ai-sdk/openai'
+import { getModel } from '@/lib/ai/gateway-provider'
 
 const TargetingParametersSchema = z.object({
   demographics: z.object({
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { object } = await generateObject({
-      model: openai('gpt-4o'),
+      model: getModel('openai/gpt-4o'),
       schema: TargetingParametersSchema,
       prompt: `You are an expert in Meta (Facebook/Instagram) advertising targeting. 
       

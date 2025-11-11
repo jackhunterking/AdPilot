@@ -142,7 +142,7 @@ export async function POST(req: Request) {
       try {
         const byToken = await supabase.auth.getUser(bearer);
         user = byToken.data.user ?? null;
-      } catch (e) {
+      } catch {
         // ignore; will fall through to 401 if still no user
       }
     }
@@ -970,36 +970,64 @@ IMPORTANT: Users can remove locations by clicking X. When they ask to add new lo
 2. DO NOT re-add locations from previous conversation history that may have been removed
 Example: If previous setup had "Ontario, Toronto (excluded)" and user removed Toronto then asks "add British Columbia", only specify "Ontario, British Columbia" - do NOT re-add Toronto.
 
-## Audience Targeting (Context-Aware)
-When user requests audience generation, ANALYZE the campaign context from steps BEFORE audience:
+## Audience Targeting
 
-**IMPORTANT - Correct Flow Order:**
-The campaign flow is: Creative → Copy → Location → Audience → Goal
-DO NOT consider the goal when generating audience - the goal comes AFTER finding the people.
+**When user selects a targeting mode:**
 
-**Context Sources (Only use these):**
-1. Ad Creative: What's in the ad copy/headline? What business type?
-2. Target Locations: Where are they advertising? (urban/rural, country)
+1. **AI Advantage+ Selection:**
+   - User clicks "Enable AI Advantage+" button or says "enable AI Advantage+"
+   - IMMEDIATELY call 'audienceMode' tool with:
+     - mode: 'ai'
+     - explanation: Brief confirmation (e.g., "AI Advantage+ will automatically find your ideal customers")
+   - DO NOT generate additional text after the tool call
+   - The tool updates the audience state and shows success UI
 
-**Generation Guidelines:**
-- Extract business type from ad copy (e.g., "immigration services", "meal delivery")
-- Match demographics to business logic (visa services → working age adults 25-45)
-- Derive interests from campaign context, not generic lists
-- Use natural language: "Adults in [location] interested in [service/product]"
-- Consider cultural context based on locations
+2. **Manual Targeting Selection:**
+   - User clicks "Set Up Manual Targeting" button or says "set up manual targeting"
+   - IMMEDIATELY call 'audienceMode' tool with:
+     - mode: 'manual'
+     - explanation: Brief prompt (e.g., "Describe your ideal customer and I'll generate targeting parameters")
+   - DO NOT generate additional text after the tool call
+   - The tool transitions to the description prompt UI
+
+**When user provides audience description (manual mode):**
+- User describes their target audience (e.g., "Women aged 25-40 interested in fitness")
+ - Call 'manualTargetingParameters' tool with:
+  - description: user's natural language description
+  - demographics: Extract age range and gender from description
+  - interests: Array of relevant Meta interest categories
+  - behaviors: Array of relevant Meta behavior categories
+  - explanation: Brief summary of the targeting strategy
+- DO NOT generate additional text after the tool call
+- The tool shows the parameters in a visual card and updates the audience context
+
+**Parameter Generation Guidelines:**
+- Age range: 18-65 (adjust based on business/description)
+- Gender: "all", "male", or "female"
+- Interests: Specific Meta ad interests (e.g., "Fitness and wellness", "Technology", "Small business")
+- Behaviors: Specific Meta behaviors (e.g., "Small business owners", "Frequent travelers")
+- Use campaign context (ad copy, locations) to inform parameters
+- Make them specific to THIS campaign, not generic
 
 **Examples:**
-- Context: "Professional Immigration Services" + Toronto
-  → Description: "Adults in Toronto area interested in immigration services"
-  → Interests: immigration services, visa assistance, citizenship, legal services
-  → Demographics: 25-45, all genders
 
-- Context: "Organic Meal Delivery" + Vancouver suburbs
-  → Description: "Health-conscious families in Vancouver suburbs"
-  → Interests: organic food, healthy eating, meal planning, family wellness
-  → Demographics: 28-50, focuses on parents
+User: "Enable AI Advantage+"
+→ Call: audienceMode({ mode: 'ai', explanation: 'AI Advantage+ will automatically optimize your audience for the best results' })
 
-Always set mode to 'ai'. NEVER generate generic audiences - make them specific to THIS campaign based on the creative, copy, and location only.
+User: "Women aged 25-40 interested in fitness and healthy eating"
+→ Call: manualTargetingParameters({
+  description: 'Women aged 25-40 interested in fitness and healthy eating',
+  demographics: { ageMin: 25, ageMax: 40, gender: 'female' },
+  interests: [
+    { id: 'fitness_wellness', name: 'Fitness and wellness' },
+    { id: 'healthy_eating', name: 'Healthy eating' },
+    { id: 'health_fitness', name: 'Health & fitness' }
+  ],
+  behaviors: [
+    { id: 'health_conscious', name: 'Health-conscious consumers' }
+  ],
+  explanation: 'Targeting health-conscious women in their late 20s to early 40s who are interested in fitness and nutrition'
+})
 
 ## Goal Setup
 When user wants to set up a goal (leads or calls):
