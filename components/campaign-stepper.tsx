@@ -49,7 +49,7 @@ const stepHeaders: Record<string, { title: string; subtitle: string; subtext: st
     subtext: "Choose your campaign's primary goal"
   },
   budget: {
-    title: "Launch Campaign",
+    title: "Ad Preview",
     subtitle: "Set budget and go live",
     subtext: "Configure spending and publish your ads"
   }

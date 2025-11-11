@@ -80,9 +80,11 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
 
   // Initialize map when container is ready
   useEffect(() => {
-    // Only run when status is completed (container is rendered)
-    if (locationState.status !== "completed") {
-      // Clean up map if status changed away from completed
+    // Initialize map for both idle and completed states
+    const shouldInitialize = locationState.status === "idle" || locationState.status === "completed"
+    
+    if (!shouldInitialize) {
+      // Clean up map if status changed away from idle/completed
       if (mapRef.current) {
         mapRef.current.remove()
         mapRef.current = null
@@ -267,32 +269,32 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
   // Initial state - no locations selected
   if (locationState.status === "idle" || locationState.locations.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
-        <div className="max-w-2xl w-full space-y-8">
-          <div className="flex flex-col gap-4 max-w-md mx-auto w-full">
-            {/* AI-Assisted Targeting Card */}
-            <div className="group relative flex flex-col items-center p-8 rounded-2xl border-2 border-border hover:bg-accent/20 transition-all duration-300">
-              <div className="icon-tile-muted rounded-2xl h-20 w-20 flex items-center justify-center relative mb-4">
-                <MapPin className="h-10 w-10" />
-                <Sparkles className="h-4 w-4 absolute top-1 right-1" />
-              </div>
-              <div className="text-center space-y-2 flex-1 flex flex-col justify-start mb-4">
-                <h3 className="text-xl font-semibold">AI-Assisted</h3>
-                <p className="text-sm text-muted-foreground">
-                  Let AI help you target locations naturally
-                </p>
-              </div>
+      <div
+        className={cn(
+          "flex flex-col",
+          isSummary ? "gap-6" : "h-full overflow-auto p-8"
+        )}
+      >
+        <div className={cn("w-full space-y-6", "max-w-3xl mx-auto")}>
+          {/* Map Display */}
+          <div className="rounded-lg border-2 border-blue-600 bg-card overflow-hidden">
+            <div ref={mapContainerRef} className="w-full h-[400px]" style={{ position: 'relative', isolation: 'isolate' }} />
+          </div>
+
+          {/* Add Location Button */}
+          {!isSummary && (
+            <div className="flex justify-center pt-4 pb-8">
               <Button
+                variant="outline"
                 size="lg"
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('triggerLocationSetup'))
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 mt-auto"
+                onClick={handleAddMore}
+                className="gap-2"
               >
-                Set Location
+                <Plus className="h-4 w-4" />
+                Add Location
               </Button>
             </div>
-          </div>
+          )}
         </div>
       </div>
     )
@@ -402,15 +404,17 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
                 className="gap-2"
               >
                 <Plus className="h-4 w-4" />
-                Add More Locations
+                Add Location
               </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={clearLocations}
-              >
-                Clear All
-              </Button>
+              {locationState.locations.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={clearLocations}
+                >
+                  Clear All
+                </Button>
+              )}
             </div>
           )}
         </div>

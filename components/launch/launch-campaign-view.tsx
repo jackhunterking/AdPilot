@@ -56,13 +56,6 @@ export function LaunchCampaignView({
       {/* Main Content - Centered Single Column */}
       <div className="flex-1 overflow-y-auto">
         <div className="container max-w-3xl mx-auto px-6 py-12">
-          {/* Heading Section */}
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-semibold">
-              Ad Preview
-            </h2>
-          </div>
-
           {/* Format Tabs */}
           <div className="flex justify-center pb-4">
             <div className="inline-flex rounded-lg border border-border p-1 bg-card">

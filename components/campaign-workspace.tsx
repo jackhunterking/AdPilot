@@ -357,6 +357,23 @@ export function CampaignWorkspace() {
     return convertedAds.some(ad => ad.status === 'active' || ad.status === 'paused')
   }, [convertedAds])
   
+  // Update URL when mode changes and persist last view in session storage
+  const setWorkspaceMode = useCallback((mode: WorkspaceMode, adId?: string) => {
+    const params = new URLSearchParams()
+    params.set("view", mode)
+    if (adId) params.set("adId", adId)
+    router.replace(`${pathname}?${params.toString()}`)
+    
+    // Persist last view in session storage for this campaign
+    if (campaignId) {
+      try {
+        sessionStorage.setItem(`campaign:${campaignId}:lastView`, mode)
+      } catch (error) {
+        console.warn('[CampaignWorkspace] Failed to save last view to sessionStorage:', error)
+      }
+    }
+  }, [pathname, router, campaignId])
+  
   // Auto-resume builder for single draft campaigns
   useEffect(() => {
     // Only run when component is ready with ads data
@@ -467,23 +484,6 @@ export function CampaignWorkspace() {
       setHasUnsavedChanges(false)
     }
   }, [effectiveMode, currentAdId, hasPublishedAds, hasBuildProgress, searchParams])
-
-  // Update URL when mode changes and persist last view in session storage
-  const setWorkspaceMode = useCallback((mode: WorkspaceMode, adId?: string) => {
-    const params = new URLSearchParams()
-    params.set("view", mode)
-    if (adId) params.set("adId", adId)
-    router.replace(`${pathname}?${params.toString()}`)
-    
-    // Persist last view in session storage for this campaign
-    if (campaignId) {
-      try {
-        sessionStorage.setItem(`campaign:${campaignId}:lastView`, mode)
-      } catch (error) {
-        console.warn('[CampaignWorkspace] Failed to save last view to sessionStorage:', error)
-      }
-    }
-  }, [pathname, router, campaignId])
 
   // Simulated metrics for demonstration
   // TODO: Fetch real metrics from API
