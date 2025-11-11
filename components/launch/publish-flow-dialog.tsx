@@ -31,6 +31,10 @@ interface PublishFlowDialogProps {
   campaignName?: string
   isEditMode?: boolean
   onComplete?: () => void | Promise<void>
+  // Summary details for confirmation
+  dailyBudget?: string
+  locationCount?: number
+  adAccountName?: string
 }
 
 export function PublishFlowDialog({
@@ -39,6 +43,9 @@ export function PublishFlowDialog({
   campaignName = "your ad",
   isEditMode = false,
   onComplete,
+  dailyBudget,
+  locationCount,
+  adAccountName,
 }: PublishFlowDialogProps) {
   const [phase, setPhase] = useState<PublishPhase>("confirm")
   const [error, setError] = useState<string | null>(null)
@@ -94,9 +101,41 @@ export function PublishFlowDialog({
               </div>
             </div>
             
-            <p className="text-sm text-muted-foreground mb-6">
-              Your ad is ready to go live. You can still edit later if needed.
-            </p>
+            <div className="space-y-3 mb-6">
+              <p className="text-sm text-muted-foreground">
+                {isEditMode 
+                  ? "Your changes will update the live ad. This may require Meta re-review."
+                  : "Your ad is ready to go live. Please review:"}
+              </p>
+              
+              {/* Summary info */}
+              {(dailyBudget || locationCount || adAccountName) && !isEditMode && (
+                <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-2 text-sm">
+                  {dailyBudget && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Budget:</span>
+                      <span className="font-medium">{dailyBudget}/day</span>
+                    </div>
+                  )}
+                  {locationCount !== undefined && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Locations:</span>
+                      <span className="font-medium">{locationCount} {locationCount === 1 ? 'location' : 'locations'}</span>
+                    </div>
+                  )}
+                  {adAccountName && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Ad Account:</span>
+                      <span className="font-medium truncate ml-2">{adAccountName}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <p className="text-xs text-muted-foreground">
+                You can edit this ad anytime after publishing.
+              </p>
+            </div>
             
             {error && (
               <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">

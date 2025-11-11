@@ -215,6 +215,19 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
       transition: direction,
     })
   }, [currentStep, currentStepIndex, direction])
+  
+  // Emit stepChanged event when current step changes
+  useEffect(() => {
+    if (!currentStep || typeof window === 'undefined') return
+    
+    window.dispatchEvent(new CustomEvent('stepChanged', {
+      detail: { 
+        stepId: currentStep.id, 
+        stepIndex: currentStepIndex,
+        isLastStep: currentStepIndex >= steps.length - 1
+      }
+    }))
+  }, [currentStepIndex, currentStep, steps.length])
 
   const handleNext = () => {
     if (canGoNext && !isLastStep) {
@@ -371,16 +384,20 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
                   })}
                 </div>
 
-                {/* Next Button */}
-                <Button
-                  size="sm"
-                  onClick={handleNext}
-                  disabled={!canGoNext || isLastStep}
-                  className="gap-1.5 flex-shrink-0 bg-[#4B73FF] hover:bg-[#3d5fd9] disabled:opacity-50"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+                {/* Next Button - Hidden on last step */}
+                {!isLastStep ? (
+                  <Button
+                    size="sm"
+                    onClick={handleNext}
+                    disabled={!canGoNext}
+                    className="gap-1.5 flex-shrink-0 bg-[#4B73FF] hover:bg-[#3d5fd9]"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <div className="w-20" /> {/* Spacer to maintain layout */}
+                )}
               </div>
 
             </div>

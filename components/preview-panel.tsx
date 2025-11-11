@@ -69,6 +69,10 @@ export function PreviewPanel() {
   // Publish flow dialog state
   const [publishDialogOpen, setPublishDialogOpen] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  
+  // Track current step
+  const [currentStepId, setCurrentStepId] = useState<string>('ads')
 
   // Memoized Meta connection completion check - reacts to campaign state and budget state changes
   const isMetaConnectionComplete = useMemo(() => {
@@ -101,6 +105,38 @@ export function PreviewPanel() {
     return serverConnected || budgetConnected || localStorageConnected
   }, [campaign?.campaign_states, campaign?.id, budgetState.isConnected])
 
+  // Listen for step changes
+  useEffect(() => {
+    const handleStepChanged = (event: Event) => {
+      const customEvent = event as CustomEvent<{ stepId?: string }>
+      if (customEvent.detail.stepId) {
+        setCurrentStepId(customEvent.detail.stepId)
+      }
+    }
+    
+    window.addEventListener('stepChanged', handleStepChanged)
+    return () => window.removeEventListener('stepChanged', handleStepChanged)
+  }, [])
+  
+  // Listen for save draft and publish requests from header
+  useEffect(() => {
+    const handleSaveDraftRequest = () => {
+      void handleSaveDraft()
+    }
+    
+    const handlePublishRequest = () => {
+      void handlePublish()
+    }
+    
+    window.addEventListener('saveDraftRequested', handleSaveDraftRequest)
+    window.addEventListener('publishRequested', handlePublishRequest)
+    
+    return () => {
+      window.removeEventListener('saveDraftRequested', handleSaveDraftRequest)
+      window.removeEventListener('publishRequested', handlePublishRequest)
+    }
+  }, [handleSaveDraft, handlePublish])
+  
   // Close modals when sections complete
   useEffect(() => {
     if (locationState.status === "completed" && locationModalOpen) {
@@ -233,6 +269,75 @@ export function PreviewPanel() {
     }
   }, [campaign?.id, budgetState.selectedAdAccount])
 
+  /**
+   * Handles save draft action - saves ad without publishing
+   */
+  const handleSaveDraft = async () => {
+    if (!campaign?.id || !currentAdId || isSaving) return
+    
+    setIsSaving(true)
+    
+    try {
+      const { buildAdSnapshot } = await import('@/lib/services/ad-snapshot-builder')
+      
+      const snapshot = buildAdSnapshot({
+        adPreview: {
+          adContent,
+          selectedImageIndex,
+          selectedCreativeVariation,
+        },
+        adCopy: adCopyState,
+        destination: destinationState,
+        location: locationState,
+        audience: audienceState,
+        goal: goalState,
+        budget: budgetState,
+      })
+      
+      const selectedCopy = getSelectedCopy()
+      const selectedImageUrl = selectedImageIndex !== null && adContent?.imageVariations?.[selectedImageIndex]
+        ? adContent.imageVariations[selectedImageIndex]
+        : adContent?.imageUrl || adContent?.imageVariations?.[0]
+      
+      const adData = {
+        name: `${campaign.name} - Draft ${new Date().toLocaleDateString()}`,
+        creative_data: {
+          imageUrl: selectedImageUrl,
+          imageVariations: adContent?.imageVariations,
+          baseImageUrl: adContent?.baseImageUrl,
+        },
+        copy_data: {
+          headline: selectedCopy?.headline || adContent?.headline,
+          primaryText: selectedCopy?.primaryText || adContent?.body,
+          description: selectedCopy?.description || adContent?.body,
+          cta: adContent?.cta || 'Learn More',
+        },
+        setup_snapshot: snapshot,
+      }
+      
+      const response = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAdId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adData),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to save draft')
+      }
+      
+      const { toast } = await import('sonner')
+      toast.success('Draft saved successfully!')
+      
+      console.log('✅ Draft saved successfully')
+    } catch (error) {
+      console.error('Error saving draft:', error)
+      const { toast } = await import('sonner')
+      toast.error('Failed to save draft')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+  
   /**
    * Handles ad publish action - opens confirmation dialog
    */
@@ -1027,13 +1132,11 @@ export function PreviewPanel() {
 
       {/* Right: Collapsible sections with modals */}
       <div className="flex flex-col gap-6 max-w-3xl mx-auto lg:w-full">
-        {/* Combined Publish and Budget Card */}
+        {/* Publish Requirements Card */}
         <div>
           <PublishBudgetCard
             allStepsComplete={allStepsComplete}
             isPublished={isPublished}
-            isPublishing={isPublishing}
-            onPublish={handlePublish}
           />
         </div>
 
@@ -1171,8 +1274,11 @@ export function PreviewPanel() {
         open={publishDialogOpen}
         onOpenChange={handlePublishDialogClose}
         campaignName={campaign?.name || "your ad"}
-        isEditMode={isPublished}
+        isEditMode={isEditingExistingAd}
         onComplete={handlePublishComplete}
+        dailyBudget={budgetState.dailyBudget > 0 ? `$${budgetState.dailyBudget}` : undefined}
+        locationCount={locationState.locations.length}
+        adAccountName={budgetState.selectedAdAccountName}
       />
     </div>
   )

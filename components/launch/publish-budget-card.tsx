@@ -14,80 +14,47 @@
  * Budget management is now handled via the WorkspaceHeader.
  */
 
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Play, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react"
+import { CheckCircle2, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface PublishBudgetCardProps {
   allStepsComplete: boolean
   isPublished: boolean
-  isPublishing?: boolean
-  onPublish: () => void
 }
 
 export function PublishBudgetCard({
   allStepsComplete,
   isPublished,
-  isPublishing = false,
-  onPublish,
 }: PublishBudgetCardProps) {
   return (
     <Card className="rounded-lg border border-border bg-card shadow-sm">
       <CardContent className="space-y-4 p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <div
-              className={cn(
-                "flex h-10 w-10 items-center justify-center rounded-full border",
-                allStepsComplete
-                  ? "border-green-500 bg-green-500/10 text-green-600 dark:text-green-400"
-                  : "border-yellow-500 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
-              )}
-            >
-              {allStepsComplete ? (
-                <CheckCircle2 className="h-5 w-5" />
-              ) : (
-                <AlertTriangle className="h-5 w-5" />
-              )}
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-foreground">{isPublished ? "Republish ad" : "Publish your ad"}</h3>
-              <p className="text-sm text-muted-foreground">
-                {allStepsComplete
-                  ? isPublished ? "Save your changes and republish the ad." : "Your ad is ready to go live."
-                  : "Complete the remaining items before publishing."}
-              </p>
-            </div>
-          </div>
-
-          <Button
-            onClick={onPublish}
-            disabled={!allStepsComplete || isPublishing}
+        <div className="flex items-start gap-3">
+          <div
             className={cn(
-              "w-full gap-2 h-11 text-sm font-semibold transition-colors shadow-sm sm:w-auto",
+              "flex h-10 w-10 items-center justify-center rounded-full border",
               allStepsComplete
-                ? "bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105"
-                : "bg-muted text-muted-foreground cursor-not-allowed",
+                ? "border-green-500 bg-green-500/10 text-green-600 dark:text-green-400"
+                : "border-yellow-500 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
             )}
           >
-            {isPublishing ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Publishing...
-              </>
-            ) : isPublished ? (
-              <>
-                <Play className="h-5 w-5" />
-                Republish
-              </>
+            {allStepsComplete ? (
+              <CheckCircle2 className="h-5 w-5" />
             ) : (
-              <>
-                <Play className="h-5 w-5" />
-                Publish
-              </>
+              <AlertTriangle className="h-5 w-5" />
             )}
-          </Button>
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-foreground">
+              {allStepsComplete ? "Ready to publish" : "Complete requirements"}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {allStepsComplete
+                ? "Everything is ready. Use the Publish button above to go live."
+                : "Complete the remaining items before publishing."}
+            </p>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900 px-4 py-3">

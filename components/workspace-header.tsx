@@ -11,7 +11,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Rocket, Loader2, Save, Flag } from "lucide-react"
+import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Rocket, Loader2, Save, Flag, ArrowRight } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -64,6 +64,15 @@ export function WorkspaceHeader({
   isSaveDisabled = false,
   onCreateAd,
   isCreateAdDisabled = false,
+  // NEW PROPS
+  currentStepId,
+  isPublishReady = false,
+  onSaveDraft,
+  onPublish,
+  isPublishing = false,
+  currentAdId,
+  onViewAllAds,
+  isAdPublished = false,
   className,
 }: WorkspaceHeaderProps) {
   const { campaign } = useCampaignContext()
@@ -87,6 +96,12 @@ export function WorkspaceHeader({
   
   // Don't show back button in all-ads mode
   const shouldShowBack = showBackButton && mode !== 'all-ads'
+  
+  // Determine if on final step (budget/launch step)
+  const isOnFinalStep = currentStepId === 'budget'
+  
+  // Check if editing a published ad (has meta_ad_id)
+  const isEditingPublishedAd = mode === 'edit' && currentAdId
   
   // Determine back button text based on mode
   const getBackButtonText = () => {
@@ -776,22 +791,84 @@ export function WorkspaceHeader({
         <div className="flex items-center gap-4">
           {statusBadge}
           
-          {/* Build mode button: Create Ad */}
-          {mode === 'build' && onCreateAd && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={onCreateAd}
-              disabled={isCreateAdDisabled}
-              className="gap-2"
-            >
-              <Rocket className="h-4 w-4" />
-              Create Ad
-            </Button>
+          {/* Build mode - Final step: Save Draft + Publish */}
+          {mode === 'build' && isOnFinalStep && onSaveDraft && onPublish && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onSaveDraft}
+                disabled={isSaveDisabled}
+                className="gap-2"
+              >
+                <Save className="h-4 w-4" />
+                Save Draft
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onPublish}
+                disabled={!isPublishReady || isPublishing}
+                className="gap-2"
+                title={!isPublishReady ? "Complete all requirements to publish" : ""}
+              >
+                {isPublishing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Publishing...
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="h-4 w-4" />
+                    Publish
+                  </>
+                )}
+              </Button>
+            </>
           )}
           
-          {/* Edit mode button: Save */}
-          {mode === 'edit' && onSave && (
+          {/* Build mode - Non-final steps: No action buttons (stepper handles Next) */}
+          {mode === 'build' && !isOnFinalStep && !showNewAdButton && (
+            <div /> 
+          )}
+          
+          {/* Edit mode - Published ad: Save Changes + Republish */}
+          {mode === 'edit' && isEditingPublishedAd && onSave && onPublish && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onSave}
+                disabled={isSaveDisabled}
+                className="gap-2"
+              >
+                <Save className="h-4 w-4" />
+                Save Changes
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onPublish}
+                disabled={!isPublishReady || isPublishing}
+                className="gap-2"
+              >
+                {isPublishing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Republishing...
+                  </>
+                ) : (
+                  <>
+                    <Rocket className="h-4 w-4" />
+                    Republish Changes
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+          
+          {/* Edit mode - Draft ad: Save only */}
+          {mode === 'edit' && !isEditingPublishedAd && onSave && (
             <Button
               variant="default"
               size="sm"
@@ -804,7 +881,7 @@ export function WorkspaceHeader({
             </Button>
           )}
           
-          {/* New Ad button (shown after first publish) */}
+          {/* New Ad button (shown in all-ads and results modes) */}
           {showNewAdButton && (
             <Button
               variant="default"
@@ -815,6 +892,29 @@ export function WorkspaceHeader({
               <Plus className="h-4 w-4" />
               Create Ad
             </Button>
+          )}
+          
+          {/* Published Badge + View All Ads (shown after publishing in build mode) */}
+          {mode === 'build' && isAdPublished && (
+            <>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                  Published
+                </span>
+              </div>
+              {onViewAllAds && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onViewAllAds}
+                  className="gap-2"
+                >
+                  View in All Ads
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>

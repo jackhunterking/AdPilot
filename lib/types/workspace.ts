@@ -225,6 +225,15 @@ export interface WorkspaceHeaderProps {
   // Create Ad props (build mode)
   onCreateAd?: () => void
   isCreateAdDisabled?: boolean
+  // NEW: Step-aware publish/save props
+  currentStepId?: string     // Current step ID (e.g., "budget", "ads", "copy")
+  isPublishReady?: boolean   // Whether all requirements are met for publish
+  onSaveDraft?: () => void   // Save draft handler (final step, build mode)
+  onPublish?: () => void     // Publish handler (final step or edit published ad)
+  isPublishing?: boolean     // Loading state during publish
+  currentAdId?: string       // Current ad being edited/built
+  onViewAllAds?: () => void  // Navigate to all ads view
+  isAdPublished?: boolean    // Whether current ad has been published (has meta_ad_id)
   className?: string
 }
 

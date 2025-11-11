@@ -70,6 +70,23 @@ export function CampaignWorkspace() {
   const [showCancelNewAdDialog, setShowCancelNewAdDialog] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null)
   
+  // Track current step and publishing state
+  const [currentStepId, setCurrentStepId] = useState<string>('ads')
+  const [isPublishing, setIsPublishing] = useState(false)
+  
+  // Listen for step changes
+  useEffect(() => {
+    const handleStepChanged = (event: Event) => {
+      const customEvent = event as CustomEvent<{ stepId?: string }>
+      if (customEvent.detail.stepId) {
+        setCurrentStepId(customEvent.detail.stepId)
+      }
+    }
+    
+    window.addEventListener('stepChanged', handleStepChanged)
+    return () => window.removeEventListener('stepChanged', handleStepChanged)
+  }, [])
+  
   // Listen for publish complete events
   useEffect(() => {
     const handlePublishComplete = (event: Event) => {
@@ -91,6 +108,9 @@ export function CampaignWorkspace() {
       
       // Switch to all-ads view (no query params = all-ads grid)
       router.replace(pathname)
+      
+      // Reset publishing state
+      setIsPublishing(false)
       
       // Show success toast
       if (customEvent.detail.published) {
@@ -322,6 +342,36 @@ export function CampaignWorkspace() {
   const hasPublishedAds = useMemo(() => {
     return convertedAds.some(ad => ad.status === 'active' || ad.status === 'paused')
   }, [convertedAds])
+  
+  // Calculate if ad is ready to publish
+  const isPublishReady = useMemo(() => {
+    return (
+      selectedImageIndex !== null &&
+      adCopyState.status === "completed" &&
+      destinationState.status === "completed" &&
+      locationState.status === "completed" &&
+      audienceState.status === "completed" &&
+      isMetaConnectionComplete &&
+      hasPaymentMethod &&
+      isBudgetComplete()
+    )
+  }, [
+    selectedImageIndex,
+    adCopyState.status,
+    destinationState.status,
+    locationState.status,
+    audienceState.status,
+    isMetaConnectionComplete,
+    hasPaymentMethod,
+    isBudgetComplete,
+  ])
+  
+  // Check if current ad is published (has meta_ad_id)
+  const isAdPublished = useMemo(() => {
+    if (!currentAdId) return false
+    const ad = convertedAds.find(a => a.id === currentAdId)
+    return Boolean(ad?.meta_ad_id)
+  }, [currentAdId, convertedAds])
 
   // Helper to detect if user has made progress in build mode
   const hasBuildProgress = useMemo(() => {
@@ -589,6 +639,21 @@ export function CampaignWorkspace() {
   const handleViewAllAds = useCallback(() => {
     setWorkspaceMode('all-ads')
   }, [setWorkspaceMode])
+  
+  // Handler for Save Draft (dispatches event to PreviewPanel)
+  const handleSaveDraftRequest = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('saveDraftRequested'))
+    }
+  }, [])
+  
+  // Handler for Publish (dispatches event to PreviewPanel)
+  const handlePublishRequest = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      setIsPublishing(true)
+      window.dispatchEvent(new CustomEvent('publishRequested'))
+    }
+  }, [])
 
   const handleViewAd = useCallback((adId: string) => {
     setWorkspaceMode('results', adId)
@@ -1213,6 +1278,15 @@ export function CampaignWorkspace() {
         isSaveDisabled={isSaving}
         onCreateAd={effectiveMode === 'build' ? handleCreateAd : undefined}
         isCreateAdDisabled={isSaving || !isAdReadyToCreate()}
+        // NEW PROPS for step-aware publish
+        currentStepId={currentStepId}
+        isPublishReady={isPublishReady}
+        onSaveDraft={effectiveMode === 'build' ? handleSaveDraftRequest : undefined}
+        onPublish={effectiveMode === 'build' || effectiveMode === 'edit' ? handlePublishRequest : undefined}
+        isPublishing={isPublishing}
+        currentAdId={currentAdId ?? undefined}
+        onViewAllAds={handleViewAllAds}
+        isAdPublished={isAdPublished}
       />
 
       {/* Main Content */}
