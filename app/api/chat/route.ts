@@ -901,7 +901,7 @@ After calling \`manualTargetingParameters\`:
 - The canvas will update automatically after confirmation
 
 **Example Flow:**
-```
+
 User: "Set up manual targeting"
 AI: "Tell me about your ideal customer. Who are you trying to reach with this ad?"
 
@@ -916,7 +916,6 @@ AI: [Use manualTargetingParameters with all gathered info]
 → Preview card appears with confirmation button
 → User clicks "Confirm Targeting"
 → Canvas shows loading animation, then refinement UI
-```
 
 **CRITICAL RULES:**
 1. ALWAYS use \`gatherAudienceInfo\` before \`manualTargetingParameters\`

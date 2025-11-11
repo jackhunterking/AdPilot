@@ -166,32 +166,17 @@ export function renderAudienceModeResult(opts: {
   );
 }
 
-export function renderManualTargetingParametersResult(opts: {
+// Component for manual targeting parameters with confirmation
+function ManualTargetingParametersCard(props: {
   callId: string;
   keyId?: string;
-  input: {
-    description?: string;
-    demographics?: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
-    interests?: Array<{ id: string; name: string }>;
-    behaviors?: Array<{ id: string; name: string }>;
-    explanation?: string;
-  };
-  output: {
-    success?: boolean;
-    needsConfirmation?: boolean;
-    demographics?: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
-    interests?: Array<{ id: string; name: string }>;
-    behaviors?: Array<{ id: string; name: string }>;
-    explanation?: string;
-  };
-}): React.JSX.Element {
-  const { callId, keyId, input, output } = opts;
-  const demographics = output.demographics || input.demographics;
-  const interests = output.interests || input.interests || [];
-  const behaviors = output.behaviors || input.behaviors || [];
-  const explanation = output.explanation || input.explanation || '';
-  const needsConfirmation = output.needsConfirmation ?? false;
-  
+  demographics?: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
+  interests: Array<{ id: string; name: string }>;
+  behaviors: Array<{ id: string; name: string }>;
+  explanation: string;
+  needsConfirmation: boolean;
+}) {
+  const { callId, keyId, demographics, interests, behaviors, explanation, needsConfirmation } = props;
   const [isConfirming, setIsConfirming] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
 
@@ -217,9 +202,8 @@ export function renderManualTargetingParametersResult(opts: {
   };
 
   return (
-    <Fragment key={keyId || callId}>
+    <Fragment>
       <div 
-        key={(keyId || callId) + "-card"} 
         className="border rounded-lg p-3 my-2 bg-blue-500/5 border-blue-500/30"
       >
         <div className="flex items-center gap-2 mb-3">
@@ -333,6 +317,46 @@ export function renderManualTargetingParametersResult(opts: {
         <p className="text-sm text-muted-foreground my-2">{explanation}</p>
       )}
     </Fragment>
+  );
+}
+
+export function renderManualTargetingParametersResult(opts: {
+  callId: string;
+  keyId?: string;
+  input: {
+    description?: string;
+    demographics?: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
+    interests?: Array<{ id: string; name: string }>;
+    behaviors?: Array<{ id: string; name: string }>;
+    explanation?: string;
+  };
+  output: {
+    success?: boolean;
+    needsConfirmation?: boolean;
+    demographics?: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
+    interests?: Array<{ id: string; name: string }>;
+    behaviors?: Array<{ id: string; name: string }>;
+    explanation?: string;
+  };
+}): React.JSX.Element {
+  const { callId, keyId, input, output } = opts;
+  const demographics = output.demographics || input.demographics;
+  const interests = output.interests || input.interests || [];
+  const behaviors = output.behaviors || input.behaviors || [];
+  const explanation = output.explanation || input.explanation || '';
+  const needsConfirmation = output.needsConfirmation ?? false;
+
+  return (
+    <ManualTargetingParametersCard
+      key={keyId || callId}
+      callId={callId}
+      keyId={keyId}
+      demographics={demographics}
+      interests={interests}
+      behaviors={behaviors}
+      explanation={explanation}
+      needsConfirmation={needsConfirmation}
+    />
   );
 }
 
