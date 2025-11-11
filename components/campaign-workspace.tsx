@@ -107,8 +107,8 @@ export function CampaignWorkspace() {
       // Refresh ads data
       void refreshAds()
       
-      // Switch to all-ads view (no query params = all-ads grid)
-      router.replace(pathname)
+      // Switch to all-ads view and save preference
+      setWorkspaceMode('all-ads')
       
       // Reset publishing state
       setIsPublishing(false)
@@ -357,6 +357,43 @@ export function CampaignWorkspace() {
     return convertedAds.some(ad => ad.status === 'active' || ad.status === 'paused')
   }, [convertedAds])
   
+  // Auto-resume builder for single draft campaigns
+  useEffect(() => {
+    // Only run when component is ready with ads data
+    if (!campaignId || ads.length === 0) return
+    
+    // Skip if we already have a view parameter (user explicitly navigating)
+    if (viewParam) return
+    
+    // Skip if this is first visit (already handled by firstVisit flag)
+    if (isFirstVisit) return
+    
+    // Check if we have exactly one ad and it's a draft
+    const hasSingleDraft = ads.length === 1 && !hasPublishedAds
+    
+    if (hasSingleDraft) {
+      // Check stored last view preference
+      let lastView: string | null = null
+      try {
+        lastView = sessionStorage.getItem(`campaign:${campaignId}:lastView`)
+      } catch (error) {
+        console.warn('[CampaignWorkspace] Failed to read lastView from sessionStorage:', error)
+      }
+      
+      // If user explicitly went to All Ads view, respect that
+      if (lastView === 'all-ads') {
+        return
+      }
+      
+      // Auto-navigate to builder with the single draft
+      const draftAd = ads[0]
+      if (draftAd) {
+        console.log('[CampaignWorkspace] Auto-resuming single draft in builder:', draftAd.id)
+        setWorkspaceMode('build', draftAd.id)
+      }
+    }
+  }, [campaignId, ads, viewParam, isFirstVisit, hasPublishedAds, setWorkspaceMode])
+  
   // Calculate if ad is ready to publish
   const isPublishReady = useMemo(() => {
     return (
@@ -431,13 +468,22 @@ export function CampaignWorkspace() {
     }
   }, [effectiveMode, currentAdId, hasPublishedAds, hasBuildProgress, searchParams])
 
-  // Update URL when mode changes
+  // Update URL when mode changes and persist last view in session storage
   const setWorkspaceMode = useCallback((mode: WorkspaceMode, adId?: string) => {
     const params = new URLSearchParams()
     params.set("view", mode)
     if (adId) params.set("adId", adId)
     router.replace(`${pathname}?${params.toString()}`)
-  }, [pathname, router])
+    
+    // Persist last view in session storage for this campaign
+    if (campaignId) {
+      try {
+        sessionStorage.setItem(`campaign:${campaignId}:lastView`, mode)
+      } catch (error) {
+        console.warn('[CampaignWorkspace] Failed to save last view to sessionStorage:', error)
+      }
+    }
+  }, [pathname, router, campaignId])
 
   // Simulated metrics for demonstration
   // TODO: Fetch real metrics from API
@@ -1181,10 +1227,10 @@ export function CampaignWorkspace() {
       // Refresh ads data
       await refreshAds()
       
-      // Navigate to All Ads view
-      router.replace(pathname)
+      // Navigate to All Ads view and save preference
+      setWorkspaceMode('all-ads')
     }
-  }, [campaign?.id, campaign?.name, isSaving, searchParams, handleSaveAdData, setIsPublished, refreshAds, router, pathname])
+  }, [campaign?.id, campaign?.name, isSaving, searchParams, handleSaveAdData, setIsPublished, refreshAds, setWorkspaceMode])
 
   // Handle Save action from header (edit mode)
   const handleSave = useCallback(async () => {
@@ -1203,10 +1249,10 @@ export function CampaignWorkspace() {
       // Refresh ads data
       await refreshAds()
       
-      // Navigate to All Ads view
-      router.replace(pathname)
+      // Navigate to All Ads view and save preference
+      setWorkspaceMode('all-ads')
     }
-  }, [campaign?.id, campaign?.name, currentAdId, isSaving, handleSaveAdData, refreshAds, router, pathname])
+  }, [campaign?.id, campaign?.name, currentAdId, isSaving, handleSaveAdData, refreshAds, setWorkspaceMode])
 
   
   // Unsaved changes dialog handlers
