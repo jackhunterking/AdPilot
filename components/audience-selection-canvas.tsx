@@ -1,6 +1,6 @@
 "use client"
 
-import { Check, Lock, Target, Loader2, Sparkles, AlertCircle, X } from "lucide-react"
+import { Check, Lock, Target, Loader2, Sparkles, AlertCircle, X, User, Heart, Activity } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
@@ -166,52 +166,8 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
     return renderLayout(content, "max-w-5xl")
   }
 
-  // Manual targeting: Natural language description input
+  // Manual targeting: Prompt user to use AI Chat
   if (audienceState.status === "generating" && audienceState.targeting.mode === "manual") {
-    const handleGenerateParameters = async () => {
-      if (!localDescription.trim()) return
-      
-      setIsTranslating(true)
-      setManualDescription(localDescription)
-      
-      try {
-        // Call API to translate description to targeting parameters
-        const response = await fetch('/api/meta/targeting/translate-description', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ description: localDescription })
-        })
-        
-        if (!response.ok) throw new Error('Translation failed')
-        
-        const data = await response.json()
-        
-        // Set the generated parameters
-        if (data.demographics) {
-          setDemographics(data.demographics)
-        }
-        
-        if (data.detailedTargeting) {
-          // Add interests
-          data.detailedTargeting.interests?.forEach((interest: {id: string, name: string}) => {
-            addInterest(interest)
-          })
-          // Add behaviors
-          data.detailedTargeting.behaviors?.forEach((behavior: {id: string, name: string}) => {
-            addBehavior(behavior)
-          })
-        }
-        
-        // Move to setup-in-progress state to show refinement interface
-        updateStatus('setup-in-progress')
-      } catch (error) {
-        console.error('Error translating description:', error)
-        // Show error but allow user to try again
-      } finally {
-        setIsTranslating(false)
-      }
-    }
-    
     const content = (
       <div className="max-w-2xl mx-auto w-full space-y-6">
         <div className="text-center space-y-2 mb-6">
@@ -220,33 +176,26 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
           </div>
           <h2 className="text-2xl font-bold">Describe Your Ideal Customer</h2>
           <p className="text-muted-foreground">
-            Tell us about your target audience and our AI will generate targeting parameters
+            Use the AI Chat on the left to describe your target audience
           </p>
         </div>
         
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="description" className="text-base font-medium">
-              Audience Description
-            </Label>
-            <Textarea
-              id="description"
-              placeholder="Example: Women aged 25-40 interested in fitness and healthy eating&#10;&#10;Example: Small business owners in tech industry&#10;&#10;Example: Parents with young children who like outdoor activities"
-              value={localDescription}
-              onChange={(e) => setLocalDescription(e.target.value)}
-              className="min-h-[150px] resize-none"
-            />
-          </div>
-          
-          {/* AI Suggestion Info Box */}
-          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <Sparkles className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm space-y-1">
-                <p className="font-medium text-blue-700 dark:text-blue-400">AI-Powered Translation</p>
-                <p className="text-blue-600 dark:text-blue-300 text-xs">
-                  Our AI will convert your description into specific Meta targeting parameters including age, gender, interests, and behaviors.
-                </p>
+        {/* AI Chat Prompt Info Box */}
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-6">
+          <div className="flex items-start gap-3">
+            <Sparkles className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm space-y-3">
+              <p className="font-medium text-blue-700 dark:text-blue-400">Use AI Chat to Get Started</p>
+              <p className="text-blue-600 dark:text-blue-300 text-sm">
+                In the chat on the left, describe your ideal customer and I'll generate Meta targeting parameters for you.
+              </p>
+              <div className="space-y-2 mt-4">
+                <p className="text-xs text-blue-600 dark:text-blue-300 font-medium">Example descriptions:</p>
+                <ul className="text-xs text-blue-600 dark:text-blue-300 space-y-1 ml-4 list-disc">
+                  <li>"Women aged 25-40 interested in fitness and healthy eating"</li>
+                  <li>"Small business owners in tech industry"</li>
+                  <li>"Parents with young children who like outdoor activities"</li>
+                </ul>
               </div>
             </div>
           </div>
@@ -259,21 +208,6 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
             onClick={resetAudience}
           >
             Back to Options
-          </Button>
-          <Button
-            size="lg"
-            onClick={handleGenerateParameters}
-            disabled={!localDescription.trim() || isTranslating}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {isTranslating ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Generating...
-              </span>
-            ) : (
-              'Generate Targeting Parameters'
-            )}
           </Button>
         </div>
       </div>
@@ -515,54 +449,75 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
           </div>
           
           {isAIMode ? (
-            /* AI Advantage+ Summary */
+            /* AI Advantage+ Summary - Simplified */
             <div className="flex items-center justify-between p-3 rounded-lg border panel-surface">
               <div className="flex items-center gap-2">
-                <div className="icon-tile-muted"><Sparkles className="h-4 w-4 text-brand-blue" /></div>
+                <Sparkles className="h-4 w-4 text-blue-600" />
                 <div>
                   <p className="text-sm font-medium">AI Advantage+</p>
-                  <p className="text-xs text-muted-foreground">AI will automatically optimize who sees your ad</p>
+                  <p className="text-xs text-muted-foreground">Automatic optimization enabled</p>
                 </div>
               </div>
-              <div className="inline-flex items-center gap-1 text-status-green text-xs font-medium">
-                <Check className="h-4 w-4" /> Enabled
-              </div>
+              <Check className="h-4 w-4 text-green-600" />
             </div>
           ) : (
-            /* Manual Targeting Summary */
+            /* Manual Targeting Summary - Enhanced with proper icons */
             <div className="space-y-2">
-              <div className="flex items-center justify-between p-3 rounded-lg border panel-surface">
-                <div className="flex items-center gap-2">
-                  <div className="icon-tile-muted"><Target className="h-4 w-4" /></div>
-                  <div>
-                    <p className="text-sm font-medium">Manual Targeting</p>
-                    <p className="text-xs text-muted-foreground">
-                      {demographics?.gender && demographics.gender !== "all" ? demographics.gender.charAt(0).toUpperCase() + demographics.gender.slice(1) + ", " : ""}
-                      Age {demographics?.ageMin}-{demographics?.ageMax}
-                    </p>
-                  </div>
-                </div>
-                <div className="inline-flex items-center gap-1 text-status-green text-xs font-medium">
-                  <Check className="h-4 w-4" /> Active
+              {/* Demographics */}
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
+                <User className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Demographics</p>
+                  <p className="text-xs text-muted-foreground">
+                    {demographics?.gender && demographics.gender !== "all" ? demographics.gender.charAt(0).toUpperCase() + demographics.gender.slice(1) + ", " : ""}
+                    Age {demographics?.ageMin || 18}-{demographics?.ageMax || 65}
+                  </p>
                 </div>
               </div>
               
-              {/* Show interests/behaviors count */}
-              {(detailedTargeting?.interests && detailedTargeting.interests.length > 0) || 
-               (detailedTargeting?.behaviors && detailedTargeting.behaviors.length > 0) ? (
-                <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-muted/30">
-                  {detailedTargeting?.interests && detailedTargeting.interests.length > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {detailedTargeting.interests.length} Interest{detailedTargeting.interests.length !== 1 ? 's' : ''}
-                    </Badge>
-                  )}
-                  {detailedTargeting?.behaviors && detailedTargeting.behaviors.length > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {detailedTargeting.behaviors.length} Behavior{detailedTargeting.behaviors.length !== 1 ? 's' : ''}
-                    </Badge>
-                  )}
+              {/* Interests (if any) */}
+              {detailedTargeting?.interests && detailedTargeting.interests.length > 0 && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
+                  <Heart className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">Interests</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {detailedTargeting.interests.slice(0, 3).map((interest) => (
+                        <Badge key={interest.id} variant="secondary" className="text-xs">
+                          {interest.name}
+                        </Badge>
+                      ))}
+                      {detailedTargeting.interests.length > 3 && (
+                        <span className="text-xs text-muted-foreground">
+                          +{detailedTargeting.interests.length - 3} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              ) : null}
+              )}
+              
+              {/* Behaviors (if any) */}
+              {detailedTargeting?.behaviors && detailedTargeting.behaviors.length > 0 && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
+                  <Activity className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">Behaviors</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {detailedTargeting.behaviors.slice(0, 3).map((behavior) => (
+                        <Badge key={behavior.id} variant="secondary" className="text-xs">
+                          {behavior.name}
+                        </Badge>
+                      ))}
+                      {detailedTargeting.behaviors.length > 3 && (
+                        <span className="text-xs text-muted-foreground">
+                          +{detailedTargeting.behaviors.length - 3} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

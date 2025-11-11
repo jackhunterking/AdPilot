@@ -31,6 +31,7 @@ import { editImageTool } from '@/lib/ai/tools/edit-image';
 import { regenerateImageTool } from '@/lib/ai/tools/regenerate-image';
 import { locationTargetingTool } from '@/lib/ai/tools/location-targeting-tool';
 import { audienceTargetingTool } from '@/lib/ai/tools/audience-targeting-tool';
+import { setupManualTargetingTool } from '@/lib/ai/tools/setup-manual-targeting';
 import { setupGoalTool } from '@/lib/ai/tools/setup-goal-tool';
 import { editAdCopyTool } from '@/lib/ai/tools/edit-ad-copy';
 import { getCachedMetrics } from '@/lib/meta/insights';
@@ -155,6 +156,7 @@ export async function POST(req: Request) {
     regenerateImage: regenerateImageTool,
     locationTargeting: locationTargetingTool,
     audienceTargeting: audienceTargetingTool,
+    setupManualTargeting: setupManualTargetingTool,
     setupGoal: setupGoalTool,
     editAdCopy: editAdCopyTool,
   };

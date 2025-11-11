@@ -35,7 +35,7 @@ import { useState, useEffect, useMemo, Fragment, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import { Response } from "@/components/ai-elements/response";
-import { ThumbsUpIcon, ThumbsDownIcon, CopyIcon, Sparkles, ChevronRight, MapPin, CheckCircle2, XCircle, Reply, X, Check } from "lucide-react";
+import { ThumbsUpIcon, ThumbsDownIcon, CopyIcon, Sparkles, ChevronRight, MapPin, CheckCircle2, XCircle, Reply, X, Check, Target } from "lucide-react";
 import {
   Source,
   Sources,
@@ -209,7 +209,14 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   const { adContent, setAdContent } = useAdPreview();
   const { goalState, setFormData, setError, resetGoal } = useGoal();
   const { locationState, addLocations, updateStatus: updateLocationStatus } = useLocation();
-  const { setAudienceTargeting, updateStatus: updateAudienceStatus } = useAudience();
+  const { 
+    setAudienceTargeting, 
+    updateStatus: updateAudienceStatus,
+    setManualDescription,
+    setDemographics,
+    addInterest,
+    addBehavior
+  } = useAudience();
   const [generatingImages, setGeneratingImages] = useState<Set<string>>(new Set());
   // removed unused editingImages setter
   const [likedMessages, setLikedMessages] = useState<Set<string>>(new Set());
@@ -1902,6 +1909,124 @@ Make it conversational and easy to understand for a business owner.`,
                                             Add more interests
                                           </button>
                                         </div>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                
+                                case 'output-error':
+                                  return (
+                                    <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
+                                      {part.errorText}
+                                    </div>
+                                  );
+                              }
+                              break;
+                            }
+                            case "tool-setupManualTargeting": {
+                              const callId = part.toolCallId;
+                              const input = part.input as { description: string };
+
+                              switch (part.state) {
+                                case 'input-streaming':
+                                  return <div key={callId} className="text-sm text-muted-foreground">Translating your description...</div>;
+                                
+                                case 'input-available':
+                                  // Auto-process - call translate API and update context
+                                  setTimeout(async () => {
+                                    try {
+                                      // Call translate API
+                                      const response = await fetch('/api/meta/targeting/translate-description', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ description: input.description })
+                                      });
+                                      
+                                      if (!response.ok) throw new Error('Translation failed');
+                                      
+                                      const data = await response.json();
+                                      
+                                      // Update audience context
+                                      setManualDescription(input.description);
+                                      
+                                      if (data.demographics) {
+                                        setDemographics(data.demographics);
+                                      }
+                                      
+                                      // Add interests
+                                      data.detailedTargeting?.interests?.forEach((interest: {id: string, name: string}) => {
+                                        addInterest(interest);
+                                      });
+                                      
+                                      // Add behaviors
+                                      data.detailedTargeting?.behaviors?.forEach((behavior: {id: string, name: string}) => {
+                                        addBehavior(behavior);
+                                      });
+                                      
+                                      // Transition to refinement interface
+                                      updateAudienceStatus('setup-in-progress');
+                                      
+                                      // Complete the tool call
+                                      addToolResult({
+                                        tool: 'setupManualTargeting',
+                                        toolCallId: callId,
+                                        output: {
+                                          success: true,
+                                          description: input.description,
+                                          demographics: data.demographics,
+                                          detailedTargeting: data.detailedTargeting
+                                        }
+                                      });
+                                      
+                                      // Switch to audience tab
+                                      emitBrowserEvent('switchToTab', 'audience');
+                                    } catch (error) {
+                                      console.error('Error setting up manual targeting:', error);
+                                      addToolResult({
+                                        tool: 'setupManualTargeting',
+                                        toolCallId: callId,
+                                        output: { success: false, error: 'Failed to translate description' }
+                                      });
+                                    }
+                                  }, 0);
+                                  
+                                  return (
+                                    <div key={callId} className="flex items-center gap-3 p-4 border rounded-lg bg-card">
+                                      <Loader size={16} />
+                                      <span className="text-sm text-muted-foreground">Translating your description...</span>
+                                    </div>
+                                  );
+                                
+                                case 'output-available': {
+                                  const output = part.output as { success: boolean; description: string; demographics?: unknown; detailedTargeting?: unknown };
+                                  
+                                  if (!output.success) {
+                                    return (
+                                      <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
+                                        Failed to set up manual targeting
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  return (
+                                    <div key={callId} className="w-full my-4 space-y-3">
+                                      <div
+                                        className="flex items-center justify-between p-4 rounded-lg border panel-surface hover:border-cyan-500/50 transition-colors cursor-pointer"
+                                        onClick={() => emitBrowserEvent('switchToTab', 'audience')}
+                                      >
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                                            <Target className="h-5 w-5 text-blue-600" />
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2">
+                                              <p className="font-semibold text-sm">Manual targeting parameters generated!</p>
+                                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                            </div>
+                                            <p className="text-xs text-muted-foreground line-clamp-1">Review and refine your targeting on the canvas</p>
+                                          </div>
+                                        </div>
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors flex-shrink-0 ml-2" />
                                       </div>
                                     </div>
                                   );
