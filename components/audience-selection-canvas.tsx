@@ -96,8 +96,13 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
               onClick={() => {
                 if (isEnabling) return
                 setIsEnabling(true)
+                
+                // Emit event to trigger AI chat tool call for visual feedback
+                window.dispatchEvent(new CustomEvent('triggerAudienceModeSelection', { 
+                  detail: { mode: 'ai' } 
+                }));
+                
                 setTimeout(() => {
-                  setAudienceTargeting({ mode: 'ai', advantage_plus_enabled: true })
                   setIsEnabling(false)
                 }, 500)
               }}
@@ -151,8 +156,10 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
               size="lg"
               variant="outline"
               onClick={() => {
-                setAudienceTargeting({ mode: 'manual' })
-                updateStatus('generating')
+                // Emit event to trigger AI chat tool call for visual feedback
+                window.dispatchEvent(new CustomEvent('triggerAudienceModeSelection', { 
+                  detail: { mode: 'manual' } 
+                }));
               }}
               className="px-8 mt-auto w-full"
             >

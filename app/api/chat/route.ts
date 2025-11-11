@@ -34,6 +34,8 @@ import { audienceTargetingTool } from '@/lib/ai/tools/audience-targeting-tool';
 import { setupManualTargetingTool } from '@/lib/ai/tools/setup-manual-targeting';
 import { setupGoalTool } from '@/lib/ai/tools/setup-goal-tool';
 import { editAdCopyTool } from '@/lib/ai/tools/edit-ad-copy';
+import { audienceModeTool } from '@/lib/ai/tools/audience-mode-tool';
+import { manualTargetingParametersTool } from '@/lib/ai/tools/manual-targeting-parameters-tool';
 import { getCachedMetrics } from '@/lib/meta/insights';
 import { getModel } from '@/lib/ai/gateway-provider';
 import { messageStore } from '@/lib/services/message-store';
@@ -159,6 +161,8 @@ export async function POST(req: Request) {
     setupManualTargeting: setupManualTargetingTool,
     setupGoal: setupGoalTool,
     editAdCopy: editAdCopyTool,
+    audienceMode: audienceModeTool,
+    manualTargetingParameters: manualTargetingParametersTool,
   };
 
   // Get or create conversation

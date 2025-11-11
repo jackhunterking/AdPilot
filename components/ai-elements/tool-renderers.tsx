@@ -9,8 +9,9 @@
  */
 
 import React, { Fragment } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Sparkles, Target, User, Heart, Activity } from "lucide-react";
 import { AdMockup } from "@/components/ad-mockup";
+import { Badge } from "@/components/ui/badge";
 
 export function deriveEditDescription(inputPrompt?: string): string {
   const p = (inputPrompt || "").trim();
@@ -111,6 +112,165 @@ export function renderEditAdCopyResult(opts: {
             description={copy.description} 
           />
         </div>
+      )}
+    </Fragment>
+  );
+}
+
+export function renderAudienceModeResult(opts: {
+  callId: string;
+  keyId?: string;
+  input: { mode: 'ai' | 'manual'; explanation?: string };
+  output: { success?: boolean; mode?: 'ai' | 'manual'; explanation?: string };
+}): React.JSX.Element {
+  const { callId, keyId, input, output } = opts;
+  const mode = output.mode || input.mode;
+  const explanation = output.explanation || input.explanation || '';
+  const isAI = mode === 'ai';
+
+  return (
+    <Fragment key={keyId || callId}>
+      <div 
+        key={(keyId || callId) + "-card"} 
+        className={`border rounded-lg p-3 my-2 ${
+          isAI 
+            ? 'bg-green-500/5 border-green-500/30' 
+            : 'bg-blue-500/5 border-blue-500/30'
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          {isAI ? (
+            <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+          ) : (
+            <Target className="h-4 w-4 text-blue-600 flex-shrink-0" />
+          )}
+          <div className="flex-1">
+            <p className={`text-sm font-medium ${
+              isAI ? 'text-green-600' : 'text-blue-600'
+            }`}>
+              {isAI ? 'AI Advantage+ Enabled' : 'Manual Targeting Selected'}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {isAI 
+                ? 'AI will automatically optimize your audience' 
+                : 'Describe your ideal customer to set up targeting'}
+            </p>
+          </div>
+        </div>
+      </div>
+      {explanation && (
+        <p className="text-sm text-muted-foreground my-2">{explanation}</p>
+      )}
+    </Fragment>
+  );
+}
+
+export function renderManualTargetingParametersResult(opts: {
+  callId: string;
+  keyId?: string;
+  input: {
+    description?: string;
+    demographics?: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
+    interests?: Array<{ id: string; name: string }>;
+    behaviors?: Array<{ id: string; name: string }>;
+    explanation?: string;
+  };
+  output: {
+    success?: boolean;
+    demographics?: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
+    interests?: Array<{ id: string; name: string }>;
+    behaviors?: Array<{ id: string; name: string }>;
+    explanation?: string;
+  };
+}): React.JSX.Element {
+  const { callId, keyId, input, output } = opts;
+  const demographics = output.demographics || input.demographics;
+  const interests = output.interests || input.interests || [];
+  const behaviors = output.behaviors || input.behaviors || [];
+  const explanation = output.explanation || input.explanation || '';
+
+  return (
+    <Fragment key={keyId || callId}>
+      <div 
+        key={(keyId || callId) + "-card"} 
+        className="border rounded-lg p-3 my-2 bg-blue-500/5 border-blue-500/30"
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles className="h-4 w-4 text-blue-600 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-blue-600">
+              Targeting Parameters Generated
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Review and refine these AI-generated parameters
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2 mt-3">
+          {/* Demographics */}
+          {demographics && (
+            <div className="flex items-start gap-2 p-2 rounded-lg bg-muted/50">
+              <User className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium">Demographics</p>
+                <p className="text-xs text-muted-foreground">
+                  {demographics.gender && demographics.gender !== "all" 
+                    ? demographics.gender.charAt(0).toUpperCase() + demographics.gender.slice(1) + ", " 
+                    : ""}
+                  Age {demographics.ageMin}-{demographics.ageMax}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Interests */}
+          {interests.length > 0 && (
+            <div className="flex items-start gap-2 p-2 rounded-lg bg-muted/50">
+              <Heart className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium">Interests</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {interests.slice(0, 3).map((interest) => (
+                    <Badge key={interest.id} variant="secondary" className="text-xs">
+                      {interest.name}
+                    </Badge>
+                  ))}
+                  {interests.length > 3 && (
+                    <span className="text-xs text-muted-foreground">
+                      +{interests.length - 3} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Behaviors */}
+          {behaviors.length > 0 && (
+            <div className="flex items-start gap-2 p-2 rounded-lg bg-muted/50">
+              <Activity className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium">Behaviors</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {behaviors.slice(0, 3).map((behavior) => (
+                    <Badge key={behavior.id} variant="secondary" className="text-xs">
+                      {behavior.name}
+                    </Badge>
+                  ))}
+                  {behaviors.length > 3 && (
+                    <span className="text-xs text-muted-foreground">
+                      +{behaviors.length - 3} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      {explanation && (
+        <p className="text-sm text-muted-foreground my-2">{explanation}</p>
       )}
     </Fragment>
   );

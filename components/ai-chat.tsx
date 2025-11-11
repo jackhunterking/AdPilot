@@ -55,7 +55,7 @@ import { generateImage } from "@/server/images";
 import { ImageGenerationConfirmation } from "@/components/ai-elements/image-generation-confirmation";
 // Removed legacy FormSelectionUI in favor of unified canvas in Goal step
 import { ImageEditProgressLoader } from "@/components/ai-elements/image-edit-progress-loader";
-import { renderEditImageResult, renderRegenerateImageResult, renderEditAdCopyResult } from "@/components/ai-elements/tool-renderers";
+import { renderEditImageResult, renderRegenerateImageResult, renderEditAdCopyResult, renderAudienceModeResult, renderManualTargetingParametersResult } from "@/components/ai-elements/tool-renderers";
 import { useAdPreview } from "@/lib/context/ad-preview-context";
 import { searchLocations, getLocationBoundary } from "@/app/actions/geocoding";
 import { useGoal } from "@/lib/context/goal-context";
@@ -226,6 +226,8 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   const [dislikedMessages, setDislikedMessages] = useState<Set<string>>(new Set());
   const [processingLocations, setProcessingLocations] = useState<Set<string>>(new Set());
   const [pendingLocationCalls, setPendingLocationCalls] = useState<Array<{ toolCallId: string; input: LocationToolInput }>>([]);
+  const [processingAudience, setProcessingAudience] = useState<Set<string>>(new Set());
+  const [pendingAudienceCalls, setPendingAudienceCalls] = useState<Array<{ toolCallId: string; toolName: string; input: Record<string, unknown> }>>([]);
   const [adEditReference, setAdEditReference] = useState<AudienceContext | null>(null);
   const [audienceContext, setAudienceContext] = useState<AudienceContext | null>(null);
   const [activeEditSession, setActiveEditSession] = useState<{ sessionId: string; variationIndex: number } | null>(null);
@@ -858,6 +860,131 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     }
   }, [messages, pendingLocationCalls, processingLocations]);
 
+  // Process pending audience tool calls
+  useEffect(() => {
+    if (pendingAudienceCalls.length === 0) return;
+
+    const processAudienceCalls = async () => {
+      for (const { toolCallId, toolName, input } of pendingAudienceCalls) {
+        if (processingAudience.has(toolCallId)) continue;
+
+        setProcessingAudience(prev => new Set(prev).add(toolCallId));
+
+        try {
+          if (toolName === 'audienceMode') {
+            const mode = (input.mode as 'ai' | 'manual') || 'ai';
+            const explanation = (input.explanation as string) || '';
+
+            // Update audience context based on mode
+            if (mode === 'ai') {
+              setAudienceTargeting({ mode: 'ai', advantage_plus_enabled: true });
+              updateAudienceStatus('completed');
+            } else {
+              setAudienceTargeting({ mode: 'manual' });
+              updateAudienceStatus('generating');
+            }
+
+            // Switch to audience tab
+            emitBrowserEvent('switchToTab', 'audience');
+
+            addToolResult({
+              tool: 'audienceMode',
+              toolCallId,
+              output: {
+                success: true,
+                mode,
+                explanation,
+              },
+            });
+          } else if (toolName === 'manualTargetingParameters') {
+            const description = (input.description as string) || '';
+            const demographics = input.demographics as { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' } | undefined;
+            const interests = (input.interests as Array<{ id: string; name: string }>) || [];
+            const behaviors = (input.behaviors as Array<{ id: string; name: string }>) || [];
+            const explanation = (input.explanation as string) || '';
+
+            // Update audience context with parameters
+            setManualDescription(description);
+            if (demographics) {
+              setDemographics(demographics);
+            }
+            // Add interests and behaviors
+            interests.forEach(interest => addInterest(interest));
+            behaviors.forEach(behavior => addBehavior(behavior));
+            
+            // Set status to setup-in-progress to show the parameter refinement UI
+            updateAudienceStatus('setup-in-progress');
+
+            // Switch to audience tab
+            emitBrowserEvent('switchToTab', 'audience');
+
+            addToolResult({
+              tool: 'manualTargetingParameters',
+              toolCallId,
+              output: {
+                success: true,
+                demographics,
+                interests,
+                behaviors,
+                explanation,
+              },
+            });
+          }
+        } catch (error) {
+          console.error('Audience tool processing error:', error);
+          addToolResult({
+            tool: toolName,
+            toolCallId,
+            output: undefined,
+            errorText: `Failed to process ${toolName}`,
+          } as ToolResult);
+        } finally {
+          setProcessingAudience(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(toolCallId);
+            return newSet;
+          });
+        }
+      }
+
+      // Clear pending calls after processing
+      setPendingAudienceCalls([]);
+    };
+
+    processAudienceCalls();
+  }, [pendingAudienceCalls, processingAudience, setAudienceTargeting, updateAudienceStatus, setManualDescription, setDemographics, addInterest, addBehavior, addToolResult]);
+
+  // Safety net: scan for audience tool-call parts that we didn't enqueue yet
+  useEffect(() => {
+    const newlyDiscovered: Array<{ toolCallId: string; toolName: string; input: Record<string, unknown> }> = [];
+    for (const msg of messages) {
+      const parts = (msg as unknown as { parts?: Array<{ type?: string; toolName?: string; toolCallId?: string; input?: unknown }> }).parts || [];
+      for (const p of parts) {
+        if (p && p.type === 'tool-call' && (p.toolName === 'audienceMode' || p.toolName === 'manualTargetingParameters')) {
+          const callId = p.toolCallId || `${msg.id}-auto`;
+          const alreadyPending = pendingAudienceCalls.some(c => c.toolCallId === callId) || processingAudience.has(callId);
+          if (alreadyPending) continue;
+
+          const rawInput = (p as unknown as { input?: unknown }).input;
+          if (rawInput && typeof rawInput === 'object') {
+            newlyDiscovered.push({ 
+              toolCallId: callId, 
+              toolName: p.toolName || '', 
+              input: rawInput as Record<string, unknown> 
+            });
+          }
+        }
+      }
+    }
+    if (newlyDiscovered.length > 0) {
+      setPendingAudienceCalls(prev => {
+        const existingIds = new Set(prev.map(p => p.toolCallId));
+        const deduped = newlyDiscovered.filter(n => !existingIds.has(n.toolCallId));
+        return deduped.length ? [...prev, ...deduped] : prev;
+      });
+    }
+  }, [messages, pendingAudienceCalls, processingAudience]);
+
   // Listen for goal setup trigger from canvas
   useEffect(() => {
     const handleGoalSetup = (event: CustomEvent<{ goalType: string }>) => {
@@ -898,6 +1025,26 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
 
     window.addEventListener('triggerAudienceSetup', handleAudienceSetup);
     return () => window.removeEventListener('triggerAudienceSetup', handleAudienceSetup);
+  }, []);
+
+  // Listen for audience mode selection (AI Advantage+ or Manual Targeting)
+  useEffect(() => {
+    const handleAudienceModeSelection = (event: CustomEvent<{ mode: 'ai' | 'manual' }>) => {
+      const { mode } = event.detail;
+      
+      if (mode === 'ai') {
+        sendMessageRef.current({
+          text: `Enable AI Advantage+ targeting`,
+        });
+      } else {
+        sendMessageRef.current({
+          text: `Set up manual targeting`,
+        });
+      }
+    };
+
+    window.addEventListener('triggerAudienceModeSelection', handleAudienceModeSelection as EventListener);
+    return () => window.removeEventListener('triggerAudienceModeSelection', handleAudienceModeSelection as EventListener);
   }, []);
 
   // Listen for audience generation (when user clicks "Find My Audience with AI")
@@ -1320,6 +1467,47 @@ Make it conversational and easy to understand for a business owner.`,
                                     })}
                                   </div>
                                 );
+                              }
+
+                              if (toolName === 'audienceMode') {
+                                const input = (part as unknown as { input?: unknown }).input as { mode?: 'ai' | 'manual'; explanation?: string } | undefined;
+                                const output = (part as unknown as { output?: unknown }).output as { success?: boolean; mode?: 'ai' | 'manual'; explanation?: string } | undefined;
+                                
+                                if (!input && !output) return null;
+
+                                const mode = output?.mode || input?.mode || 'ai';
+                                const explanation = output?.explanation || input?.explanation;
+
+                                return renderAudienceModeResult({
+                                  callId,
+                                  input: { mode, explanation },
+                                  output: output || {},
+                                });
+                              }
+
+                              if (toolName === 'manualTargetingParameters') {
+                                const input = (part as unknown as { input?: unknown }).input as {
+                                  description?: string;
+                                  demographics?: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
+                                  interests?: Array<{ id: string; name: string }>;
+                                  behaviors?: Array<{ id: string; name: string }>;
+                                  explanation?: string;
+                                } | undefined;
+                                const output = (part as unknown as { output?: unknown }).output as {
+                                  success?: boolean;
+                                  demographics?: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
+                                  interests?: Array<{ id: string; name: string }>;
+                                  behaviors?: Array<{ id: string; name: string }>;
+                                  explanation?: string;
+                                } | undefined;
+                                
+                                if (!input && !output) return null;
+
+                                return renderManualTargetingParametersResult({
+                                  callId,
+                                  input: input || {},
+                                  output: output || {},
+                                });
                               }
 
                               // Unknown tool result → let specific handlers (below) or default handle it
