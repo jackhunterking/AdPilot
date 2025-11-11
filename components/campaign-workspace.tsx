@@ -304,8 +304,8 @@ export function CampaignWorkspace() {
         ? ad.meta_ad_id
         : null
 
-      const normalizedStatus: 'draft' | 'active' | 'paused' | 'archived' =
-        metaAdId ? (ad.status as 'draft' | 'active' | 'paused' | 'archived') : 'draft'
+      const normalizedStatus: 'draft' | 'active' | 'learning' | 'paused' | 'archived' =
+        metaAdId ? (ad.status as 'draft' | 'active' | 'learning' | 'paused' | 'archived') : 'draft'
 
       return {
         id: ad.id,

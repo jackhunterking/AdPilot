@@ -68,9 +68,20 @@ export async function POST(
       .single()
 
     if (error) {
-      console.error("[POST /api/campaigns/[id]/ads/draft] Error creating draft:", error)
+      // Log detailed error information for debugging
+      console.error("[POST /api/campaigns/[id]/ads/draft] Error creating draft:", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        fullError: error
+      })
       return NextResponse.json(
-        { error: "Failed to create draft ad" },
+        { 
+          error: "Failed to create draft ad",
+          details: error.message,
+          code: error.code
+        },
         { status: 500 }
       )
     }
@@ -79,9 +90,16 @@ export async function POST(
 
     return NextResponse.json({ ad }, { status: 201 })
   } catch (error) {
-    console.error("[POST /api/campaigns/[id]/ads/draft] Unexpected error:", error)
+    console.error("[POST /api/campaigns/[id]/ads/draft] Unexpected error:", {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    })
     return NextResponse.json(
-      { error: "Internal server error" },
+      { 
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }

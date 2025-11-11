@@ -40,7 +40,7 @@ export interface AdVariant {
   id: string
   campaign_id: string
   name: string
-  status: 'draft' | 'active' | 'paused' | 'archived'
+  status: 'draft' | 'active' | 'learning' | 'paused' | 'archived'
   variant_type: 'original' | 'ab_test' | 'manual' | 'ai_generated'
   
   // Creative data
