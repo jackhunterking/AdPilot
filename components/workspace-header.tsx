@@ -60,9 +60,8 @@ export function WorkspaceHeader({
   campaignBudget,
   onMetaConnect,
   onBudgetUpdate,
-  onSaveAndPublish,
-  isSaveAndPublishDisabled = false,
   onSave,
+  isSaveDisabled = false,
   onCreateAd,
   isCreateAdDisabled = false,
   className,
@@ -777,18 +776,7 @@ export function WorkspaceHeader({
         <div className="flex items-center gap-4">
           {statusBadge}
           
-          {/* Build mode buttons: Save and Create Ad */}
-          {mode === 'build' && onSave && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onSave}
-              className="gap-2"
-            >
-              <Save className="h-4 w-4" />
-              Save
-            </Button>
-          )}
+          {/* Build mode button: Create Ad */}
           {mode === 'build' && onCreateAd && (
             <Button
               variant="default"
@@ -802,17 +790,17 @@ export function WorkspaceHeader({
             </Button>
           )}
           
-          {/* Edit mode button: Save & Publish */}
-          {mode === 'edit' && onSaveAndPublish && (
+          {/* Edit mode button: Save */}
+          {mode === 'edit' && onSave && (
             <Button
               variant="default"
               size="sm"
-              onClick={onSaveAndPublish}
-              disabled={isSaveAndPublishDisabled}
+              onClick={onSave}
+              disabled={isSaveDisabled}
               className="gap-2 bg-gradient-to-r from-[#6C8CFF] via-[#5C7BFF] to-[#52E3FF] text-white hover:brightness-105 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Rocket className="h-4 w-4" />
-              Save & Publish
+              <Save className="h-4 w-4" />
+              Save
             </Button>
           )}
           

@@ -65,10 +65,12 @@ export function CampaignWorkspace() {
   // State for save success notification
   const [saveSuccessState, setSaveSuccessState] = useState<SaveSuccessState | null>(null)
   
-  // State for publish dialog in edit mode
-  const [publishDialogOpen, setPublishDialogOpen] = useState(false)
-  const [isPublishing, setIsPublishing] = useState(false)
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  
+  // State for publish flow from All Ads
+  const [publishingAdId, setPublishingAdId] = useState<string | null>(null)
+  const [showPublishDialog, setShowPublishDialog] = useState(false)
   
   // State for unsaved changes tracking
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -719,10 +721,19 @@ export function CampaignWorkspace() {
   }, [ads, campaignId, convertedAds, getMetaToken, refreshAds, updateAdStatus])
 
   const handlePublishAd = useCallback(async (adId: string) => {
+    // Set publishing ad ID and show dialog
+    setPublishingAdId(adId)
+    setShowPublishDialog(true)
+  }, [])
+  
+  // Handle publish complete (called by PublishFlowDialog)
+  const handlePublishComplete = useCallback(async () => {
+    if (!publishingAdId) return
+    
     try {
-      console.log('[CampaignWorkspace] Publishing ad:', adId)
+      console.log('[CampaignWorkspace] Publishing ad:', publishingAdId)
       
-      const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/publish`, {
+      const response = await fetch(`/api/campaigns/${campaignId}/ads/${publishingAdId}/publish`, {
         method: 'POST',
       })
       
@@ -730,24 +741,32 @@ export function CampaignWorkspace() {
         const errorData = await response.json()
         console.error('[CampaignWorkspace] Failed to publish ad:', errorData)
         toast.error(errorData.error || 'Failed to publish ad')
+        setShowPublishDialog(false)
+        setPublishingAdId(null)
         return
       }
       
       const { ad } = await response.json()
-      console.log('[CampaignWorkspace] Ad published successfully:', adId)
+      console.log('[CampaignWorkspace] Ad published successfully:', publishingAdId)
       
       // Show success toast
-      toast.success('Ad published successfully!')
+      toast.success('Ad submitted for review!')
       
       // Refresh ads list to update status
       await refreshAds()
+      
+      // Close dialog and clear state
+      setShowPublishDialog(false)
+      setPublishingAdId(null)
       
       // Stay on all-ads view to show the published ad
     } catch (error) {
       console.error('[CampaignWorkspace] Error publishing ad:', error)
       toast.error('Failed to publish ad')
+      setShowPublishDialog(false)
+      setPublishingAdId(null)
     }
-  }, [campaignId, refreshAds])
+  }, [campaignId, publishingAdId, refreshAds])
 
   const handleDeleteAd = useCallback(async (adId: string) => {
     const traceId = `delete_ad_workspace_${adId.substring(0, 8)}_${Date.now()}`
@@ -873,79 +892,15 @@ export function CampaignWorkspace() {
     isBudgetComplete,
   ])
 
-  // Handle Save action from header (build mode)
-  const handleSave = useCallback(async () => {
-    if (!campaign?.id) return
+  // Common save logic for both build and edit modes
+  const handleSaveAdData = useCallback(async (adId: string, isEditMode: boolean = false) => {
+    if (!campaign?.id || isSaving) return false
     
-    // Force save is handled by auto-save hooks, just show success and navigate
-    toast.success('Campaign saved successfully')
-    
-    // Navigate to all-ads view
-    router.push(`/${campaign.id}?view=all-ads`)
-  }, [campaign?.id, router])
-
-  // Handle Create Ad action from header (build mode)
-  const handleCreateAd = useCallback(async () => {
-    if (!campaign?.id || isPublishing) return
-    
-    // Validate all required data
-    if (!isAdReadyToCreate()) {
-      toast.error('Please complete all required steps before creating the ad')
-      return
-    }
-    
-    // Open publish dialog (reuse existing publish flow)
-    setIsPublishing(true)
-    setPublishDialogOpen(true)
-  }, [campaign?.id, isPublishing, isAdReadyToCreate])
-
-  // Handle Save & Publish action from header
-  const handleSaveAndPublish = useCallback(async () => {
-    if (!campaign?.id || !currentAdId || isPublishing) return
-    
-    // Validate all sections
-    const validationState = {
-      selectedImageIndex,
-      adCopyStatus: adCopyState.status,
-      destinationStatus: destinationState.status,
-      locationStatus: locationState.status,
-      audienceStatus: audienceState.status,
-      isMetaConnectionComplete,
-      hasPaymentMethod,
-      isBudgetComplete: isBudgetComplete(),
-    }
-    
-    const validation = validateAdForPublish(validationState)
-    
-    if (!validation.isValid) {
-      toast.error(formatValidationError(validation))
-      return
-    }
-    
-    // Open publish dialog
-    setIsPublishing(true)
-    setPublishDialogOpen(true)
-  }, [
-    campaign?.id,
-    currentAdId,
-    isPublishing,
-    selectedImageIndex,
-    adCopyState.status,
-    destinationState.status,
-    locationState.status,
-    audienceState.status,
-    isMetaConnectionComplete,
-    hasPaymentMethod,
-    isBudgetComplete,
-  ])
-  
-  // Handle publish complete
-  const handlePublishComplete = useCallback(async () => {
-    if (!campaign?.id || !currentAdId) return
+    setIsSaving(true)
     
     try {
       // Import the snapshot builder dynamically
-      const { buildAdSnapshot, validateAdSnapshot } = await import('@/lib/services/ad-snapshot-builder')
+      const { buildAdSnapshot } = await import('@/lib/services/ad-snapshot-builder')
       
       // Build complete snapshot from wizard contexts
       const snapshot = buildAdSnapshot({
@@ -962,19 +917,6 @@ export function CampaignWorkspace() {
         budget: budgetState,
       })
       
-      // Validate snapshot before submitting
-      const validation = validateAdSnapshot(snapshot)
-      if (!validation.isValid) {
-        console.error('Snapshot validation failed:', validation.errors)
-        toast.error(`Cannot publish: ${validation.errors.join(', ')}`)
-        setIsPublishing(false)
-        return
-      }
-      
-      if (validation.warnings.length > 0) {
-        console.warn('Snapshot warnings:', validation.warnings)
-      }
-      
       // Gather the finalized ad data from snapshot - use canonical copy source
       const selectedCopy = getSelectedCopy()
       
@@ -984,8 +926,7 @@ export function CampaignWorkspace() {
       
       // Prepare the ad data for persistence
       const adData = {
-        name: `${campaign.name} - Ad ${new Date().toLocaleDateString()}`,
-        status: 'active',
+        name: `${campaign.name} - ${isEditMode ? 'Ad' : 'Draft'} ${new Date().toLocaleDateString()}`,
         creative_data: {
           imageUrl: selectedImageUrl,
           imageVariations: adContent?.imageVariations,
@@ -997,28 +938,17 @@ export function CampaignWorkspace() {
           description: selectedCopy?.description || adContent?.body,
           cta: adContent?.cta || 'Learn More',
         },
-        meta_ad_id: null, // Will be set when actually published to Meta
+        setup_snapshot: snapshot,
       }
       
-      console.log('📸 Validated snapshot (used for deriving data):', {
-        hasSnapshot: !!snapshot,
-        creative: snapshot.creative.selectedImageIndex,
-        copy: {
-          headline: snapshot.copy.headline,
-          primaryText: snapshot.copy.primaryText?.substring(0, 50) + '...',
-        },
-        locations: snapshot.location.locations.length,
-        goal: snapshot.goal.type,
-      })
-      
-      console.log('📦 Ad data being sent to API (UPDATE):', {
-        adId: currentAdId,
+      console.log('📦 Ad data being sent to API:', {
+        adId,
         name: adData.name,
-        status: adData.status,
+        isEditMode,
       })
       
-      // Update the existing ad in Supabase
-      const response = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAdId}`, {
+      // Update the ad in Supabase (keeps status as draft or current status)
+      const response = await fetch(`/api/campaigns/${campaign.id}/ads/${adId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(adData),
@@ -1026,62 +956,105 @@ export function CampaignWorkspace() {
       
       if (!response.ok) {
         console.error('Failed to update ad:', await response.text())
-        toast.error('Failed to save changes')
-        setIsPublishing(false)
-        return
+        toast.error('Failed to save ad')
+        return false
       }
       
       const { ad } = await response.json()
-      console.log(`✅ Ad updated:`, ad.id)
+      console.log(`✅ Ad saved:`, ad.id)
       
-      // Mark as published in context and clear unsaved changes
-      setIsPublished(true)
-      setIsPublishing(false)
-      setHasUnsavedChanges(false)
-      
-      // Close the dialog immediately so navigation isn't blocked
-      setPublishDialogOpen(false)
-      
-      // Dispatch custom event to notify campaign workspace
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('campaign:save-complete', {
-          detail: {
-            campaignId: campaign.id,
-            campaignName: campaign.name,
-            isEdit: true,
-            adId: ad.id,
-            timestamp: Date.now()
-          }
-        }))
-      }
+      return true
     } catch (error) {
-      console.error('Error in handlePublishComplete:', error)
-      toast.error('Failed to save changes')
-      setIsPublishing(false)
+      console.error('Error in handleSaveAdData:', error)
+      toast.error('Failed to save ad')
+      return false
+    } finally {
+      setIsSaving(false)
     }
   }, [
     campaign?.id,
     campaign?.name,
-    currentAdId,
+    isSaving,
     adContent,
     selectedImageIndex,
     selectedCreativeVariation,
     adCopyState,
+    destinationState,
     locationState,
     audienceState,
     goalState,
     budgetState,
     getSelectedCopy,
-    setIsPublished,
   ])
-  
-  const handlePublishDialogClose = useCallback((open: boolean) => {
-    setPublishDialogOpen(open)
-    if (!open) {
-      // User closed dialog before completion
-      setIsPublishing(false)
+
+  // Handle Create Ad action from header (build mode)
+  const handleCreateAd = useCallback(async () => {
+    if (!campaign?.id || isSaving) return
+    
+    // Get the current ad ID from URL
+    const adId = searchParams.get('adId')
+    if (!adId) {
+      toast.error('No ad draft found')
+      return
     }
-  }, [])
+    
+    // Save ad data
+    const success = await handleSaveAdData(adId, false)
+    
+    if (success) {
+      // Show success toast
+      toast.success('Ad created as draft!')
+      
+      // Mark as published in context and clear unsaved changes
+      setIsPublished(true)
+      setHasUnsavedChanges(false)
+      
+      // Refresh ads data
+      await refreshAds()
+      
+      // Navigate to All Ads view
+      router.replace(pathname)
+      
+      // Store success state for modal
+      setSaveSuccessState({
+        campaignName: campaign.name,
+        isEdit: false,
+        adId,
+        timestamp: Date.now()
+      })
+    }
+  }, [campaign?.id, campaign?.name, isSaving, searchParams, handleSaveAdData, setIsPublished, refreshAds, router, pathname])
+
+  // Handle Save action from header (edit mode)
+  const handleSave = useCallback(async () => {
+    if (!campaign?.id || !currentAdId || isSaving) return
+    
+    // Save ad data
+    const success = await handleSaveAdData(currentAdId, true)
+    
+    if (success) {
+      // Show success toast
+      toast.success('Ad saved successfully!')
+      
+      // Clear unsaved changes
+      setHasUnsavedChanges(false)
+      
+      // Refresh ads data
+      await refreshAds()
+      
+      // Navigate to All Ads view
+      router.replace(pathname)
+      
+      // Store success state for modal
+      setSaveSuccessState({
+        campaignName: campaign.name,
+        isEdit: true,
+        adId: currentAdId,
+        timestamp: Date.now()
+      })
+    }
+  }, [campaign?.id, campaign?.name, currentAdId, isSaving, handleSaveAdData, refreshAds, router, pathname])
+
   
   // Unsaved changes dialog handlers
   const handleDiscardChanges = useCallback(() => {
@@ -1162,11 +1135,10 @@ export function CampaignWorkspace() {
         paymentStatus={paymentStatus}
         campaignBudget={campaign?.campaign_budget ?? null}
         onBudgetUpdate={updateBudget}
-        onSaveAndPublish={effectiveMode === 'edit' ? handleSaveAndPublish : undefined}
-        isSaveAndPublishDisabled={isPublishing}
-        onSave={effectiveMode === 'build' ? handleSave : undefined}
+        onSave={effectiveMode === 'edit' ? handleSave : undefined}
+        isSaveDisabled={isSaving}
         onCreateAd={effectiveMode === 'build' ? handleCreateAd : undefined}
-        isCreateAdDisabled={!isAdReadyToCreate()}
+        isCreateAdDisabled={isSaving || !isAdReadyToCreate()}
       />
 
       {/* Main Content */}
@@ -1261,16 +1233,14 @@ export function CampaignWorkspace() {
         })()}
       </div>
       
-      {/* Publish Flow Dialog for Edit Mode */}
-      {effectiveMode === 'edit' && (
-        <PublishFlowDialog
-          open={publishDialogOpen}
-          onOpenChange={handlePublishDialogClose}
-          campaignName={campaign?.name || "your ad"}
-          isEditMode={true}
-          onComplete={handlePublishComplete}
-        />
-      )}
+      {/* Publish Flow Dialog for All Ads Publish */}
+      <PublishFlowDialog
+        open={showPublishDialog}
+        onOpenChange={setShowPublishDialog}
+        campaignName={campaign?.name || "your ad"}
+        isEditMode={false}
+        onComplete={handlePublishComplete}
+      />
       
       {/* Unsaved Changes Dialog */}
       <Dialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>

@@ -12,6 +12,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, supabaseServer } from '@/lib/supabase/server'
 
+interface AdWithApproval {
+  id: string
+  campaign_id: string
+  name: string
+  status: string
+  meta_ad_id: string | null
+  meta_review_status?: string
+  approved_at?: string
+  created_at: string
+  updated_at: string
+  copy_data: unknown
+  creative_data: unknown
+  metrics_snapshot: unknown
+}
+
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string; adId: string }> }
@@ -87,7 +102,7 @@ export async function POST(
       .eq('id', adId)
       .eq('campaign_id', campaignId)
       .select()
-      .single()
+      .single() as { data: AdWithApproval | null; error: unknown }
 
     if (updateError) {
       console.error('[ApproveAd] Failed to update ad status:', updateError)

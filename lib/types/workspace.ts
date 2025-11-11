@@ -219,11 +219,10 @@ export interface WorkspaceHeaderProps {
   campaignBudget?: number | null
   onMetaConnect?: () => void
   onBudgetUpdate?: (budget: number) => Promise<void> | void
-  // Save & Publish props (edit mode)
-  onSaveAndPublish?: () => void
-  isSaveAndPublishDisabled?: boolean
-  // Save & Create Ad props (build mode)
+  // Save props (edit mode)
   onSave?: () => void
+  isSaveDisabled?: boolean
+  // Create Ad props (build mode)
   onCreateAd?: () => void
   isCreateAdDisabled?: boolean
   className?: string

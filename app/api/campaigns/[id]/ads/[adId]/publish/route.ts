@@ -74,10 +74,21 @@ export async function POST(
       }, { status: 400 })
     }
 
-    // Validate ad has required data (creative_data and copy_data)
-    if (!ad.creative_data || !ad.copy_data) {
-      console.warn('[PublishAd] Ad is missing required data:', { adId, hasCreative: !!ad.creative_data, hasCopy: !!ad.copy_data })
-      return NextResponse.json({ error: 'Ad setup is incomplete' }, { status: 400 })
+    // Validate ad has required data (setup_snapshot, creative_data, or copy_data)
+    const hasSnapshot = ad.setup_snapshot && typeof ad.setup_snapshot === 'object'
+    const hasCreativeData = ad.creative_data && typeof ad.creative_data === 'object'
+    const hasCopyData = ad.copy_data && typeof ad.copy_data === 'object'
+    
+    if (!hasSnapshot && (!hasCreativeData || !hasCopyData)) {
+      console.warn('[PublishAd] Ad is missing required data:', { 
+        adId, 
+        hasSnapshot, 
+        hasCreative: hasCreativeData, 
+        hasCopy: hasCopyData 
+      })
+      return NextResponse.json({ 
+        error: 'Ad setup is incomplete. Please ensure all ad details are saved.' 
+      }, { status: 400 })
     }
 
     // TODO: Integrate with Meta API to actually submit the ad

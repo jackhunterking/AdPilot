@@ -152,14 +152,14 @@ export function AllAdsGrid({
                 <CheckCircle2 className="h-6 w-6 text-green-600" />
               </div>
               <DialogTitle className="text-xl">
-                {saveSuccessState?.isEdit ? 'Changes Saved!' : 'Ad Published!'}
+                {saveSuccessState?.isEdit ? 'Changes Saved!' : 'Ad Created!'}
               </DialogTitle>
             </div>
           </DialogHeader>
           <p className="text-sm text-muted-foreground mb-6">
             {saveSuccessState?.isEdit 
-              ? `${saveSuccessState.campaignName} has been updated successfully. The ad will continue running with the updated settings.`
-              : `${saveSuccessState?.campaignName} has been published successfully and is now live.`
+              ? `${saveSuccessState.campaignName} has been updated successfully.`
+              : `${saveSuccessState?.campaignName} has been saved as a draft. You can publish it when ready.`
             }
           </p>
           <div className="flex justify-end">
