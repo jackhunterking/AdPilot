@@ -27,6 +27,7 @@ import { useAdCopy } from "@/lib/context/ad-copy-context"
 import { useBudget } from "@/lib/context/budget-context"
 import { useCampaignAds } from "@/lib/hooks/use-campaign-ads"
 import { useGoal } from "@/lib/context/goal-context"
+import { useDestination } from "@/lib/context/destination-context"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 import { metaStorage } from "@/lib/meta/storage"
 import { validateAdForPublish, formatValidationError } from "@/lib/utils/ad-validation"
@@ -47,6 +48,7 @@ interface SaveSuccessState {
 export function CampaignWorkspace() {
   const { campaign, updateBudget } = useCampaignContext()
   const { goalState } = useGoal()
+  const { destinationState } = useDestination()
   const { adContent, resetAdPreview, selectedImageIndex, selectedCreativeVariation, setIsPublished } = useAdPreview()
   const { clearLocations, locationState } = useLocation()
   const { resetAudience, audienceState } = useAudience()
@@ -904,9 +906,9 @@ export function CampaignWorkspace() {
     const validationState = {
       selectedImageIndex,
       adCopyStatus: adCopyState.status,
+      destinationStatus: destinationState.status,
       locationStatus: locationState.status,
       audienceStatus: audienceState.status,
-      goalStatus: goalState.status,
       isMetaConnectionComplete,
       hasPaymentMethod,
       isBudgetComplete: isBudgetComplete(),
@@ -928,9 +930,9 @@ export function CampaignWorkspace() {
     isPublishing,
     selectedImageIndex,
     adCopyState.status,
+    destinationState.status,
     locationState.status,
     audienceState.status,
-    goalState.status,
     isMetaConnectionComplete,
     hasPaymentMethod,
     isBudgetComplete,
@@ -952,6 +954,7 @@ export function CampaignWorkspace() {
           selectedCreativeVariation,
         },
         adCopy: adCopyState,
+        destination: destinationState,
         location: locationState,
         audience: audienceState,
         goal: goalState,

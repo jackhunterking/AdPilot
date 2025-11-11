@@ -28,6 +28,11 @@ const stepHeaders: Record<string, { title: string; subtitle: string; subtext: st
     subtitle: "Choose words that convert",
     subtext: "Select compelling copy for your campaign"
   },
+  destination: {
+    title: "Ad Destination",
+    subtitle: "Configure where users will go",
+    subtext: "Set up the form, URL, or phone number for this ad"
+  },
   location: {
     title: "Ad Location",
     subtitle: "Reach the right places",

@@ -14,6 +14,7 @@ import type {
   AudienceSnapshot,
   GoalSnapshot,
   BudgetSnapshot,
+  DestinationSnapshot,
   SnapshotValidation,
 } from '@/lib/types/ad-snapshot'
 
@@ -102,6 +103,19 @@ interface GoalState {
   status: string
 }
 
+interface DestinationState {
+  status: 'idle' | 'in_progress' | 'completed'
+  data: {
+    type: 'instant_form' | 'website_url' | 'phone_number' | null
+    formId?: string
+    formName?: string
+    websiteUrl?: string
+    displayLink?: string
+    phoneNumber?: string
+    phoneFormatted?: string
+  } | null
+}
+
 interface BudgetState {
   dailyBudget: number
   selectedAdAccount: string | null
@@ -119,6 +133,7 @@ interface BudgetState {
 export interface BuildAdSnapshotInput {
   adPreview: AdPreviewState
   adCopy: AdCopyState
+  destination: DestinationState
   location: LocationState
   audience: AudienceState
   goal: GoalState
@@ -130,7 +145,7 @@ export interface BuildAdSnapshotInput {
  * This is the single source of truth builder
  */
 export function buildAdSnapshot(input: BuildAdSnapshotInput): AdSetupSnapshot {
-  const { adPreview, adCopy, location, audience, goal, budget } = input
+  const { adPreview, adCopy, destination, location, audience, goal, budget } = input
 
   // Build creative snapshot
   const creative: AdCreativeSnapshot = {
@@ -173,14 +188,24 @@ export function buildAdSnapshot(input: BuildAdSnapshotInput): AdSetupSnapshot {
     detailedTargeting: audience.targeting.detailedTargeting,
   }
 
-  // Build goal snapshot
-  if (!goal.selectedGoal || !goal.formData) {
-    throw new Error('Goal must be selected and configured before building snapshot')
+  // Build destination snapshot
+  if (!destination.data || !destination.data.type) {
+    throw new Error('Destination must be configured before building snapshot')
+  }
+
+  const destinationSnapshot: DestinationSnapshot = {
+    type: destination.data.type,
+    data: destination.data,
+  }
+
+  // Build goal snapshot (campaign-level, immutable)
+  if (!goal.selectedGoal) {
+    throw new Error('Goal must be selected before building snapshot')
   }
 
   const goalSnapshot: GoalSnapshot = {
     type: goal.selectedGoal,
-    formData: goal.formData,
+    formData: goal.formData || {}, // formData now optional since destination handles this
   }
 
   // Build budget snapshot
@@ -196,6 +221,7 @@ export function buildAdSnapshot(input: BuildAdSnapshotInput): AdSetupSnapshot {
   const snapshot: AdSetupSnapshot = {
     creative,
     copy,
+    destination: destinationSnapshot,
     location: locationSnapshot,
     audience: audienceSnapshot,
     goal: goalSnapshot,
@@ -238,27 +264,34 @@ export function validateAdSnapshot(snapshot: AdSetupSnapshot): SnapshotValidatio
     warnings.push('AI audience has no description')
   }
 
-  // Validate goal
+  // Validate goal (campaign-level)
   if (!snapshot.goal.type) {
     errors.push('Goal type not selected')
   }
 
-  switch (snapshot.goal.type) {
-    case 'leads':
-      if (!snapshot.goal.formData.id && !snapshot.goal.formData.name) {
-        errors.push('Lead form not configured')
-      }
-      break
-    case 'calls':
-      if (!snapshot.goal.formData.phoneNumber) {
-        errors.push('Phone number not configured')
-      }
-      break
-    case 'website-visits':
-      if (!snapshot.goal.formData.websiteUrl) {
-        errors.push('Website URL not configured')
-      }
-      break
+  // Validate destination (ad-level)
+  if (!snapshot.destination?.type) {
+    errors.push('Destination type not configured')
+  }
+
+  if (snapshot.destination) {
+    switch (snapshot.destination.type) {
+      case 'instant_form':
+        if (!snapshot.destination.data.formId && !snapshot.destination.data.formName) {
+          errors.push('Lead form not configured')
+        }
+        break
+      case 'phone_number':
+        if (!snapshot.destination.data.phoneNumber) {
+          errors.push('Phone number not configured')
+        }
+        break
+      case 'website_url':
+        if (!snapshot.destination.data.websiteUrl) {
+          errors.push('Website URL not configured')
+        }
+        break
+    }
   }
 
   // Validate budget

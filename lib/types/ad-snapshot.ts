@@ -71,17 +71,30 @@ export interface AudienceSnapshot {
 export interface GoalSnapshot {
   type: 'leads' | 'calls' | 'website-visits'
   formData: {
-    // Leads
+    // Legacy support - formData now mostly handled by destination
     id?: string
     name?: string
     type?: string
     fields?: string[]
-    // Calls
     phoneNumber?: string
     countryCode?: string
-    // Website Visits
     websiteUrl?: string
     displayLink?: string
+  }
+}
+
+export interface DestinationSnapshot {
+  type: 'instant_form' | 'website_url' | 'phone_number'
+  data: {
+    // Instant Form (leads)
+    formId?: string
+    formName?: string
+    // Website URL (website-visits)
+    websiteUrl?: string
+    displayLink?: string
+    // Phone Number (calls)
+    phoneNumber?: string
+    phoneFormatted?: string
   }
 }
 
@@ -123,11 +136,14 @@ export interface AdSetupSnapshot {
   // Copy
   copy: AdCopySnapshot
   
+  // Destination (ad-level: form/URL/phone)
+  destination: DestinationSnapshot
+  
   // Targeting
   location: LocationSnapshot
   audience: AudienceSnapshot
   
-  // Goal
+  // Goal (campaign-level: immutable)
   goal: GoalSnapshot
   
   // Meta Connection (optional - may not be needed in snapshot)

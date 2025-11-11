@@ -11,7 +11,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Rocket, Loader2, Save } from "lucide-react"
+import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Rocket, Loader2, Save, Flag } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -660,6 +660,29 @@ export function WorkspaceHeader({
     )
   }
 
+  const getGoalBadge = () => {
+    // Get goal from campaign's initial_goal or campaign_states.goal_data
+    const campaignGoal = campaign?.initial_goal || 
+      (campaign?.campaign_states as { goal_data?: { selectedGoal?: string } } | null | undefined)?.goal_data?.selectedGoal
+    
+    if (!campaignGoal) return null
+    
+    const goalLabels: Record<string, string> = {
+      'leads': 'Leads',
+      'website-visits': 'Website Visits',
+      'calls': 'Calls',
+    }
+    
+    const goalLabel = goalLabels[campaignGoal] || campaignGoal
+    
+    return (
+      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card text-sm font-medium">
+        <Flag className="h-4 w-4" />
+        Goal: {goalLabel}
+      </div>
+    )
+  }
+
   // Determine status badge
   const getStatusBadge = () => {
     if (abTestInfo) {
@@ -740,9 +763,10 @@ export function WorkspaceHeader({
             </Button>
           )}
           
-          {/* Meta Connection + Budget Pills (visible in build, edit, results, and all-ads modes) */}
+          {/* Goal + Meta Connection + Budget Pills (visible in build, edit, results, and all-ads modes) */}
           {(mode === 'build' || mode === 'edit' || mode === 'results' || mode === 'all-ads') && (
             <div className="flex items-center gap-2">
+              {getGoalBadge()}
               {getMetaConnectionBadge()}
               {getBudgetBadge()}
             </div>

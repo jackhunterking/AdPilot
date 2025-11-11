@@ -17,6 +17,7 @@ import { Play, ImageIcon, Video, Layers, Sparkles, Building2, Check, Facebook, L
 import { LocationSelectionCanvas } from "./location-selection-canvas"
 import { AudienceSelectionCanvas } from "./audience-selection-canvas"
 import { AdCopySelectionCanvas } from "./ad-copy-selection-canvas"
+import { DestinationSetupCanvas } from "./destination-setup-canvas"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { GoalSelectionCanvas } from "./goal-selection-canvas"
 import { GoalSummaryCard } from "@/components/launch/goal-summary-card"
@@ -25,6 +26,7 @@ import { useBudget } from "@/lib/context/budget-context"
 import { useLocation } from "@/lib/context/location-context"
 import { useAudience } from "@/lib/context/audience-context"
 import { useGoal } from "@/lib/context/goal-context"
+import { useDestination } from "@/lib/context/destination-context"
 import { useAdCopy } from "@/lib/context/ad-copy-context"
 import { cn } from "@/lib/utils"
 import { newEditSession } from "@/lib/utils/edit-session"
@@ -57,6 +59,7 @@ export function PreviewPanel() {
   const { locationState } = useLocation()
   const { audienceState } = useAudience()
   const { goalState } = useGoal()
+  const { destinationState } = useDestination()
   const { adCopyState, getActiveVariations, getSelectedCopy } = useAdCopy()
   const [showReelMessage, setShowReelMessage] = useState(false)
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false)
@@ -64,7 +67,6 @@ export function PreviewPanel() {
   // Modal state management for section editing
   const [locationModalOpen, setLocationModalOpen] = useState(false)
   const [audienceModalOpen, setAudienceModalOpen] = useState(false)
-  const [goalModalOpen, setGoalModalOpen] = useState(false)
   
   // Publish flow dialog state
   const [publishDialogOpen, setPublishDialogOpen] = useState(false)
@@ -1134,16 +1136,6 @@ export function PreviewPanel() {
           onEdit={() => setAudienceModalOpen(true)}
         />
 
-        {/* Goal Section */}
-        <CollapsibleSection
-          title="Goal"
-          icon={Flag}
-          isComplete={goalState.status === "completed"}
-          summaryContent={goalSummaryContent}
-          editStepId="goal"
-          onEdit={() => setGoalModalOpen(true)}
-        />
-
         {/* Edit Modals */}
         <SectionEditModal
           open={locationModalOpen}
@@ -1166,17 +1158,6 @@ export function PreviewPanel() {
           innerClassName="max-w-none mx-0"
         >
           <AudienceSelectionCanvas />
-        </SectionEditModal>
-
-        <SectionEditModal
-          open={goalModalOpen}
-          onOpenChange={setGoalModalOpen}
-          title="Set Your Goal"
-          size="xl"
-          bodyClassName="bg-muted/20 px-0 py-0"
-          innerClassName="max-w-none mx-0"
-        >
-          <GoalSelectionCanvas />
         </SectionEditModal>
       </div>
     </div>
@@ -1204,8 +1185,17 @@ export function PreviewPanel() {
         icon: Type,
       },
       {
-        id: "location",
+        id: "destination",
         number: 3,
+        title: "Destination",
+        description: "Configure where users will be directed",
+        completed: destinationState.status === "completed",
+        content: <DestinationSetupCanvas />,
+        icon: Link2,
+      },
+      {
+        id: "location",
+        number: 4,
         title: "Target Location",
         description: "Choose where you want your ads to be shown",
         completed: locationState.status === "completed",
@@ -1214,34 +1204,22 @@ export function PreviewPanel() {
       },
       {
         id: "audience",
-        number: 4,
+        number: 5,
         title: "Define Audience",
         description: "Select who should see your ads",
         completed: audienceState.status === "completed",
         content: <AudienceSelectionCanvas />,
         icon: Target,
       },
-      // Only show goal and budget for first ad (not variants)
-      ...(!isCreatingVariant ? [
-        {
-          id: "goal",
-          number: 5,
-          title: "Set Your Goal",
-          description: "Choose what you want to achieve with your ads",
-          completed: goalState.status === "completed",
-          content: <GoalSelectionCanvas />,
-          icon: Flag,
-        },
-        {
-          id: "budget",
-          number: 6,
-          title: "Launch Ad",
-          description: "Review details and publish your ad",
-          completed: isComplete(),
-          content: launchContent,
-          icon: Rocket,
-        },
-      ] : []),
+      {
+        id: "budget",
+        number: 6,
+        title: "Launch Ad",
+        description: "Review details and publish your ad",
+        completed: isComplete(),
+        content: launchContent,
+        icon: Rocket,
+      },
     ]
     
     // Renumber steps after filtering
@@ -1249,7 +1227,7 @@ export function PreviewPanel() {
       ...step,
       number: index + 1,
     }))
-  }, [isCreatingVariant, selectedImageIndex, adCopyState.status, locationState.status, audienceState.status, isMetaConnectionComplete, goalState.status, isComplete, adsContent, launchContent])
+  }, [selectedImageIndex, adCopyState.status, destinationState.status, locationState.status, audienceState.status, isMetaConnectionComplete, isComplete, adsContent, launchContent])
 
   return (
     <div className="flex flex-1 h-full flex-col relative min-h-0">

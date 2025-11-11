@@ -11,9 +11,9 @@
 export interface AdValidationState {
   selectedImageIndex: number | null
   adCopyStatus: string
+  destinationStatus: string
   locationStatus: string
   audienceStatus: string
-  goalStatus: string
   isMetaConnectionComplete: boolean
   hasPaymentMethod: boolean
   isBudgetComplete: boolean
@@ -40,16 +40,16 @@ export function validateAdForPublish(state: AdValidationState): AdValidationResu
     missingRequirements.push('Complete ad copy selection')
   }
 
+  if (state.destinationStatus !== 'completed') {
+    missingRequirements.push('Configure ad destination (form, URL, or phone)')
+  }
+
   if (state.locationStatus !== 'completed') {
     missingRequirements.push('Set target locations')
   }
 
   if (state.audienceStatus !== 'completed') {
     missingRequirements.push('Define target audience')
-  }
-
-  if (state.goalStatus !== 'completed') {
-    missingRequirements.push('Set campaign goal')
   }
 
   if (!state.isMetaConnectionComplete) {
