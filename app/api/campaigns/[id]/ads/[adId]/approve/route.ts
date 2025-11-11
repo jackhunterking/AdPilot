@@ -104,7 +104,7 @@ export async function POST(
       .select()
       .single() as { data: AdWithApproval | null; error: unknown }
 
-    if (updateError) {
+    if (updateError || !updatedAd) {
       console.error('[ApproveAd] Failed to update ad status:', updateError)
       return NextResponse.json({ error: 'Failed to approve ad' }, { status: 500 })
     }
