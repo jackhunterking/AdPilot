@@ -334,6 +334,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
             ...lastMessage,
           metadata: {
             ...(existingMeta || {}),
+            campaignId: campaignId, // Required for AI SDK-generated conversation IDs
             goalType: goalType,
           },
         };
@@ -343,6 +344,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
           console.log(`[TRANSPORT] message.id:`, lastMessage?.id);
           console.log(`[TRANSPORT] message.role:`, lastMessage?.role);
           console.log(`[TRANSPORT] message.metadata:`, (enrichedMessage as { metadata?: unknown }).metadata);
+          console.log(`[TRANSPORT] campaignId included:`, campaignId);
           console.log(`[TRANSPORT] goalType included:`, goalType);
           
           return {

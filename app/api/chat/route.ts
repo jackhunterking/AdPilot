@@ -7,6 +7,12 @@
  *  - Conversation History: https://ai-sdk.dev/docs/ai-sdk-core/conversation-history
  */
 
+// UUID validation helper to distinguish database IDs from AI SDK-generated IDs
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 import { 
   convertToModelMessages, 
   streamText, 
@@ -154,23 +160,65 @@ export async function POST(req: Request) {
   };
 
   // Get or create conversation
-  // The 'id' can be either a campaign ID or conversation ID
-  // For backwards compatibility, we first check if it's a campaign ID
+  // The 'id' can be either a campaign ID, conversation ID, or AI SDK-generated ID
   let conversationId = id;
   let conversation = null;
   
+  console.log(`[API] ========== CONVERSATION ID RESOLUTION ==========`);
+  console.log(`[API] Received id:`, id);
+  console.log(`[API] Is valid UUID:`, id ? isValidUUID(id) : 'N/A (no id)');
+  
   if (id) {
-    // Try to get conversation by ID first
-    conversation = await conversationManager.getConversation(id);
-    
-    // If not found, check if it's a campaign ID
-    if (!conversation) {
-      conversation = await conversationManager.getOrCreateForCampaign(user.id, id);
-      conversationId = conversation.id;
-      console.log(`[API] Created/found conversation ${conversationId} for campaign ${id}`);
+    // Check if it's a valid UUID (database ID)
+    if (isValidUUID(id)) {
+      console.log(`[API] ✅ Valid UUID detected, attempting database lookup`);
+      
+      // Try to get conversation by ID first
+      conversation = await conversationManager.getConversation(id);
+      
+      // If not found, check if it's a campaign ID
+      if (!conversation) {
+        console.log(`[API] Not found as conversation ID, trying as campaign ID`);
+        conversation = await conversationManager.getOrCreateForCampaign(user.id, id);
+        conversationId = conversation.id;
+        console.log(`[API] ✅ Created/found conversation ${conversationId} for campaign ${id}`);
+      } else {
+        console.log(`[API] ✅ Using existing conversation ${conversationId}`);
+      }
     } else {
-      console.log(`[API] Using existing conversation ${conversationId}`);
+      // Not a UUID - it's an AI SDK-generated ID (e.g., conv_1762821485606_h0uawxrjf)
+      console.log(`[API] ⚠️  Non-UUID ID detected (AI SDK generated): ${id}`);
+      console.log(`[API] Extracting campaignId from message metadata...`);
+      
+      // Extract campaignId from message metadata
+      const campaignIdFromMetadata = message?.metadata?.campaignId as string | undefined;
+      console.log(`[API] Campaign ID from metadata:`, campaignIdFromMetadata);
+      
+      if (campaignIdFromMetadata && isValidUUID(campaignIdFromMetadata)) {
+        console.log(`[API] ✅ Valid campaign ID found in metadata, creating conversation`);
+        conversation = await conversationManager.getOrCreateForCampaign(
+          user.id,
+          campaignIdFromMetadata
+        );
+        conversationId = conversation.id;
+        console.log(`[API] ✅ Created/found conversation ${conversationId} for campaign ${campaignIdFromMetadata}`);
+      } else {
+        console.error(`[API] ❌ No valid campaign ID found. AI SDK generated ID but no campaignId in metadata.`);
+        console.error(`[API] Message metadata:`, JSON.stringify(message?.metadata || {}, null, 2));
+        return new Response(
+          JSON.stringify({ 
+            error: 'Campaign ID required for new conversations',
+            details: 'Please provide a valid campaign ID in message metadata'
+          }),
+          { 
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+      }
     }
+  } else {
+    console.log(`[API] ⚠️  No id provided, conversation will be created without campaign link`);
   }
   
   // Extract goal from conversation metadata (source of truth) or message metadata (fallback)

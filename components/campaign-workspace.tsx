@@ -349,17 +349,27 @@ export function CampaignWorkspace() {
 
   // Track unsaved changes in edit mode and progress in build mode
   useEffect(() => {
+    const isCreatingNewAd = searchParams.get('newAd') === 'true'
+    
     if (effectiveMode === 'edit' && currentAdId) {
       // Mark as having unsaved changes when in edit mode
       // This will be reset when Save & Publish is successful
       setHasUnsavedChanges(true)
-    } else if (effectiveMode === 'build' && hasPublishedAds) {
-      // In build mode with existing ads, track if there's any progress
-      setHasUnsavedChanges(hasBuildProgress)
+    } else if (effectiveMode === 'build') {
+      // If creating a new ad, ALWAYS consider it as having unsaved changes
+      // because a draft record was created in DB that needs cleanup if cancelled
+      if (isCreatingNewAd) {
+        setHasUnsavedChanges(true)
+      } else if (hasPublishedAds) {
+        // For subsequent ads (when published ads exist), track actual build progress
+        setHasUnsavedChanges(hasBuildProgress)
+      } else {
+        setHasUnsavedChanges(false)
+      }
     } else {
       setHasUnsavedChanges(false)
     }
-  }, [effectiveMode, currentAdId, hasPublishedAds, hasBuildProgress])
+  }, [effectiveMode, currentAdId, hasPublishedAds, hasBuildProgress, searchParams])
 
   // Update URL when mode changes
   const setWorkspaceMode = useCallback((mode: WorkspaceMode, adId?: string) => {
