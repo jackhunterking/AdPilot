@@ -1,3 +1,13 @@
+/**
+ * Feature: Supabase Database Types
+ * Purpose: TypeScript types generated from database schema
+ * References:
+ *  - Supabase: https://supabase.com/docs/guides/api/rest/generating-types
+ * 
+ * Note: These types are synced with the database schema. Run `npx supabase gen types typescript`
+ * to regenerate after schema changes.
+ */
+
 export type Json =
   | string
   | number
@@ -16,38 +26,50 @@ export type Database = {
     Tables: {
       ads: {
         Row: {
+          approved_at: string | null
           campaign_id: string
           copy_data: Json | null
           created_at: string
           creative_data: Json | null
           id: string
           meta_ad_id: string | null
+          meta_review_status: string
           metrics_snapshot: Json | null
           name: string
+          published_at: string | null
+          rejected_at: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          approved_at?: string | null
           campaign_id: string
           copy_data?: Json | null
           created_at?: string
           creative_data?: Json | null
           id?: string
           meta_ad_id?: string | null
+          meta_review_status?: string
           metrics_snapshot?: Json | null
           name: string
+          published_at?: string | null
+          rejected_at?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          approved_at?: string | null
           campaign_id?: string
           copy_data?: Json | null
           created_at?: string
           creative_data?: Json | null
           id?: string
           meta_ad_id?: string | null
+          meta_review_status?: string
           metrics_snapshot?: Json | null
           name?: string
+          published_at?: string | null
+          rejected_at?: string | null
           status?: string
           updated_at?: string
         }

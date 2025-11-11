@@ -4,6 +4,7 @@
  * References:
  *  - Meta Ad Rejection: https://www.facebook.com/business/help/247189082393271
  *  - Supabase: https://supabase.com/docs/reference/javascript/update
+ *  - Supabase Types: https://supabase.com/docs/guides/api/rest/generating-types
  * 
  * NOTE: This endpoint simulates Meta's rejection process for testing.
  * In production, this will be triggered by Meta's webhook when an ad is rejected.
@@ -11,6 +12,12 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, supabaseServer } from '@/lib/supabase/server'
+import type { Json } from '@/lib/supabase/database.types'
+
+// Type guard to check if a value is a JSON object
+function isJsonObject(value: Json): value is Record<string, Json> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
 
 export async function POST(
   request: NextRequest,
@@ -87,8 +94,13 @@ export async function POST(
     }
 
     // Store rejection reason in metrics_snapshot for now (can add dedicated column later)
-    const rejectionData = {
-      ...(ad.metrics_snapshot || {}),
+    // Safely spread metrics_snapshot only if it's a JSON object
+    const baseSnapshot = ad.metrics_snapshot && isJsonObject(ad.metrics_snapshot) 
+      ? ad.metrics_snapshot 
+      : {}
+    
+    const rejectionData: Record<string, Json> = {
+      ...baseSnapshot,
       rejection_reason: rejectionReason,
       rejected_by: 'system', // In production, this would be 'meta'
     }

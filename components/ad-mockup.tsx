@@ -1,9 +1,18 @@
+/**
+ * Feature: Ad Mockup Component
+ * Purpose: Display ad preview in various formats (feed, story, reel)
+ * References:
+ *  - AI Elements: https://ai-sdk.dev/elements/overview
+ *  - Meta Ad Preview: https://www.facebook.com/business/help/216167062801391
+ */
+
 "use client"
 
 import { Sparkles, Globe, MoreVertical, ThumbsUp, MessageCircle, Share2, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import type { AdStatus } from "@/lib/types/workspace"
 
 interface AdMockupProps {
   format?: 'feed' | 'story' | 'reel'
@@ -15,7 +24,7 @@ interface AdMockupProps {
   description?: string
   gradient?: string
   ctaText?: string
-  status?: 'active' | 'paused' | 'draft' | 'learning' | 'archived'
+  status?: AdStatus
   showEngagement?: boolean
 }
 
