@@ -1,7 +1,21 @@
+/**
+ * Feature: Ad Mockup Component
+ * Purpose: Display ad preview in various formats (feed, story, reel)
+ * References:
+ *  - AI Elements: https://ai-sdk.dev/elements/overview
+ *  - Meta Ad Preview: https://www.facebook.com/business/help/216167062801391
+ */
+
 "use client"
 
+import { Sparkles, Globe, MoreVertical, ThumbsUp, MessageCircle, Share2, ChevronDown, ChevronUp } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
+import type { AdStatus } from "@/lib/types/workspace"
+
 interface AdMockupProps {
-  format?: 'feed' | 'story'
+  format?: 'feed' | 'story' | 'reel'
   imageUrl?: string
   logoUrl?: string
   brandName?: string
@@ -10,92 +24,171 @@ interface AdMockupProps {
   description?: string
   gradient?: string
   ctaText?: string
+  status?: AdStatus
+  showEngagement?: boolean
 }
 
 export function AdMockup({
   format = 'feed',
   imageUrl,
   logoUrl,
-  brandName = 'Your Brand',
-  primaryText = 'Discover our services',
-  headline = 'Get Started Today',
-  description = 'Learn more about what we offer',
+  brandName = 'Business Name',
+  primaryText,
+  headline,
+  description,
   gradient = 'from-blue-600 via-blue-500 to-cyan-500',
   ctaText = 'Learn More',
+  status,
+  showEngagement = true,
 }: AdMockupProps) {
+  // Use provided values or fallback to safe defaults only if undefined/null
+  const safePrimaryText = primaryText || 'Discover our amazing services and see how we can help you achieve your goals today.'
+  const safeHeadline = headline || 'Get Started Today'
+  const safeDescription = description || 'Learn more about what we offer'
+  
+  // Reel format - Coming Soon
+  if (format === 'reel') {
+    return (
+      <div className="aspect-[9/16] rounded-lg border-2 border-border bg-card overflow-hidden relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 flex items-center justify-center">
+          <div className="text-center text-white p-6">
+            <Sparkles className="h-12 w-12 mx-auto mb-4 animate-pulse" />
+            <h3 className="text-xl font-bold mb-2">Reels Coming Soon!</h3>
+            <p className="text-sm opacity-90">We're working on Reels format support</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
   
   if (format === 'story') {
     return (
-      <div className="aspect-[9/16] rounded-2xl border border-border bg-card overflow-hidden relative shadow-lg">
-        {/* Story Background */}
-        <div className="absolute inset-0">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={brandName}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className={`w-full h-full bg-gradient-to-br ${gradient}`} />
-          )}
-          <div className="absolute inset-0 bg-black/20" />
+      <div 
+        className="aspect-[9/16] rounded-lg border-2 bg-white overflow-hidden relative shadow-lg border-[#CED0D4]"
+        style={{ borderRadius: '8px' }}
+      >
+        {/* Progress Bar - Top Edge */}
+        <div className="absolute top-0 left-0 right-0 z-30" style={{ height: '2px' }}>
+          <div className="h-full bg-[#CED0D4]">
+            <div className="h-full bg-white" style={{ width: '33%' }} />
+          </div>
         </div>
 
-        {/* Story Header */}
-        <div className="relative z-10 p-4">
-          <div className="h-1 bg-white/30 rounded-full mb-4">
-            <div className="h-full w-1/3 bg-white rounded-full" />
-          </div>
+        {/* Header Section - Subtle Gray Bar */}
+        <div className="relative z-20 bg-[#F2F3F5] px-3 py-2.5" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px' }}>
           <div className="flex items-center gap-2">
-            {logoUrl ? (
-              <img src={logoUrl} alt={brandName} className="h-8 w-8 rounded-full object-cover border-2 border-white bg-white" />
-            ) : (
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 border-2 border-white" />
-            )}
-            <p className="text-white text-sm font-semibold drop-shadow-lg">{brandName}</p>
-            <p className="text-white/90 text-xs drop-shadow-lg">2h</p>
+            {/* Brand Logo - 40x40px */}
+            <div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center flex-shrink-0" style={{ width: '40px', height: '40px', borderRadius: '8px' }}>
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500" />
+            </div>
+            
+            {/* Brand Name & Sponsored */}
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold truncate text-[#333333]" style={{ fontSize: '15px', fontWeight: 600 }}>{brandName}</p>
+              <p className="text-[#65676B]" style={{ fontSize: '13px', fontWeight: 400 }}>Sponsored</p>
+            </div>
+            
+            {/* Options Icon */}
+            <MoreVertical className="h-5 w-5 text-[#65676B] flex-shrink-0 cursor-pointer" style={{ width: '20px', height: '20px' }} />
           </div>
         </div>
 
-        {/* Story Content */}
-        <div className="absolute bottom-20 left-0 right-0 px-6 z-10 text-center">
-          <h3 className="text-white text-2xl font-bold drop-shadow-2xl mb-2">
-            {headline}
-          </h3>
-          <p className="text-white text-sm drop-shadow-lg">
-            {description}
-          </p>
+        {/* Main Creative Section - Full Screen Background */}
+        <div className="absolute inset-0" style={{ top: '60px' }}>
+          {imageUrl ? (
+            <div className="relative w-full h-full">
+              <img 
+                src={imageUrl} 
+                alt={brandName} 
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className={`relative w-full h-full bg-gradient-to-br ${gradient}`} />
+          )}
         </div>
 
-        {/* Story CTA */}
-        <div className="absolute bottom-8 left-0 right-0 px-4 z-10">
-          <button className="w-full bg-white text-gray-900 rounded-full py-3 px-6 font-semibold shadow-lg">
-            {ctaText}
-          </button>
+        {/* Bottom Ad Copy/Engagement Section - Dark Background */}
+        <div className="absolute bottom-0 left-0 right-0 z-20 bg-[#242526]">
+          {/* Information Text */}
+          <div className="px-3 pt-3 pb-2" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '12px', paddingBottom: '8px' }}>
+            <div className="space-y-1">
+              {/* Primary Text */}
+              {safePrimaryText && (
+                <p className="text-white text-sm line-clamp-2" style={{ fontSize: '14px', lineHeight: '1.3' }}>
+                  {safePrimaryText}
+                </p>
+              )}
+              {/* Headline */}
+              {safeHeadline && (
+                <p className="text-white/90 text-xs line-clamp-1" style={{ fontSize: '13px' }}>
+                  {safeHeadline}
+                </p>
+              )}
+            </div>
+          </div>
+          
+          {/* Expand Icon - ChevronUp */}
+          <div className="flex justify-center py-1">
+            <ChevronUp className="h-4 w-4 text-white" style={{ width: '16px', height: '16px' }} />
+          </div>
+          
+          {/* Secondary CTA Button */}
+          <div className="flex justify-center px-3 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingBottom: '12px' }}>
+            <button 
+              className="bg-white text-[#333333] font-semibold rounded-lg px-3 py-2 hover:bg-gray-100 transition-colors"
+              style={{ 
+                fontSize: '15px', 
+                fontWeight: 600, 
+                paddingLeft: '12px', 
+                paddingRight: '12px', 
+                paddingTop: '8px', 
+                paddingBottom: '8px',
+                borderRadius: '8px'
+              }}
+              disabled
+            >
+              {ctaText}
+            </button>
+          </div>
         </div>
       </div>
     )
   }
 
-  // Feed Format
+  // Feed Format - Pixel-perfect Facebook feed ad
   return (
-    <div className="w-full rounded-lg border border-border bg-card overflow-hidden shadow-lg">
-      {/* Ad Header */}
-      <div className="flex items-center gap-2 p-3 border-b border-border">
-        {logoUrl ? (
-          <img src={logoUrl} alt={brandName} className="h-8 w-8 rounded-full object-cover flex-shrink-0 bg-white" />
-        ) : (
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex-shrink-0" />
-        )}
+    <div className="w-full rounded-lg border-2 bg-white overflow-hidden shadow-lg border-[#CED0D4]">
+      {/* Header Section - Facebook Style */}
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[#CED0D4]" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px' }}>
+        {/* Profile Picture - 40px circle, solid blue */}
+        <div className="h-10 w-10 rounded-full bg-[#1877F2] flex-shrink-0" style={{ width: '40px', height: '40px' }} />
+        
+        {/* Business Name & Sponsored */}
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold truncate">{brandName}</p>
-          <p className="text-[10px] text-muted-foreground">Sponsored</p>
+          <p className="font-semibold truncate text-[#050505]" style={{ fontSize: '15px', fontWeight: 600 }}>{brandName}</p>
+          <div className="flex items-center gap-1">
+            <p className="text-[#65676B]" style={{ fontSize: '13px', fontWeight: 400 }}>Sponsored</p>
+            <Globe className="h-3 w-3 text-[#65676B]" style={{ width: '12px', height: '12px' }} />
+          </div>
         </div>
+        
+        {/* Options Icon - MoreVertical on right */}
+        <MoreVertical className="h-5 w-5 text-[#65676B] flex-shrink-0 cursor-pointer hover:bg-[#F2F3F5] rounded-full p-1" style={{ width: '20px', height: '20px' }} />
       </div>
 
-      {/* Ad Creative */}
+        {/* Primary Text Section - BEFORE Media */}
+        {safePrimaryText && (
+          <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
+            <p className="text-[#050505] leading-[1.3333]" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '20px' }}>
+              {safePrimaryText}
+            </p>
+          </div>
+        )}
+
+      {/* Media Section - Square (1:1) aspect ratio - 1080x1080 */}
       {imageUrl ? (
-        <div className="aspect-square relative overflow-hidden">
+        <div className="relative overflow-hidden" style={{ aspectRatio: '1/1' }}>
           <img
             src={imageUrl}
             alt={brandName}
@@ -103,46 +196,94 @@ export function AdMockup({
           />
         </div>
       ) : (
-        <div className={`aspect-square bg-gradient-to-br ${gradient} flex items-center justify-center`}>
-          <div className="text-center text-white p-6">
-            <h3 className="text-2xl font-bold mb-2">{headline}</h3>
-            <p className="text-sm opacity-90">{description}</p>
-          </div>
-        </div>
+        <div className="relative overflow-hidden bg-[#1C1E21]" style={{ aspectRatio: '1/1' }} />
       )}
 
-      {/* Ad Copy Content */}
-      <div className="p-3 space-y-2">
-        {/* Reaction Icons */}
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-          </svg>
+      {/* Link Preview Section - Horizontal Layout */}
+      <div className="flex items-start gap-3 px-3 py-3 border-b border-[#CED0D4]" style={{ paddingLeft: '12px', paddingRight: '12px' }}>
+        {/* Left Side - Content */}
+        <div className="flex-1 min-w-0 space-y-1">
+          {/* Website URL */}
+          <p className="text-[#65676B] uppercase tracking-wide" style={{ fontSize: '11px', fontWeight: 400, letterSpacing: '0.5px' }}>
+            YOURWEBSITE.HELLO
+            </p>
+            {/* Headline */}
+            <p className="font-bold text-[#050505] line-clamp-1" style={{ fontSize: '17px', fontWeight: 700, lineHeight: '1.1765' }}>
+              {safeHeadline}
+            </p>
+            {/* Description */}
+            <p className="text-[#050505] line-clamp-2" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '1.3333' }}>
+              {safeDescription}
+            </p>
         </div>
-
-        {/* Primary Text */}
-        <p className="text-xs">
-          <span className="font-semibold">{brandName}</span>{" "}
-          {primaryText}
-        </p>
-
-        {/* Headline & Description */}
-        <div className="pt-1">
-          <p className="text-xs font-semibold mb-0.5">{headline}</p>
-          <p className="text-xs text-muted-foreground mb-2">{description}</p>
-        </div>
-
-        {/* CTA Button */}
-        <button className="w-full bg-blue-500 hover:bg-blue-600 text-white rounded-md py-2 text-xs font-semibold transition-colors">
+        
+        {/* Right Side - Learn more Button */}
+        <button 
+          className="flex-shrink-0 bg-[#E4E6EB] text-[#050505] font-semibold rounded-md px-3 py-2 hover:bg-[#D8DADF] transition-colors"
+          style={{ 
+            fontSize: '15px', 
+            fontWeight: 600, 
+            paddingLeft: '12px', 
+            paddingRight: '12px', 
+            paddingTop: '8px', 
+            paddingBottom: '8px',
+            borderRadius: '6px',
+            minWidth: '100px'
+          }}
+          disabled
+        >
           {ctaText}
         </button>
       </div>
+
+      {/* Engagement Section */}
+      {showEngagement && (
+        <div>
+          {/* Top Row - Reactions & Counts */}
+          <div className="flex items-center justify-between px-2 py-1" style={{ paddingLeft: '8px', paddingRight: '8px', paddingTop: '4px', paddingBottom: '4px' }}>
+            {/* Left Side - Reactions */}
+            <div className="flex items-center gap-1.5">
+              <ThumbsUp className="h-4 w-4 text-[#1877F2]" style={{ width: '16px', height: '16px' }} />
+              <p className="text-[#050505]" style={{ fontSize: '13px', fontWeight: 400 }}>Oliver, Sofia and 28 others</p>
+            </div>
+            
+            {/* Right Side - Comments & Shares */}
+            <p className="text-[#65676B]" style={{ fontSize: '13px', fontWeight: 400 }}>14 Comments 7 Shares</p>
+          </div>
+
+          {/* Action Buttons Row */}
+          <div className="flex items-center border-t border-[#CED0D4]" style={{ borderTopWidth: '1px' }}>
+            {/* Like Button */}
+            <button className="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-[#F2F3F5] transition-colors">
+              <ThumbsUp className="h-5 w-5 text-[#65676B]" style={{ width: '20px', height: '20px' }} />
+              <span className="text-[#65676B]" style={{ fontSize: '15px', fontWeight: 400 }}>Like</span>
+            </button>
+            
+            {/* Divider */}
+            <div className="w-px h-6 bg-[#CED0D4]" style={{ width: '1px' }} />
+            
+            {/* Comment Button */}
+            <button className="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-[#F2F3F5] transition-colors">
+              <MessageCircle className="h-5 w-5 text-[#65676B]" style={{ width: '20px', height: '20px' }} />
+              <span className="text-[#65676B]" style={{ fontSize: '15px', fontWeight: 400 }}>Comment</span>
+            </button>
+            
+            {/* Divider */}
+            <div className="w-px h-6 bg-[#CED0D4]" style={{ width: '1px' }} />
+            
+            {/* Share Button */}
+            <button className="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-[#F2F3F5] transition-colors">
+              <Share2 className="h-5 w-5 text-[#65676B]" style={{ width: '20px', height: '20px' }} />
+              <span className="text-[#65676B]" style={{ fontSize: '15px', fontWeight: 400 }}>Share</span>
+            </button>
+            
+            {/* Dropdown Arrow */}
+            <button className="px-2 py-2 hover:bg-[#F2F3F5] transition-colors">
+              <ChevronDown className="h-4 w-4 text-[#65676B]" style={{ width: '16px', height: '16px' }} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

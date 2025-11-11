@@ -32,6 +32,7 @@ import {
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import { useState, useEffect, useMemo, Fragment, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import { Response } from "@/components/ai-elements/response";
 import { ThumbsUpIcon, ThumbsDownIcon, CopyIcon, Sparkles, ChevronRight, MapPin, CheckCircle2, XCircle, Reply, X, Check } from "lucide-react";
@@ -100,9 +101,10 @@ interface MessageMetadata {
     editSession?: { sessionId: string; variationIndex: number };
   };
   audienceContext?: {
-    demographics?: string;
-    interests?: string;
-  };
+  demographics?: string;
+  interests?: string;
+};
+activeView?: 'home' | 'build' | 'view';
 }
 
 interface LocationInput {
@@ -195,9 +197,12 @@ interface AIChatProps {
     initialPrompt?: string;
     initialGoal?: string | null;
   };
+  context?: 'build' | 'edit' | 'all-ads' | 'ab-test-builder' | 'results';  // NEW: Context-aware mode
 }
 
-const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], campaignMetadata }: AIChatProps = {}) => {
+const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], campaignMetadata, context }: AIChatProps = {}) => {
+  const searchParams = useSearchParams();
+  const isNewAd = searchParams.get('newAd') === 'true';
   const [input, setInput] = useState("");
   const [model] = useState<string>("openai/gpt-4o");
   const { campaign } = useCampaignContext();
@@ -219,6 +224,34 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   const [activeEditSession, setActiveEditSession] = useState<{ sessionId: string; variationIndex: number } | null>(null);
   const [customPlaceholder, setCustomPlaceholder] = useState("Type your message...");
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Update placeholder based on context mode
+  useEffect(() => {
+    if (!context) {
+      setCustomPlaceholder('What would you like to do with your campaign?');
+      return;
+    }
+    
+    switch (context) {
+      case 'build':
+        setCustomPlaceholder('Describe your ad creative or ask for suggestions…');
+        break;
+      case 'edit':
+        setCustomPlaceholder('How would you like to modify this ad?');
+        break;
+      case 'all-ads':
+        setCustomPlaceholder('Ask how your ads are performing or request optimization tips…');
+        break;
+      case 'results':
+        setCustomPlaceholder('What insights can I provide about this ad?');
+        break;
+      case 'ab-test-builder':
+        setCustomPlaceholder('Ask for help setting up your A/B test…');
+        break;
+      default:
+        setCustomPlaceholder('Type your message...');
+    }
+  }, [context]);
   // Keep latest Authorization header (Bearer <token>) in a ref for sync headers
   const authHeaderRef = useRef<string | null>(null);
   const { setIsGenerating, setGenerationMessage, generationMessage } = useGeneration();
@@ -228,6 +261,33 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   const goalType = campaignMetadata?.initialGoal || goalState?.selectedGoal || null;
   
   console.log('[AI-CHAT] Goal context:', { goalType, campaignMetadata, goalState: goalState?.selectedGoal });
+
+  // Reset AI chat local state when conversation ID changes (new ad creation)
+  useEffect(() => {
+    // Check if this is a new temporary conversation (created for new ad)
+    if (conversationId?.startsWith('conv_')) {
+      console.log('[AI-CHAT] New conversation detected, resetting local state:', conversationId)
+      
+      // Clear generation states
+      setGeneratingImages(new Set())
+      setIsGenerating(false)
+      setGenerationMessage('')
+      
+      // Clear edit sessions and contexts
+      setActiveEditSession(null)
+      setAdEditReference(null)
+      setAudienceContext(null)
+      
+      // Clear processing states
+      setProcessingLocations(new Set())
+      setPendingLocationCalls([])
+      
+      // Reset placeholder to build mode default
+      setCustomPlaceholder('Describe your ad creative or ask for suggestions…')
+      
+      console.log('[AI-CHAT] ✅ Local state reset complete for new conversation')
+    }
+  }, [conversationId, setIsGenerating, setGenerationMessage]);
 
   // Load current session token and subscribe to auth changes
   useEffect(() => {
@@ -272,17 +332,19 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
               : undefined;
           const enrichedMessage = {
             ...lastMessage,
-            metadata: {
-              ...(existingMeta || {}),
-              goalType: goalType,
-            },
-          };
-          
-          // DEBUG: Log what we're sending (AI SDK v5 pattern - metadata field)
+          metadata: {
+            ...(existingMeta || {}),
+            campaignId: campaignId, // Required for AI SDK-generated conversation IDs
+            goalType: goalType,
+          },
+        };
+        
+        // DEBUG: Log what we're sending (AI SDK v5 pattern - metadata field)
           console.log(`[TRANSPORT] ========== SENDING MESSAGE ==========`);
           console.log(`[TRANSPORT] message.id:`, lastMessage?.id);
           console.log(`[TRANSPORT] message.role:`, lastMessage?.role);
           console.log(`[TRANSPORT] message.metadata:`, (enrichedMessage as { metadata?: unknown }).metadata);
+          console.log(`[TRANSPORT] campaignId included:`, campaignId);
           console.log(`[TRANSPORT] goalType included:`, goalType);
           
           return {
@@ -291,11 +353,11 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
               id,
               model: model,
             },
-          };
-        },
-      }),
-    [model, goalType]
-  );
+        };
+      },
+    }),
+  [model, goalType]
+);
   
   const DEBUG = process.env.NEXT_PUBLIC_DEBUG === '1';
   if (DEBUG) {
@@ -422,6 +484,10 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       text: campaignMetadata.initialPrompt,
     })
   }, [campaignId, campaignMetadata, initialMessages.length, status, sendMessage]);
+
+  // REMOVED: Duplicate auto-submit for new ad creation
+  // This was causing premature "Generate this ad?" prompts before user could respond
+  // The initial prompt auto-submit handles all cases now
 
   const handleSubmit = (message: PromptInputMessage, e: React.FormEvent) => {
     e.preventDefault();
@@ -562,21 +628,21 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       
       // Set generation message
       setIsGenerating(true);
-      setGenerationMessage("Generating 6 AI-powered creative variations...");
+      setGenerationMessage("Generating 3 AI-powered creative variations...");
       
       try {
-        // Generate 6 unique AI variations in one call
-        const imageUrls = await generateImage(prompt, campaignId, 6);
+        // Generate 3 unique AI variations in one call
+        const imageUrls = await generateImage(prompt, campaignId, 3);
         
-        console.log('[IMAGE-GEN] ✅ Generated 6 variations:', imageUrls);
+        console.log('[IMAGE-GEN] ✅ Generated 3 variations:', imageUrls);
         
-        // Set all 6 variations immediately
+        // Set all 3 variations immediately
         const newContent = {
           headline: adContent?.headline || '',
           body: adContent?.body || '',
           cta: adContent?.cta || 'Learn More',
           baseImageUrl: imageUrls[0],
-          imageVariations: imageUrls, // All 6 URLs
+          imageVariations: imageUrls, // All 3 URLs
         };
         
         console.log('[IMAGE-GEN] 📤 Setting adContent with variations:', {
@@ -1003,12 +1069,48 @@ Make it conversational and easy to understand for a business owner.`,
     }
   }, [messages, status, generatingImages, processingLocations, setIsGenerating, setGenerationMessage]);
 
+  // Deduplicate messages to prevent showing duplicate content
+  const deduplicatedMessages = useMemo(() => {
+    return messages.filter((msg, index) => {
+      // Always keep user messages
+      if (msg.role === 'user') return true;
+      
+      // For assistant messages, check for duplicates
+      if (msg.role === 'assistant') {
+        const textPart = msg.parts?.find(p => p.type === 'text') as { text?: string } | undefined;
+        const textContent = textPart?.text?.trim() || '';
+        
+        // Skip empty messages
+        if (!textContent && (!msg.parts || msg.parts.length === 0)) {
+          console.log('[CLIENT] Filtering empty assistant message:', msg.id);
+          return false;
+        }
+        
+        // Check if this exact text was in the previous message
+        if (index > 0) {
+          const prevMsg = messages[index - 1];
+          if (prevMsg?.role === 'assistant') {
+            const prevTextPart = prevMsg.parts?.find(p => p.type === 'text') as { text?: string } | undefined;
+            const prevTextContent = prevTextPart?.text?.trim() || '';
+            
+            if (textContent === prevTextContent && textContent.length > 0) {
+              console.log('[CLIENT] Filtering duplicate assistant message:', msg.id);
+              return false;
+            }
+          }
+        }
+      }
+      
+      return true;
+    });
+  }, [messages]);
+
   return (
     <div className="relative flex size-full flex-col overflow-hidden">
       
       <Conversation>
         <ConversationContent>
-            {messages.map((message, messageIndex) => {
+            {deduplicatedMessages.map((message, messageIndex) => {
               const isLastMessage = messageIndex === messages.length - 1;
               const isLiked = likedMessages.has(message.id);
               const isDisliked = dislikedMessages.has(message.id);

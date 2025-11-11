@@ -151,6 +151,7 @@ export async function persistConnection(args: {
     selected_ig_username: args.assets.instagram?.username ?? null,
     selected_ad_account_id: args.assets.adAccount?.id ?? null,
     selected_ad_account_name: args.assets.adAccount?.name ?? null,
+    ad_account_currency_code: args.assets.adAccount?.currency ?? null,
     ad_account_payment_connected: false,
     admin_connected: false,
     user_app_connected: false,
@@ -225,18 +226,48 @@ export async function validateAdAccount(args: { token: string; actId: string }):
   const id = args.actId.startsWith('act_') ? args.actId : `act_${args.actId}`
   const fields = 'account_status,disable_reason,capabilities,funding_source,funding_source_details,business,tos_accepted,owner,currency'
   const url = `https://graph.facebook.com/${gv}/${encodeURIComponent(id)}?fields=${fields}`
+  
+  console.log('[validateAdAccount] Calling Graph API', {
+    adAccountId: id,
+    url,
+    fields,
+  })
+  
   const res = await fetch(url, { headers: { Authorization: `Bearer ${args.token}` }, cache: 'no-store' })
   if (!res.ok) {
     const text = await res.text()
+    console.error('[validateAdAccount] Graph API error', {
+      status: res.status,
+      response: text,
+    })
     throw new Error(`Graph error ${res.status}: ${text}`)
   }
+  
   const data: unknown = await res.json()
+  console.log('[validateAdAccount] Graph API response', {
+    adAccountId: id,
+    data,
+  })
+  
   const obj = (data && typeof data === 'object' && data !== null) ? (data as Record<string, unknown>) : {}
+  
+  const hasFunding = !!obj.funding_source
+  const fundingSourceDetails = obj.funding_source_details
+  
+  console.log('[validateAdAccount] Funding analysis', {
+    adAccountId: id,
+    fundingSource: obj.funding_source,
+    fundingSourceType: typeof obj.funding_source,
+    fundingSourceDetails,
+    fundingSourceDetailsType: typeof fundingSourceDetails,
+    hasFunding,
+  })
+  
   return {
     isActive: obj.account_status === 1,
     status: typeof obj.account_status === 'number' ? obj.account_status : null,
     disableReason: typeof obj.disable_reason === 'string' ? obj.disable_reason : undefined,
-    hasFunding: !!obj.funding_source,
+    hasFunding,
     hasToSAccepted: typeof obj.tos_accepted === 'object' ? obj.tos_accepted : undefined,
     hasBusiness: !!obj.business,
     hasOwner: !!obj.owner,
@@ -425,6 +456,7 @@ export async function setSelectedAssets(args: {
     const rawId = args.adAccountId
     updates.selected_ad_account_id = rawId
     updates.selected_ad_account_name = null
+    updates.ad_account_currency_code = null
     if (rawId) {
       try {
         const accounts = await fetchAdAccounts({ token })
@@ -433,6 +465,7 @@ export async function setSelectedAssets(args: {
         if (match) {
           updates.selected_ad_account_id = match.id
           updates.selected_ad_account_name = match.name ?? null
+          updates.ad_account_currency_code = match.currency ?? null
         }
       } catch {}
     }

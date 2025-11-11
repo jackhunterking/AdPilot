@@ -34,9 +34,10 @@ export function FormSummaryCard({ mode = 'summary', onChange }: FormSummaryCardP
           onClick={() => {
             if (mode === 'inline') {
               if (onChange) onChange()
-              else resetGoal()
+              else resetGoal() // resetGoal now dispatches navigation event with force flag
             } else {
-              window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'goal' } }))
+              // Force navigation to allow editing goal even if it's incomplete
+              window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'goal', force: true } }))
             }
           }}
         >

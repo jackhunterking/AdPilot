@@ -7,6 +7,12 @@
  *  - Conversation History: https://ai-sdk.dev/docs/ai-sdk-core/conversation-history
  */
 
+// UUID validation helper to distinguish database IDs from AI SDK-generated IDs
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 import { 
   convertToModelMessages, 
   streamText, 
@@ -20,13 +26,14 @@ import {
   Tool,
 } from 'ai';
 import { sanitizeMessages, isSanitizerEnabled } from '@/lib/ai/schema';
-import { generateImageTool } from '@/tools/generate-image-tool';
-import { editImageTool } from '@/tools/edit-image-tool';
-import { regenerateImageTool } from '@/tools/regenerate-image-tool';
-import { locationTargetingTool } from '@/tools/location-targeting-tool';
-import { audienceTargetingTool } from '@/tools/audience-targeting-tool';
-import { setupGoalTool } from '@/tools/setup-goal-tool';
-import { editAdCopyTool } from '@/tools/edit-ad-copy-tool';
+import { generateImageTool } from '@/lib/ai/tools/generate-image';
+import { editImageTool } from '@/lib/ai/tools/edit-image';
+import { regenerateImageTool } from '@/lib/ai/tools/regenerate-image';
+import { locationTargetingTool } from '@/lib/ai/tools/location-targeting-tool';
+import { audienceTargetingTool } from '@/lib/ai/tools/audience-targeting-tool';
+import { setupGoalTool } from '@/lib/ai/tools/setup-goal-tool';
+import { editAdCopyTool } from '@/lib/ai/tools/edit-ad-copy';
+import { getCachedMetrics } from '@/lib/meta/insights';
 import { getModel } from '@/lib/ai/gateway-provider';
 import { messageStore } from '@/lib/services/message-store';
 import { conversationManager } from '@/lib/services/conversation-manager';
@@ -96,6 +103,11 @@ function getGoalContextDescription(goalType: string): string {
   }
 }
 
+function formatNumber(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return '0'
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(value)
+}
+
 export async function POST(req: Request) {
   const { message, id, model } = await req.json();
   
@@ -108,6 +120,9 @@ export async function POST(req: Request) {
   if (message?.metadata?.editingReference) {
     console.log(`[API] editingReference content:`, message.metadata.editingReference);
   }
+
+  const activeTab = message?.metadata?.activeTab === 'results' ? 'results' : 'setup';
+  console.log(`[API] activeTab context:`, activeTab);
   
   // Authenticate user
   const supabase = await createServerClient();
@@ -145,23 +160,65 @@ export async function POST(req: Request) {
   };
 
   // Get or create conversation
-  // The 'id' can be either a campaign ID or conversation ID
-  // For backwards compatibility, we first check if it's a campaign ID
+  // The 'id' can be either a campaign ID, conversation ID, or AI SDK-generated ID
   let conversationId = id;
   let conversation = null;
   
+  console.log(`[API] ========== CONVERSATION ID RESOLUTION ==========`);
+  console.log(`[API] Received id:`, id);
+  console.log(`[API] Is valid UUID:`, id ? isValidUUID(id) : 'N/A (no id)');
+  
   if (id) {
-    // Try to get conversation by ID first
-    conversation = await conversationManager.getConversation(id);
-    
-    // If not found, check if it's a campaign ID
-    if (!conversation) {
-      conversation = await conversationManager.getOrCreateForCampaign(user.id, id);
-      conversationId = conversation.id;
-      console.log(`[API] Created/found conversation ${conversationId} for campaign ${id}`);
+    // Check if it's a valid UUID (database ID)
+    if (isValidUUID(id)) {
+      console.log(`[API] ✅ Valid UUID detected, attempting database lookup`);
+      
+      // Try to get conversation by ID first
+      conversation = await conversationManager.getConversation(id);
+      
+      // If not found, check if it's a campaign ID
+      if (!conversation) {
+        console.log(`[API] Not found as conversation ID, trying as campaign ID`);
+        conversation = await conversationManager.getOrCreateForCampaign(user.id, id);
+        conversationId = conversation.id;
+        console.log(`[API] ✅ Created/found conversation ${conversationId} for campaign ${id}`);
+      } else {
+        console.log(`[API] ✅ Using existing conversation ${conversationId}`);
+      }
     } else {
-      console.log(`[API] Using existing conversation ${conversationId}`);
+      // Not a UUID - it's an AI SDK-generated ID (e.g., conv_1762821485606_h0uawxrjf)
+      console.log(`[API] ⚠️  Non-UUID ID detected (AI SDK generated): ${id}`);
+      console.log(`[API] Extracting campaignId from message metadata...`);
+      
+      // Extract campaignId from message metadata
+      const campaignIdFromMetadata = message?.metadata?.campaignId as string | undefined;
+      console.log(`[API] Campaign ID from metadata:`, campaignIdFromMetadata);
+      
+      if (campaignIdFromMetadata && isValidUUID(campaignIdFromMetadata)) {
+        console.log(`[API] ✅ Valid campaign ID found in metadata, creating conversation`);
+        conversation = await conversationManager.getOrCreateForCampaign(
+          user.id,
+          campaignIdFromMetadata
+        );
+        conversationId = conversation.id;
+        console.log(`[API] ✅ Created/found conversation ${conversationId} for campaign ${campaignIdFromMetadata}`);
+      } else {
+        console.error(`[API] ❌ No valid campaign ID found. AI SDK generated ID but no campaignId in metadata.`);
+        console.error(`[API] Message metadata:`, JSON.stringify(message?.metadata || {}, null, 2));
+        return new Response(
+          JSON.stringify({ 
+            error: 'Campaign ID required for new conversations',
+            details: 'Please provide a valid campaign ID in message metadata'
+          }),
+          { 
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        );
+      }
     }
+  } else {
+    console.log(`[API] ⚠️  No id provided, conversation will be created without campaign link`);
   }
   
   // Extract goal from conversation metadata (source of truth) or message metadata (fallback)
@@ -176,6 +233,24 @@ export async function POST(req: Request) {
     messageGoal,
     effectiveGoal,
   });
+
+  let resultsContext = '';
+  if (activeTab === 'results' && conversation?.campaign_id) {
+    try {
+      const metrics = await getCachedMetrics(conversation.campaign_id, '7d')
+      if (metrics) {
+        resultsContext = `\n[RESULTS SNAPSHOT]\n- People reached: ${formatNumber(metrics.reach)}\n- Total ${effectiveGoal === 'leads' ? 'leads' : effectiveGoal === 'calls' ? 'calls' : 'results'}: ${formatNumber(metrics.results)}\n- Amount spent: $${formatNumber(metrics.spend)}\n- Cost per result: ${metrics.cost_per_result != null ? '$' + formatNumber(metrics.cost_per_result) : 'not enough data yet'}`
+      } else {
+        resultsContext = `\n[RESULTS SNAPSHOT]\nNo cached metrics yet. Invite the user to refresh the Results tab.`
+      }
+    } catch (error) {
+      console.warn('[API] Failed to load metrics snapshot for chat context:', error)
+    }
+  }
+
+  const tabInstructions = activeTab === 'results'
+    ? `\n[RESULTS MODE]\nThe user is viewing the Results tab. Focus on:\n- Explaining metrics in plain language\n- Suggesting optimisations based on the numbers above\n- Offering to adjust budget, schedule, or targeting when helpful\nDo NOT ask setup questions unless the user switches back to Setup.`
+    : '';
 
   // Load latest CreativePlan for this campaign (if any) to provide plan-driven guardrails
   let planContext = '';
@@ -520,6 +595,8 @@ User: "make background darker"
 ` : ''}
 ${planContext}
 ${offerAskContext}
+${resultsContext}
+${tabInstructions}
 # CAMPAIGN GOAL: ${effectiveGoal?.toUpperCase() || 'NOT SET'}
 
 ${effectiveGoal ? getGoalContextDescription(effectiveGoal) : 'No specific goal has been set for this campaign yet. Consider asking the user about their campaign objectives if relevant.'}
@@ -537,6 +614,13 @@ ${!isEditMode ? referenceContext : ''}
 - **Don't overwhelm**: Never ask more than 1-2 questions before acting
 - **Be decisive**: Once you have enough context, USE TOOLS immediately
 - **Be friendly, brief, enthusiastic**
+
+**🚨 CRITICAL: Ask ONE Question at a Time**
+- When gathering information, ask ONLY ONE comprehensive question
+- Wait for the user's response before proceeding
+- Do NOT repeat the same question multiple times
+- Do NOT ask follow-up questions in the same message
+- After user responds, acknowledge their answer and THEN proceed with the next step
 
 ## Smart Questioning Framework
 
@@ -689,7 +773,7 @@ Otherwise, make intelligent style AND FORMAT assumptions based on:
 - **Instead use:**
   - editImage → for modifications to existing image
   - regenerateImage → for creating new version of ONE specific variation
-  - generateImage → ONLY for creating initial 6 variations from scratch
+  - generateImage → ONLY for creating initial 3 variations from scratch
 
 **ASK (max 1 question) when:**
 - User provides only generic business name without offer/context
@@ -699,7 +783,7 @@ Otherwise, make intelligent style AND FORMAT assumptions based on:
 
 **CALL generateImage TOOL when:**
 - NO editing context active (user is NOT editing a specific variation)
-- User wants to create 6 NEW variations from scratch
+- User wants to create 3 NEW variations from scratch
 - Has OFFER + business context (even without style specification)
 - Goal type is set + offer is clear
 - User confirms after answering the comprehensive question
@@ -790,7 +874,7 @@ Follow the CreativePlan (formats, overlays, and constraints) when available. Def
 **Style:** Professional, platform-native visuals. Avoid AI-looking artifacts. Use people/no-people and text density based on plan.
 **Edge Safety:** Keep edges clean; avoid placing critical content near edges. Do not draw frames, borders, crop marks, or labels.
 **Defaults when no plan:** Provide diverse styles and include at least one text-only typographic option and one no-people image when offers exist. Respect copy limits (primary ≤125, headline ≤40, description ≤30).
-**Variations:** Generate 6 unique variations with distinct styles/angles.
+**Variations:** Generate 3 unique variations with distinct styles/angles.
 
 1. **Classic & Professional** - Hero shot with balanced lighting, editorial magazine style
 2. **Lifestyle & Authentic** - Natural, candid moment with warm golden hour feel
@@ -862,10 +946,10 @@ ${effectiveGoal === 'website-visits' ? `- Primary CTAs: "Shop Now", "Explore Mor
 
 **Editing Existing Images:**
 When user wants to edit images after variations already exist:
-1. First ask: "Would you like to update all 6 variations or just specific ones?"
-2. If they choose specific: "Which variation(s)? (1-6)"
+1. First ask: "Would you like to update all 3 variations or just specific ones?"
+2. If they choose specific: "Which variation(s)? (1-3)"
 3. Only regenerate the requested variations (future implementation)
-4. For now, regenerating will create 6 new variations
+4. For now, regenerating will create 3 new variations
 
 ## Location Targeting
 Parse natural language:
@@ -1006,7 +1090,7 @@ CRITICAL - NO TEXT RESPONSES AFTER SETUP GOAL:
             // User and system messages are always valid
             if (msg.role !== 'assistant') return true;
             
-            const parts = (msg.parts as Array<{ type: string; toolCallId?: string; result?: unknown; output?: unknown }>) || [];
+            const parts = (msg.parts as Array<{ type: string; text?: string; toolCallId?: string; result?: unknown; output?: unknown }>) || [];
             
             // Don't save empty assistant messages
             if (parts.length === 0) {
@@ -1014,11 +1098,22 @@ CRITICAL - NO TEXT RESPONSES AFTER SETUP GOAL:
               return false;
             }
             
+            // Check if there's at least one text part with content
+            const hasTextContent = parts.some((p) => 
+              p.type === 'text' && p.text && p.text.trim().length > 0
+            );
+            
             // Check for tool invocation parts (any part with type starting with "tool-")
             // AI SDK pattern: tool parts have types like "tool-generateImage", "tool-editImage", etc.
             const toolParts = parts.filter((p) => 
               typeof p.type === 'string' && p.type.startsWith('tool-')
             );
+            
+            // If message has NO text content and NO tool parts, filter it out
+            if (!hasTextContent && toolParts.length === 0) {
+              console.log(`[SAVE] Filtering assistant message with no text content and no tools ${msg.id}`);
+              return false;
+            }
             
             if (toolParts.length > 0) {
               // Check if any tool parts are incomplete (have toolCallId but no result/output)

@@ -118,7 +118,7 @@ async function validateImageForOverlays(imageBuffer: Buffer, mediaType: string):
 export async function generateImage(
     prompt: string, 
     campaignId?: string,
-    numberOfImages: number = 6,
+    numberOfImages: number = 3,
     goalType?: string
 ): Promise<string[]> {
     try {
@@ -127,7 +127,7 @@ export async function generateImage(
         // Create unique batch ID to link all variations
         const batchId = crypto.randomUUID();
         
-        // Define 6 distinct variation types - each offering a different creative approach
+        // Define 3 distinct variation types - each offering a different creative approach
         // All variations MUST maintain hyper-realistic photography standards
         const variationPrompts = [
             { 
@@ -144,21 +144,6 @@ export async function generateImage(
                 type: 'editorial_dramatic', 
                 category: 'Editorial & Bold',
                 suffix: 'Editorial style: High-contrast, dramatic lighting with bold shadows. Cinematic color grading, moody atmosphere. Compressed-perspective look; eye-catching, sophisticated, premium brand positioning.'
-            },
-            { 
-                type: 'bright_modern', 
-                category: 'Bright & Contemporary',
-                suffix: 'Modern commercial: Bright, airy, clean aesthetic with soft shadows. Cool color temperature, fresh look. Deep focus for clarity; contemporary, optimistic, energetic vibe - perfect for modern brands.'
-            },
-            { 
-                type: 'detail_closeup', 
-                category: 'Detail & Intimate',
-                suffix: 'Macro detail shot: Intimate close-up showcasing textures and details. Shallow depth of field with beautiful bokeh. Emphasizes quality, craftsmanship, sensory appeal.'
-            },
-            { 
-                type: 'action_dynamic', 
-                category: 'Dynamic & Energetic',
-                suffix: 'Action photography: Dynamic angle capturing movement and energy. Sharp subject with motion blur in background. Wide-angle sense of motion; exciting, engaging, active lifestyle appeal.'
             }
         ];
 

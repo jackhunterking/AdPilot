@@ -1,21 +1,68 @@
 "use client"
 
-import { Phone, Users, CheckCircle2, Loader2, Lock, Flag, Filter, FileText, Check, AlertCircle, Globe } from "lucide-react"
-import { useEffect, useRef } from "react"
+import { Phone, Users, CheckCircle2, Loader2, Lock, Flag, Filter, FileText, Check, AlertCircle, Globe, Facebook } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { useGoal } from "@/lib/context/goal-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { LeadFormSetup } from "@/components/forms/lead-form-setup"
 import { FormSummaryCard } from "@/components/launch/form-summary-card"
 import { CallConfiguration } from "@/components/forms/call-configuration"
 import { WebsiteConfiguration } from "@/components/forms/website-configuration"
+import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
+import { useMetaActions } from "@/lib/hooks/use-meta-actions"
+import { cn } from "@/lib/utils"
 
-export function GoalSelectionCanvas() {
+interface GoalSelectionCanvasProps {
+  variant?: "step" | "summary"
+}
+
+export function GoalSelectionCanvas({ variant = "step" }: GoalSelectionCanvasProps = {}) {
   const { goalState, setSelectedGoal, resetGoal, setFormData } = useGoal()
   const { isPublished } = useAdPreview()
+  const { metaStatus, paymentStatus, refreshStatus, isReady } = useMetaConnection()
+  const metaActions = useMetaActions()
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [showMetaRequiredDialog, setShowMetaRequiredDialog] = useState(false)
+  const [pendingGoal, setPendingGoal] = useState<"leads" | "calls" | "website-visits" | null>(null)
+  const isSummary = variant === "summary"
   
   // Removed AI-triggered setup; inline UI is used instead
+
+  // Handle goal selection with Meta connection check
+  const handleGoalSelect = (goal: "leads" | "calls" | "website-visits") => {
+    // Check if Meta is connected
+    if (metaStatus !== 'connected') {
+      console.log('[GoalSelectionCanvas] Meta not connected, showing dialog')
+      setPendingGoal(goal)
+      setShowMetaRequiredDialog(true)
+      return
+    }
+    
+    // Proceed with goal selection
+    console.log('[GoalSelectionCanvas] Meta connected, proceeding with goal:', goal)
+    setSelectedGoal(goal)
+  }
+
+  // Handle Meta connection click from dialog
+  const handleConnectMeta = () => {
+    setIsConnecting(true)
+    setShowMetaRequiredDialog(false)
+    metaActions.connect()
+    // Reset connecting state after popup opens (1 second)
+    setTimeout(() => setIsConnecting(false), 1000)
+  }
+
+  // When Meta connection completes and we have a pending goal, proceed with selection
+  useEffect(() => {
+    if (metaStatus === 'connected' && pendingGoal) {
+      console.log('[GoalSelectionCanvas] Meta connected, proceeding with pending goal:', pendingGoal)
+      setSelectedGoal(pendingGoal)
+      setPendingGoal(null)
+    }
+  }, [metaStatus, pendingGoal, setSelectedGoal])
 
   // Auto-advance to next step when this step transitions to completed during this session
   const prevStatusRef = useRef(goalState.status)
@@ -38,7 +85,8 @@ export function GoalSelectionCanvas() {
   // If published, show locked state regardless of goal setup status
   if (isPublished) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
+      <div className={cn("flex flex-col items-center justify-center h-full p-8", isSummary && "p-6")}
+      >
         <div className="max-w-2xl w-full space-y-6">
           <div className="text-center space-y-3">
             <div className="h-16 w-16 rounded-full bg-orange-500/10 flex items-center justify-center mx-auto">
@@ -119,23 +167,90 @@ export function GoalSelectionCanvas() {
   // LEADS: Always show builder for all statuses (when not published)
   if (goalState.selectedGoal === 'leads') {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
-        <div className="max-w-2xl w-full space-y-8">
-          <LeadFormSetup
-            onFormSelected={(data) => {
-              setFormData({ id: data.id, name: data.name })
-            }}
-            onChangeGoal={resetGoal}
-          />
+      <div className={cn("h-full", isSummary && "h-auto")}
+      >
+        <LeadFormSetup
+          onFormSelected={(data) => {
+            setFormData({ id: data.id, name: data.name })
+          }}
+          onChangeGoal={resetGoal}
+        />
+      </div>
+    )
+  }
+
+  // Add window focus listener to refresh status when popup closes
+  useEffect(() => {
+    const handleFocus = () => {
+      // When window regains focus (popup closed), refresh status
+      refreshStatus()
+      // If now ready, auto-advance to show goal options
+      if (isReady) {
+        window.dispatchEvent(new Event('autoAdvanceStep'))
+      }
+    }
+    
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [refreshStatus, isReady])
+
+  // Meta connection gate: if user reaches goal step without connection, show prompt
+  if (goalState.status === "idle" && !isReady) {
+    const handleConnectClick = () => {
+      setIsConnecting(true)
+      metaActions.connect()
+      // Reset connecting state after popup opens (1 second)
+      setTimeout(() => setIsConnecting(false), 1000)
+    }
+
+    return (
+      <div className={cn("flex flex-col items-center justify-center h-full p-8", isSummary && "p-6")}>
+        <div className="max-w-2xl w-full space-y-6">
+          <div className="text-center space-y-3">
+            <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto">
+              <Lock className="h-8 w-8 text-blue-600" />
+            </div>
+            <h2 className="text-2xl font-bold">Connect Meta to Set Goal</h2>
+            <p className="text-muted-foreground">
+              Goals require access to your Meta business account. Connect Facebook & Instagram to continue.
+            </p>
+          </div>
+
+          <Button
+            size="lg"
+            onClick={handleConnectClick}
+            disabled={isConnecting}
+            className="w-full gap-2"
+          >
+            {isConnecting ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Connecting...
+              </>
+            ) : (
+              <>
+                <Facebook className="h-5 w-5" />
+                Connect Meta & Instagram
+              </>
+            )}
+          </Button>
+
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
+            <AlertCircle className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-blue-700 dark:text-blue-400">
+              For lead generation goals, we need to access your Meta instant forms and conversion tracking.
+            </p>
+          </div>
         </div>
       </div>
     )
   }
 
-  // Initial state - no goal selected
+  // Initial state - no goal selected (only shown when Meta IS connected)
   if (goalState.status === "idle") {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
+      <div className={cn("flex flex-col items-center justify-center h-full p-8", isSummary && "p-6")}
+      >
         <div className="max-w-3xl w-full space-y-8">
           <div className="grid grid-cols-3 gap-6">
             {/* Leads Card */}
@@ -151,9 +266,7 @@ export function GoalSelectionCanvas() {
               </div>
               <Button
                 size="sm"
-                onClick={() => {
-                  setSelectedGoal("leads")
-                }}
+                onClick={() => handleGoalSelect("leads")}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 mt-auto"
               >
                 Get Leads
@@ -173,9 +286,7 @@ export function GoalSelectionCanvas() {
               </div>
               <Button
                 size="sm"
-                onClick={() => {
-                  setSelectedGoal("calls")
-                }}
+                onClick={() => handleGoalSelect("calls")}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 mt-auto"
               >
                 Get Calls
@@ -195,9 +306,7 @@ export function GoalSelectionCanvas() {
               </div>
               <Button
                 size="sm"
-                onClick={() => {
-                  setSelectedGoal("website-visits")
-                }}
+                onClick={() => handleGoalSelect("website-visits")}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 mt-auto"
               >
                 Get visits
@@ -212,7 +321,8 @@ export function GoalSelectionCanvas() {
   // Goal selected - show setup button
   if (goalState.status === "selecting") {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
+      <div className={cn("flex flex-col items-center justify-center h-full p-8", isSummary && "p-6")}
+      >
         <div className="max-w-2xl w-full space-y-8">
           {/* Selected goal hero card removed once a goal is chosen to keep the canvas clean */}
 
@@ -230,11 +340,13 @@ export function GoalSelectionCanvas() {
             </div>
           )}
 
-          <div className="flex justify-center gap-4 pt-6">
-            <Button variant="outline" size="lg" onClick={resetGoal}>
-              Change Goal
-            </Button>
-          </div>
+          {!isSummary && (
+            <div className="flex justify-center gap-4 pt-6">
+              <Button variant="outline" size="lg" onClick={resetGoal}>
+                Change Goal
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -243,7 +355,8 @@ export function GoalSelectionCanvas() {
   // Setup in progress
   if (goalState.status === "setup-in-progress") {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
+      <div className={cn("flex flex-col items-center justify-center h-full p-8", isSummary && "p-6")}
+      >
         <div className="max-w-xl w-full space-y-6 text-center">
           <Loader2 className="h-16 w-16 animate-spin text-blue-600 mx-auto" />
           <div className="space-y-2">
@@ -260,7 +373,8 @@ export function GoalSelectionCanvas() {
   // Completed setup: show saved goal summary (calls or website)
   if (goalState.status === "completed" && (goalState.selectedGoal === 'calls' || goalState.selectedGoal === 'website-visits')) {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
+      <div className={cn("flex flex-col items-center justify-center h-full p-8", isSummary && "p-6")}
+      >
         <div className="max-w-2xl w-full space-y-6">
           <FormSummaryCard mode="inline" />
         </div>
@@ -271,7 +385,8 @@ export function GoalSelectionCanvas() {
   // Error state
   if (goalState.status === "error") {
     return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
+      <div className={cn("flex flex-col items-center justify-center h-full p-8", isSummary && "p-6")}
+      >
         <div className="max-w-xl w-full space-y-6 text-center">
           <div className="h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto">
             <span className="text-3xl">⚠️</span>
@@ -295,5 +410,54 @@ export function GoalSelectionCanvas() {
     )
   }
 
-  return null
+  return (
+    <>
+      {/* Meta Connection Required Dialog */}
+      <Dialog open={showMetaRequiredDialog} onOpenChange={setShowMetaRequiredDialog}>
+        <DialogContent className="sm:max-w-md p-6">
+          <DialogHeader className="mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10">
+                <Facebook className="h-6 w-6 text-blue-600" />
+              </div>
+              <DialogTitle className="text-xl">Connect Meta Account</DialogTitle>
+            </div>
+          </DialogHeader>
+          <DialogDescription className="text-sm text-muted-foreground mb-6">
+            You need to connect your Meta account to select a campaign goal. This will allow you to publish ads to Facebook and Instagram.
+          </DialogDescription>
+          <DialogFooter className="flex gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => {
+                setShowMetaRequiredDialog(false)
+                setPendingGoal(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="lg"
+              onClick={handleConnectMeta}
+              disabled={isConnecting}
+              className="gap-2 bg-blue-600 hover:bg-blue-700"
+            >
+              {isConnecting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <Facebook className="h-4 w-4" />
+                  Connect Meta
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
 }

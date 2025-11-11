@@ -3,9 +3,16 @@ import { UIMessage } from 'ai';
 import { sanitizeParts } from '@/lib/ai/schema';
 import { Dashboard } from '@/components/dashboard';
 import type { Database } from '@/lib/supabase/database.types';
+import { notFound } from 'next/navigation';
 
 // Database message row type (from generated types)
 type MessageRow = Database['public']['Tables']['messages']['Row'];
+
+// UUID validation helper
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
 
 // Convert DB storage to UIMessage (following AI SDK docs)
 // Now restores complete UIMessage format from storage
@@ -51,10 +58,18 @@ export default async function CampaignPage({
 }) {
   const { campaignId } = await params;
   
-  console.log(`[SERVER] Loading messages for campaign ${campaignId}`);
+  console.log(`[SERVER] Incoming campaignId: ${campaignId}`);
+  
+  // Validate campaign ID format to prevent image requests and invalid IDs from hitting database
+  if (!isValidUUID(campaignId)) {
+    console.log(`[SERVER] ❌ Invalid campaign ID format (not a UUID): ${campaignId}`);
+    notFound();
+  }
+  
+  console.log(`[SERVER] ✅ Valid UUID format, loading campaign data for: ${campaignId}`);
   
   // Load campaign data including goal
-  const { data: campaign } = await supabaseServer
+  const { data: campaign, error: campaignError } = await supabaseServer
     .from('campaigns')
     .select(`
       *,
@@ -62,6 +77,21 @@ export default async function CampaignPage({
     `)
     .eq('id', campaignId)
     .single();
+  
+  // Check if campaign exists
+  if (!campaign || campaignError) {
+    console.log(`[SERVER] ❌ Campaign not found or error loading campaign:`, {
+      campaignId,
+      error: campaignError?.message || 'Campaign is null'
+    });
+    notFound();
+  }
+  
+  console.log(`[SERVER] ✅ Campaign loaded successfully:`, {
+    id: campaign.id,
+    name: campaign.name,
+    hasStates: !!campaign.campaign_states
+  });
   
   // Extract goal from campaign_states
   const goalData = (campaign?.campaign_states as Database['public']['Tables']['campaign_states']['Row'] | null | undefined)?.goal_data as unknown as Record<string, unknown> | null | undefined;

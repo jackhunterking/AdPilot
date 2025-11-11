@@ -8,14 +8,16 @@
  */
 
 import { useMemo, useState } from "react"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { useCampaignContext } from "@/lib/context/campaign-context"
-import { Info } from "lucide-react"
+import { Info, ChevronDown } from "lucide-react"
 import { metaStorage } from "@/lib/meta/storage"
+import { cn } from "@/lib/utils"
 
 interface FieldDef { id: string; type: "full_name" | "email" | "phone"; label: string; required: boolean }
 
@@ -61,6 +63,22 @@ export function LeadFormCreate({
 }: LeadFormCreateProps) {
   const { campaign } = useCampaignContext()
 
+  // Ensure required fields (full_name, email, phone) always have required: true
+  const normalizedFields = useMemo(() => {
+    return fields.map(f => {
+      if (f.type === "full_name" || f.type === "email" || f.type === "phone") {
+        return { ...f, required: true }
+      }
+      return f
+    })
+  }, [fields])
+
+  // Collapsible section states
+  const [formNameOpen, setFormNameOpen] = useState<boolean>(true)
+  const [fieldsOpen, setFieldsOpen] = useState<boolean>(true)
+  const [privacyOpen, setPrivacyOpen] = useState<boolean>(false)
+  const [thankYouOpen, setThankYouOpen] = useState<boolean>(false)
+
   // Submit UX
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   const [serverError, setServerError] = useState<string | null>(null)
@@ -83,7 +101,12 @@ export function LeadFormCreate({
   }, [formName, privacyUrl, privacyLinkText, thankYouButtonText, thankYouButtonUrl])
 
   const toggleRequired = (id: string) => {
-    onFieldsChange(fields.map(f => f.id === id ? { ...f, required: !f.required } : f))
+    // Prevent toggling required fields (full_name, email, phone)
+    const field = normalizedFields.find(f => f.id === id)
+    if (field && (field.type === "full_name" || field.type === "email" || field.type === "phone")) {
+      return // These fields are always required and cannot be toggled
+    }
+    onFieldsChange(normalizedFields.map(f => f.id === id ? { ...f, required: !f.required } : f))
   }
 
   const createForm = async () => {
@@ -190,98 +213,142 @@ export function LeadFormCreate({
   return (
     <div className="space-y-4">
       {/* Explanatory header above accordions */}
-      <div className="rounded-md border bg-muted/30 p-3">
-        <div className="flex items-center gap-2">
-          <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
-          <p className="text-sm text-foreground">
-            Create a Facebook Instant Form to capture contact info and complete the sections below.
-          </p>
-        </div>
-      </div>
+      <Card className="p-4 bg-blue-50 border-blue-200">
+        <p className="text-sm text-blue-900">
+          Create a Facebook Instant Form to capture contact info and complete the sections below.
+        </p>
+      </Card>
 
-      <Accordion type="multiple" className="w-full">
-        <AccordionItem value="name">
-          <AccordionTrigger>Form name</AccordionTrigger>
-          <AccordionContent>
-            <div className="space-y-2">
-              <Label>Form name</Label>
-              <Input value={formName} onChange={(e) => onFormNameChange(e.target.value)} placeholder="Lead Form" />
-              {errors.formName && <p className="text-xs text-amber-600">{errors.formName}</p>}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-
-        <AccordionItem value="fields">
-          <AccordionTrigger>Fields</AccordionTrigger>
-          <AccordionContent>
-            <div className="space-y-3">
-              {fields.map((f) => (
-                <div key={f.id} className="flex items-center justify-between rounded-md border p-3">
-                  <div>
-                    <p className="text-sm font-medium">{f.label}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {f.type === "full_name" || f.type === "email" ? "Required by Meta" : "Required"}
-                    </p>
-                  </div>
-                  <Switch checked={f.required} onCheckedChange={() => toggleRequired(f.id)} disabled />
+      <div className="space-y-3">
+        {/* Form Name Section */}
+        <Collapsible open={formNameOpen} onOpenChange={setFormNameOpen}>
+          <Card className="overflow-hidden">
+            <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors">
+              <span className="font-semibold">Form name</span>
+              <ChevronDown className={cn("h-5 w-5 transition-transform", formNameOpen && "rotate-180")} />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-4 pt-4 space-y-3 border-t">
+                <div>
+                  <Label className="mb-2 block">Form name</Label>
+                  <Input value={formName} onChange={(e) => onFormNameChange(e.target.value)} placeholder="Lead Form" className="h-10" />
+                  {errors.formName && <p className="text-xs text-amber-600 mt-1">{errors.formName}</p>}
                 </div>
-              ))}
-              <div className="flex items-start gap-2 p-3 rounded-md border bg-muted/30">
-                <Info className="h-4 w-4 text-blue-600 mt-0.5" />
-                <p className="text-xs text-muted-foreground">Customization coming soon</p>
               </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
-        <AccordionItem value="privacy">
-          <AccordionTrigger>Privacy policy</AccordionTrigger>
-          <AccordionContent>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Use default privacy policy</Label>
-                <Switch
-                  checked={useDefaultPrivacy}
-                  onCheckedChange={(v) => {
-                    setUseDefaultPrivacy(v)
-                    if (v) onPrivacyUrlChange(defaultPrivacyUrl)
-                  }}
-                />
+        {/* Fields Section */}
+        <Collapsible open={fieldsOpen} onOpenChange={setFieldsOpen}>
+          <Card className="overflow-hidden">
+            <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors">
+              <span className="font-semibold">Fields</span>
+              <ChevronDown className={cn("h-5 w-5 transition-transform", fieldsOpen && "rotate-180")} />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-4 pt-4 space-y-4 border-t">
+                {normalizedFields.map((f) => {
+                  const isRequiredField = f.type === "full_name" || f.type === "email" || f.type === "phone"
+                  return (
+                    <div key={f.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                      <div>
+                        <div className="font-medium text-sm">{f.label}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {f.type === "full_name" || f.type === "email" ? "Required by Meta" : "Required"}
+                        </div>
+                      </div>
+                      <Switch 
+                        checked={f.required} 
+                        onCheckedChange={() => toggleRequired(f.id)} 
+                        disabled={isRequiredField}
+                      />
+                    </div>
+                  )
+                })}
+                <Card className="p-3 bg-blue-50 border-blue-200">
+                  <div className="flex items-start gap-2">
+                    <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-blue-900">Customization coming soon</p>
+                  </div>
+                </Card>
               </div>
-              <Label>Privacy link text</Label>
-              <Input value={privacyLinkText} onChange={(e) => onPrivacyLinkTextChange(e.target.value)} placeholder="Privacy Policy" />
-              {errors.privacyLinkText && <p className="text-xs text-amber-600">{errors.privacyLinkText}</p>}
-              <Label className="mt-3">Privacy URL</Label>
-              <Input value={privacyUrl} onChange={(e) => onPrivacyUrlChange(e.target.value)} placeholder="https://..." disabled={useDefaultPrivacy} />
-              {errors.privacyUrl && <p className="text-xs text-amber-600">{errors.privacyUrl}</p>}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
-        <AccordionItem value="thankyou">
-          <AccordionTrigger>Thank you</AccordionTrigger>
-          <AccordionContent>
-            <div className="space-y-2">
-              <Label>Title</Label>
-              <Input value={thankYouTitle} onChange={(e) => onThankYouTitleChange(e.target.value)} />
-              <Label className="mt-2">Message</Label>
-              <Input value={thankYouMessage} onChange={(e) => onThankYouMessageChange(e.target.value)} />
-              <Label className="mt-2">Button Text</Label>
-              <Input value={thankYouButtonText} onChange={(e) => onThankYouButtonTextChange(e.target.value)} placeholder="View website" />
-              {errors.thankYouButtonText && <p className="text-xs text-amber-600">{errors.thankYouButtonText}</p>}
-              <Label className="mt-2">Website Link URL</Label>
-              <Input value={thankYouButtonUrl} onChange={(e) => onThankYouButtonUrlChange(e.target.value)} placeholder="https://yourdomain.com" />
-              {errors.thankYouButtonUrl && <p className="text-xs text-amber-600">{errors.thankYouButtonUrl}</p>}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+        {/* Privacy Policy Section */}
+        <Collapsible open={privacyOpen} onOpenChange={setPrivacyOpen}>
+          <Card className="overflow-hidden">
+            <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors">
+              <span className="font-semibold">Privacy policy</span>
+              <ChevronDown className={cn("h-5 w-5 transition-transform", privacyOpen && "rotate-180")} />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-4 pt-4 space-y-4 border-t">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Use default privacy policy</Label>
+                  <Switch
+                    checked={useDefaultPrivacy}
+                    onCheckedChange={(v) => {
+                      setUseDefaultPrivacy(v)
+                      if (v) onPrivacyUrlChange(defaultPrivacyUrl)
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Privacy link text</Label>
+                  <Input value={privacyLinkText} onChange={(e) => onPrivacyLinkTextChange(e.target.value)} placeholder="Privacy Policy" className="h-10" />
+                  {errors.privacyLinkText && <p className="text-xs text-amber-600 mt-1">{errors.privacyLinkText}</p>}
+                </div>
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Privacy URL</Label>
+                  <Input value={privacyUrl} onChange={(e) => onPrivacyUrlChange(e.target.value)} placeholder="https://..." disabled={useDefaultPrivacy} className="h-10" />
+                  {errors.privacyUrl && <p className="text-xs text-amber-600 mt-1">{errors.privacyUrl}</p>}
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+
+        {/* Thank You Section */}
+        <Collapsible open={thankYouOpen} onOpenChange={setThankYouOpen}>
+          <Card className="overflow-hidden">
+            <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors">
+              <span className="font-semibold">Thank you</span>
+              <ChevronDown className={cn("h-5 w-5 transition-transform", thankYouOpen && "rotate-180")} />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-4 pt-4 space-y-4 border-t">
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Title</Label>
+                  <Input value={thankYouTitle} onChange={(e) => onThankYouTitleChange(e.target.value)} className="h-10" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Message</Label>
+                  <Input value={thankYouMessage} onChange={(e) => onThankYouMessageChange(e.target.value)} className="h-10" />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Button Text</Label>
+                  <Input value={thankYouButtonText} onChange={(e) => onThankYouButtonTextChange(e.target.value)} placeholder="View website" className="h-10" />
+                  {errors.thankYouButtonText && <p className="text-xs text-amber-600 mt-1">{errors.thankYouButtonText}</p>}
+                </div>
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Website Link URL</Label>
+                  <Input value={thankYouButtonUrl} onChange={(e) => onThankYouButtonUrlChange(e.target.value)} placeholder="https://yourdomain.com" className="h-10" />
+                  {errors.thankYouButtonUrl && <p className="text-xs text-amber-600 mt-1">{errors.thankYouButtonUrl}</p>}
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      </div>
 
       {serverError && (
         <p className="text-sm text-red-600 py-1">{serverError}</p>
       )}
-      <Button onClick={createForm} disabled={Object.keys(errors).length > 0 || isSubmitting} className="w-full">
-        {isSubmitting ? "Creating..." : "Create and select form"}
+      <Button onClick={createForm} disabled={Object.keys(errors).length > 0 || isSubmitting} className="w-full h-12 text-base font-medium">
+        {isSubmitting ? "Creating..." : "Create and Select Form"}
       </Button>
     </div>
   )

@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, supabaseServer } from '@/lib/supabase/server'
 import { getConnectionWithToken, fetchPagesWithTokens, getGraphVersion } from '@/lib/meta/service'
+import { GraphAPILeadgenFormSchema } from '@/lib/meta/instant-form-schemas'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   console.log('[MetaInstantForms GET] Request received')
@@ -116,7 +117,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     })
 
     const gv = getGraphVersion()
-    const url = `https://graph.facebook.com/${gv}/${encodeURIComponent(formId)}?fields=id,name,questions{type},privacy_policy_url`
+    // Note: privacy_policy field removed from query to avoid errors with older forms
+    // Privacy policy will be set to defaults in the mapper if missing
+    const url = `https://graph.facebook.com/${gv}/${encodeURIComponent(formId)}?fields=id,name,questions{type,key,label},thank_you_page{title,body,button_text,website_url}`
 
     console.log('[MetaInstantForms GET] Calling Meta Graph API:', {
       endpoint: url.replace(/access_token=[^&]+/, 'access_token=[REDACTED]'),
@@ -129,25 +132,52 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const json: unknown = await res.json().catch(() => ({}))
     if (!res.ok) {
-      const msg = (json && typeof json === 'object' && json !== null && (json as { error?: { message?: string } }).error?.message)
-        || 'Failed to load form detail'
-      return NextResponse.json({ error: msg }, { status: 502 })
+      const errorObj = json && typeof json === 'object' && json !== null ? json as { error?: { message?: string; code?: number; type?: string } } : null
+      const errorMessage = errorObj?.error?.message || 'Failed to load form detail'
+      const errorCode = errorObj?.error?.code
+      const errorType = errorObj?.error?.type
+      
+      console.error('[MetaInstantForms GET] Graph API error:', {
+        status: res.status,
+        errorMessage,
+        errorCode,
+        errorType,
+        formId,
+      })
+      
+      // Provide more helpful error messages
+      if (errorCode === 100) {
+        return NextResponse.json({
+          error: 'Form data format not supported. This form may be using an older format.',
+          details: errorMessage,
+        }, { status: 502 })
+      }
+      
+      return NextResponse.json({ error: errorMessage }, { status: 502 })
     }
 
-    // Narrow to shape used by UI
-    const out = (json && typeof json === 'object' && json !== null) ? (json as {
-      id?: string
-      name?: string
-      questions?: Array<{ type?: string }>
-      privacy_policy_url?: string
-    }) : {}
-
-    return NextResponse.json({
-      id: typeof out.id === 'string' ? out.id : '',
-      name: typeof out.name === 'string' ? out.name : '',
-      questions: Array.isArray(out.questions) ? out.questions : [],
-      privacy_policy_url: typeof out.privacy_policy_url === 'string' ? out.privacy_policy_url : undefined,
+    // Validate with zod schema
+    const parseResult = GraphAPILeadgenFormSchema.safeParse(json)
+    if (!parseResult.success) {
+      console.error('[MetaInstantForms GET] Invalid response from Graph API:', {
+        formId,
+        errors: parseResult.error.issues,
+        responseData: json,
+      })
+      return NextResponse.json({
+        error: 'Invalid form data received from Meta',
+        details: parseResult.error.issues,
+      }, { status: 502 })
+    }
+    
+    console.log('[MetaInstantForms GET] Successfully fetched form:', {
+      formId: parseResult.data.id,
+      hasQuestions: Array.isArray(parseResult.data.questions) && parseResult.data.questions.length > 0,
+      hasPrivacyPolicy: !!parseResult.data.privacy_policy,
+      hasThankYouPage: !!parseResult.data.thank_you_page,
     })
+
+    return NextResponse.json(parseResult.data)
   } catch (error) {
     console.error('[MetaInstantFormDetail] GET error:', {
       error: error instanceof Error ? error.message : String(error),

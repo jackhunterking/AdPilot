@@ -9,6 +9,9 @@ import { LoggedInHeader } from '@/components/homepage/logged-in-header'
 import { HeroSection } from '@/components/homepage/hero-section'
 import { AdCarousel } from '@/components/homepage/ad-carousel'
 import { CampaignGrid } from '@/components/homepage/campaign-grid'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { CheckCircle2, X } from 'lucide-react'
 
 function HomeContent() {
   const { user, loading } = useAuth()
@@ -87,8 +90,8 @@ function HomeContent() {
         )}
       </main>
 
-      <AuthModal
-        open={authModalOpen}
+      <AuthModal 
+        open={authModalOpen} 
         onOpenChange={setAuthModalOpen}
         defaultTab={authTab}
       />

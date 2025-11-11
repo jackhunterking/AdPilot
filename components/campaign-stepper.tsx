@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Check, ChevronLeft, ChevronRight, LucideIcon } from "lucide-react"
+import { useSearchParams } from "next/navigation"
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -26,6 +27,11 @@ const stepHeaders: Record<string, { title: string; subtitle: string; subtext: st
     title: "Ad Copy",
     subtitle: "Choose words that convert",
     subtext: "Select compelling copy for your campaign"
+  },
+  destination: {
+    title: "Ad Destination",
+    subtitle: "Configure where users will go",
+    subtext: "Set up the form, URL, or phone number for this ad"
   },
   location: {
     title: "Ad Location",
@@ -55,6 +61,8 @@ interface CampaignStepperProps {
 }
 
 export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
+  const searchParams = useSearchParams()
+  const isNewAd = searchParams.get('newAd') === 'true'
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward')
   const hasInitializedRef = useRef(false)
@@ -64,6 +72,14 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
   // Auto-jump once only for restored sessions (not during live progression)
   useEffect(() => {
     if (hasInitializedRef.current) return
+
+    // If newAd=true, force step 0 (Ad Creative) regardless of any other state
+    if (isNewAd) {
+      console.log('[CampaignStepper] New ad creation detected - forcing step 0')
+      setCurrentStepIndex(0)
+      hasInitializedRef.current = true
+      return
+    }
 
     const completedCount = steps.filter(s => s.completed).length
     if (completedCount < 1) return // wait until at least one step reports completed
@@ -86,7 +102,7 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
 
     setCurrentStepIndex(initialIndex)
     hasInitializedRef.current = true
-  }, [steps, campaignId])
+  }, [steps, campaignId, isNewAd])
 
   // Clamp currentStepIndex whenever steps array size or ordering changes
   useEffect(() => {
@@ -109,14 +125,25 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
   // Support external navigation requests (Edit links in summary cards)
   useEffect(() => {
     const handler = (e: Event) => {
-      const custom = e as CustomEvent<{ id?: string }>
+      const custom = e as CustomEvent<{ id?: string; force?: boolean }>
       const stepId = custom.detail?.id
+      const force = custom.detail?.force === true
       if (!stepId) return
       const targetIndex = steps.findIndex((s) => s.id === stepId)
       if (targetIndex < 0) return
 
-      // Rules: allow moving backward freely; allow moving forward only to
-      // completed steps, never beyond the first incomplete step.
+      // Rules: 
+      // - If force=true, allow navigation to any step (for explicit edits like "Change Goal")
+      // - Otherwise: allow moving backward freely; allow moving forward only to
+      //   completed steps, never beyond the first incomplete step.
+      if (force) {
+        // Force navigation - allow going to any step
+        if (targetIndex === currentStepIndex) return
+        setDirection(targetIndex > currentStepIndex ? 'forward' : 'backward')
+        setCurrentStepIndex(targetIndex)
+        return
+      }
+
       const firstIncomplete = steps.findIndex((s) => !s.completed)
       const maxForwardIndex = firstIncomplete === -1 ? steps.length - 1 : firstIncomplete
 
@@ -137,13 +164,22 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
   // Handle legacy switchToTab events to navigate to a step by id (e.g., from AI chat tool UI)
   useEffect(() => {
     const handler = (e: Event) => {
-      const custom = e as CustomEvent<string | { id?: string }>
+      const custom = e as CustomEvent<string | { id?: string; force?: boolean }>
       const detail = custom.detail
-      const stepId = typeof detail === 'string' ? detail : (detail && typeof detail === 'object' ? (detail as { id?: string }).id : undefined)
+      const stepId = typeof detail === 'string' ? detail : (detail && typeof detail === 'object' ? (detail as { id?: string; force?: boolean }).id : undefined)
+      const force = typeof detail === 'object' && detail !== null ? (detail as { force?: boolean }).force === true : false
       if (!stepId) return
 
       const targetIndex = steps.findIndex((s) => s.id === stepId)
       if (targetIndex < 0) return
+
+      // If force=true, allow navigation to any step
+      if (force) {
+        if (targetIndex === currentStepIndex) return
+        setDirection(targetIndex > currentStepIndex ? 'forward' : 'backward')
+        setCurrentStepIndex(targetIndex)
+        return
+      }
 
       const firstIncomplete = steps.findIndex((s) => !s.completed)
       const maxForwardIndex = firstIncomplete === -1 ? steps.length - 1 : firstIncomplete
@@ -167,6 +203,31 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
   const isLastStep = currentStepIndex >= steps.length - 1
   const currentStepCompleted = Boolean(currentStep?.completed)
   const canGoNext = currentStepCompleted
+
+  useEffect(() => {
+    if (!currentStep) return
+    console.log('[CampaignStepper] Rendering step', {
+      index: currentStepIndex,
+      id: currentStep.id,
+      title: currentStep.title,
+      completed: currentStep.completed,
+      hasContent: Boolean(currentStep.content),
+      transition: direction,
+    })
+  }, [currentStep, currentStepIndex, direction])
+  
+  // Emit stepChanged event when current step changes
+  useEffect(() => {
+    if (!currentStep || typeof window === 'undefined') return
+    
+    window.dispatchEvent(new CustomEvent('stepChanged', {
+      detail: { 
+        stepId: currentStep.id, 
+        stepIndex: currentStepIndex,
+        isLastStep: currentStepIndex >= steps.length - 1
+      }
+    }))
+  }, [currentStepIndex, currentStep, steps.length])
 
   const handleNext = () => {
     if (canGoNext && !isLastStep) {
@@ -229,7 +290,7 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
     : { title: "", subtitle: "", subtext: "" }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden min-h-0">
       {/* If steps are not ready yet (e.g., during goal switch), render a lightweight placeholder while keeping hooks order stable */}
       {!currentStep ? (
         <>
@@ -242,132 +303,114 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
           {/* Progress Header */}
           <div className="px-6 pt-4 pb-4 border-b border-border bg-card flex-shrink-0">
             <div className="max-w-5xl mx-auto">
-              <div className="text-center mb-4 h-14">
-                <h1 className="text-xl font-bold mb-1 leading-tight">{currentStepHeader.title}</h1>
-                <p className="text-xs text-muted-foreground leading-tight">
-                  {currentStepHeader.subtext}
-                </p>
+              <div className="text-center mb-4">
+                <h1 className="text-xl font-bold leading-tight">{currentStepHeader.title}</h1>
               </div>
 
-              {/* Step Indicators */}
-              <div className="flex items-center justify-center gap-2 h-10">
-                {steps.map((step, index) => {
-                  const isTargetCompleted = step.completed
-                  const isNextStep = index === currentStepIndex + 1
-                  const isPreviousStep = index < currentStepIndex
-                  const canNavigate = isTargetCompleted || isPreviousStep || (isNextStep && currentStepCompleted)
-                  
-                  return (
-                  <div key={step.id} className="flex items-center">
-                    <button
-                      onClick={() => handleStepClick(index)}
-                      disabled={!canNavigate}
-                      className={cn(
-                        "relative flex items-center justify-center transition-opacity",
-                        index === currentStepIndex
-                          ? "h-10 w-10"
-                          : "h-8 w-8",
-                        !canNavigate && "opacity-40 cursor-not-allowed"
-                      )}
-                      title={step.title}
-                    >
-                      <div
-                        className={cn(
-                          "rounded-full flex items-center justify-center font-bold text-sm transition-all absolute inset-0",
-                          step.completed
-                            ? "bg-green-500 text-white"
-                            : index === currentStepIndex
-                            ? "bg-blue-500 text-white"
-                            : canNavigate
-                            ? "bg-muted text-muted-foreground hover:bg-muted-foreground/20"
-                            : "bg-muted text-muted-foreground cursor-not-allowed"
-                        )}
-                      >
-                        {step.completed ? (
-                          <Check className="h-4 w-4" />
-                        ) : step.icon ? (
-                          <step.icon className="h-4 w-4" />
-                        ) : (
-                          step.number
-                        )}
-                      </div>
-                      
-                      {/* Active step indicator ring */}
-                      {index === currentStepIndex && (
-                        <div className="absolute inset-0 rounded-full border-2 border-blue-500 animate-in zoom-in duration-200" />
-                      )}
-                    </button>
+              {/* Step Indicators with Inline Navigation */}
+              <div className="flex items-center justify-between gap-4 h-10">
+                {/* Back Button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBack}
+                  disabled={isFirstStep}
+                  className="gap-1.5 flex-shrink-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Back
+                </Button>
+
+                {/* Step Indicators */}
+                <div className="flex items-center justify-center gap-2">
+                  {steps.map((step, index) => {
+                    const isTargetCompleted = step.completed
+                    const isNextStep = index === currentStepIndex + 1
+                    const isPreviousStep = index < currentStepIndex
+                    const canNavigate = isTargetCompleted || isPreviousStep || (isNextStep && currentStepCompleted)
                     
-                    {/* Connector Line */}
-                    {index < steps.length - 1 && (
-                      <div
+                    return (
+                    <div key={step.id} className="flex items-center">
+                      <button
+                        onClick={() => handleStepClick(index)}
+                        disabled={!canNavigate}
                         className={cn(
-                          "h-0.5 w-8 md:w-16 transition-colors",
-                          steps[index + 1]?.completed || index < currentStepIndex
-                            ? "bg-green-500"
-                            : "bg-muted"
+                          "relative flex items-center justify-center transition-opacity",
+                          index === currentStepIndex
+                            ? "h-10 w-10"
+                            : "h-8 w-8",
+                          !canNavigate && "opacity-40 cursor-not-allowed"
                         )}
-                      />
-                    )}
-                  </div>
-                  )
-                })}
+                        title={step.title}
+                      >
+                        <div
+                          className={cn(
+                            "absolute inset-0 flex items-center justify-center rounded-full border transition-all",
+                            step.completed
+                              ? "border-green-500 bg-green-500 text-white"
+                              : index === currentStepIndex
+                              ? "border-yellow-500 bg-yellow-500 text-white"
+                              : canNavigate
+                              ? "border-yellow-500/60 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+                              : "border-muted-foreground/20 bg-muted text-muted-foreground"
+                          )}
+                        >
+                          {step.completed ? (
+                            <Check className="h-4 w-4" />
+                          ) : (
+                            <AlertTriangle className="h-4 w-4" />
+                          )}
+                        </div>
+                        
+                        {/* Active step indicator ring */}
+                        {index === currentStepIndex && (
+                          <div className="absolute inset-0 rounded-full border-2 border-blue-500 animate-in zoom-in duration-200" />
+                        )}
+                      </button>
+                      
+                      {/* Connector Line */}
+                      {index < steps.length - 1 && (
+                        <div
+                          className={cn(
+                            "h-0.5 w-8 transition-colors",
+                            steps[index + 1]?.completed || index < currentStepIndex
+                              ? "bg-green-500"
+                              : "bg-muted"
+                          )}
+                        />
+                      )}
+                    </div>
+                    )
+                  })}
+                </div>
+
+                {/* Next Button - Hidden on last step */}
+                {!isLastStep ? (
+                  <Button
+                    size="sm"
+                    onClick={handleNext}
+                    disabled={!canGoNext}
+                    className="gap-1.5 flex-shrink-0 bg-[#4B73FF] hover:bg-[#3d5fd9]"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <div className="w-20" />
+                )}
               </div>
 
             </div>
           </div>
 
           {/* Step Content */}
-          <div className="flex-1 overflow-hidden relative">
-            <div 
+          <div className="flex-1 overflow-hidden relative bg-background h-full min-h-0">
+            <div
               key={currentStepIndex}
-              className={cn(
-                "absolute inset-0 overflow-auto",
-                "animate-in fade-in duration-300",
-                direction === 'forward' ? "slide-in-from-right-4" : "slide-in-from-left-4"
-              )}
+              className="absolute inset-0 overflow-auto"
             >
               <div className="p-6 min-h-full">
                 {currentStep.content}
-              </div>
-            </div>
-          </div>
-
-          {/* Navigation Buttons */}
-          <div className="border-t border-border bg-card px-6 py-4 flex-shrink-0">
-            <div className="max-w-5xl mx-auto flex items-center justify-between">
-              <div className="flex-1">
-                {!isFirstStep && (
-                  <Button
-                    variant="outline"
-                    onClick={handleBack}
-                    className="gap-2"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Back
-                  </Button>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                {!currentStepCompleted && (
-                  <span className="text-yellow-600 dark:text-yellow-500">
-                    Complete this step to continue
-                  </span>
-                )}
-              </div>
-
-              <div className="flex-1 flex justify-end">
-                {!isLastStep && (
-                  <Button
-                    onClick={handleNext}
-                    disabled={!canGoNext}
-                    className="gap-2 bg-[#4B73FF] hover:bg-[#3d5fd9] disabled:opacity-50"
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                )}
               </div>
             </div>
           </div>

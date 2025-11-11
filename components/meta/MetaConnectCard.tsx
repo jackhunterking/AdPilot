@@ -9,19 +9,21 @@
  */
 
 import { Button } from "@/components/ui/button"
-import { Link2, CreditCard, AlertTriangle, Building2, Facebook, Instagram as InstagramIcon, Wallet, FacebookIcon } from "lucide-react"
-import { useCallback, useEffect, useState } from "react"
+import { Link2, CreditCard, AlertTriangle, Building2, Instagram as InstagramIcon, Wallet, FacebookIcon } from "lucide-react"
+import { useCallback, useEffect, useState, useRef } from "react"
 import { useCampaignContext } from "@/lib/context/campaign-context"
-import { buildBusinessLoginUrl, generateRandomState } from "@/lib/meta/login"
 import { metaStorage } from '@/lib/meta/storage'
 import { metaLogger } from '@/lib/meta/logger'
-import { getAdAccountBillingUrl } from '@/lib/meta/payment-urls'
+import { useMetaActions } from '@/lib/hooks/use-meta-actions'
+import { emitMetaConnectionChange, emitMetaPaymentUpdate } from '@/lib/utils/meta-events'
 
-export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' }) {
+export function MetaConnectCard() {
   const enabled = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_ENABLE_META === 'true' : false
   const { campaign } = useCampaignContext()
-  const [adAccountId, setAdAccountId] = useState<string | null>(null)
+  const metaActions = useMetaActions()
+  const [_adAccountId, setAdAccountId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const eventDebounceTimer = useRef<NodeJS.Timeout | null>(null)
   type Summary = {
     business?: { id: string; name?: string }
     page?: { id: string; name?: string }
@@ -38,14 +40,11 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
   }
 
   const [summary, setSummary] = useState<Summary | null>(null)
-  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'opening' | 'processing' | 'error' | 'success'>('idle')
   const [capability, setCapability] = useState<{
     hasFinance: boolean
     hasManage: boolean
     hasFunding: boolean
   } | null>(null)
-  const requireAdmin = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_META_REQUIRE_ADMIN === 'true' : false
-  const [verifyingAdmin, setVerifyingAdmin] = useState(false)
   const [accountValidation, setAccountValidation] = useState<{
     isActive: boolean
     status: number | null
@@ -103,6 +102,11 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
           if (statusRes.ok) {
             const statusData = await statusRes.json()
             setAccountValidation(statusData)
+            if (statusData && typeof statusData.currency === "string" && campaign?.id) {
+              metaStorage.setConnection(campaign.id, {
+                ad_account_currency_code: statusData.currency,
+              })
+            }
             metaLogger.debug('MetaConnectCard', 'Account validation result', {
               isActive: statusData.isActive,
               status: statusData.status,
@@ -135,6 +139,30 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
 
   useEffect(() => { void hydrate() }, [hydrate])
 
+  // Emit events on mount/summary change to ensure all components sync
+  useEffect(() => {
+    if (!enabled || !campaign?.id || !summary) return
+    
+    // If we have a connection, emit current state
+    if (summary.status === 'connected' || summary.status === 'selected_assets' || summary.status === 'payment_linked' || summary.adAccount?.id) {
+      console.log('[MetaConnectCard] Emitting connection state on mount/update', {
+        campaignId: campaign.id,
+        status: summary.status,
+        hasAdAccount: !!summary.adAccount?.id,
+        paymentConnected: summary.paymentConnected,
+      })
+      
+      emitMetaConnectionChange(campaign.id, 'connected')
+      
+      // Emit payment status
+      if (summary.paymentConnected) {
+        emitMetaPaymentUpdate(campaign.id, 'verified')
+      } else {
+        emitMetaPaymentUpdate(campaign.id, 'missing')
+      }
+    }
+  }, [enabled, campaign?.id, summary?.status, summary?.adAccount?.id, summary?.paymentConnected])
+
   // Fetch payment capability when ad account is selected
   useEffect(() => {
     const run = async () => {
@@ -148,6 +176,9 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
           hasManage: Boolean(json?.hasManage),
           hasFunding: Boolean(json?.hasFunding),
         })
+        if (json?.hasFunding && campaign?.id) {
+          metaStorage.markPaymentConnected(campaign.id)
+        }
       } catch {
         // ignore
       }
@@ -217,71 +248,59 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
             metaStorage.setConnection(campaign.id, messageData.connectionData)
           }
 
-          // Refresh from localStorage
-          void hydrate()
+          // Refresh from localStorage, then emit events
+          void hydrate().then(() => {
+            // Debounce event emission to prevent duplicates (100ms window)
+            if (eventDebounceTimer.current) {
+              clearTimeout(eventDebounceTimer.current)
+            }
+            
+            eventDebounceTimer.current = setTimeout(() => {
+              if (!campaign?.id) return
+              
+              // Emit connection change event AFTER localStorage and hydrate complete
+              if (messageData.status === 'payment-added') {
+                emitMetaPaymentUpdate(campaign.id, 'verified')
+              } else {
+                emitMetaConnectionChange(campaign.id, 'connected')
+              }
+              
+              metaLogger.info('MetaConnectCard', 'Emitted connection event', {
+                campaignId: campaign.id,
+                status: messageData.status,
+              })
+            }, 100)
+          })
         }
       } catch (error) {
         metaLogger.error('MetaConnectCard', 'Error handling META_CONNECTED message', error as Error)
       }
     }
     window.addEventListener('message', handler)
-    return () => window.removeEventListener('message', handler)
+    return () => {
+      window.removeEventListener('message', handler)
+      // Clean up debounce timer on unmount
+      if (eventDebounceTimer.current) {
+        clearTimeout(eventDebounceTimer.current)
+      }
+    }
   }, [hydrate, campaign?.id])
 
   const verifyPayment = useCallback(async () => {
     if (!enabled || !campaign?.id || !summary?.adAccount?.id) return
     
-    const actId = summary.adAccount.id.startsWith('act_') ? summary.adAccount.id : `act_${summary.adAccount.id}`
-    
-    try {
-      console.info('[MetaConnect] Verifying payment status...', {
-        campaignId: campaign.id,
-        adAccountId: actId,
-      })
-
-      const verify = await fetch(
-        `/api/meta/payment/status?campaignId=${encodeURIComponent(campaign.id)}&adAccountId=${encodeURIComponent(actId)}`,
-        { cache: 'no-store' }
-      )
-
-      if (verify.ok) {
-        const json = await verify.json() as { connected?: boolean }
-        console.info('[MetaConnect] Payment verification response:', json)
-
-        if (json?.connected) {
-          console.info('[MetaConnect] Payment verified as connected')
-          setPaymentStatus('success')
-
-          // Update localStorage
-          metaStorage.markPaymentConnected(campaign.id)
-          metaLogger.info('MetaConnectCard', 'Payment marked as connected in localStorage', {
-            campaignId: campaign.id,
-          })
-
+    const verified = await metaActions.verifyPayment(summary.adAccount.id)
+    if (verified) {
           void hydrate()
-        } else {
-          console.info('[MetaConnect] Payment not yet connected')
-          setPaymentStatus('idle')
-        }
-      } else {
-        console.error('[MetaConnect] Payment verification failed:', {
-          status: verify.status,
-          statusText: verify.statusText,
-        })
-        setPaymentStatus('idle')
-      }
-    } catch (verifyError) {
-      console.error('[MetaConnect] Payment verification exception:', verifyError)
-      setPaymentStatus('idle')
     }
-  }, [enabled, campaign?.id, summary?.adAccount?.id, hydrate])
+  }, [enabled, campaign?.id, summary?.adAccount?.id, metaActions, hydrate])
 
   // Page Visibility API: Auto-verify payment when user returns to tab
   useEffect(() => {
-    if (!enabled || paymentStatus !== 'processing') return
+    if (!enabled || metaActions.paymentStatus !== 'processing') return
     
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && paymentStatus === 'processing') {
+      if (document.visibilityState === 'visible' && metaActions.paymentStatus === 'processing') {
         console.info('[MetaConnect] User returned to tab, verifying payment...')
         void verifyPayment()
       }
@@ -289,303 +308,36 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
     
     document.addEventListener('visibilitychange', handleVisibilityChange)
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [enabled, paymentStatus, verifyPayment])
+  }, [enabled, metaActions.paymentStatus, verifyPayment])
 
   const onConnect = useCallback(() => {
-    console.log('[MetaConnectCard] Connect button clicked')
     if (!enabled) {
       console.error('[MetaConnectCard] Meta integration is disabled')
       return
     }
-    if (!campaign?.id) {
-      console.error('[MetaConnectCard] Missing campaign ID')
-      window.alert('Missing campaign id')
-      return
-    }
-    // We no longer depend on FB.login for Business Login; we build and open the URL manually
-    const configId = process.env.NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID_SYSTEM || process.env.NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID
-    if (!configId) {
-      console.error('[MetaConnectCard] Missing Facebook config ID')
-      window.alert('Missing NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID')
-      return
-    }
-    
-    const redirectUri = `${window.location.origin}/api/meta/auth/callback?type=system`
-    const appId = process.env.NEXT_PUBLIC_FB_APP_ID as string | undefined
-    const graphVersion = process.env.NEXT_PUBLIC_FB_GRAPH_VERSION || 'v24.0'
-    if (!appId) {
-      console.error('[MetaConnectCard] Missing NEXT_PUBLIC_FB_APP_ID')
-      window.alert('Missing Facebook App ID')
-      return
-    }
-
-    const state = generateRandomState(32)
-    try { sessionStorage.setItem('meta_oauth_state', state) } catch {}
-
-    const url = buildBusinessLoginUrl({
-      appId,
-      configId,
-      redirectUri,
-      graphVersion,
-      state,
-    })
-
-    console.log('[MetaConnectCard] Initiating Meta login (manual URL):', {
-      configId,
-      graphVersion,
-      redirectUri,
-      campaignId: campaign.id,
-      response_type: 'code',
-      state_length: state.length,
-      // Avoid logging full URL; show a redacted preview for diagnostics
-      preview: url.replace(/state=[^&]+/, 'state=***'),
-    })
-
-    // Set cookie before opening popup
-    const expires = new Date(Date.now() + 10 * 60 * 1000).toUTCString()
-    document.cookie = `meta_cid=${encodeURIComponent(campaign.id)}; Path=/; Expires=${expires}; SameSite=Lax`
-    console.log('[MetaConnectCard] Cookie set:', { campaignId: campaign.id, expires })
-
-    // Attempt to open popup
-    let popup: Window | null = null
-    try {
-      popup = window.open(url, 'fb_biz_login', 'width=720,height=760,popup=yes')
-    } catch (e) {
-      console.error('[MetaConnectCard] Failed to open login popup:', e)
-    }
-
-    // Check if popup was blocked
-    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      console.warn('[MetaConnectCard] Popup blocked - showing alert')
-      const userWantsRedirect = window.confirm(
-        'Pop-up was blocked by your browser!\n\n' +
-        'To connect your Meta account:\n' +
-        '1. Click "OK" to open in a new tab\n' +
-        '2. Or enable pop-ups for this site and try again\n\n' +
-        'Open in new tab?'
-      )
-
-      if (userWantsRedirect) {
-        // Open in new tab instead
-        const newTab = window.open(url, '_blank')
-        if (!newTab) {
-          // If even new tab is blocked, navigate current page as last resort
-          console.error('[MetaConnectCard] New tab also blocked, navigating current page')
-          window.location.href = url
-        }
-      }
-    } else {
-      // Popup opened successfully
-      console.log('[MetaConnectCard] Popup opened successfully')
-    }
-  }, [enabled, campaign?.id])
+    metaActions.connect()
+  }, [enabled, metaActions])
 
   const onDisconnect = useCallback(async () => {
-    metaLogger.info('MetaConnectCard', 'Disconnect button clicked')
-    if (!enabled || !campaign?.id) {
-      metaLogger.error('MetaConnectCard', 'Cannot disconnect - meta disabled or no campaign ID', new Error('Missing prerequisites'))
-      return
-    }
-
-    const confirmed = window.confirm(
-      'Are you sure you want to disconnect your Meta account?\n\n' +
-      'This will remove all connected business, page, and ad account information. ' +
-      'You will need to reconnect to continue using Meta integration.'
-    )
-
-    if (!confirmed) {
-      metaLogger.info('MetaConnectCard', 'Disconnect cancelled by user')
-      return
-    }
-
-    metaLogger.info('MetaConnectCard', 'Disconnecting campaign', {
-      campaignId: campaign.id,
-    })
-    setLoading(true)
-    try {
-      // Clear localStorage
-      metaStorage.clearAllData(campaign.id)
-      metaLogger.info('MetaConnectCard', 'Connection disconnected and data cleared from localStorage')
-
+    if (!enabled) return
+    
+    const success = await metaActions.disconnect()
+    if (success) {
       // Clear local state
       setSummary(null)
       setAdAccountId(null)
       setAccountValidation(null)
-      setPaymentStatus('idle')
+      metaActions.setPaymentStatus('idle')
 
       // Refresh to confirm cleared state
       await hydrate()
-    } catch (error) {
-      metaLogger.error('MetaConnectCard', 'Error disconnecting', error as Error, {
-        campaignId: campaign.id,
-      })
-      window.alert('Failed to disconnect Meta account. Please try again.')
-    } finally {
-      setLoading(false)
     }
-  }, [enabled, campaign?.id, hydrate])
+  }, [enabled, metaActions, hydrate])
 
   const onAddPayment = useCallback(() => {
     if (!enabled || !summary?.adAccount?.id) return
-    
-    console.info('[MetaConnect] Opening Facebook billing page', {
-      adAccountId: summary.adAccount.id,
-    })
-
-    setPaymentStatus('opening')
-    
-    // Open Facebook billing page in new tab
-    const billingUrl = getAdAccountBillingUrl(summary.adAccount.id)
-    window.open(billingUrl, '_blank', 'noopener,noreferrer')
-    
-    // Set status to processing (waiting for user to add payment)
-    setPaymentStatus('processing')
-    
-    console.info('[MetaConnect] Billing page opened, waiting for user to return', {
-      billingUrl,
-    })
-  }, [enabled, summary?.adAccount?.id])
-
-  const onVerifyAdmin = useCallback(async () => {
-    if (!enabled || !campaign?.id) return
-    setVerifyingAdmin(true)
-    try {
-      metaLogger.info('MetaConnectCard', 'Starting admin verification', {
-        campaignId: campaign.id,
-        summary: {
-          hasBusinessId: !!summary?.business?.id,
-          businessId: summary?.business?.id,
-          hasAdAccountId: !!summary?.adAccount?.id,
-          adAccountId: summary?.adAccount?.id,
-          userAppConnected: summary?.userAppConnected,
-          adminConnected: summary?.adminConnected,
-        },
-      })
-
-      const res = await fetch('/api/meta/admin/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campaignId: campaign.id }),
-      })
-
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({})) as { error?: string; requiresUserLogin?: boolean }
-        metaLogger.error('MetaConnectCard', 'Admin verify failed', new Error(e?.error || 'Unknown error'), {
-          status: res.status,
-        })
-
-        // Show specific message if user login is required
-        if (e?.requiresUserLogin) {
-          window.alert(
-            'User login required for admin verification.\n\n' +
-            'Please complete step 2: "Login with Facebook (User Access)" first, then try verifying admin access again.'
-          )
-        } else {
-          window.alert(e?.error || 'Failed to verify admin access. Please try again.')
-        }
-        return
-      }
-
-      const result = await res.json() as {
-        adminConnected?: boolean
-        businessRole?: string | null
-        adAccountRole?: string | null
-      }
-
-      metaLogger.info('MetaConnectCard', 'Admin verify result received', {
-        adminConnected: result?.adminConnected,
-        businessRole: result?.businessRole,
-        adAccountRole: result?.adAccountRole,
-      })
-
-      // Update localStorage with admin status
-      metaStorage.updateAdminStatus(campaign.id, {
-        admin_connected: result.adminConnected || false,
-        admin_business_role: result.businessRole || undefined,
-        admin_ad_account_role: result.adAccountRole ?? undefined,
-      })
-
-      metaLogger.info('MetaConnectCard', 'Admin status updated in localStorage')
-
-      await hydrate()
-      if (result?.adminConnected) {
-        window.alert('Admin access verified successfully.')
-      } else {
-        window.alert('Admin access not verified. Please ensure you are Business Admin or Finance Editor on both Business and Ad Account.')
-      }
-    } catch (e) {
-      metaLogger.error('MetaConnectCard', 'Admin verify exception', e as Error)
-      window.alert('Failed to verify admin access. Please try again later.')
-    } finally {
-      setVerifyingAdmin(false)
-    }
-  }, [enabled, campaign?.id, hydrate, summary])
-
-  const onUserLogin = useCallback(() => {
-    console.log('[MetaConnectCard] User login button clicked')
-    if (!enabled) return
-    if (!campaign?.id) {
-      window.alert('Missing campaign id')
-      return
-    }
-
-    console.log('[MetaConnectCard] User login button clicked', {
-      enabled,
-      campaignId: campaign?.id,
-    });
-    const appId = process.env.NEXT_PUBLIC_FB_APP_ID as string | undefined
-    const graphVersion = process.env.NEXT_PUBLIC_FB_GRAPH_VERSION || 'v24.0'
-    const configId = process.env.NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID_USER || process.env.NEXT_PUBLIC_FB_BIZ_LOGIN_CONFIG_ID
-    if (!appId || !configId) {
-      console.error('[MetaConnectCard] Missing app/config for user login', { hasAppId: !!appId, hasConfig: !!configId })
-      window.alert('Missing Facebook App/Config for user login')
-      return
-    }
-    const redirectUri = `${window.location.origin}/api/meta/auth/callback?type=user`
-    const state = generateRandomState(32)
-    try { sessionStorage.setItem('meta_oauth_state', state) } catch {}
-    const url = buildBusinessLoginUrl({ appId, configId, redirectUri, graphVersion, state })
-    console.log('[MetaConnectCard] Initiating User Login (Business Login)', {
-      configId,
-      graphVersion,
-      redirectUri,
-      campaignId: campaign.id,
-    })
-
-    // Set cookie before opening popup
-    const expires = new Date(Date.now() + 10 * 60 * 1000).toUTCString()
-    document.cookie = `meta_cid=${encodeURIComponent(campaign.id)}; Path=/; Expires=${expires}; SameSite=Lax`
-
-    // Attempt to open popup
-    let popup: Window | null = null
-    try {
-      popup = window.open(url, 'fb_biz_login_user', 'width=720,height=760,popup=yes')
-    } catch (e) {
-      console.error('[MetaConnectCard] Failed to open user login popup:', e)
-    }
-
-    // Check if popup was blocked
-    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      console.warn('[MetaConnectCard] User login popup blocked - showing alert')
-      const userWantsRedirect = window.confirm(
-        'Pop-up was blocked by your browser!\n\n' +
-        'To login with Facebook (User Access):\n' +
-        '1. Click "OK" to open in a new tab\n' +
-        '2. Or enable pop-ups for this site and try again\n\n' +
-        'Open in new tab?'
-      )
-
-      if (userWantsRedirect) {
-        const newTab = window.open(url, '_blank')
-        if (!newTab) {
-          console.error('[MetaConnectCard] New tab also blocked, navigating current page')
-          window.location.href = url
-        }
-      }
-    } else {
-      console.log('[MetaConnectCard] User login popup opened successfully')
-    }
-  }, [enabled, campaign?.id])
+    metaActions.addPayment(summary.adAccount.id)
+  }, [enabled, summary?.adAccount?.id, metaActions])
   console.log('[MetaConnectCard] Summary:', summary)
 
   return (
@@ -722,24 +474,24 @@ export function MetaConnectCard({ mode = 'launch' }: { mode?: 'launch' | 'step' 
               <div className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 <span className="text-xs text-blue-900 dark:text-blue-200">
-                  {paymentStatus === 'processing' ? 'Waiting for payment...' : 'Payment method required'}
+                  {metaActions.paymentStatus === 'processing' ? 'Waiting for payment...' : 'Payment method required'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <Button
                   size="sm"
                   onClick={onAddPayment}
-                  disabled={paymentStatus === 'opening' || paymentStatus === 'processing' || !summary?.adAccount?.id}
+                  disabled={metaActions.paymentStatus === 'opening' || metaActions.paymentStatus === 'processing' || !summary?.adAccount?.id}
                   className="h-7 px-3 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
                 >
-                  {paymentStatus === 'processing' ? 'Verifying...' : paymentStatus === 'opening' ? 'Opening...' : 'Add Payment'}
+                  {metaActions.paymentStatus === 'processing' ? 'Verifying...' : metaActions.paymentStatus === 'opening' ? 'Opening...' : 'Add Payment'}
                 </Button>
               </div>
             </div>
 
             {/* Helper text with direct link to Ads Manager */}
             <div className="text-xs text-blue-700 dark:text-blue-300">
-              {paymentStatus === 'processing' 
+              {metaActions.paymentStatus === 'processing' 
                 ? 'After adding payment on Facebook, return to this tab to continue.'
                 : 'Click "Add Payment" to open Facebook billing page. After adding payment, return to this tab to continue.'}
             </div>

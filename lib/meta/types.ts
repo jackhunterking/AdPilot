@@ -28,6 +28,7 @@ export interface MetaAdAccount {
   name?: string
   account_status?: number
   business?: { id: string; name?: string }
+  currency?: string | null
 }
 
 export interface MetaAssets {
@@ -52,6 +53,7 @@ export interface CampaignMetaConnectionPayload {
   selected_ig_username: string | null
   selected_ad_account_id: string | null
   selected_ad_account_name: string | null
+  ad_account_currency_code?: string | null
   ad_account_payment_connected: boolean
   admin_connected: boolean
   user_app_connected: boolean
@@ -61,7 +63,7 @@ export interface SelectionSummaryDTO {
   business?: { id: string; name?: string }
   page?: { id: string; name?: string }
   instagram?: { id: string; username: string } | null
-  adAccount?: { id: string; name?: string }
+  adAccount?: { id: string; name?: string; currency?: string }
   paymentConnected: boolean
   adminConnected: boolean
   adminBusinessRole: string | null

@@ -10,6 +10,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { CampaignProvider } from "@/lib/context/campaign-context";
+import { SonnerToaster } from "@/components/sonner-toaster";
 import Script from "next/script";
 import { COMPANY_NAME } from "@/lib/constants";
 
@@ -78,6 +79,7 @@ export default function RootLayout({
           <AuthProvider>
             <CampaignProvider>
               {children}
+              <SonnerToaster />
             </CampaignProvider>
           </AuthProvider>
         </ThemeProvider>

@@ -41,6 +41,7 @@ interface StoredConnection {
   selected_ad_account_id?: string;
   selected_ad_account_name?: string;
   ad_account_payment_connected?: boolean;
+  ad_account_currency_code?: string;
 
   // Admin verification
   admin_connected?: boolean;
@@ -178,6 +179,7 @@ class MetaStorage {
       adAccount: connection.selected_ad_account_id ? {
         id: connection.selected_ad_account_id,
         name: connection.selected_ad_account_name || '',
+        currency: connection.ad_account_currency_code,
       } : undefined,
       paymentConnected: connection.ad_account_payment_connected || false,
       adminConnected: connection.admin_connected || false,

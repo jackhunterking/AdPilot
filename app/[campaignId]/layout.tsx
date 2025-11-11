@@ -9,6 +9,7 @@
 import { CampaignProvider } from "@/lib/context/campaign-context";
 import { AdPreviewProvider } from "@/lib/context/ad-preview-context";
 import { GoalProvider } from "@/lib/context/goal-context";
+import { DestinationProvider } from "@/lib/context/destination-context";
 import { LocationProvider } from "@/lib/context/location-context";
 import { AudienceProvider } from "@/lib/context/audience-context";
 import { BudgetProvider } from "@/lib/context/budget-context";
@@ -28,17 +29,19 @@ export default async function CampaignLayout({
     <CampaignProvider initialCampaignId={campaignId}>
       <AdPreviewProvider>
         <GoalProvider>
-          <LocationProvider>
-            <AudienceProvider>
-              <BudgetProvider>
-                <AdCopyProvider>
-                  <GenerationProvider>
-                    {children}
-                  </GenerationProvider>
-                </AdCopyProvider>
-              </BudgetProvider>
-            </AudienceProvider>
-          </LocationProvider>
+          <DestinationProvider>
+            <LocationProvider>
+              <AudienceProvider>
+                <BudgetProvider>
+                  <AdCopyProvider>
+                    <GenerationProvider>
+                      {children}
+                    </GenerationProvider>
+                  </AdCopyProvider>
+                </BudgetProvider>
+              </AudienceProvider>
+            </LocationProvider>
+          </DestinationProvider>
         </GoalProvider>
       </AdPreviewProvider>
     </CampaignProvider>

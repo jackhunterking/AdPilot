@@ -19,6 +19,7 @@ import {
   chooseAssets,
   computeAdminSnapshot,
 } from '@/lib/meta/service-refactored'
+import { validateAdAccount } from '@/lib/meta/service'
 import { metaLogger } from '@/lib/meta/logger'
 
 // graph version is provided by the service
@@ -183,6 +184,26 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Check payment status (funding) for the ad account
+    let paymentConnected = false;
+    if (assets.adAccount?.id) {
+      try {
+        const validation = await validateAdAccount({
+          token: longToken!,
+          actId: assets.adAccount.id,
+        });
+        paymentConnected = Boolean(validation.hasFunding);
+        metaLogger.info('MetaCallback', 'Payment status checked', {
+          adAccountId: assets.adAccount.id,
+          hasFunding: validation.hasFunding,
+          paymentConnected,
+        });
+      } catch (e) {
+        metaLogger.error('MetaCallback', 'Payment check failed (non-fatal)', e as Error);
+        // Continue with false; client can re-check
+      }
+    }
+
     // Prepare connection data for client storage
     const tokenExpiresAt = new Date(
       Date.now() + 100 * 365 * 24 * 60 * 60 * 1000
@@ -202,7 +223,8 @@ export async function GET(req: NextRequest) {
       selected_ig_username: assets.instagram?.username,
       selected_ad_account_id: assets.adAccount?.id,
       selected_ad_account_name: assets.adAccount?.name,
-      ad_account_payment_connected: false,
+      ad_account_currency_code: assets.adAccount?.currency,
+      ad_account_payment_connected: paymentConnected,
       admin_connected: adminSnapshot?.admin_connected || false,
       admin_business_role: adminSnapshot?.admin_business_role,
       admin_ad_account_role: adminSnapshot?.admin_ad_account_role,

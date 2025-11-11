@@ -20,11 +20,17 @@ interface Campaign {
   status: string
   current_step: number
   total_steps: number
+  initial_goal?: string | null
   metadata: { initialPrompt?: string } | null
   campaign_states?: CampaignState  // 1-to-1 relationship (object, not array)
   created_at: string
   updated_at: string
+  published_status?: string | null
+  last_metrics_sync_at?: string | null
   conversationId?: string // Link to AI SDK conversation
+  campaign_budget?: number | null // Total campaign budget
+  budget_strategy?: string | null
+  budget_status?: string | null
 }
 
 interface CampaignContextType {
@@ -34,6 +40,7 @@ interface CampaignContextType {
   createCampaign: (name: string, prompt?: string, goal?: string) => Promise<Campaign | null>
   loadCampaign: (id: string) => Promise<void>
   updateCampaign: (updates: Partial<Campaign>) => Promise<void>
+  updateBudget: (budget: number) => Promise<void>
   saveCampaignState: (field: string, value: Record<string, unknown> | null, options?: { retries?: number; silent?: boolean }) => Promise<boolean>
   clearCampaign: () => void
 }
@@ -166,6 +173,34 @@ export function CampaignProvider({
     setCampaign(data.campaign)
   }
 
+  // Update campaign budget
+  const updateBudget = async (budget: number) => {
+    if (!campaign?.id) return
+    try {
+      // Convert total budget to daily budget for the API
+      const dailyBudget = Math.max(1, Math.round(budget / 30))
+      
+      const response = await fetch(`/api/campaigns/${campaign.id}/budget`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dailyBudget,
+        }),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update budget' }))
+        throw new Error(errorData.error || 'Failed to update budget')
+      }
+      
+      // Update local campaign state with total budget
+      setCampaign(prev => prev ? { ...prev, campaign_budget: budget } : null)
+    } catch (error) {
+      console.error('Error updating budget:', error)
+      throw error
+    }
+  }
+
   // Save campaign state (goal, location, audience, etc.) with retry logic
   const saveCampaignState = async (
     field: string, 
@@ -254,6 +289,7 @@ export function CampaignProvider({
       createCampaign,
       loadCampaign,
       updateCampaign,
+      updateBudget,
       saveCampaignState,
       clearCampaign,
     }}>

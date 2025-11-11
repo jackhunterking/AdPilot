@@ -10,10 +10,13 @@
 import { useEffect, useMemo, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { FileText, Search, Calendar, Check, Info } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { metaStorage } from "@/lib/meta/storage"
+import { mapGraphAPIFormToMetaForm } from "@/lib/meta/instant-form-mapper"
+import type { GraphAPILeadgenForm } from "@/lib/types/meta-instant-form"
 
 interface LeadForm { id: string; name: string; created_time?: string }
 
@@ -23,22 +26,30 @@ interface PreviewData {
   privacyUrl?: string
   privacyLinkText?: string
   fields: Array<{ id: string; type: "full_name" | "email" | "phone"; label: string; required: boolean }>
+  thankYouTitle?: string
+  thankYouMessage?: string
+  thankYouButtonText?: string
+  thankYouButtonUrl?: string
 }
 
 interface LeadFormExistingProps {
-  onPreview: (data: PreviewData) => void
+  onPreview: (data: PreviewData) => void | Promise<void>
   onConfirm: (data: { id: string; name: string }) => void
   onRequestCreate?: () => void
   selectedFormId?: string | null
+  onPreviewError?: (error: string) => void
 }
 
-export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, selectedFormId: selectedFormIdProp }: LeadFormExistingProps) {
+export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, selectedFormId: selectedFormIdProp, onPreviewError }: LeadFormExistingProps) {
   const { campaign } = useCampaignContext()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedFormId, setSelectedFormId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const [previewFormId, setPreviewFormId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [forms, setForms] = useState<LeadForm[]>([])
+  const [pageProfilePicture, setPageProfilePicture] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     const fetchForms = async () => {
@@ -107,6 +118,18 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
     }
   }, [selectedFormIdProp])
 
+  // Auto-load preview on mount if selectedFormIdProp is provided and forms are loaded
+  useEffect(() => {
+    if (selectedFormIdProp && forms.length > 0 && !previewFormId) {
+      const formExists = forms.some(f => f.id === selectedFormIdProp)
+      if (formExists) {
+        console.log('[LeadFormExisting] Auto-loading preview for saved selection:', selectedFormIdProp)
+        requestPreview(selectedFormIdProp)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFormIdProp, forms.length, previewFormId])
+
   const filteredForms = useMemo(() => forms.filter((f) => (f.name || '').toLowerCase().includes(searchQuery.toLowerCase())), [forms, searchQuery])
 
   const requestPreview = async (id: string) => {
@@ -114,6 +137,10 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
       console.log('[LeadFormExisting] No campaign ID for preview')
       return
     }
+
+    // Set loading state
+    setIsLoadingPreview(true)
+    setPreviewFormId(id)
 
     // Get connection from localStorage for fallback
     const connection = metaStorage.getConnection(campaign.id)
@@ -127,6 +154,7 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
     })
 
     try {
+      // Fetch form details
       const url = new URL(`/api/meta/instant-forms/${encodeURIComponent(id)}`, window.location.origin)
       url.searchParams.set('campaignId', campaign.id)
       if (connection?.selected_page_id) {
@@ -152,43 +180,78 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
       })
 
       if (!res.ok) throw new Error((json as { error?: string }).error || 'Failed to load form detail')
-      const detail = json as {
-        id: string
-        name: string
-        questions?: Array<{ type?: string }>
-        privacy_policy_url?: string
+      
+      // Fetch page profile picture if we have page data
+      let profilePicture: string | undefined = pageProfilePicture
+      if (connection?.selected_page_id && !profilePicture) {
+        try {
+          const pictureUrl = new URL('/api/meta/page-picture', window.location.origin)
+          pictureUrl.searchParams.set('campaignId', campaign.id)
+          pictureUrl.searchParams.set('pageId', connection.selected_page_id)
+          if (connection.selected_page_access_token) {
+            pictureUrl.searchParams.set('pageAccessToken', connection.selected_page_access_token)
+          }
+
+          const pictureRes = await fetch(pictureUrl.toString())
+          const pictureJson: unknown = await pictureRes.json()
+          if (
+            pictureRes.ok &&
+            pictureJson &&
+            typeof pictureJson === 'object' &&
+            'pictureUrl' in pictureJson &&
+            typeof pictureJson.pictureUrl === 'string'
+          ) {
+            profilePicture = pictureJson.pictureUrl
+            setPageProfilePicture(profilePicture)
+          }
+        } catch (e) {
+          console.warn('[LeadFormExisting] Failed to fetch page picture:', e)
+        }
       }
 
-      const fields: PreviewData['fields'] = []
-      const q = Array.isArray(detail.questions) ? detail.questions : []
-      const map: Record<string, PreviewData['fields'][number]> = {
-        FULL_NAME: { id: 'full', type: 'full_name', label: 'Full Name', required: true },
-        EMAIL: { id: 'email', type: 'email', label: 'Email Address', required: true },
-        PHONE: { id: 'phone', type: 'phone', label: 'Phone Number', required: true },
-      }
-      q.forEach((qq) => {
-        const t = typeof qq.type === 'string' ? qq.type.toUpperCase() : ''
-        const mappedField = map[t]
-        if (mappedField) fields.push(mappedField)
+      // Use mapper to convert Graph API response to our format
+      const metaForm = mapGraphAPIFormToMetaForm(json as GraphAPILeadgenForm, {
+        pageId: connection?.selected_page_id,
+        pageName: connection?.selected_page_name || undefined,
+        pageProfilePicture: profilePicture,
       })
-      if (fields.length === 0) {
-        const fullName = map.FULL_NAME
-        const email = map.EMAIL
-        const phone = map.PHONE
-        if (fullName) fields.push(fullName)
-        if (email) fields.push(email)
-        if (phone) fields.push(phone)
-      }
 
-      onPreview({
-        id: detail.id,
-        name: detail.name,
-        privacyUrl: detail.privacy_policy_url,
-        privacyLinkText: 'Privacy Policy',
+      // Convert to legacy PreviewData format for parent callback
+      const fields: PreviewData['fields'] = metaForm.fields.map((f) => ({
+        id: f.id,
+        type: f.type === 'FULL_NAME' ? 'full_name' : f.type === 'EMAIL' ? 'email' : 'phone',
+        label: f.label,
+        required: f.required || false,
+      }))
+
+      console.log('[LeadFormExisting] Calling onPreview with:', {
+        id: metaForm.id || '',
+        name: metaForm.name,
+        fieldsCount: fields.length,
+        hasThankYou: !!metaForm.thankYou,
+      })
+
+      await onPreview({
+        id: metaForm.id || '',
+        name: metaForm.name,
+        privacyUrl: metaForm.privacy.url,
+        privacyLinkText: metaForm.privacy.linkText,
         fields,
+        thankYouTitle: metaForm.thankYou?.title,
+        thankYouMessage: metaForm.thankYou?.body,
+        thankYouButtonText: metaForm.thankYou?.ctaText,
+        thankYouButtonUrl: metaForm.thankYou?.ctaUrl,
       })
+      // Clear error on success
+      setError(null)
     } catch (e) {
-      // noop preview failure
+      const errorMessage = e instanceof Error ? e.message : 'Failed to load form preview'
+      console.error('[LeadFormExisting] Failed to load preview:', e)
+      setError(errorMessage)
+      // Notify parent component of error
+      onPreviewError?.(errorMessage)
+    } finally {
+      setIsLoadingPreview(false)
     }
   }
 
@@ -197,14 +260,11 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
   return (
     <div className="space-y-4">
       {/* Explanatory header above list/search */}
-      <div className="rounded-md border bg-muted/30 p-3">
-        <div className="flex items-center gap-2">
-          <Info className="h-5 w-5 text-blue-600 flex-shrink-0" />
-          <p className="text-sm text-foreground">
-            Select one of your existing forms below to collect lead information.
-          </p>
-        </div>
-      </div>
+      <Card className="p-4 bg-blue-50 border-blue-200">
+        <p className="text-sm text-blue-900">
+          Select one of your existing forms below to collect lead information.
+        </p>
+      </Card>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1877F2]" />
@@ -235,34 +295,47 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
             )}
           </div>
         ) : (
-          filteredForms.map((form) => (
-            <button
-              key={form.id}
-              onClick={() => {
-                setSelectedFormId(form.id)
-                requestPreview(form.id)
-              }}
-              className={`w-full rounded-lg border p-4 text-left transition-all hover:bg-muted/50 ${selectedFormId === form.id ? "border-[#1877F2] bg-[#1877F2]/5" : "border-border bg-card"}`}
-            >
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-lg bg-[#1877F2]/10 flex items-center justify-center flex-shrink-0">
-                  <FileText className="h-5 w-5 text-[#1877F2]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <h3 className="text-sm font-medium text-foreground">{form.name}</h3>
-                    {selectedFormId === form.id && <Check className="h-4 w-4 text-[#1877F2] flex-shrink-0" />}
+          filteredForms.map((form) => {
+            const isSelected = selectedFormId === form.id
+            const isLoadingThisPreview = isLoadingPreview && previewFormId === form.id
+
+            return (
+              <button
+                key={form.id}
+                onClick={() => {
+                  setSelectedFormId(form.id)
+                  requestPreview(form.id)
+                }}
+                disabled={isLoadingPreview}
+                className={`w-full rounded-lg border p-4 text-left transition-all hover:bg-muted/50 ${isSelected ? "border-[#1877F2] bg-[#1877F2]/5" : "border-border bg-card"} ${isLoadingPreview ? "opacity-60 cursor-wait" : ""}`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-[#1877F2]/10 flex items-center justify-center flex-shrink-0">
+                    {isLoadingThisPreview ? (
+                      <div className="h-5 w-5 border-2 border-[#1877F2] border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <FileText className="h-5 w-5 text-[#1877F2]" />
+                    )}
                   </div>
-                  {form.created_time && (
-                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground flex-wrap">
-                      <Calendar className="h-3 w-3" />
-                      <span>{new Date(form.created_time).toLocaleDateString()}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <h3 className="text-sm font-medium text-foreground">{form.name}</h3>
+                      {isSelected && !isLoadingThisPreview && <Check className="h-4 w-4 text-[#1877F2] flex-shrink-0" />}
+                      {isLoadingThisPreview && (
+                        <div className="h-4 w-4 border-2 border-[#1877F2] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                      )}
                     </div>
-                  )}
+                    {form.created_time && (
+                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground flex-wrap">
+                        <Calendar className="h-3 w-3" />
+                        <span>{new Date(form.created_time).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))
+              </button>
+            )
+          })
         )}
       </div>
 
@@ -272,9 +345,9 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
         	if (form) onConfirm({ id: form.id, name: form.name })
         }}
         disabled={!selectedFormId}
-        className="w-full"
+        className="w-full h-12 text-base font-medium"
       >
-        Use this form
+        Use Selected Form
       </Button>
     </div>
   )

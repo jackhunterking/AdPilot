@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Check, ImageIcon, Layers, Video, Sparkles, Edit2, Loader2 } from "lucide-react"
+import { Check, ImageIcon, Layers, Video, Sparkles, Edit2, Loader2, MoreVertical, Globe, ThumbsUp, MessageCircle, Share2, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useAdCopy } from "@/lib/context/ad-copy-context"
@@ -10,7 +10,6 @@ import { useGeneration } from "@/lib/context/generation-context"
 import { newEditSession } from "@/lib/utils/edit-session"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useGoal } from "@/lib/context/goal-context"
-import { CTASelect } from "@/components/forms/cta-select"
 
 export function AdCopySelectionCanvas() {
   const { adCopyState, setSelectedCopyIndex, getActiveVariations, setCustomCopyVariations } = useAdCopy()
@@ -129,11 +128,25 @@ export function AdCopySelectionCanvas() {
   useEffect(() => {
     const imageUrls = adContent?.imageVariations
     const hasCustom = Boolean(adCopyState.customCopyVariations && adCopyState.customCopyVariations.length)
-    if (!imageUrls || imageUrls.length === 0 || hasCustom) return
+    
+    // Enhanced validation: Check if imageUrls has valid, non-empty strings
+    const hasValidImages = imageUrls && imageUrls.length > 0 && imageUrls.every(url => url && typeof url === 'string' && url.trim().length > 0)
+    
+    if (!hasValidImages || hasCustom) {
+      console.log('[AdCopyCanvas] Skipping auto-generation:', { 
+        hasImages: !!imageUrls?.length, 
+        hasValidImages,
+        hasCustom,
+        imageUrlsSample: imageUrls?.[0]?.substring(0, 50)
+      })
+      return
+    }
 
+    console.log('[AdCopyCanvas] Starting auto-generation with', imageUrls.length, 'valid images')
+    
     let cancelled = false
     setIsGenerating(true)
-    setGenerationMessage("Writing 6 ad copy variations…")
+    setGenerationMessage("Writing 3 ad copy variations…")
     ;(async () => {
       try {
         const selectedImg = (selectedImageIndex != null && adContent?.imageVariations)
@@ -151,8 +164,9 @@ export function AdCopySelectionCanvas() {
         })
         if (!res.ok) throw new Error(await res.text())
         const data = await res.json()
-        if (!cancelled && data?.variations?.length === 6) {
-          setCustomCopyVariations(data.variations)
+        if (!cancelled && data?.variations?.length) {
+          // Only take the first 3 variations to ensure consistency
+          setCustomCopyVariations(data.variations.slice(0, 3))
         }
       } catch (e) {
         console.error('[AdCopy] generation failed', e)
@@ -180,9 +194,10 @@ export function AdCopySelectionCanvas() {
       <div
         key={copy.id}
         className={cn(
-          "rounded-lg border-2 bg-card overflow-hidden hover:shadow-lg transition-all relative group cursor-pointer",
-          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-border'
+          "rounded-lg border-2 bg-white overflow-hidden hover:shadow-lg transition-all relative group cursor-pointer",
+          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]'
         )}
+        style={{ borderRadius: '8px' }}
         onClick={() => handleSelectCopy(copyIndex)}
       >
         {/* Processing Overlay */}
@@ -239,18 +254,34 @@ export function AdCopySelectionCanvas() {
           </div>
         )}
 
-        {/* Ad Header */}
-        <div className="flex items-center gap-2 p-3 border-b border-border">
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex-shrink-0" />
+        {/* Header Section - Facebook Style */}
+        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[#CED0D4]" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px' }}>
+          {/* Profile Picture - 40px circle, solid blue */}
+          <div className="h-10 w-10 rounded-full bg-[#1877F2] flex-shrink-0" style={{ width: '40px', height: '40px' }} />
+          
+          {/* Business Name & Sponsored */}
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold truncate">Your Brand</p>
-            <p className="text-[10px] text-muted-foreground">Sponsored</p>
+            <p className="font-semibold truncate text-[#050505]" style={{ fontSize: '15px', fontWeight: 600 }}>Business Name</p>
+            <div className="flex items-center gap-1">
+              <p className="text-[#65676B]" style={{ fontSize: '13px', fontWeight: 400 }}>Sponsored</p>
+              <Globe className="h-3 w-3 text-[#65676B]" style={{ width: '12px', height: '12px' }} />
+            </div>
           </div>
+          
+          {/* Options Icon - MoreVertical on right */}
+          <MoreVertical className="h-5 w-5 text-[#65676B] flex-shrink-0 cursor-pointer hover:bg-[#F2F3F5] rounded-full p-1" style={{ width: '20px', height: '20px' }} />
         </div>
 
-        {/* Ad Creative */}
+        {/* Primary Text Section - BEFORE Media */}
+        <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
+          <p className="text-[#050505] leading-[1.3333]" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '20px' }}>
+            {copy.primaryText}
+          </p>
+        </div>
+
+        {/* Media Section - Square (1:1) aspect ratio - 1080x1080 */}
         {selectedImg ? (
-          <div className="aspect-square relative overflow-hidden">
+          <div className="relative overflow-hidden" style={{ aspectRatio: '1/1' }}>
             <img
               key={`feed-${copyIndex}-${selectedImg}`}
               src={selectedImg}
@@ -268,48 +299,92 @@ export function AdCopySelectionCanvas() {
             )}
           </div>
         ) : selectedCreativeVariation ? (
-          <div className={`aspect-square bg-gradient-to-br ${selectedCreativeVariation.gradient} flex items-center justify-center`}>
-            <div className="text-center text-white p-4">
-              <p className="text-sm font-bold">{selectedCreativeVariation.title}</p>
-            </div>
-          </div>
+          <div className={`relative overflow-hidden bg-gradient-to-br ${selectedCreativeVariation.gradient}`} style={{ aspectRatio: '1/1' }} />
         ) : (
-          <div className="aspect-square bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500 flex items-center justify-center">
-            <div className="text-center text-white p-4">
-              <p className="text-sm font-bold">Ad Creative</p>
-            </div>
-          </div>
+          <div className="relative overflow-hidden bg-[#1C1E21]" style={{ aspectRatio: '1/1' }} />
         )}
 
-        {/* Ad Copy Content */}
-        <div className="p-3 space-y-2">
-          {/* Reaction Icons */}
-          <div className="flex items-center gap-3">
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-            </svg>
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
+        {/* Link Preview Section - Horizontal Layout */}
+        <div className="flex items-start gap-3 px-3 py-3 border-b border-[#CED0D4]" style={{ paddingLeft: '12px', paddingRight: '12px' }}>
+          {/* Left Side - Content */}
+          <div className="flex-1 min-w-0 space-y-1">
+            {/* Website URL */}
+            <p className="text-[#65676B] uppercase tracking-wide" style={{ fontSize: '11px', fontWeight: 400, letterSpacing: '0.5px' }}>
+              YOURWEBSITE.HELLO
+            </p>
+            {/* Headline */}
+            <p className="font-bold text-[#050505] line-clamp-1" style={{ fontSize: '17px', fontWeight: 700, lineHeight: '1.1765' }}>
+              {copy.headline}
+            </p>
+            {/* Description */}
+            <p className="text-[#050505] line-clamp-2" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '1.3333' }}>
+              {copy.description}
+            </p>
+          </div>
+          
+          {/* Right Side - Learn more Button */}
+          <button 
+            className="flex-shrink-0 bg-[#E4E6EB] text-[#050505] font-semibold rounded-md px-3 py-2 hover:bg-[#D8DADF] transition-colors"
+            style={{ 
+              fontSize: '15px', 
+              fontWeight: 600, 
+              paddingLeft: '12px', 
+              paddingRight: '12px', 
+              paddingTop: '8px', 
+              paddingBottom: '8px',
+              borderRadius: '6px',
+              minWidth: '100px'
+            }}
+            disabled
+          >
+            Learn more
+          </button>
+        </div>
+
+        {/* Engagement Section */}
+        <div>
+          {/* Top Row - Reactions & Counts */}
+          <div className="flex items-center justify-between px-2 py-1" style={{ paddingLeft: '8px', paddingRight: '8px', paddingTop: '4px', paddingBottom: '4px' }}>
+            {/* Left Side - Reactions */}
+            <div className="flex items-center gap-1.5">
+              <ThumbsUp className="h-4 w-4 text-[#1877F2]" style={{ width: '16px', height: '16px' }} />
+              <p className="text-[#050505]" style={{ fontSize: '13px', fontWeight: 400 }}>Oliver, Sofia and 28 others</p>
+            </div>
+            
+            {/* Right Side - Comments & Shares */}
+            <p className="text-[#65676B]" style={{ fontSize: '13px', fontWeight: 400 }}>14 Comments 7 Shares</p>
           </div>
 
-          {/* Primary Text */}
-          <p className="text-xs line-clamp-3">
-            <span className="font-semibold">Your Brand</span>{" "}
-            {copy.primaryText}
-          </p>
-
-          {/* Headline & Description */}
-          <div className="bg-muted rounded-lg p-2.5 space-y-1">
-            <p className="text-xs font-bold line-clamp-1">{copy.headline}</p>
-            <p className="text-[10px] text-muted-foreground line-clamp-2">{copy.description}</p>
-            <Button 
-              size="sm" 
-              className="w-full mt-1.5 h-7 text-[10px] bg-[#4B73FF] hover:bg-[#3d5fd9]"
-              disabled
-            >
-              Learn More
-            </Button>
+          {/* Action Buttons Row */}
+          <div className="flex items-center border-t border-[#CED0D4]" style={{ borderTopWidth: '1px' }}>
+            {/* Like Button */}
+            <button className="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-[#F2F3F5] transition-colors">
+              <ThumbsUp className="h-5 w-5 text-[#65676B]" style={{ width: '20px', height: '20px' }} />
+              <span className="text-[#65676B]" style={{ fontSize: '15px', fontWeight: 400 }}>Like</span>
+            </button>
+            
+            {/* Divider */}
+            <div className="w-px h-6 bg-[#CED0D4]" style={{ width: '1px' }} />
+            
+            {/* Comment Button */}
+            <button className="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-[#F2F3F5] transition-colors">
+              <MessageCircle className="h-5 w-5 text-[#65676B]" style={{ width: '20px', height: '20px' }} />
+              <span className="text-[#65676B]" style={{ fontSize: '15px', fontWeight: 400 }}>Comment</span>
+            </button>
+            
+            {/* Divider */}
+            <div className="w-px h-6 bg-[#CED0D4]" style={{ width: '1px' }} />
+            
+            {/* Share Button */}
+            <button className="flex-1 flex items-center justify-center gap-2 py-2 hover:bg-[#F2F3F5] transition-colors">
+              <Share2 className="h-5 w-5 text-[#65676B]" style={{ width: '20px', height: '20px' }} />
+              <span className="text-[#65676B]" style={{ fontSize: '15px', fontWeight: 400 }}>Share</span>
+            </button>
+            
+            {/* Dropdown Arrow */}
+            <button className="px-2 py-2 hover:bg-[#F2F3F5] transition-colors">
+              <ChevronDown className="h-4 w-4 text-[#65676B]" style={{ width: '16px', height: '16px' }} />
+            </button>
           </div>
         </div>
       </div>
@@ -330,9 +405,10 @@ export function AdCopySelectionCanvas() {
       <div
         key={copy.id}
         className={cn(
-          "aspect-[9/16] rounded-lg border-2 bg-card overflow-hidden relative hover:shadow-lg transition-all group cursor-pointer",
-          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-border'
+          "aspect-[9/16] rounded-lg border-2 bg-white overflow-hidden relative hover:shadow-lg transition-all group cursor-pointer",
+          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]'
         )}
+        style={{ borderRadius: '8px' }}
         onClick={() => handleSelectCopy(copyIndex)}
       >
         {/* Processing Overlay */}
@@ -346,7 +422,7 @@ export function AdCopySelectionCanvas() {
         )}
 
         {/* Selection Indicator */}
-        {isSelected && (
+        {isSelected && !isProcessing && (
           <div className="absolute top-2 right-2 z-20 bg-blue-500 text-white rounded-full p-1">
             <Check className="h-4 w-4" />
           </div>
@@ -396,60 +472,97 @@ export function AdCopySelectionCanvas() {
           </div>
         )}
 
-        {/* Background Creative */}
-        {selectedImg ? (
-          <div className="absolute inset-0">
-            <img 
-              key={`story-${copyIndex}-${selectedImg}`}
-              src={selectedImg} 
-              alt={copy.headline} 
-              className="w-full h-full object-cover" 
-            />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
-            {/* Loading overlay with transparent blur */}
-            {loadingVariations[copyIndex] && (
-              <div className="absolute inset-0 bg-white/40 dark:bg-black/40 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center">
-                <div className="bg-background/90 rounded-lg px-4 py-2 flex items-center gap-2 shadow-lg border border-border/50">
-                  <div className="h-4 w-4 rounded-full border-2 border-blue-200 border-t-blue-500 animate-spin" />
-                  <span className="text-xs font-medium">Creating variation...</span>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : selectedCreativeVariation ? (
-          <div className={`absolute inset-0 bg-gradient-to-br ${selectedCreativeVariation.gradient}`} />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500" />
-        )}
-
-        {/* Story Header */}
-        <div className="relative z-10 p-3">
-          <div className="h-0.5 bg-white/30 rounded-full mb-3">
-            <div className="h-full w-1/3 bg-white rounded-full" />
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 border-2 border-white flex-shrink-0" />
-            <p className="text-white text-xs font-semibold truncate">Your Brand</p>
+        {/* Progress Bar - Top Edge */}
+        <div className="absolute top-0 left-0 right-0 z-30" style={{ height: '2px' }}>
+          <div className="h-full bg-[#CED0D4]">
+            <div className="h-full bg-white" style={{ width: '33%' }} />
           </div>
         </div>
 
-        {/* Story Copy Content */}
-        <div className="absolute bottom-6 left-0 right-0 px-3 z-10 space-y-2">
-          {/* Primary Text in white overlay */}
-          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
-            <p className="text-white text-xs line-clamp-2 font-medium">
-              {copy.primaryText}
-            </p>
+        {/* Header Section - Subtle Gray Bar */}
+        <div className="relative z-20 bg-[#F2F3F5] px-3 py-2.5" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px' }}>
+          <div className="flex items-center gap-2">
+            {/* Brand Logo - 40x40px */}
+            <div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center flex-shrink-0" style={{ width: '40px', height: '40px', borderRadius: '8px' }}>
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500" />
+            </div>
+            
+            {/* Brand Name & Sponsored */}
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold truncate text-[#333333]" style={{ fontSize: '15px', fontWeight: 600 }}>Business Name</p>
+              <p className="text-[#65676B]" style={{ fontSize: '13px', fontWeight: 400 }}>Sponsored</p>
+            </div>
+            
+            {/* Options Icon */}
+            <MoreVertical className="h-5 w-5 text-[#65676B] flex-shrink-0 cursor-pointer" style={{ width: '20px', height: '20px' }} />
+          </div>
+        </div>
+
+        {/* Main Creative Section - Full Screen Background */}
+        <div className="absolute inset-0" style={{ top: '60px' }}>
+          {selectedImg ? (
+            <div className="relative w-full h-full">
+              <img 
+                key={`story-${copyIndex}-${selectedImg}`}
+                src={selectedImg} 
+                alt={copy.headline} 
+                className="w-full h-full object-cover" 
+              />
+              {/* Loading overlay with transparent blur */}
+              {loadingVariations[copyIndex] && (
+                <div className="absolute inset-0 bg-white/40 dark:bg-black/40 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center">
+                  <div className="bg-background/90 rounded-lg px-4 py-2 flex items-center gap-2 shadow-lg border border-border/50">
+                    <div className="h-4 w-4 rounded-full border-2 border-blue-200 border-t-blue-500 animate-spin" />
+                    <span className="text-xs font-medium">Creating variation...</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : selectedCreativeVariation ? (
+            <div className={`relative w-full h-full bg-gradient-to-br ${selectedCreativeVariation.gradient}`} />
+          ) : (
+            <div className="relative w-full h-full bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-500" />
+          )}
+        </div>
+
+        {/* Bottom Ad Copy/Engagement Section - Dark Background */}
+        <div className="absolute bottom-0 left-0 right-0 z-20 bg-[#242526]">
+          {/* Information Text - Actual Copy Text */}
+          <div className="px-3 pt-3 pb-2" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '12px', paddingBottom: '8px' }}>
+            <div className="space-y-1">
+              {/* Primary Text */}
+              <p className="text-white" style={{ fontSize: '14px', fontWeight: 400, lineHeight: '1.4' }}>
+                {copy.primaryText}
+              </p>
+              {/* Description */}
+              <p className="text-white/80" style={{ fontSize: '14px', fontWeight: 400, lineHeight: '1.4' }}>
+                {copy.description}
+              </p>
+            </div>
           </div>
           
-          {/* Headline */}
-          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
-            <p className="text-white font-bold text-xs line-clamp-1">{copy.headline}</p>
+          {/* Expand Icon - ChevronUp */}
+          <div className="flex justify-center py-1">
+            <ChevronUp className="h-4 w-4 text-white" style={{ width: '16px', height: '16px' }} />
           </div>
-
-          {/* CTA Button */}
-          <div className="bg-white/95 backdrop-blur-sm rounded-full py-2 px-4 text-center">
-            <p className="text-black font-semibold text-xs truncate">Learn More</p>
+          
+          {/* Secondary CTA Button */}
+          <div className="flex justify-center px-3 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingBottom: '12px' }}>
+            <button 
+              className="bg-white text-[#333333] font-semibold rounded-lg px-3 py-2 hover:bg-gray-100 transition-colors"
+              style={{ 
+                fontSize: '15px', 
+                fontWeight: 600, 
+                paddingLeft: '12px', 
+                paddingRight: '12px', 
+                paddingTop: '8px', 
+                paddingBottom: '8px',
+                borderRadius: '8px'
+              }}
+              disabled
+            >
+              Learn more
+            </button>
           </div>
         </div>
       </div>
@@ -508,28 +621,10 @@ export function AdCopySelectionCanvas() {
         </div>
       </div>
 
-      {/* 3x2 Grid of Ad Copy Variations */}
+      {/* Grid of Ad Copy Variations */}
       <div className="grid grid-cols-3 gap-4 max-w-6xl mx-auto">
-        {activeFormat === "feed" && activeVariations.map((_, index) => renderFeedAdCopyCard(index))}
-        {activeFormat === "story" && activeVariations.map((_, index) => renderStoryAdCopyCard(index))}
-      </div>
-
-      {/* CTA Selector */}
-      <div className="rounded-lg border border-border bg-card p-4 max-w-6xl mx-auto w-full">
-        <CTASelect />
-      </div>
-
-      
-
-      {/* Info Section */}
-      <div className="text-center py-6">
-        <p className="text-sm text-muted-foreground">
-          {isGenerating 
-            ? "Writing 6 ad copy variations…"
-            : adCopyState.selectedCopyIndex !== null 
-              ? `Copy variation ${adCopyState.selectedCopyIndex + 1} selected - Click Next to continue`
-              : "Select an ad copy variation to continue"}
-        </p>
+        {activeFormat === "feed" && activeVariations.slice(0, 3).map((_, index) => renderFeedAdCopyCard(index))}
+        {activeFormat === "story" && activeVariations.slice(0, 3).map((_, index) => renderStoryAdCopyCard(index))}
       </div>
     </div>
   )
