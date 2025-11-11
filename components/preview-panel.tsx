@@ -10,7 +10,7 @@
 
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Play, ImageIcon, Video, Layers, Sparkles, Building2, Check, Facebook, Loader2, Edit2, Palette, Type, MapPin, Target, Rocket, Flag, Link2, MoreVertical, Globe, Heart, ThumbsUp, MessageCircle, Share2, ChevronDown, AlertTriangle, ChevronUp } from "lucide-react"
@@ -117,25 +117,6 @@ export function PreviewPanel() {
     window.addEventListener('stepChanged', handleStepChanged)
     return () => window.removeEventListener('stepChanged', handleStepChanged)
   }, [])
-  
-  // Listen for save draft and publish requests from header
-  useEffect(() => {
-    const handleSaveDraftRequest = () => {
-      void handleSaveDraft()
-    }
-    
-    const handlePublishRequest = () => {
-      void handlePublish()
-    }
-    
-    window.addEventListener('saveDraftRequested', handleSaveDraftRequest)
-    window.addEventListener('publishRequested', handlePublishRequest)
-    
-    return () => {
-      window.removeEventListener('saveDraftRequested', handleSaveDraftRequest)
-      window.removeEventListener('publishRequested', handlePublishRequest)
-    }
-  }, [handleSaveDraft, handlePublish])
   
   // Close modals when sections complete
   useEffect(() => {
@@ -269,10 +250,21 @@ export function PreviewPanel() {
     }
   }, [campaign?.id, budgetState.selectedAdAccount])
 
+  // Check if all steps are complete
+  const allStepsComplete = 
+    selectedImageIndex !== null &&
+    adCopyState.status === "completed" &&
+    destinationState.status === "completed" &&
+    locationState.status === "completed" &&
+    audienceState.status === "completed" &&
+    isMetaConnectionComplete &&
+    hasPaymentMethod &&
+    isComplete()
+
   /**
    * Handles save draft action - saves ad without publishing
    */
-  const handleSaveDraft = async () => {
+  const handleSaveDraft = useCallback(async () => {
     if (!campaign?.id || !currentAdId || isSaving) return
     
     setIsSaving(true)
@@ -336,19 +328,19 @@ export function PreviewPanel() {
     } finally {
       setIsSaving(false)
     }
-  }
+  }, [campaign?.id, campaign?.name, currentAdId, isSaving, adContent, selectedImageIndex, selectedCreativeVariation, adCopyState, destinationState, locationState, audienceState, goalState, budgetState, getSelectedCopy])
   
   /**
    * Handles ad publish action - opens confirmation dialog
    */
-  const handlePublish = async () => {
+  const handlePublish = useCallback(async () => {
     if (!campaign?.id) return
     if (!allStepsComplete) return
     if (isPublishing) return // Prevent double-click
     
     // Open the publish flow dialog in confirmation phase
     setPublishDialogOpen(true)
-  }
+  }, [campaign?.id, allStepsComplete, isPublishing])
   
   const handlePublishComplete = async () => {
     if (!campaign?.id || !currentAdId) {
@@ -488,6 +480,25 @@ export function PreviewPanel() {
       setIsPublishing(false)
     }
   }
+  
+  // Listen for save draft and publish requests from header
+  useEffect(() => {
+    const handleSaveDraftRequest = () => {
+      void handleSaveDraft()
+    }
+    
+    const handlePublishRequest = () => {
+      void handlePublish()
+    }
+    
+    window.addEventListener('saveDraftRequested', handleSaveDraftRequest)
+    window.addEventListener('publishRequested', handlePublishRequest)
+    
+    return () => {
+      window.removeEventListener('saveDraftRequested', handleSaveDraftRequest)
+      window.removeEventListener('publishRequested', handlePublishRequest)
+    }
+  }, [handleSaveDraft, handlePublish])
 
   const handleSelectAd = (index: number) => {
     // Toggle selection against persisted selectedImageIndex
@@ -565,17 +576,6 @@ export function PreviewPanel() {
   }
 
   // Removed regenerate handler
-
-  // Check if all steps are complete
-  const allStepsComplete = 
-    selectedImageIndex !== null &&
-    adCopyState.status === "completed" &&
-    destinationState.status === "completed" &&
-    locationState.status === "completed" &&
-    audienceState.status === "completed" &&
-    isMetaConnectionComplete &&
-    hasPaymentMethod &&
-    isComplete()
 
   // Mock ad variations with different gradients
   const adVariations = [
@@ -1278,7 +1278,6 @@ export function PreviewPanel() {
         onComplete={handlePublishComplete}
         dailyBudget={budgetState.dailyBudget > 0 ? `$${budgetState.dailyBudget}` : undefined}
         locationCount={locationState.locations.length}
-        adAccountName={budgetState.selectedAdAccountName}
       />
     </div>
   )
