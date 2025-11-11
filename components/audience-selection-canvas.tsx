@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAudience } from "@/lib/context/audience-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { cn } from "@/lib/utils"
@@ -35,7 +35,20 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
   const [isEnabling, setIsEnabling] = useState(false)
   const [localDescription, setLocalDescription] = useState("")
   const [isTranslating, setIsTranslating] = useState(false)
+  const [showLoadingAnimation, setShowLoadingAnimation] = useState(false)
   const isSummary = variant === "summary"
+
+  // Handle loading animation when transitioning to setup-in-progress
+  useEffect(() => {
+    if (audienceState.status === "setup-in-progress" && audienceState.targeting.mode === "manual") {
+      setShowLoadingAnimation(true);
+      // Show loading for 1.5 seconds then hide
+      const timer = setTimeout(() => {
+        setShowLoadingAnimation(false);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [audienceState.status, audienceState.targeting.mode]);
 
   const renderLayout = (content: React.ReactNode, maxWidthClass = "max-w-2xl") => {
     if (isSummary) {
@@ -195,7 +208,57 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
     return renderLayout(content, "max-w-5xl")
   }
 
-  // Manual targeting: Prompt user to use AI Chat
+  // Manual targeting: AI gathering information through conversation
+  if (audienceState.status === "gathering-info" && audienceState.targeting.mode === "manual") {
+    const content = (
+      <div className="max-w-2xl mx-auto w-full space-y-6">
+        <div className="text-center space-y-2 mb-6">
+          <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
+            <Sparkles className="h-8 w-8 text-blue-600 animate-pulse" />
+          </div>
+          <h2 className="text-2xl font-bold">Building Your Audience Profile</h2>
+          <p className="text-muted-foreground">
+            Answer the questions in AI Chat to refine your targeting
+          </p>
+        </div>
+        
+        {/* AI Chat Conversation Info Box */}
+        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-6">
+          <div className="flex items-start gap-3">
+            <Sparkles className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm space-y-3">
+              <p className="font-medium text-blue-700 dark:text-blue-400">Conversational Targeting</p>
+              <p className="text-blue-600 dark:text-blue-300 text-sm">
+                I'll ask you a few questions to understand your ideal customer better. This helps create precise Meta targeting parameters.
+              </p>
+              <div className="space-y-2 mt-4">
+                <p className="text-xs text-blue-600 dark:text-blue-300 font-medium">We'll cover:</p>
+                <ul className="text-xs text-blue-600 dark:text-blue-300 space-y-1 ml-4 list-disc">
+                  <li>Age range and demographics</li>
+                  <li>Interests and hobbies</li>
+                  <li>Behaviors and life events</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex justify-center gap-4 pt-4">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={resetAudience}
+          >
+            Back to Options
+          </Button>
+        </div>
+      </div>
+    )
+    
+    return renderLayout(content, "max-w-3xl")
+  }
+
+  // Manual targeting: Prompt user to use AI Chat (when status is "generating")
   if (audienceState.status === "generating" && audienceState.targeting.mode === "manual") {
     const content = (
       <div className="max-w-2xl mx-auto w-full space-y-6">
@@ -238,6 +301,25 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
           >
             Back to Options
           </Button>
+        </div>
+      </div>
+    )
+    
+    return renderLayout(content, "max-w-3xl")
+  }
+
+  // Manual targeting: Loading animation before refinement
+  if (audienceState.status === "setup-in-progress" && audienceState.targeting.mode === "manual" && showLoadingAnimation) {
+    const content = (
+      <div className="max-w-2xl mx-auto w-full space-y-6">
+        <div className="text-center space-y-4">
+          <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto">
+            <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+          </div>
+          <h2 className="text-2xl font-bold">Analyzing Your Audience...</h2>
+          <p className="text-muted-foreground">
+            Setting up your targeting parameters
+          </p>
         </div>
       </div>
     )

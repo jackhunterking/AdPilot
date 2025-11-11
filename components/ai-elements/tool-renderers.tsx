@@ -8,10 +8,11 @@
  *  - AI SDK Core: https://ai-sdk.dev/docs/ai-sdk-core/streaming
  */
 
-import React, { Fragment } from "react";
-import { CheckCircle2, Sparkles, Target, User, Heart, Activity } from "lucide-react";
+import React, { Fragment, useState } from "react";
+import { CheckCircle2, Sparkles, Target, User, Heart, Activity, Loader2 } from "lucide-react";
 import { AdMockup } from "@/components/ad-mockup";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export function deriveEditDescription(inputPrompt?: string): string {
   const p = (inputPrompt || "").trim();
@@ -177,6 +178,7 @@ export function renderManualTargetingParametersResult(opts: {
   };
   output: {
     success?: boolean;
+    needsConfirmation?: boolean;
     demographics?: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
     interests?: Array<{ id: string; name: string }>;
     behaviors?: Array<{ id: string; name: string }>;
@@ -188,6 +190,31 @@ export function renderManualTargetingParametersResult(opts: {
   const interests = output.interests || input.interests || [];
   const behaviors = output.behaviors || input.behaviors || [];
   const explanation = output.explanation || input.explanation || '';
+  const needsConfirmation = output.needsConfirmation ?? false;
+  
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [isConfirmed, setIsConfirmed] = useState(false);
+
+  const handleConfirm = () => {
+    if (!demographics) return;
+    
+    setIsConfirming(true);
+    
+    // Dispatch event with parameters to update audience context
+    window.dispatchEvent(new CustomEvent('audienceParametersConfirmed', {
+      detail: {
+        demographics,
+        interests,
+        behaviors,
+      }
+    }));
+    
+    // Show confirmed state
+    setTimeout(() => {
+      setIsConfirming(false);
+      setIsConfirmed(true);
+    }, 500);
+  };
 
   return (
     <Fragment key={keyId || callId}>
@@ -268,8 +295,41 @@ export function renderManualTargetingParametersResult(opts: {
             </div>
           )}
         </div>
+
+        {/* Confirmation Button */}
+        {needsConfirmation && !isConfirmed && (
+          <div className="mt-4 pt-3 border-t border-border">
+            <Button
+              onClick={handleConfirm}
+              disabled={isConfirming}
+              className="w-full bg-blue-600 hover:bg-blue-700"
+            >
+              {isConfirming ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Confirming...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Confirm Targeting
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {/* Confirmed State */}
+        {isConfirmed && (
+          <div className="mt-4 pt-3 border-t border-border">
+            <div className="flex items-center gap-2 text-green-600">
+              <CheckCircle2 className="h-4 w-4" />
+              <p className="text-sm font-medium">Confirmed! Check the canvas to refine your targeting.</p>
+            </div>
+          </div>
+        )}
       </div>
-      {explanation && (
+      {explanation && !isConfirmed && (
         <p className="text-sm text-muted-foreground my-2">{explanation}</p>
       )}
     </Fragment>

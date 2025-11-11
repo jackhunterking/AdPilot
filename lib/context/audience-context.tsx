@@ -6,7 +6,7 @@ import { useAutoSave } from "@/lib/hooks/use-auto-save"
 import { AUTO_SAVE_CONFIGS } from "@/lib/types/auto-save"
 
 type AudienceMode = "ai" | "manual"
-type AudienceStatus = "idle" | "generating" | "setup-in-progress" | "completed" | "error"
+type AudienceStatus = "idle" | "generating" | "gathering-info" | "setup-in-progress" | "completed" | "error"
 
 interface TargetingOption {
   id: string
@@ -56,6 +56,7 @@ interface AudienceContextType {
   setManualDescription: (description: string) => void
   setDemographics: (demographics: Partial<Demographics>) => void
   setDetailedTargeting: (detailedTargeting: Partial<DetailedTargeting>) => void
+  setConfirmedParameters: (demographics: Demographics, interests: TargetingOption[], behaviors: TargetingOption[]) => void
   addInterest: (interest: TargetingOption) => void
   removeInterest: (interestId: string) => void
   addBehavior: (behavior: TargetingOption) => void
@@ -273,6 +274,23 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
     }))
   }
 
+  const setConfirmedParameters = (demographics: Demographics, interests: TargetingOption[], behaviors: TargetingOption[]) => {
+    setAudienceState(prev => ({
+      ...prev,
+      targeting: {
+        ...prev.targeting,
+        mode: 'manual',
+        demographics,
+        detailedTargeting: {
+          interests,
+          behaviors,
+          connections: []
+        }
+      },
+      status: 'setup-in-progress'
+    }))
+  }
+
   // Auto-advance when AI targeting completes, but avoid hydration-induced idle→completed jumps
   const prevStatus = useRef<AudienceStatus>(audienceState.status)
   useEffect(() => {
@@ -297,6 +315,7 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
         setManualDescription,
         setDemographics,
         setDetailedTargeting,
+        setConfirmedParameters,
         addInterest,
         removeInterest,
         addBehavior,

@@ -214,6 +214,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     updateStatus: updateAudienceStatus,
     setManualDescription,
     setDemographics,
+    setConfirmedParameters,
     addInterest,
     addBehavior
   } = useAudience();
@@ -1037,6 +1038,8 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
           text: `AI Advantage+ targeting Enabled`,
         });
       } else {
+        // Set status to gathering-info for conversational flow
+        updateAudienceStatus('gathering-info');
         sendMessageRef.current({
           text: `Set up manual targeting`,
         });
@@ -1045,7 +1048,23 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
 
     window.addEventListener('triggerAudienceModeSelection', handleAudienceModeSelection as EventListener);
     return () => window.removeEventListener('triggerAudienceModeSelection', handleAudienceModeSelection as EventListener);
-  }, []);
+  }, [updateAudienceStatus]);
+
+  // Listen for audience parameters confirmation (when user clicks "Confirm Targeting" in chat)
+  useEffect(() => {
+    const handleAudienceParametersConfirmed = (event: CustomEvent<{
+      demographics: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
+      interests: Array<{ id: string; name: string }>;
+      behaviors: Array<{ id: string; name: string }>;
+    }>) => {
+      const { demographics, interests, behaviors } = event.detail;
+      console.log('[AIChat] Audience parameters confirmed, updating context:', { demographics, interests, behaviors });
+      setConfirmedParameters(demographics, interests, behaviors);
+    };
+
+    window.addEventListener('audienceParametersConfirmed', handleAudienceParametersConfirmed as EventListener);
+    return () => window.removeEventListener('audienceParametersConfirmed', handleAudienceParametersConfirmed as EventListener);
+  }, [setConfirmedParameters]);
 
   // Listen for audience generation (when user clicks "Find My Audience with AI")
   useEffect(() => {

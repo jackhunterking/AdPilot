@@ -9,28 +9,42 @@ import { tool } from 'ai';
 import { z } from 'zod';
 
 export const manualTargetingParametersTool = tool({
-  description: `Generate Meta targeting parameters from a natural language audience description.
+  description: `Generate Meta targeting parameters from a complete audience description after gathering information.
   
   WHEN TO USE:
-  - User has selected manual targeting mode
-  - User describes their ideal customer/audience
-  - User provides demographic and interest information
+  - After using gatherAudienceInfo tool and isComplete is true
+  - User has provided demographics (age, gender) AND interests/behaviors
+  - You have enough information to create comprehensive targeting parameters
+  
+  DO NOT USE:
+  - When you still need to ask follow-up questions
+  - When demographic or interest information is incomplete
   
   PARAMETER GUIDELINES:
   - Age range: 18-65 (adjust based on user's description)
   - Gender: "all", "male", or "female"
-  - Interests: Extract relevant Meta ad interests from description
-  - Behaviors: Extract relevant Meta ad behaviors from description
+  - Interests: Extract relevant Meta ad interests from description (aim for 2-5 interests)
+  - Behaviors: Extract relevant Meta ad behaviors from description (optional, 1-3 if mentioned)
   
   EXAMPLES:
-  "Women aged 25-40 interested in fitness" → 
-    demographics: { ageMin: 25, ageMax: 40, gender: "female" }
-    interests: [{ id: "fitness", name: "Fitness and wellness" }]
+  Full context: "Women aged 25-40 interested in fitness, specifically yoga and healthy eating"
+  → demographics: { ageMin: 25, ageMax: 40, gender: "female" }
+  → interests: [
+      { id: "fitness-wellness", name: "Fitness and wellness" },
+      { id: "yoga", name: "Yoga" },
+      { id: "healthy-eating", name: "Healthy eating" }
+    ]
   
-  "Small business owners in tech" →
-    demographics: { ageMin: 25, ageMax: 55, gender: "all" }
-    interests: [{ id: "tech", name: "Technology" }]
-    behaviors: [{ id: "small-business", name: "Small business owners" }]`,
+  Full context: "Small business owners in tech, aged 30-50, interested in SaaS and digital marketing"
+  → demographics: { ageMin: 30, ageMax: 50, gender: "all" }
+  → interests: [
+      { id: "technology", name: "Technology" },
+      { id: "saas", name: "Software as a service" },
+      { id: "digital-marketing", name: "Digital marketing" }
+    ]
+  → behaviors: [{ id: "small-business-owner", name: "Small business owners" }]
+  
+  IMPORTANT: After generating parameters, these will be shown to the user with a confirmation button.`,
   
   inputSchema: z.object({
     description: z.string().describe('User\'s natural language description of their target audience'),
@@ -54,6 +68,7 @@ export const manualTargetingParametersTool = tool({
   execute: async (input, { toolCallId }) => {
     return {
       success: true,
+      needsConfirmation: true, // Always require user confirmation via button in chat
       description: input.description,
       demographics: input.demographics,
       interests: input.interests,

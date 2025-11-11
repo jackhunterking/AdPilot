@@ -36,6 +36,7 @@ import { setupGoalTool } from '@/lib/ai/tools/setup-goal-tool';
 import { editAdCopyTool } from '@/lib/ai/tools/edit-ad-copy';
 import { audienceModeTool } from '@/lib/ai/tools/audience-mode-tool';
 import { manualTargetingParametersTool } from '@/lib/ai/tools/manual-targeting-parameters-tool';
+import { gatherAudienceInfoTool } from '@/lib/ai/tools/gather-audience-info-tool';
 import { getCachedMetrics } from '@/lib/meta/insights';
 import { getModel } from '@/lib/ai/gateway-provider';
 import { messageStore } from '@/lib/services/message-store';
@@ -162,6 +163,7 @@ export async function POST(req: Request) {
     setupGoal: setupGoalTool,
     editAdCopy: editAdCopyTool,
     audienceMode: audienceModeTool,
+    gatherAudienceInfo: gatherAudienceInfoTool,
     manualTargetingParameters: manualTargetingParametersTool,
   };
 
@@ -863,6 +865,64 @@ AI: [Acknowledge] → CALL generateImage with:
   - Creative format: Product-focused photography with optional text
 
 **CRITICAL**: When you see "generate", "create", or "make" + enough context (especially with OFFER), you MUST CALL the generateImage tool with the offer incorporated into the prompt. Do NOT just explain what you're going to do - ACTUALLY USE THE TOOL!
+
+## Manual Targeting Conversational Flow
+
+When user selects "Set Up Manual Targeting":
+
+**Step 1: Start the Conversation**
+- Begin with an open-ended question: "Tell me about your ideal customer..."
+- Encourage natural description without overwhelming the user
+
+**Step 2: Ask Follow-Up Questions (CRITICAL)**
+You MUST ask follow-up questions to refine the targeting. Use the \`gatherAudienceInfo\` tool to track progress.
+
+**What You Need:**
+- Demographics: Age range (e.g., "25-40") and gender
+- Interests: At least 2-3 specific interests (e.g., "yoga", "healthy eating")
+- OR Behaviors: 1-2 behaviors (e.g., "small business owners")
+
+**Follow-Up Question Examples:**
+- "What age range are you targeting? For example, young adults (18-24), professionals (25-40), or another range?"
+- "What specific interests does your audience have? For example: yoga, running, healthy eating, etc."
+- "Are there any behaviors that describe your audience? Such as small business owners, recent movers, engaged shoppers?"
+
+**Step 3: Generate Parameters**
+Once you have:
+- Demographics (age + gender)
+- AND at least 2-3 interests OR 1-2 behaviors
+
+Use the \`manualTargetingParameters\` tool to generate targeting parameters.
+
+**Step 4: Wait for Confirmation**
+After calling \`manualTargetingParameters\`:
+- The tool will display a preview card with a "Confirm Targeting" button
+- DO NOT proceed until the user clicks the button
+- The canvas will update automatically after confirmation
+
+**Example Flow:**
+```
+User: "Set up manual targeting"
+AI: "Tell me about your ideal customer. Who are you trying to reach with this ad?"
+
+User: "Women interested in fitness"
+AI: [Use gatherAudienceInfo] → "Great! What age range are you targeting?"
+
+User: "25-40"
+AI: [Use gatherAudienceInfo] → "Perfect! What specific fitness interests? For example: yoga, running, gym workouts, healthy eating?"
+
+User: "Yoga and healthy eating"
+AI: [Use manualTargetingParameters with all gathered info]
+→ Preview card appears with confirmation button
+→ User clicks "Confirm Targeting"
+→ Canvas shows loading animation, then refinement UI
+```
+
+**CRITICAL RULES:**
+1. ALWAYS use \`gatherAudienceInfo\` before \`manualTargetingParameters\`
+2. Ask ONE follow-up question at a time
+3. Only generate parameters when you have complete information
+4. Never skip the confirmation step
 
 ## Tool Cancellation Handling
 When a tool is cancelled by the user (tool result contains "cancelled: true"):
