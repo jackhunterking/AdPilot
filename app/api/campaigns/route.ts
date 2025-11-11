@@ -175,6 +175,34 @@ export async function POST(request: NextRequest) {
             console.error('Error creating conversation:', convError)
           }
 
+          // Create initial draft ad
+          try {
+            const { data: draftAd, error: draftError } = await supabaseServer
+              .from('ads')
+              .insert({
+                campaign_id: campaign!.id,
+                name: `${campaign!.name} - Draft`,
+                status: 'draft',
+                creative_data: null,
+                copy_data: null,
+                meta_ad_id: null,
+                metrics_snapshot: null,
+                setup_snapshot: null
+              })
+              .select()
+              .single()
+            
+            if (draftError) {
+              console.error('Failed to create initial draft ad:', draftError)
+              // Don't fail campaign creation, but log the error
+            } else {
+              console.log(`Created initial draft ad ${draftAd.id} for campaign ${campaign!.id}`)
+            }
+          } catch (draftError) {
+            console.error('Error creating initial draft ad:', draftError)
+            // Continue - campaign is still valid without initial draft
+          }
+
           return NextResponse.json({ campaign }, { status: 201 })
         }
 
@@ -252,6 +280,34 @@ export async function POST(request: NextRequest) {
       console.log(`Created conversation ${conversation.id} for campaign ${(manualCampaign as Tables<'campaigns'>).id} with goal: ${initialGoal || 'none'}`)
     } catch (convError) {
       console.error('Error creating conversation:', convError)
+    }
+
+    // Create initial draft ad
+    try {
+      const { data: draftAd, error: draftError } = await supabaseServer
+        .from('ads')
+        .insert({
+          campaign_id: (manualCampaign as Tables<'campaigns'>).id,
+          name: `${(manualCampaign as Tables<'campaigns'>).name} - Draft`,
+          status: 'draft',
+          creative_data: null,
+          copy_data: null,
+          meta_ad_id: null,
+          metrics_snapshot: null,
+          setup_snapshot: null
+        })
+        .select()
+        .single()
+      
+      if (draftError) {
+        console.error('Failed to create initial draft ad:', draftError)
+        // Don't fail campaign creation, but log the error
+      } else {
+        console.log(`Created initial draft ad ${draftAd.id} for campaign ${(manualCampaign as Tables<'campaigns'>).id}`)
+      }
+    } catch (draftError) {
+      console.error('Error creating initial draft ad:', draftError)
+      // Continue - campaign is still valid without initial draft
     }
 
     return NextResponse.json({ campaign: manualCampaign }, { status: 201 })

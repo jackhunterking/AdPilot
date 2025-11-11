@@ -29,6 +29,7 @@ import { useCampaignAds } from "@/lib/hooks/use-campaign-ads"
 import { useGoal } from "@/lib/context/goal-context"
 import { useDestination } from "@/lib/context/destination-context"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
+import { useDraftAutoSave } from "@/lib/hooks/use-draft-auto-save"
 import { metaStorage } from "@/lib/meta/storage"
 import { validateAdForPublish, formatValidationError } from "@/lib/utils/ad-validation"
 import { operationLocks } from "@/lib/utils/ad-operations"
@@ -226,13 +227,21 @@ export function CampaignWorkspace() {
   const isCreatingVariant = searchParams.get('variant') === 'true'
   
   // Show all-ads grid when:
-  // 1. No explicit view parameter in URL AND
-  // 2. Campaign has at least one ad in database
-  const shouldShowAllAds = !viewParam && ads.length > 0
-  const effectiveMode: WorkspaceMode = shouldShowAllAds ? 'all-ads' : (viewParam || 'build')
+  // 1. No explicit view parameter in URL
+  // Always show All Ads as default view (even with 0 ads - will show empty state)
+  const shouldShowAllAds = !viewParam
+  const effectiveMode: WorkspaceMode = shouldShowAllAds ? 'all-ads' : viewParam
   
   // If we're in results mode but don't have the specific ad yet, show all-ads instead
   const shouldFallbackToAllAds = effectiveMode === 'results' && !currentAdId && ads.length > 0
+
+  // Auto-save draft ads while building or editing
+  const isBuilding = effectiveMode === 'build' || effectiveMode === 'edit'
+  useDraftAutoSave(
+    campaignId,
+    currentAdId,
+    isBuilding // Only auto-save when in build/edit mode
+  )
 
   // Convert CampaignAd to AdVariant using snapshot data as source of truth
   const convertedAds: AdVariant[] = useMemo(() => {
