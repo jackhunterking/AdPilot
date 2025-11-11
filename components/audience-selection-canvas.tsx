@@ -64,8 +64,8 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
               </Badge>
             </div>
             
-            <div className="h-20 w-20 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors mb-4 mt-2">
-              <Sparkles className="h-10 w-10 text-blue-600" />
+            <div className="h-16 w-16 rounded-2xl bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors mb-4 mt-2">
+              <Sparkles className="h-8 w-8 text-blue-600" />
             </div>
             
             <div className="text-center space-y-2 flex-1 flex flex-col justify-start mb-4">
@@ -117,10 +117,10 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
 
           {/* Manual Targeting Card */}
           <div className="group relative flex flex-col items-center p-8 rounded-2xl border-2 border-border hover:bg-accent/20 transition-all duration-300">
-            <div className="h-20 w-20 rounded-2xl bg-muted flex items-center justify-center group-hover:bg-muted/80 transition-colors mb-4">
+            <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center group-hover:bg-muted/80 transition-colors mb-4">
               <div className="relative">
-                <Target className="h-10 w-10" />
-                <Sparkles className="h-5 w-5 text-blue-600 absolute -top-1 -right-1" />
+                <Target className="h-8 w-8" />
+                <Sparkles className="h-4 w-4 text-blue-600 absolute -top-1 -right-1" />
               </div>
             </div>
             
@@ -439,17 +439,8 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
         )}
 
         <div className="rounded-lg border border-border bg-card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="icon-tile-muted">
-                <Target className="h-4 w-4" />
-              </div>
-              <h3 className="font-semibold">Audience</h3>
-            </div>
-          </div>
-          
           {isAIMode ? (
-            /* AI Advantage+ Summary - Simplified */
+            /* AI Advantage+ Summary - Simplified without wrapper */
             <div className="flex items-center justify-between p-3 rounded-lg border panel-surface">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-blue-600" />
@@ -461,10 +452,19 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
               <Check className="h-4 w-4 text-green-600" />
             </div>
           ) : (
-            /* Manual Targeting Summary - Enhanced with proper icons */
-            <div className="space-y-2">
-              {/* Demographics */}
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
+            /* Manual Targeting Summary - with Audience header */
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="icon-tile-muted">
+                    <Target className="h-4 w-4" />
+                  </div>
+                  <h3 className="font-semibold">Audience</h3>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {/* Demographics */}
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
                 <User className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">Demographics</p>
@@ -518,6 +518,7 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
                   </div>
                 </div>
               )}
+              </div>
             </div>
           )}
         </div>
