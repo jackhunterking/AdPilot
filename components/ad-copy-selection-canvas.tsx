@@ -128,8 +128,22 @@ export function AdCopySelectionCanvas() {
   useEffect(() => {
     const imageUrls = adContent?.imageVariations
     const hasCustom = Boolean(adCopyState.customCopyVariations && adCopyState.customCopyVariations.length)
-    if (!imageUrls || imageUrls.length === 0 || hasCustom) return
+    
+    // Enhanced validation: Check if imageUrls has valid, non-empty strings
+    const hasValidImages = imageUrls && imageUrls.length > 0 && imageUrls.every(url => url && typeof url === 'string' && url.trim().length > 0)
+    
+    if (!hasValidImages || hasCustom) {
+      console.log('[AdCopyCanvas] Skipping auto-generation:', { 
+        hasImages: !!imageUrls?.length, 
+        hasValidImages,
+        hasCustom,
+        imageUrlsSample: imageUrls?.[0]?.substring(0, 50)
+      })
+      return
+    }
 
+    console.log('[AdCopyCanvas] Starting auto-generation with', imageUrls.length, 'valid images')
+    
     let cancelled = false
     setIsGenerating(true)
     setGenerationMessage("Writing 3 ad copy variations…")

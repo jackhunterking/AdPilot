@@ -615,6 +615,13 @@ ${!isEditMode ? referenceContext : ''}
 - **Be decisive**: Once you have enough context, USE TOOLS immediately
 - **Be friendly, brief, enthusiastic**
 
+**🚨 CRITICAL: Ask ONE Question at a Time**
+- When gathering information, ask ONLY ONE comprehensive question
+- Wait for the user's response before proceeding
+- Do NOT repeat the same question multiple times
+- Do NOT ask follow-up questions in the same message
+- After user responds, acknowledge their answer and THEN proceed with the next step
+
 ## Smart Questioning Framework
 
 **Questioning Priority (ALWAYS follow this order):**
@@ -1083,7 +1090,7 @@ CRITICAL - NO TEXT RESPONSES AFTER SETUP GOAL:
             // User and system messages are always valid
             if (msg.role !== 'assistant') return true;
             
-            const parts = (msg.parts as Array<{ type: string; toolCallId?: string; result?: unknown; output?: unknown }>) || [];
+            const parts = (msg.parts as Array<{ type: string; text?: string; toolCallId?: string; result?: unknown; output?: unknown }>) || [];
             
             // Don't save empty assistant messages
             if (parts.length === 0) {
@@ -1091,11 +1098,22 @@ CRITICAL - NO TEXT RESPONSES AFTER SETUP GOAL:
               return false;
             }
             
+            // Check if there's at least one text part with content
+            const hasTextContent = parts.some((p) => 
+              p.type === 'text' && p.text && p.text.trim().length > 0
+            );
+            
             // Check for tool invocation parts (any part with type starting with "tool-")
             // AI SDK pattern: tool parts have types like "tool-generateImage", "tool-editImage", etc.
             const toolParts = parts.filter((p) => 
               typeof p.type === 'string' && p.type.startsWith('tool-')
             );
+            
+            // If message has NO text content and NO tool parts, filter it out
+            if (!hasTextContent && toolParts.length === 0) {
+              console.log(`[SAVE] Filtering assistant message with no text content and no tools ${msg.id}`);
+              return false;
+            }
             
             if (toolParts.length > 0) {
               // Check if any tool parts are incomplete (have toolCallId but no result/output)

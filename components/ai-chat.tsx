@@ -485,31 +485,9 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     })
   }, [campaignId, campaignMetadata, initialMessages.length, status, sendMessage]);
 
-  // AUTO-SUBMIT FOR NEW AD CREATION (Trigger Creative Generation)
-  useEffect(() => {
-    // Only run for new ad creation
-    if (!isNewAd || !campaignId) return
-    
-    // Don't auto-submit if already streaming
-    if (status === 'streaming') return
-    
-    // Check if we've already auto-submitted for this new ad
-    const newAdAutoSubmitKey = `new-ad-auto-submitted-${campaignId}`
-    if (sessionStorage.getItem(newAdAutoSubmitKey)) {
-      console.log('[CLIENT] Already auto-submitted for new ad creation')
-      return
-    }
-    
-    console.log('[CLIENT] New ad creation detected - auto-submitting creative generation request')
-    
-    // Mark as submitted BEFORE calling sendMessage
-    sessionStorage.setItem(newAdAutoSubmitKey, 'true')
-    
-    // Use AI SDK's sendMessage() to submit the creative generation message
-    sendMessage({
-      text: 'Generate ad creative for my campaign',
-    })
-  }, [isNewAd, campaignId, status, sendMessage]);
+  // REMOVED: Duplicate auto-submit for new ad creation
+  // This was causing premature "Generate this ad?" prompts before user could respond
+  // The initial prompt auto-submit handles all cases now
 
   const handleSubmit = (message: PromptInputMessage, e: React.FormEvent) => {
     e.preventDefault();
@@ -1091,13 +1069,48 @@ Make it conversational and easy to understand for a business owner.`,
     }
   }, [messages, status, generatingImages, processingLocations, setIsGenerating, setGenerationMessage]);
 
+  // Deduplicate messages to prevent showing duplicate content
+  const deduplicatedMessages = useMemo(() => {
+    return messages.filter((msg, index) => {
+      // Always keep user messages
+      if (msg.role === 'user') return true;
+      
+      // For assistant messages, check for duplicates
+      if (msg.role === 'assistant') {
+        const textPart = msg.parts?.find(p => p.type === 'text') as { text?: string } | undefined;
+        const textContent = textPart?.text?.trim() || '';
+        
+        // Skip empty messages
+        if (!textContent && (!msg.parts || msg.parts.length === 0)) {
+          console.log('[CLIENT] Filtering empty assistant message:', msg.id);
+          return false;
+        }
+        
+        // Check if this exact text was in the previous message
+        if (index > 0) {
+          const prevMsg = messages[index - 1];
+          if (prevMsg?.role === 'assistant') {
+            const prevTextPart = prevMsg.parts?.find(p => p.type === 'text') as { text?: string } | undefined;
+            const prevTextContent = prevTextPart?.text?.trim() || '';
+            
+            if (textContent === prevTextContent && textContent.length > 0) {
+              console.log('[CLIENT] Filtering duplicate assistant message:', msg.id);
+              return false;
+            }
+          }
+        }
+      }
+      
+      return true;
+    });
+  }, [messages]);
 
   return (
     <div className="relative flex size-full flex-col overflow-hidden">
       
       <Conversation>
         <ConversationContent>
-            {messages.map((message, messageIndex) => {
+            {deduplicatedMessages.map((message, messageIndex) => {
               const isLastMessage = messageIndex === messages.length - 1;
               const isLiked = likedMessages.has(message.id);
               const isDisliked = dislikedMessages.has(message.id);
