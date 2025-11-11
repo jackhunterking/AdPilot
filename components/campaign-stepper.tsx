@@ -396,7 +396,7 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 ) : (
-                  <div className="w-20" /> {/* Spacer to maintain layout */}
+                  <div className="w-20" />
                 )}
               </div>
 
