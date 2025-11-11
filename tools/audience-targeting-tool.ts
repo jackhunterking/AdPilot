@@ -2,62 +2,48 @@ import { tool } from 'ai';
 import { z } from 'zod';
 
 export const audienceTargetingTool = tool({
-  description: `Set up AI-powered audience targeting based on campaign context from steps BEFORE audience.
+  description: `Provide guidance and suggestions for audience targeting.
   
-  CRITICAL - CORRECT FLOW: Creative → Copy → Location → Audience → Goal
-  DO NOT consider the campaign goal when generating audience - the goal comes AFTER finding the people.
+  USAGE GUIDELINES:
+  1. RECOMMEND AI Advantage+ as the primary option - it performs 22% better on average
+  2. For users who want manual targeting, offer helpful suggestions without blocking their progress
+  3. Never repeatedly push for AI Advantage+ if the user has chosen manual targeting
+  4. Keep suggestions concise and actionable
+  5. Limit suggestions to 3 per stage to avoid infinite loops
   
-  IMPORTANT: Analyze ONLY the context from previous steps (ad creative, ad copy, locations) to generate a highly relevant audience profile.
+  WHEN TO USE THIS TOOL:
+  - User asks for targeting recommendations
+  - User asks how to describe their audience for manual targeting
+  - User wants to understand their targeting options
+  - User asks about specific interests or behaviors to target
   
-  Guidelines for audience generation:
-  1. Align with ad creative theme - extract business type and target customer from the ad copy
-  2. Consider geographic context - urban vs rural, country-specific cultural interests
-  3. Use natural language - describe WHO will see the ad, not technical jargon
-  4. Derive interests from campaign context, not generic lists
-  5. Focus on who would be INTERESTED in this product/service, not what action they'll take (that's the goal's job)
+  WHEN NOT TO USE:
+  - User has already selected their targeting mode and is making progress
+  - User explicitly dismisses suggestions
+  - You've already made 3 suggestions in the current stage
   
-  Example Context Analysis:
-  - Ad: "Professional Immigration Services in Toronto" + Location: Toronto
-    → Description: "Adults in Toronto area interested in immigration services"
-    → Interests: immigration services, visa assistance, citizenship, legal services
-    → Demographics: 25-45, all genders (working age adults needing services)
-  
-  - Ad: "Fresh Organic Meal Delivery" + Location: Vancouver suburbs  
-    → Description: "Health-conscious families in Vancouver suburbs"
-    → Interests: organic food, healthy eating, meal planning, family wellness
-    → Demographics: 28-50, focuses on parents
-  
-  ALWAYS create a description that answers: "Who are these people and why would they be interested in this ad?"`,
+  CRITICAL: This tool provides SUGGESTIONS only. Never block the user from proceeding with their choice.`,
   
   inputSchema: z.object({
-    mode: z.literal('ai').describe('Always use "ai" for AI Advantage+ targeting'),
-    description: z.string().describe('Natural language description of WHO this ad will reach. Must be specific to the campaign context. Format: "People who [characteristic] in [location] looking for [need]"'),
-    interests: z.array(z.string()).optional().describe('Interest signals derived from the campaign context (ad copy, business type, goal). Should be specific and relevant, not generic.'),
-    demographics: z.object({
-      ageMin: z.number().min(18).max(65).optional().describe('Minimum age based on who would need this product/service'),
-      ageMax: z.number().min(18).max(65).optional().describe('Maximum age based on who would need this product/service'),
-      gender: z.enum(['all', 'male', 'female']).optional().describe('Gender targeting only if the product/service is gender-specific'),
-    }).optional().describe('Demographics that make logical sense for this business and campaign goal'),
+    suggestionType: z.enum(['recommend_advantage_plus', 'help_with_description', 'explain_parameters', 'suggest_refinement', 'confirm_ready'])
+      .describe('Type of suggestion to provide'),
+    context: z.string().optional().describe('Additional context about what the user is working on'),
   }),
-  // Server-side execution for audience targeting
-  // Returns structured data for client to apply to UI state
+  // Server-side execution for audience targeting suggestions
   execute: async (input, { toolCallId }) => {
-    // Validate and structure the audience data
-    const audienceData = {
-      mode: input.mode,
-      description: input.description,
-      interests: input.interests || [],
-      demographics: input.demographics || {},
+    const suggestions = {
+      recommend_advantage_plus: "I recommend using AI Advantage+ targeting - it performs 22% better on average by automatically finding your ideal customers. But if you prefer more control, manual targeting is also available!",
+      help_with_description: "Great! Describe your ideal customer in natural language. For example: 'Women aged 25-40 interested in fitness and healthy eating' or 'Small business owners in tech industry'. I'll translate this into Meta targeting parameters.",
+      explain_parameters: "I've generated targeting parameters based on your description. You can adjust the age range, gender, interests, and behaviors. Each parameter helps Meta find people more likely to be interested in your ad.",
+      suggest_refinement: `Your targeting looks good! ${input.context || 'Consider adding more interests or behaviors to reach a more specific audience, or remove some to broaden your reach.'}`,
+      confirm_ready: "Your targeting is set up! These parameters will help Meta show your ad to the right people. You can always come back to adjust them later.",
     };
     
     return {
       success: true,
-      mode: input.mode,
-      description: input.description,
-      interests: input.interests,
-      demographics: input.demographics,
+      suggestionType: input.suggestionType,
+      suggestion: suggestions[input.suggestionType],
       toolCallId,
-      message: `Enabled`,
     };
   },
 });

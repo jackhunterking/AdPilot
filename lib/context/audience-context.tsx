@@ -5,24 +5,38 @@ import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useAutoSave } from "@/lib/hooks/use-auto-save"
 import { AUTO_SAVE_CONFIGS } from "@/lib/types/auto-save"
 
-type AudienceMode = "ai" | "advanced"
+type AudienceMode = "ai" | "manual"
 type AudienceStatus = "idle" | "generating" | "setup-in-progress" | "completed" | "error"
 
+interface TargetingOption {
+  id: string
+  name: string
+}
+
+interface Demographics {
+  ageMin: number
+  ageMax: number
+  gender: "all" | "male" | "female"
+  languages?: string[]
+}
+
+// For hydration/partial updates
+type PartialDemographics = Partial<Demographics>
+
 interface DetailedTargeting {
-  [key: string]: unknown;
+  interests: TargetingOption[]
+  behaviors: TargetingOption[]
+  connections: TargetingOption[]
 }
 
 interface AudienceTargeting {
   mode: AudienceMode
-  description?: string
-  interests?: string[]
-  demographics?: {
-    ageMin?: number
-    ageMax?: number
-    gender?: "all" | "male" | "female"
-    languages?: string[]
-  }
-  detailedTargeting?: DetailedTargeting // For future advanced mode
+  // AI Advantage+ mode
+  advantage_plus_enabled?: boolean
+  // Manual mode fields
+  description?: string // User's natural language input
+  demographics?: Partial<Demographics>
+  detailedTargeting?: Partial<DetailedTargeting>
 }
 
 interface AudienceState {
@@ -39,6 +53,15 @@ interface AudienceContextType {
   setError: (message: string) => void
   resetAudience: () => void
   setSelected: (selected: boolean) => void
+  setManualDescription: (description: string) => void
+  setDemographics: (demographics: Partial<Demographics>) => void
+  setDetailedTargeting: (detailedTargeting: Partial<DetailedTargeting>) => void
+  addInterest: (interest: TargetingOption) => void
+  removeInterest: (interestId: string) => void
+  addBehavior: (behavior: TargetingOption) => void
+  removeBehavior: (behaviorId: string) => void
+  addConnection: (connection: TargetingOption) => void
+  removeConnection: (connectionId: string) => void
 }
 
 const AudienceContext = createContext<AudienceContextType | undefined>(undefined)
@@ -113,6 +136,143 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
     setAudienceState(prev => ({ ...prev, isSelected: selected }))
   }
 
+  const setManualDescription = (description: string) => {
+    setAudienceState(prev => ({
+      ...prev,
+      targeting: { ...prev.targeting, description }
+    }))
+  }
+
+  const setDemographics = (demographics: Partial<Demographics>) => {
+    setAudienceState(prev => ({
+      ...prev,
+      targeting: { 
+        ...prev.targeting, 
+        demographics: {
+          ...prev.targeting.demographics,
+          ...demographics
+        }
+      }
+    }))
+  }
+
+  const setDetailedTargeting = (detailedTargeting: Partial<DetailedTargeting>) => {
+    setAudienceState(prev => ({
+      ...prev,
+      targeting: {
+        ...prev.targeting,
+        detailedTargeting: {
+          interests: prev.targeting.detailedTargeting?.interests || [],
+          behaviors: prev.targeting.detailedTargeting?.behaviors || [],
+          connections: prev.targeting.detailedTargeting?.connections || [],
+          ...detailedTargeting
+        }
+      }
+    }))
+  }
+
+  const addInterest = (interest: TargetingOption) => {
+    setAudienceState(prev => {
+      const current = prev.targeting.detailedTargeting?.interests || []
+      if (current.some(i => i.id === interest.id)) return prev
+      return {
+        ...prev,
+        targeting: {
+          ...prev.targeting,
+          detailedTargeting: {
+            ...prev.targeting.detailedTargeting,
+            interests: [...current, interest],
+            behaviors: prev.targeting.detailedTargeting?.behaviors || [],
+            connections: prev.targeting.detailedTargeting?.connections || []
+          }
+        }
+      }
+    })
+  }
+
+  const removeInterest = (interestId: string) => {
+    setAudienceState(prev => ({
+      ...prev,
+      targeting: {
+        ...prev.targeting,
+        detailedTargeting: {
+          ...prev.targeting.detailedTargeting,
+          interests: prev.targeting.detailedTargeting?.interests?.filter(i => i.id !== interestId) || [],
+          behaviors: prev.targeting.detailedTargeting?.behaviors || [],
+          connections: prev.targeting.detailedTargeting?.connections || []
+        }
+      }
+    }))
+  }
+
+  const addBehavior = (behavior: TargetingOption) => {
+    setAudienceState(prev => {
+      const current = prev.targeting.detailedTargeting?.behaviors || []
+      if (current.some(b => b.id === behavior.id)) return prev
+      return {
+        ...prev,
+        targeting: {
+          ...prev.targeting,
+          detailedTargeting: {
+            ...prev.targeting.detailedTargeting,
+            interests: prev.targeting.detailedTargeting?.interests || [],
+            behaviors: [...current, behavior],
+            connections: prev.targeting.detailedTargeting?.connections || []
+          }
+        }
+      }
+    })
+  }
+
+  const removeBehavior = (behaviorId: string) => {
+    setAudienceState(prev => ({
+      ...prev,
+      targeting: {
+        ...prev.targeting,
+        detailedTargeting: {
+          ...prev.targeting.detailedTargeting,
+          interests: prev.targeting.detailedTargeting?.interests || [],
+          behaviors: prev.targeting.detailedTargeting?.behaviors?.filter(b => b.id !== behaviorId) || [],
+          connections: prev.targeting.detailedTargeting?.connections || []
+        }
+      }
+    }))
+  }
+
+  const addConnection = (connection: TargetingOption) => {
+    setAudienceState(prev => {
+      const current = prev.targeting.detailedTargeting?.connections || []
+      if (current.some(c => c.id === connection.id)) return prev
+      return {
+        ...prev,
+        targeting: {
+          ...prev.targeting,
+          detailedTargeting: {
+            ...prev.targeting.detailedTargeting,
+            interests: prev.targeting.detailedTargeting?.interests || [],
+            behaviors: prev.targeting.detailedTargeting?.behaviors || [],
+            connections: [...current, connection]
+          }
+        }
+      }
+    })
+  }
+
+  const removeConnection = (connectionId: string) => {
+    setAudienceState(prev => ({
+      ...prev,
+      targeting: {
+        ...prev.targeting,
+        detailedTargeting: {
+          ...prev.targeting.detailedTargeting,
+          interests: prev.targeting.detailedTargeting?.interests || [],
+          behaviors: prev.targeting.detailedTargeting?.behaviors || [],
+          connections: prev.targeting.detailedTargeting?.connections?.filter(c => c.id !== connectionId) || []
+        }
+      }
+    }))
+  }
+
   // Auto-advance when AI targeting completes, but avoid hydration-induced idle→completed jumps
   const prevStatus = useRef<AudienceStatus>(audienceState.status)
   useEffect(() => {
@@ -133,7 +293,16 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
         updateStatus, 
         setError, 
         resetAudience,
-        setSelected
+        setSelected,
+        setManualDescription,
+        setDemographics,
+        setDetailedTargeting,
+        addInterest,
+        removeInterest,
+        addBehavior,
+        removeBehavior,
+        addConnection,
+        removeConnection
       }}
     >
       {children}

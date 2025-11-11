@@ -1819,8 +1819,8 @@ Make it conversational and easy to understand for a business owner.`,
                                     // Set the audience targeting
                                     setAudienceTargeting({
                                       mode: 'ai',
+                                      advantage_plus_enabled: true,
                                       description: input.description,
-                                      interests: input.interests ? (Array.isArray(input.interests) ? input.interests : [input.interests]) : undefined,
                                       demographics: typeof input.demographics === 'object' ? input.demographics : undefined
                                     });
 

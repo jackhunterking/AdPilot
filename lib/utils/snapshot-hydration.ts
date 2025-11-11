@@ -53,14 +53,17 @@ export function hydrateLocationFromSnapshot(snapshot: AdSetupSnapshot) {
  * Hydrate audience context from snapshot
  */
 export function hydrateAudienceFromSnapshot(snapshot: AdSetupSnapshot) {
+  // The snapshot.audience.mode is already typed as 'ai' | 'manual'
+  const mode = snapshot.audience.mode
+  
   return {
     status: 'completed' as const,
     targeting: {
-      mode: snapshot.audience.mode,
+      mode,
       description: snapshot.audience.description,
-      interests: snapshot.audience.interests,
       demographics: snapshot.audience.demographics,
       detailedTargeting: snapshot.audience.detailedTargeting,
+      advantage_plus_enabled: snapshot.audience.advantage_plus_enabled || mode === 'ai',
     },
     isSelected: true,
   }

@@ -1323,8 +1323,8 @@ export function PreviewPanel() {
           if (targeting.demographics?.ageMin !== undefined && targeting.demographics?.ageMax !== undefined) {
             parts.push(`Ages ${targeting.demographics.ageMin}-${targeting.demographics.ageMax}`)
           }
-          if (targeting.interests && targeting.interests.length > 0) {
-            parts.push(`${targeting.interests.length} ${targeting.interests.length === 1 ? 'interest' : 'interests'}`)
+          if (targeting.detailedTargeting?.interests && targeting.detailedTargeting.interests.length > 0) {
+            parts.push(`${targeting.detailedTargeting.interests.length} ${targeting.detailedTargeting.interests.length === 1 ? 'interest' : 'interests'}`)
           }
           
           return parts.length > 0 ? parts.join(', ') : 'Custom audience'

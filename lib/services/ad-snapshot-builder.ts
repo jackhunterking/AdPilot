@@ -72,18 +72,29 @@ interface LocationState {
   status: string
 }
 
+interface TargetingOption {
+  id: string
+  name: string
+}
+
+interface DetailedTargeting {
+  interests?: TargetingOption[]
+  behaviors?: TargetingOption[]
+  connections?: TargetingOption[]
+}
+
 interface AudienceState {
   targeting: {
-    mode: 'ai' | 'advanced'
+    mode: 'ai' | 'manual'
+    advantage_plus_enabled?: boolean
     description?: string
-    interests?: string[]
     demographics?: {
       ageMin?: number
       ageMax?: number
       gender?: 'all' | 'male' | 'female'
       languages?: string[]
     }
-    detailedTargeting?: Record<string, unknown>
+    detailedTargeting?: DetailedTargeting
   }
   status: string
 }
@@ -182,8 +193,8 @@ export function buildAdSnapshot(input: BuildAdSnapshotInput): AdSetupSnapshot {
   // Build audience snapshot
   const audienceSnapshot: AudienceSnapshot = {
     mode: audience.targeting.mode,
+    advantage_plus_enabled: audience.targeting.advantage_plus_enabled,
     description: audience.targeting.description,
-    interests: audience.targeting.interests,
     demographics: audience.targeting.demographics,
     detailedTargeting: audience.targeting.detailedTargeting,
   }

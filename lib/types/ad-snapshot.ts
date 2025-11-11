@@ -55,17 +55,28 @@ export interface LocationSnapshot {
   }>
 }
 
+interface TargetingOption {
+  id: string
+  name: string
+}
+
+interface DetailedTargeting {
+  interests?: TargetingOption[]
+  behaviors?: TargetingOption[]
+  connections?: TargetingOption[]
+}
+
 export interface AudienceSnapshot {
-  mode: 'ai' | 'advanced'
+  mode: 'ai' | 'manual'
+  advantage_plus_enabled?: boolean
   description?: string
-  interests?: string[]
   demographics?: {
     ageMin?: number
     ageMax?: number
     gender?: 'all' | 'male' | 'female'
     languages?: string[]
   }
-  detailedTargeting?: Record<string, unknown>
+  detailedTargeting?: DetailedTargeting
 }
 
 export interface GoalSnapshot {

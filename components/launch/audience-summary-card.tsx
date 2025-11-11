@@ -59,8 +59,9 @@ export function AudienceSummaryCard() {
           if (!t) return "Custom audience selected"
           if (t.description && t.description.trim().length > 0) return t.description
           const parts: string[] = []
-          if (t.interests && t.interests.length > 0) {
-            parts.push(`Interests: ${t.interests.slice(0, 3).join(', ')}${t.interests.length > 3 ? '…' : ''}`)
+          if (t.detailedTargeting?.interests && t.detailedTargeting.interests.length > 0) {
+            const interestNames = t.detailedTargeting.interests.map(i => i.name)
+            parts.push(`Interests: ${interestNames.slice(0, 3).join(', ')}${interestNames.length > 3 ? '…' : ''}`)
           }
           if (t.demographics) {
             const d = t.demographics
