@@ -231,6 +231,49 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   const [pendingLocationCalls, setPendingLocationCalls] = useState<Array<{ toolCallId: string; input: LocationToolInput }>>([]);
   const [processingAudience, setProcessingAudience] = useState<Set<string>>(new Set());
   const [pendingAudienceCalls, setPendingAudienceCalls] = useState<Array<{ toolCallId: string; toolName: string; input: Record<string, unknown> }>>([]);
+  
+  // Durable registry to prevent duplicate audience tool execution across renders/reloads
+  const processedAudienceToolsRef = useRef<Set<string>>(new Set());
+  
+  // Load processed tools from sessionStorage on mount
+  useEffect(() => {
+    const storageKey = `processed-audience-tools-${conversationId || 'default'}`;
+    try {
+      const stored = sessionStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored) as string[];
+        processedAudienceToolsRef.current = new Set(parsed);
+        console.log('[AIChat] Loaded processed audience tools from storage:', parsed.length);
+      }
+    } catch (error) {
+      console.error('[AIChat] Failed to load processed tools:', error);
+    }
+  }, [conversationId]);
+  
+  // Save processed tools to sessionStorage whenever it changes
+  const saveProcessedTools = () => {
+    const storageKey = `processed-audience-tools-${conversationId || 'default'}`;
+    try {
+      const array = Array.from(processedAudienceToolsRef.current);
+      sessionStorage.setItem(storageKey, JSON.stringify(array));
+    } catch (error) {
+      console.error('[AIChat] Failed to save processed tools:', error);
+    }
+  };
+  
+  // Helper to check if a tool call already has a result in messages
+  const hasToolResult = (toolCallId: string): boolean => {
+    for (const msg of messages) {
+      const parts = (msg as unknown as { parts?: Array<{ type?: string; toolCallId?: string }> }).parts || [];
+      for (const part of parts) {
+        if (part.type === 'tool-result' && part.toolCallId === toolCallId) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+  
   const [adEditReference, setAdEditReference] = useState<AudienceContext | null>(null);
   const [audienceContext, setAudienceContext] = useState<AudienceContext | null>(null);
   const [activeEditSession, setActiveEditSession] = useState<{ sessionId: string; variationIndex: number } | null>(null);
@@ -782,7 +825,15 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
 
     const processAudienceCalls = async () => {
       for (const { toolCallId, toolName, input } of pendingAudienceCalls) {
-        if (processingAudience.has(toolCallId)) continue;
+        // Skip if already processed (check both registry and existing tool results)
+        if (
+          processingAudience.has(toolCallId) || 
+          processedAudienceToolsRef.current.has(toolCallId) ||
+          hasToolResult(toolCallId)
+        ) {
+          console.log(`[AIChat] Skipping already processed audience tool call: ${toolCallId}`);
+          continue;
+        }
 
         setProcessingAudience(prev => new Set(prev).add(toolCallId));
 
@@ -846,6 +897,11 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
               },
             });
           }
+          
+          // Mark as processed and save to sessionStorage
+          processedAudienceToolsRef.current.add(toolCallId);
+          saveProcessedTools();
+          console.log(`[AIChat] Marked audience tool as processed: ${toolCallId}`);
         } catch (error) {
           console.error('Audience tool processing error:', error);
           addToolResult({
@@ -854,6 +910,10 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
             output: undefined,
             errorText: `Failed to process ${toolName}`,
           } as ToolResult);
+          
+          // Still mark as processed to prevent retry loops
+          processedAudienceToolsRef.current.add(toolCallId);
+          saveProcessedTools();
         } finally {
           setProcessingAudience(prev => {
             const newSet = new Set(prev);
@@ -868,7 +928,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     };
 
     processAudienceCalls();
-  }, [pendingAudienceCalls, processingAudience, setAudienceTargeting, updateAudienceStatus, setManualDescription, setDemographics, addInterest, addBehavior, addToolResult]);
+  }, [pendingAudienceCalls, processingAudience, setAudienceTargeting, updateAudienceStatus, setManualDescription, setDemographics, addInterest, addBehavior, addToolResult, hasToolResult, saveProcessedTools]);
 
   // Safety net: scan for audience tool-call parts that we didn't enqueue yet
   useEffect(() => {
@@ -878,8 +938,15 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       for (const p of parts) {
         if (p && p.type === 'tool-call' && (p.toolName === 'audienceMode' || p.toolName === 'manualTargetingParameters')) {
           const callId = p.toolCallId || `${msg.id}-auto`;
-          const alreadyPending = pendingAudienceCalls.some(c => c.toolCallId === callId) || processingAudience.has(callId);
-          if (alreadyPending) continue;
+          
+          // Skip if already pending, processing, processed, or has a result
+          const alreadyHandled = 
+            pendingAudienceCalls.some(c => c.toolCallId === callId) || 
+            processingAudience.has(callId) ||
+            processedAudienceToolsRef.current.has(callId) ||
+            hasToolResult(callId);
+          
+          if (alreadyHandled) continue;
 
           const rawInput = (p as unknown as { input?: unknown }).input;
           if (rawInput && typeof rawInput === 'object') {
@@ -899,7 +966,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
         return deduped.length ? [...prev, ...deduped] : prev;
       });
     }
-  }, [messages, pendingAudienceCalls, processingAudience]);
+  }, [messages, pendingAudienceCalls, processingAudience, hasToolResult]);
 
   // Listen for goal setup trigger from canvas
   useEffect(() => {
@@ -976,6 +1043,36 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     window.addEventListener('triggerAudienceModeSelection', handleAudienceModeSelection as EventListener);
     return () => window.removeEventListener('triggerAudienceModeSelection', handleAudienceModeSelection as EventListener);
   }, [setAudienceTargeting, updateAudienceStatus]);
+
+  // Listen for audience reset to clear processed tools registry and UI flags
+  useEffect(() => {
+    const handleAudienceReset = () => {
+      console.log('[AIChat] Audience reset detected - clearing processed tools registry and UI flags');
+      
+      // Clear the processed tools registry
+      processedAudienceToolsRef.current.clear();
+      
+      // Clear sessionStorage
+      const storageKey = `processed-audience-tools-${conversationId || 'default'}`;
+      try {
+        sessionStorage.removeItem(storageKey);
+      } catch (error) {
+        console.error('[AIChat] Failed to clear processed tools from storage:', error);
+      }
+      
+      // Clear UI flags
+      setShowAIAdvantageCard(false);
+      setAIAdvantageCardId(null);
+      setShowManualTargetingSuccessCard(false);
+      
+      // Clear pending and processing states
+      setPendingAudienceCalls([]);
+      setProcessingAudience(new Set());
+    };
+
+    window.addEventListener('audienceReset', handleAudienceReset);
+    return () => window.removeEventListener('audienceReset', handleAudienceReset);
+  }, [conversationId]);
 
   // Listen for audience parameters confirmation (when user clicks "Confirm Targeting" in chat)
   useEffect(() => {

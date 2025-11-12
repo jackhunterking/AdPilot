@@ -149,6 +149,9 @@ export function AudienceMachineProvider({ children }: { children: ReactNode }) {
 
     resetAudience: async () => {
       machine.reset();
+      
+      // Emit event to notify AI chat to clear processed tools and UI flags
+      window.dispatchEvent(new CustomEvent('audienceReset'));
     },
 
     switchTargetingMode: async (newMode) => {
