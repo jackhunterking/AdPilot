@@ -13,7 +13,7 @@ import { conversationManager } from '@/lib/services/conversation-manager'
 import { generateCampaignNameAI } from '@/lib/ai/campaign-namer'
 
 // GET /api/campaigns - List user's campaigns
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     // Create client that reads user session from cookies
     const supabase = await createServerClient()
@@ -28,7 +28,12 @@ export async function GET() {
       )
     }
 
-    const { data: campaigns, error } = await supabaseServer
+    // Get limit parameter from query string
+    const { searchParams } = new URL(request.url)
+    const limitParam = searchParams.get('limit')
+    const limit = limitParam ? parseInt(limitParam, 10) : undefined
+
+    let query = supabaseServer
       .from('campaigns')
       .select(`
         *,
@@ -36,6 +41,13 @@ export async function GET() {
       `)
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
+
+    // Apply limit if provided
+    if (limit && limit > 0) {
+      query = query.limit(limit)
+    }
+
+    const { data: campaigns, error } = await query
 
     if (error) {
       console.error('Error fetching campaigns:', error)

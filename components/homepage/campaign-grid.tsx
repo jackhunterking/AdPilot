@@ -13,14 +13,19 @@ export function CampaignGrid() {
   const router = useRouter()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
+  const [hasMore, setHasMore] = useState(false)
 
   useEffect(() => {
     const fetchCampaigns = async () => {
       try {
-        const response = await fetch('/api/campaigns')
+        // Fetch 7 campaigns to check if there are more than 6
+        const response = await fetch('/api/campaigns?limit=7')
         if (response.ok) {
           const { campaigns: data } = await response.json()
-          setCampaigns(data || [])
+          const campaignList = data || []
+          // Show only first 6, but check if there are more
+          setHasMore(campaignList.length > 6)
+          setCampaigns(campaignList.slice(0, 6))
         }
       } catch (error) {
         console.error('Error fetching campaigns:', error)
@@ -86,7 +91,17 @@ export function CampaignGrid() {
   return (
     <section className="px-6 py-12">
       <div className="max-w-6xl mx-auto">
-        <h2 className="text-2xl font-bold mb-6">Your Campaigns</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">Your Campaigns</h2>
+          {hasMore && (
+            <button
+              onClick={() => router.push('/workspace')}
+              className="text-sm font-medium text-blue-500 hover:text-blue-600 transition-colors"
+            >
+              View all →
+            </button>
+          )}
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {campaigns.map((campaign) => (
             <div

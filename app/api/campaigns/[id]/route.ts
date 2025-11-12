@@ -145,3 +145,77 @@ export async function PATCH(
     return NextResponse.json({ error: 'Failed to rename campaign' }, { status: 500 })
   }
 }
+
+// DELETE /api/campaigns/[id] - Delete campaign and all related data
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const campaignId = id
+
+    const supabase = await createServerClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Verify ownership
+    const { data: campaign, error: fetchErr } = await supabaseServer
+      .from('campaigns')
+      .select('id,user_id')
+      .eq('id', campaignId)
+      .single()
+    
+    if (fetchErr || !campaign || campaign.user_id !== user.id) {
+      return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
+    }
+
+    // Delete campaign_states (cascade should handle this, but being explicit)
+    const { error: stateError } = await supabaseServer
+      .from('campaign_states')
+      .delete()
+      .eq('campaign_id', campaignId)
+    
+    if (stateError) {
+      console.error('Error deleting campaign states:', stateError)
+    }
+
+    // Delete ads associated with this campaign
+    const { error: adsError } = await supabaseServer
+      .from('ads')
+      .delete()
+      .eq('campaign_id', campaignId)
+    
+    if (adsError) {
+      console.error('Error deleting ads:', adsError)
+    }
+
+    // Delete conversations (if conversation table has campaign_id)
+    const { error: convError } = await supabaseServer
+      .from('conversations')
+      .delete()
+      .eq('campaign_id', campaignId)
+    
+    if (convError) {
+      console.error('Error deleting conversations:', convError)
+    }
+
+    // Finally, delete the campaign itself
+    const { error: deleteError } = await supabaseServer
+      .from('campaigns')
+      .delete()
+      .eq('id', campaignId)
+    
+    if (deleteError) {
+      console.error('Error deleting campaign:', deleteError)
+      return NextResponse.json({ error: deleteError.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true }, { status: 200 })
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    return NextResponse.json({ error: 'Failed to delete campaign' }, { status: 500 })
+  }
+}
