@@ -30,7 +30,10 @@ export function CampaignGrid() {
   const fetchCampaigns = useCallback(async () => {
     try {
       // Fetch 7 campaigns to check if there are more than 6
-      const response = await fetch('/api/campaigns?limit=7')
+      // Use Next.js caching with 60 second revalidation to improve performance
+      const response = await fetch('/api/campaigns?limit=7', {
+        next: { revalidate: 60 },
+      })
       if (response.ok) {
         const { campaigns: data } = await response.json()
         const campaignList = data || []

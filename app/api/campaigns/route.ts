@@ -33,11 +33,19 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get('limit')
     const limit = limitParam ? parseInt(limitParam, 10) : undefined
 
+    // Optimize query to fetch only necessary fields
+    // For list view, we don't need all campaign_states data
     let query = supabaseServer
       .from('campaigns')
       .select(`
-        *,
-        campaign_states (*)
+        id,
+        name,
+        status,
+        created_at,
+        updated_at,
+        campaign_states (
+          ad_preview_data
+        )
       `)
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
@@ -54,7 +62,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ campaigns })
+    // Add Cache-Control headers for better performance
+    // Cache for 60 seconds, allow stale content for 5 minutes while revalidating
+    return NextResponse.json(
+      { campaigns },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        },
+      }
+    )
   } catch (error) {
     console.error('Unexpected error:', error)
     return NextResponse.json(

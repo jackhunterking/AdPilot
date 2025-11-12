@@ -48,7 +48,10 @@ export function WorkspaceGrid() {
 
   const fetchCampaigns = useCallback(async () => {
     try {
-      const response = await fetch('/api/campaigns')
+      // Use Next.js caching with 60 second revalidation to improve performance
+      const response = await fetch('/api/campaigns', {
+        next: { revalidate: 60 },
+      })
       if (response.ok) {
         const { campaigns: data } = await response.json()
         setCampaigns(data || [])
