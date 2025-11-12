@@ -212,6 +212,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   const { goalState, setFormData, setError, resetGoal } = useGoal();
   const { locationState, addLocations, updateStatus: updateLocationStatus } = useLocation();
   const { 
+    audienceState,
     setAudienceTargeting, 
     updateStatus: updateAudienceStatus,
     setManualDescription,
