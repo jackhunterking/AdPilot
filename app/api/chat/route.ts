@@ -37,6 +37,7 @@ import { editAdCopyTool } from '@/lib/ai/tools/edit-ad-copy';
 import { audienceModeTool } from '@/lib/ai/tools/audience-mode-tool';
 import { manualTargetingParametersTool } from '@/lib/ai/tools/manual-targeting-parameters-tool';
 import { gatherAudienceInfoTool } from '@/lib/ai/tools/gather-audience-info-tool';
+import { enableAIAdvantageTool } from '@/tools/enable-ai-advantage-tool';
 import { getCachedMetrics } from '@/lib/meta/insights';
 import { getModel } from '@/lib/ai/gateway-provider';
 import { messageStore } from '@/lib/services/message-store';
@@ -165,6 +166,7 @@ export async function POST(req: Request) {
     audienceMode: audienceModeTool,
     gatherAudienceInfo: gatherAudienceInfoTool,
     manualTargetingParameters: manualTargetingParametersTool,
+    enableAIAdvantage: enableAIAdvantageTool,
   };
 
   // Get or create conversation
@@ -1035,12 +1037,10 @@ Example: If previous setup had "Ontario, Toronto (excluded)" and user removed To
 
 1. **AI Advantage+ Selection:**
    - User clicks "Enable AI Advantage+" button or says "enable AI Advantage+"
-   - IMMEDIATELY call 'audienceMode' tool with:
-     - mode: 'ai'
-     - explanation: Simple confirmation ONLY (e.g., "AI Advantage+ targeting enabled")
+   - IMMEDIATELY call 'enableAIAdvantage' tool to show visual feedback card
    - DO NOT mention creating visuals, next steps, or anything else
    - DO NOT generate additional text after the tool call
-   - The tool shows ONLY a confirmation card, nothing more
+   - The tool shows ONLY a success confirmation card in chat, nothing more
 
 2. **Manual Targeting Selection:**
    - User clicks "Set Up Manual Targeting" button or says "set up manual targeting"
@@ -1072,8 +1072,8 @@ Example: If previous setup had "Ontario, Toronto (excluded)" and user removed To
 **Examples:**
 
 User: "Enable AI Advantage+"
-→ Call: audienceMode({ mode: 'ai', explanation: 'AI Advantage+ targeting enabled' })
-→ Shows confirmation card ONLY, no additional messaging
+→ Call: enableAIAdvantage()
+→ Shows success confirmation card ONLY, no additional messaging
 
 User: "Women aged 25-40 interested in fitness and healthy eating"
 → Call: manualTargetingParameters({

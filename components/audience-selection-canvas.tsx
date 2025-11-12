@@ -549,10 +549,10 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
           </div>
         )}
 
-        <div className="rounded-lg border border-border bg-card p-4">
-          {isAIMode ? (
-            /* AI Advantage+ Summary - Simplified without wrapper */
-            <div className="flex items-center justify-between p-3 rounded-lg border panel-surface">
+        {isAIMode ? (
+          /* AI Advantage+ Summary - Simplified without wrapper */
+          <div className="rounded-lg border border-border bg-card p-4">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-blue-600" />
                 <div>
@@ -562,8 +562,10 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
               </div>
               <Check className="h-4 w-4 text-green-600" />
             </div>
-          ) : (
-            /* Manual Targeting Summary - with Audience header */
+          </div>
+        ) : (
+          /* Manual Targeting Summary - with Audience header */
+          <div className="rounded-lg border border-border bg-card p-4">
             <div>
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -631,8 +633,8 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
               )}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Reset button for editing */}
         {!isSummary && (

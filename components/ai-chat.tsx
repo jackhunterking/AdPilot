@@ -2373,6 +2373,48 @@ Make it conversational and easy to understand for a business owner.`,
                               }
                               break;
                             }
+                            case "tool-enableAIAdvantage": {
+                              const callId = part.toolCallId;
+
+                              switch (part.state) {
+                                case 'input-streaming':
+                                  return <div key={callId} className="text-sm text-muted-foreground">Enabling AI Advantage+ targeting...</div>;
+                                
+                                case 'input-available':
+                                case 'output-available':
+                                  // Show success card immediately when tool is called
+                                  return (
+                                    <div key={callId} className="w-full my-4 space-y-3">
+                                      <div
+                                        className="flex items-center justify-between p-4 rounded-lg border panel-surface hover:border-cyan-500/50 transition-colors cursor-pointer"
+                                        onClick={() => emitBrowserEvent('switchToTab', 'audience')}
+                                      >
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                                            <Sparkles className="h-5 w-5 text-blue-600" />
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2">
+                                              <p className="font-semibold text-sm">AI Advantage+ targeting enabled!</p>
+                                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                            </div>
+                                            <p className="text-xs text-muted-foreground line-clamp-1">Your ad will be shown to people most likely to engage</p>
+                                          </div>
+                                        </div>
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors flex-shrink-0 ml-2" />
+                                      </div>
+                                    </div>
+                                  );
+                                
+                                case 'output-error':
+                                  return (
+                                    <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
+                                      {part.errorText || 'Failed to enable AI Advantage+ targeting'}
+                                    </div>
+                                  );
+                              }
+                              break;
+                            }
                             default:
                               return null;
                           }
