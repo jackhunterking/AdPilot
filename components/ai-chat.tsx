@@ -575,11 +575,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
           imageVariations: imageUrls, // All 3 URLs
         };
         
-          imageCount: imageUrls.length,
-          baseImageUrl: imageUrls[0],
-          hasHeadline: !!newContent.headline,
-        });
-        
         setAdContent(newContent);
         
         // Auto-switch to ad copy canvas to show the variations

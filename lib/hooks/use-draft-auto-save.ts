@@ -57,16 +57,16 @@ export function useDraftAutoSave(
   
   // Store latest context values in refs (updated on every render, no deps)
   const contextsRef = useRef({
-    adContent: null as typeof adContent,
-    selectedImageIndex: null as typeof selectedImageIndex,
-    selectedCreativeVariation: null as typeof selectedCreativeVariation,
-    adCopyState: null as typeof adCopyState,
-    destinationState: null as typeof destinationState,
-    locationState: null as typeof locationState,
-    audienceState: null as typeof audienceState,
-    goalState: null as typeof goalState,
-    budgetState: null as typeof budgetState,
-    getSelectedCopy: null as typeof getSelectedCopy,
+    adContent: null as unknown as typeof adContent,
+    selectedImageIndex: null as unknown as typeof selectedImageIndex,
+    selectedCreativeVariation: null as unknown as typeof selectedCreativeVariation,
+    adCopyState: null as unknown as typeof adCopyState,
+    destinationState: null as unknown as typeof destinationState,
+    locationState: null as unknown as typeof locationState,
+    audienceState: null as unknown as typeof audienceState,
+    goalState: null as unknown as typeof goalState,
+    budgetState: null as unknown as typeof budgetState,
+    getSelectedCopy: null as unknown as typeof getSelectedCopy,
   })
   
   // Update refs on every render (no deps, no loops)
