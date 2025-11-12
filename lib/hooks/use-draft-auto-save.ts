@@ -4,6 +4,29 @@
  * References:
  *  - AI SDK Core: https://ai-sdk.dev/docs/introduction
  *  - Supabase: https://supabase.com/docs
+ * 
+ * IMPORTANT: Snapshot Comparison Strategy
+ * ========================================
+ * To prevent infinite save loops, we MUST exclude volatile fields from comparison:
+ * 
+ * EXCLUDED FIELDS (change every time, don't compare):
+ *  - createdAt: Timestamp generated on every buildAdSnapshot() call
+ *  - wizardVersion: Static metadata, not user data
+ *  - metaConnection: Optional, may change independently of ad config
+ * 
+ * INCLUDED FIELDS (only these trigger saves):
+ *  - creative: Images, variations, selections
+ *  - copy: Headlines, text, CTA
+ *  - destination: Form/URL/phone config
+ *  - location: Targeting locations
+ *  - audience: Demographics, interests
+ *  - goal: Campaign objective
+ *  - budget: Daily spend, schedule
+ * 
+ * When adding new fields to AdSetupSnapshot:
+ *  1. If field is user-editable data → include in stableSnapshot
+ *  2. If field is metadata/timestamp → exclude from stableSnapshot
+ *  3. Document the decision in comments
  */
 
 import { useEffect, useRef, useCallback } from 'react'
@@ -48,9 +71,23 @@ export function useDraftAutoSave(
         budget: budgetState,
       })
       
-      // Check if anything changed
-      const currentSnapshot = JSON.stringify(snapshot)
-      if (currentSnapshot === lastSaveRef.current) {
+      // Create stable snapshot signature by omitting volatile fields
+      // IMPORTANT: We exclude `createdAt` and `wizardVersion` because they change
+      // on every snapshot creation, causing infinite loops. Only compare actual data.
+      const stableSnapshot = {
+        creative: snapshot.creative,
+        copy: snapshot.copy,
+        destination: snapshot.destination,
+        location: snapshot.location,
+        audience: snapshot.audience,
+        goal: snapshot.goal,
+        budget: snapshot.budget,
+        // Explicitly exclude: createdAt, wizardVersion, metaConnection
+      }
+      
+      // Check if anything changed by comparing stable fields only
+      const currentSignature = JSON.stringify(stableSnapshot)
+      if (currentSignature === lastSaveRef.current) {
         console.log('[DraftAutoSave] No changes detected, skipping save')
         return
       }
@@ -84,7 +121,8 @@ export function useDraftAutoSave(
       })
       
       if (response.ok) {
-        lastSaveRef.current = currentSnapshot
+        // ONLY update lastSaveRef on successful save to prevent re-save on failure
+        lastSaveRef.current = currentSignature
         console.log('[DraftAutoSave] Draft saved successfully at', new Date().toISOString())
       } else {
         console.error('[DraftAutoSave] Failed to save draft:', await response.text())
