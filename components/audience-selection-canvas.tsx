@@ -574,66 +574,116 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
         )}
 
         {isAIMode ? (
-          /* AI Advantage+ Summary */
-          <div className="rounded-lg border border-border bg-card p-4">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="icon-tile-muted">
-                    <Sparkles className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <h3 className="font-semibold">AI Advantage+ Targeting</h3>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {/* How It Works */}
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
-                  <Sparkles className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">How It Works</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Meta's AI automatically finds and shows your ads to people most likely to engage with your business, continuously optimizing for the best results.
-                    </p>
+          /* AI Advantage+ Success Card - Compact for step view, Detailed for summary view */
+          isSummary ? (
+            /* Detailed Summary for Launch View */
+            <div className="rounded-lg border border-border bg-card p-4">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="icon-tile-muted">
+                      <Sparkles className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <h3 className="font-semibold">AI Advantage+ Targeting</h3>
                   </div>
                 </div>
-                
-                {/* Key Benefits */}
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
-                  <Target className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium mb-2">Key Benefits</p>
-                    <div className="space-y-1.5">
-                      <div className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-xs text-muted-foreground">Automatic optimization - AI learns and improves over time</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-xs text-muted-foreground">Broader reach to find more potential customers</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-xs text-muted-foreground">Better performance - 22% better ROAS on average</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-xs text-muted-foreground">No manual parameter setup needed</span>
+                <div className="space-y-2">
+                  {/* How It Works */}
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
+                    <Sparkles className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">How It Works</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Meta's AI automatically finds and shows your ads to people most likely to engage with your business, continuously optimizing for the best results.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Key Benefits */}
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
+                    <Target className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium mb-2">Key Benefits</p>
+                      <div className="space-y-1.5">
+                        <div className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-xs text-muted-foreground">Automatic optimization - AI learns and improves over time</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-xs text-muted-foreground">Broader reach to find more potential customers</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-xs text-muted-foreground">Better performance - 22% better ROAS on average</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-xs text-muted-foreground">No manual parameter setup needed</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-                
-                {/* Status Indicator */}
-                <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
-                    <span className="text-xs font-medium text-blue-700 dark:text-blue-400">AI Advantage+ Active</span>
+                  
+                  {/* Status Indicator */}
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+                      <span className="text-xs font-medium text-blue-700 dark:text-blue-400">AI Advantage+ Active</span>
+                    </div>
+                    <Check className="h-4 w-4 text-blue-600" />
                   </div>
-                  <Check className="h-4 w-4 text-blue-600" />
                 </div>
               </div>
             </div>
-          </div>
+          ) : (
+            /* Compact Success Card for Step View */
+            <div className="max-w-md mx-auto w-full">
+              <div className="text-center space-y-6">
+                {/* Green Check Icon */}
+                <div className="h-20 w-20 rounded-full bg-green-500/10 flex items-center justify-center mx-auto">
+                  <Check className="h-10 w-10 text-green-600" />
+                </div>
+                
+                {/* Title */}
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold">AI Advantage+ Enabled</h2>
+                  <p className="text-muted-foreground">
+                    Your audience targeting is now optimized by Meta's AI
+                  </p>
+                </div>
+                
+                {/* Switch Button */}
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={async () => {
+                    // Guard 1: Prevent double-clicks
+                    if (isSwitching) return
+                    
+                    setIsSwitching(true)
+                    
+                    try {
+                      // Direct context call - this is the ONLY state mutation
+                      await switchTargetingMode('manual')
+                      
+                      // Optional: Dispatch event ONLY for AI chat visual feedback
+                      // This does NOT mutate state, only triggers a chat message
+                      window.dispatchEvent(new CustomEvent('triggerTargetingModeSwitch', { 
+                        detail: { newMode: 'manual', currentMode: 'ai' } 
+                      }))
+                    } finally {
+                      setIsSwitching(false)
+                    }
+                  }}
+                  disabled={isSwitching}
+                  className="px-8"
+                >
+                  {isSwitching ? 'Switching...' : 'Switch to Manual Targeting'}
+                </Button>
+              </div>
+            </div>
+          )
         ) : (
           /* Manual Targeting Summary */
           <div className="rounded-lg border border-border bg-card p-4">
@@ -707,8 +757,8 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
           </div>
         )}
 
-        {/* Mode switch button */}
-        {!isSummary && (
+        {/* Mode switch button - Only show for Manual mode or Summary view */}
+        {!isSummary && !isAIMode && (
           <div className="flex justify-center mt-6">
             <Button
               variant="outline"
@@ -717,20 +767,16 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
                 // Guard 1: Prevent double-clicks
                 if (isSwitching) return
                 
-                // Guard 2: Check if already in target mode (redundant with context check, but safe)
-                const newMode = isAIMode ? 'manual' : 'ai'
-                if (audienceState.targeting.mode === newMode) return
-                
                 setIsSwitching(true)
                 
                 try {
                   // Direct context call - this is the ONLY state mutation
-                  await switchTargetingMode(newMode)
+                  await switchTargetingMode('ai')
                   
                   // Optional: Dispatch event ONLY for AI chat visual feedback
                   // This does NOT mutate state, only triggers a chat message
                   window.dispatchEvent(new CustomEvent('triggerTargetingModeSwitch', { 
-                    detail: { newMode, currentMode: isAIMode ? 'ai' : 'manual' } 
+                    detail: { newMode: 'ai', currentMode: 'manual' } 
                   }))
                 } finally {
                   setIsSwitching(false)
@@ -738,9 +784,7 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
               }}
               disabled={isSwitching}
             >
-              {isSwitching 
-                ? 'Switching...' 
-                : isAIMode ? 'Switch to Manual Targeting' : 'Switch to AI Advantage+'}
+              {isSwitching ? 'Switching...' : 'Switch to AI Advantage+'}
             </Button>
           </div>
         )}
