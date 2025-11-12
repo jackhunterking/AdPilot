@@ -348,6 +348,8 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
         detailedTargeting
       })
       updateStatus('completed')
+      // Emit event for success card in chat
+      window.dispatchEvent(new CustomEvent('manualTargetingConfirmed'))
     }
     
     const content = (
@@ -517,7 +519,7 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
             onClick={handleSaveTargeting}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            Save Targeting
+            Confirm Targeting
           </Button>
         </div>
       </div>

@@ -238,6 +238,9 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   // AI Advantage+ direct feedback state
   const [showAIAdvantageCard, setShowAIAdvantageCard] = useState(false);
   const [aiAdvantageCardId, setAIAdvantageCardId] = useState<string | null>(null);
+  
+  // Manual Targeting success card state
+  const [showManualTargetingSuccessCard, setShowManualTargetingSuccessCard] = useState(false);
 
   // Update placeholder based on context mode
   useEffect(() => {
@@ -1055,8 +1058,9 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
         // Set manual targeting mode and move to gathering-info status
         setAudienceTargeting({ mode: 'manual' });
         updateAudienceStatus('gathering-info');
+        // Send structured prompt that forces AI to ask first question
         sendMessageRef.current({
-          text: `Set up manual targeting`,
+          text: `I want to set up manual audience targeting. Please help me define my target audience by asking me questions about demographics, interests, and behaviors.`,
         });
       }
     };
@@ -1080,6 +1084,17 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     window.addEventListener('audienceParametersConfirmed', handleAudienceParametersConfirmed as EventListener);
     return () => window.removeEventListener('audienceParametersConfirmed', handleAudienceParametersConfirmed as EventListener);
   }, [setConfirmedParameters]);
+
+  // Listen for manual targeting confirmation (when user clicks "Confirm Targeting" on canvas)
+  useEffect(() => {
+    const handleManualTargetingConfirmed = () => {
+      console.log('[AIChat] Manual targeting confirmed, showing success card');
+      setShowManualTargetingSuccessCard(true);
+    };
+
+    window.addEventListener('manualTargetingConfirmed', handleManualTargetingConfirmed);
+    return () => window.removeEventListener('manualTargetingConfirmed', handleManualTargetingConfirmed);
+  }, []);
 
   // Listen for audience generation (when user clicks "Find My Audience with AI")
   useEffect(() => {
@@ -2145,6 +2160,83 @@ Make it conversational and easy to understand for a business owner.`,
                               }
                               break;
                             }
+                            case "tool-manualTargetingParameters": {
+                              const callId = part.toolCallId;
+                              
+                              switch (part.state) {
+                                case 'input-streaming':
+                                  return <div key={callId} className="text-sm text-muted-foreground">Generating targeting parameters...</div>;
+                                
+                                case 'output-available': {
+                                  const output = part.output as {
+                                    success: boolean;
+                                    description: string;
+                                    demographics: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
+                                    interests: Array<{ id: string; name: string }>;
+                                    behaviors: Array<{ id: string; name: string }>;
+                                    explanation: string;
+                                  };
+                                  
+                                  if (!output.success) {
+                                    return (
+                                      <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
+                                        Failed to generate targeting parameters
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  // Update audience context with parameters
+                                  setTimeout(() => {
+                                    setManualDescription(output.description);
+                                    setDemographics(output.demographics);
+                                    
+                                    // Add interests
+                                    output.interests?.forEach((interest) => {
+                                      addInterest(interest);
+                                    });
+                                    
+                                    // Add behaviors
+                                    output.behaviors?.forEach((behavior) => {
+                                      addBehavior(behavior);
+                                    });
+                                    
+                                    // Transition to refinement interface
+                                    updateAudienceStatus('setup-in-progress');
+                                  }, 100);
+                                  
+                                  return (
+                                    <div key={callId} className="w-full my-4 space-y-3">
+                                      <div
+                                        className="flex items-center justify-between p-4 rounded-lg border panel-surface hover:border-cyan-500/50 transition-colors cursor-pointer"
+                                        onClick={() => emitBrowserEvent('switchToTab', 'audience')}
+                                      >
+                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                                            <Target className="h-5 w-5 text-blue-600" />
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2">
+                                              <p className="font-semibold text-sm">Manual targeting parameters generated!</p>
+                                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                            </div>
+                                            <p className="text-xs text-muted-foreground line-clamp-1">Review and refine your targeting on the canvas</p>
+                                          </div>
+                                        </div>
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors flex-shrink-0 ml-2" />
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                
+                                case 'output-error':
+                                  return (
+                                    <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
+                                      {part.errorText || 'Failed to generate targeting parameters'}
+                                    </div>
+                                  );
+                              }
+                              break;
+                            }
                             case "tool-setupManualTargeting": {
                               const callId = part.toolCallId;
                               const input = part.input as { description: string };
@@ -2514,6 +2606,35 @@ Make it conversational and easy to understand for a business owner.`,
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-1">
                     Your ad will be shown to people most likely to engage
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors flex-shrink-0 ml-2" />
+            </div>
+          </div>
+        )}
+        
+        {/* Manual Targeting Success Card - Direct Rendering */}
+        {showManualTargetingSuccessCard && (
+          <div className="w-full px-4 my-4 space-y-3">
+            <div
+              className="flex items-center justify-between p-4 rounded-lg border panel-surface hover:border-cyan-500/50 transition-colors cursor-pointer"
+              onClick={() => {
+                emitBrowserEvent('switchToTab', 'audience');
+                setShowManualTargetingSuccessCard(false); // Hide after navigation
+              }}
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                  <Target className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-sm">Manual targeting parameters confirmed!</p>
+                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-1">
+                    Review and refine your targeting on the canvas
                   </p>
                 </div>
               </div>
