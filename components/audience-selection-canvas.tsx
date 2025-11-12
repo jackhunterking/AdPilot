@@ -372,7 +372,7 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
               <div className="text-left text-sm space-y-1">
                 <p className="font-medium text-orange-700 dark:text-orange-400">Live Campaign - Edit with Caution</p>
                 <p className="text-orange-600 dark:text-orange-300 text-xs">
-                  This ad is currently published. Changes to audience targeting will update your live campaign.
+                  This ad is currently published. Switching targeting modes will clear your current audience settings and update your live campaign.
                 </p>
               </div>
             </div>
@@ -380,8 +380,14 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
         )}
 
         {isAIMode ? (
-          /* AI Advantage+ Summary - Simplified without wrapper */
+          /* AI Advantage+ Summary */
           <div className="rounded-lg border border-border bg-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-blue-600" />
+                <h3 className="font-semibold">AI Advantage+ Targeting</h3>
+              </div>
+            </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-blue-600" />
@@ -394,7 +400,7 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
             </div>
           </div>
         ) : (
-          /* Manual Targeting Summary - with Audience header */
+          /* Manual Targeting Summary */
           <div className="rounded-lg border border-border bg-card p-4">
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -402,7 +408,7 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
                   <div className="icon-tile-muted">
                     <Target className="h-4 w-4" />
                   </div>
-                  <h3 className="font-semibold">Audience</h3>
+                  <h3 className="font-semibold">Manual Targeting</h3>
                 </div>
               </div>
               <div className="space-y-2">
@@ -466,15 +472,20 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
           </div>
         )}
 
-        {/* Reset button for editing */}
+        {/* Mode switch button */}
         {!isSummary && (
           <div className="flex justify-center mt-6">
             <Button
               variant="outline"
               size="lg"
-              onClick={resetAudience}
+              onClick={() => {
+                const newMode = isAIMode ? 'manual' : 'ai'
+                window.dispatchEvent(new CustomEvent('triggerTargetingModeSwitch', { 
+                  detail: { newMode, currentMode: isAIMode ? 'ai' : 'manual' } 
+                }))
+              }}
             >
-              Change Targeting
+              {isAIMode ? 'Switch to Manual Targeting' : 'Switch to AI Advantage+'}
             </Button>
           </div>
         )}

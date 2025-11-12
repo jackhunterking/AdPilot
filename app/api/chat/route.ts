@@ -38,6 +38,7 @@ import { audienceModeTool } from '@/lib/ai/tools/audience-mode-tool';
 import { manualTargetingParametersTool } from '@/lib/ai/tools/manual-targeting-parameters-tool';
 import { gatherAudienceInfoTool } from '@/lib/ai/tools/gather-audience-info-tool';
 import { enableAIAdvantageTool } from '@/tools/enable-ai-advantage-tool';
+import { switchTargetingModeTool } from '@/tools/switch-targeting-mode-tool';
 import { getCachedMetrics } from '@/lib/meta/insights';
 import { getModel } from '@/lib/ai/gateway-provider';
 import { messageStore } from '@/lib/services/message-store';
@@ -167,6 +168,7 @@ export async function POST(req: Request) {
     gatherAudienceInfo: gatherAudienceInfoTool,
     manualTargetingParameters: manualTargetingParametersTool,
     enableAIAdvantage: enableAIAdvantageTool,
+    switchTargetingMode: switchTargetingModeTool,
   };
 
   // Get or create conversation

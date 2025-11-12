@@ -52,6 +52,7 @@ interface AudienceContextType {
   updateStatus: (status: AudienceStatus) => void
   setError: (message: string) => void
   resetAudience: () => void
+  switchTargetingMode: (newMode: 'ai' | 'manual') => Promise<void>
   setSelected: (selected: boolean) => void
   setManualDescription: (description: string) => void
   setDemographics: (demographics: Partial<Demographics>) => void
@@ -158,6 +159,41 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
       errorMessage: undefined,
       isSelected: false,
     })
+  }
+
+  const switchTargetingMode = async (newMode: 'ai' | 'manual') => {
+    // Mark as explicit reset to prevent re-initialization from DB
+    setExplicitReset(true)
+    
+    // Determine new state based on mode
+    const newState: AudienceState = newMode === 'ai' 
+      ? {
+          // AI mode: immediately set to completed with advantage_plus_enabled
+          status: "completed",
+          targeting: {
+            mode: "ai",
+            advantage_plus_enabled: true
+          },
+          errorMessage: undefined,
+          isSelected: true,
+        }
+      : {
+          // Manual mode: set to gathering-info to start conversational flow
+          status: "gathering-info",
+          targeting: {
+            mode: "manual"
+          },
+          errorMessage: undefined,
+          isSelected: false,
+        }
+    
+    // Save new state to database
+    if (campaign?.id) {
+      await saveCampaignState('audience_data', newState as unknown as Record<string, unknown>)
+    }
+    
+    // Update local state
+    setAudienceState(newState)
   }
 
   const setSelected = (selected: boolean) => {
@@ -349,6 +385,7 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
         updateStatus, 
         setError, 
         resetAudience,
+        switchTargetingMode,
         setSelected,
         setManualDescription,
         setDemographics,
