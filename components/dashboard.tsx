@@ -113,13 +113,6 @@ export function Dashboard({
     }
   }
 
-  console.log(`[DASHBOARD] Received ${messages.length} messages`, messages.map(m => ({ 
-    id: m.id, 
-    role: m.role, 
-    partsCount: m.parts?.length || 0 
-  })));
-  console.log(`[DASHBOARD] Campaign:`, campaign ? { id: campaign.id, hasStates: !!campaign.campaign_states } : 'null');
-  console.log(`[DASHBOARD] conversationId from server:`, conversationId);
 
   // Note: Campaign loading is now handled by the nested CampaignProvider in app/[campaignId]/page.tsx
   // No need to manually call loadCampaign here

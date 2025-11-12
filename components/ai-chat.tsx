@@ -277,14 +277,11 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   
   // Extract goal from campaign metadata for context enrichment
   const goalType = campaignMetadata?.initialGoal || goalState?.selectedGoal || null;
-  
-  console.log('[AI-CHAT] Goal context:', { goalType, campaignMetadata, goalState: goalState?.selectedGoal });
 
   // Reset AI chat local state when conversation ID changes (new ad creation)
   useEffect(() => {
     // Check if this is a new temporary conversation (created for new ad)
     if (conversationId?.startsWith('conv_')) {
-      console.log('[AI-CHAT] New conversation detected, resetting local state:', conversationId)
       
       // Clear generation states
       setGeneratingImages(new Set())
@@ -302,8 +299,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       
       // Reset placeholder to build mode default
       setCustomPlaceholder('Describe your ad creative or ask for suggestions…')
-      
-      console.log('[AI-CHAT] ✅ Local state reset complete for new conversation')
     }
   }, [conversationId, setIsGenerating, setGenerationMessage]);
 
@@ -358,12 +353,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
         };
         
         // DEBUG: Log what we're sending (AI SDK v5 pattern - metadata field)
-          console.log(`[TRANSPORT] ========== SENDING MESSAGE ==========`);
-          console.log(`[TRANSPORT] message.id:`, lastMessage?.id);
-          console.log(`[TRANSPORT] message.role:`, lastMessage?.role);
-          console.log(`[TRANSPORT] message.metadata:`, (enrichedMessage as { metadata?: unknown }).metadata);
-          console.log(`[TRANSPORT] campaignId included:`, campaignId);
-          console.log(`[TRANSPORT] goalType included:`, goalType);
           
           return {
             body: {
@@ -377,24 +366,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   [model, goalType]
 );
   
-  const DEBUG = process.env.NEXT_PUBLIC_DEBUG === '1';
-  if (DEBUG) {
-    console.log(`[AI-CHAT] ========== INITIALIZATION ==========`);
-    console.log(`[AI-CHAT] conversationId (from server):`, conversationId);
-    console.log(`[AI-CHAT] campaignId:`, campaignId);
-    console.log(`[AI-CHAT] campaign?.conversationId:`, campaign?.conversationId);
-    console.log(`[AI-CHAT] STABLE chatId being used:`, chatId);
-    console.log(`[AI-CHAT] messages.length:`, initialMessages.length);
-    console.log(`[AI-CHAT] messages:`, initialMessages.map(m => {
-      const firstTextPart = m.parts?.find((p: { type: string }) => p.type === 'text') as { text?: string } | undefined;
-      return {
-        id: m.id, 
-        role: m.role,
-        textPreview: firstTextPart?.text?.substring(0, 50) || 'no-text',
-        partsCount: m.parts?.length || 0
-      };
-    }));
-  }
 
   // Simple useChat initialization - AI SDK native pattern (following docs exactly)
   // Uses conversationId for proper AI SDK conversation history
@@ -411,57 +382,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     status: 'idle' | 'streaming' | 'submitted';
     stop: () => void;
   };
-  
-  if (DEBUG) console.log(`[AI-CHAT] useChat returned ${messages.length} messages immediately`);
 
-  // Debug logging for message display
-  useEffect(() => {
-    if (DEBUG) {
-      console.log(`[CLIENT] ========== MESSAGES STATE ==========`);
-      console.log(`[CLIENT] Current messages.length: ${messages.length}`);
-      console.log(`[CLIENT] loaded messages.length: ${initialMessages.length}`);
-      console.log(`[CLIENT] chatId: ${chatId}`);
-      console.log(`[CLIENT] status: ${status}`);
-    }
-    
-    if (messages.length > 0) {
-      if (DEBUG) {
-        console.log(`[CLIENT] ✅ Messages are displaying:`, messages.map(m => ({
-          id: m.id,
-          role: m.role,
-          partsCount: m.parts?.length || 0
-        })));
-        console.log(`[CLIENT] First message details:`, {
-          id: messages[0]?.id,
-          role: messages[0]?.role,
-          partsCount: messages[0]?.parts?.length || 0,
-          parts: messages[0]?.parts
-        });
-      }
-    } else if (initialMessages.length > 0) {
-      if (DEBUG) {
-        console.error(`[CLIENT] ❌ MESSAGES LOST! Loaded ${initialMessages.length} but messages array is EMPTY`);
-        console.error(`[CLIENT] This means useChat cleared the messages. Possible causes:`);
-        console.error(`[CLIENT] 1. ID mismatch between save and load`);
-        console.error(`[CLIENT] 2. ID changed after useChat initialization`);
-        console.error(`[CLIENT] 3. Message format incompatible with AI SDK`);
-      }
-    } else {
-      console.log(`[CLIENT] No messages (expected for new campaign)`);
-    }
-  }, [messages, initialMessages.length, chatId, status, DEBUG]);
-
-  // Track chatId changes (which would cause useChat to reset)
-  const prevChatIdRef = useRef(chatId);
-  useEffect(() => {
-    if (prevChatIdRef.current !== chatId) {
-      if (DEBUG) {
-        console.warn(`[CLIENT] ⚠️ chatId CHANGED from ${prevChatIdRef.current} to ${chatId}`);
-        console.warn(`[CLIENT] This will cause useChat to RESET and clear messages!`);
-      }
-      prevChatIdRef.current = chatId;
-    }
-  }, [chatId, DEBUG]);
 
   // Store latest sendMessage in ref (doesn't cause re-renders)
   const sendMessageRef = useRef(sendMessage);
@@ -478,7 +399,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     
     // Don't auto-submit if messages already exist
     if (initialMessages.length > 0) {
-      console.log(`[CLIENT] Campaign has ${initialMessages.length} messages - skipping auto-submit`)
       return
     }
     
@@ -488,11 +408,8 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     // Check if we've already auto-submitted for this campaign
     const autoSubmitKey = `auto-submitted-${campaignId}`
     if (sessionStorage.getItem(autoSubmitKey)) {
-      console.log('[CLIENT] Already auto-submitted for this campaign')
       return
     }
-    
-    console.log('[CLIENT] Auto-submitting initial prompt:', campaignMetadata.initialPrompt)
     
     // Mark as submitted BEFORE calling sendMessage
     sessionStorage.setItem(autoSubmitKey, 'true')
@@ -531,8 +448,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     };
     
     if (adEditReference) {
-      console.log(`[SUBMIT] ========== AD EDIT REFERENCE ==========`);
-      console.log(`[SUBMIT] adEditReference:`, adEditReference);
       
       const normalizedIndexForMeta = toZeroBasedIndex({
         variationIndex: (adEditReference as unknown as { variationIndex?: number }).variationIndex,
@@ -552,7 +467,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       };
       messageMetadata.editMode = true;
       
-      console.log(`[SUBMIT] messageMetadata.editingReference:`, messageMetadata.editingReference);
       
       // Set immediate feedback for image edits
       setIsSubmitting(true);
@@ -568,7 +482,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       messageMetadata.editMode = true;
     }
     
-    console.log(`[SUBMIT] Sending message with metadata:`, messageMetadata);
     
     // Send the message with metadata (AI SDK v5 native - preserved through entire flow)
     sendMessage({ 
@@ -652,7 +565,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
         // Generate 3 unique AI variations in one call
         const imageUrls = await generateImage(prompt, campaignId, 3);
         
-        console.log('[IMAGE-GEN] ✅ Generated 3 variations:', imageUrls);
         
         // Set all 3 variations immediately
         const newContent = {
@@ -663,7 +575,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
           imageVariations: imageUrls, // All 3 URLs
         };
         
-        console.log('[IMAGE-GEN] 📤 Setting adContent with variations:', {
           imageCount: imageUrls.length,
           baseImageUrl: imageUrls[0],
           hasHeadline: !!newContent.headline,
@@ -1078,7 +989,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       behaviors: Array<{ id: string; name: string }>;
     }>) => {
       const { demographics, interests, behaviors } = event.detail;
-      console.log('[AIChat] Audience parameters confirmed, updating context:', { demographics, interests, behaviors });
       setConfirmedParameters(demographics, interests, behaviors);
     };
 
@@ -1089,7 +999,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   // Listen for manual targeting confirmation (when user clicks "Confirm Targeting" on canvas)
   useEffect(() => {
     const handleManualTargetingConfirmed = () => {
-      console.log('[AIChat] Manual targeting confirmed, showing success card');
       setShowManualTargetingSuccessCard(true);
     };
 
@@ -1286,7 +1195,6 @@ Make it conversational and easy to understand for a business owner.`,
         
         // Skip empty messages
         if (!textContent && (!msg.parts || msg.parts.length === 0)) {
-          console.log('[CLIENT] Filtering empty assistant message:', msg.id);
           return false;
         }
         
@@ -1298,7 +1206,6 @@ Make it conversational and easy to understand for a business owner.`,
             const prevTextContent = prevTextPart?.text?.trim() || '';
             
             if (textContent === prevTextContent && textContent.length > 0) {
-              console.log('[CLIENT] Filtering duplicate assistant message:', msg.id);
               return false;
             }
           }
@@ -1568,7 +1475,6 @@ Make it conversational and easy to understand for a business owner.`,
                               const isGenerating = generatingImages.has(callId);
                               const input = part.input as { prompt: string; brandName?: string; caption?: string };
                               
-                              console.log('[CLIENT] generateImage tool state:', part.state, 'isGenerating:', isGenerating);
                               
                               switch (part.state) {
                                 case 'input-streaming':
@@ -1647,12 +1553,8 @@ Make it conversational and easy to understand for a business owner.`,
                               const callId = part.toolCallId;
                               const input = part.input as { imageUrl?: string; variationIndex?: number; prompt?: string };
                               
-                              // DEBUG: Log all states to see execution flow
-                              console.log(`[TOOL-editImage] State: ${part.state}, callId: ${callId}`);
                               const hasOutput = typeof (part as { output?: unknown }).output !== 'undefined';
                               const hasResult = typeof (part as { result?: unknown }).result !== 'undefined';
-                              console.log(`[TOOL-editImage] Has output:`, hasOutput);
-                              console.log(`[TOOL-editImage] Has result:`, hasResult);
                               
                               switch (part.state) {
                                 case 'input-streaming':
@@ -1670,13 +1572,6 @@ Make it conversational and easy to understand for a business owner.`,
                                   };
                                   
                                   // DEBUG: Log the entire output to see what we're receiving
-                                  console.log(`[EDIT-OUTPUT] ========== OUTPUT RECEIVED ==========`);
-                                  console.log(`[EDIT-OUTPUT] output.success:`, output.success);
-                                  console.log(`[EDIT-OUTPUT] output.editedImageUrl:`, output.editedImageUrl);
-                                  console.log(`[EDIT-OUTPUT] output.variationIndex:`, output.variationIndex);
-                                  console.log(`[EDIT-OUTPUT] input.variationIndex:`, input.variationIndex);
-                                  console.log(`[EDIT-OUTPUT] Full output object:`, JSON.stringify(output, null, 2));
-                                  console.log(`[EDIT-OUTPUT] =======================================`);
                                   
                                   // Reset submitting state
                                   if (isSubmitting) {
@@ -1711,7 +1606,6 @@ Make it conversational and easy to understand for a business owner.`,
                                             variationIndex: finalVariationIndex,
                                             newImageUrl: output.editedImageUrl 
                                           });
-                                          console.log(`[EDIT-COMPLETE] ✅ Dispatched imageEdited event for variation ${finalVariationIndex}`);
                                         }, 0);
                                       }
                                     } else {
@@ -1753,11 +1647,8 @@ Make it conversational and easy to understand for a business owner.`,
                               const input = part.input as { variationIndex?: number };
                               
                               // DEBUG: Log all states to see execution flow
-                              console.log(`[TOOL-regenerateImage] State: ${part.state}, callId: ${callId}`);
                               const hasOutput2 = typeof (part as { output?: unknown }).output !== 'undefined';
                               const hasResult2 = typeof (part as { result?: unknown }).result !== 'undefined';
-                              console.log(`[TOOL-regenerateImage] Has output:`, hasOutput2);
-                              console.log(`[TOOL-regenerateImage] Has result:`, hasResult2);
                               
                               switch (part.state) {
                                 case 'input-streaming':
@@ -1777,13 +1668,6 @@ Make it conversational and easy to understand for a business owner.`,
                                   };
                                   
                                   // DEBUG: Log the entire output to see what we're receiving
-                                  console.log(`[REGENERATE-OUTPUT] ========== OUTPUT RECEIVED ==========`);
-                                  console.log(`[REGENERATE-OUTPUT] output.success:`, output.success);
-                                  console.log(`[REGENERATE-OUTPUT] output.imageUrl:`, output.imageUrl);
-                                  console.log(`[REGENERATE-OUTPUT] output.variationIndex:`, output.variationIndex);
-                                  console.log(`[REGENERATE-OUTPUT] input.variationIndex:`, input.variationIndex);
-                                  console.log(`[REGENERATE-OUTPUT] Full output object:`, JSON.stringify(output, null, 2));
-                                  console.log(`[REGENERATE-OUTPUT] =======================================`);
                                   
                                   // Reset submitting state
                                   if (isSubmitting) {
@@ -1815,7 +1699,6 @@ Make it conversational and easy to understand for a business owner.`,
                                             variationIndex: finalVariationIndex,
                                             newImageUrl: output.imageUrl,
                                           });
-                                          console.log(`[REGEN-COMPLETE] ✅ Dispatched imageEdited event for variation ${finalVariationIndex}`);
                                         }, 0);
                                       }
                                       return renderRegenerateImageResult({ callId, keyId: `${callId}-regen-output`, output });
@@ -1834,7 +1717,6 @@ Make it conversational and easy to understand for a business owner.`,
                                     // Update ad content with regenerated variations
                                     // This ensures the new images are saved and persist across refreshes
                                     setTimeout(() => {
-                                      console.log('[REGEN] 📤 Setting regenerated variations:', output.imageUrls);
                                       setAdContent({
                                         headline: adContent?.headline || '',
                                         body: adContent?.body || '',

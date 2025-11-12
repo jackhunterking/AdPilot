@@ -203,18 +203,6 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
   const isLastStep = currentStepIndex >= steps.length - 1
   const currentStepCompleted = Boolean(currentStep?.completed)
   const canGoNext = currentStepCompleted
-
-  useEffect(() => {
-    if (!currentStep) return
-    console.log('[CampaignStepper] Rendering step', {
-      index: currentStepIndex,
-      id: currentStep.id,
-      title: currentStep.title,
-      completed: currentStep.completed,
-      hasContent: Boolean(currentStep.content),
-      transition: direction,
-    })
-  }, [currentStep, currentStepIndex, direction])
   
   // Emit stepChanged event when current step changes
   useEffect(() => {

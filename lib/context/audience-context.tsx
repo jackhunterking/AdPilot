@@ -77,6 +77,7 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
     isSelected: false,
   })
   const [isInitialized, setIsInitialized] = useState(false)
+  const [explicitReset, setExplicitReset] = useState(false)
   const lastConfirmedParams = useRef<string | null>(null)
 
   // Memoize state to prevent unnecessary recreations
@@ -84,13 +85,12 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
 
   // Load initial state from campaign ONCE - show saved data or default to selection screen
   useEffect(() => {
-    if (!campaign?.id || isInitialized) return
+    if (!campaign?.id || isInitialized || explicitReset) return
     
     // campaign_states is 1-to-1 object, not array
     const audienceData = campaign.campaign_states?.audience_data as unknown as AudienceState | null
     
     if (audienceData) {
-      console.log('[AudienceContext] Loading saved audience data', audienceData)
       // Restore from saved data
       setAudienceState({
         status: audienceData.status || "completed",
@@ -100,7 +100,6 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
       })
     } else {
       // No saved data - show selection screen
-      console.log('[AudienceContext] No saved data, showing selection')
       setAudienceState({
         status: "idle",
         targeting: { mode: "ai" },
@@ -110,7 +109,7 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
     }
     
     setIsInitialized(true) // Mark initialized regardless of saved data
-  }, [campaign?.id, isInitialized])
+  }, [campaign?.id, isInitialized, explicitReset])
 
   // Save function
   const saveFn = useCallback(async (state: AudienceState) => {
@@ -129,6 +128,8 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
       isSelected: true,
       errorMessage: undefined
     }))
+    // Reset explicit reset flag when user makes a new selection
+    setExplicitReset(false)
   }
 
   const updateStatus = (status: AudienceStatus) => {
@@ -139,7 +140,16 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
     setAudienceState(prev => ({ ...prev, errorMessage: message, status: "error" }))
   }
 
-  const resetAudience = () => {
+  const resetAudience = async () => {
+    // Mark as explicit reset to prevent re-initialization from DB
+    setExplicitReset(true)
+    
+    // Clear saved data from database
+    if (campaign?.id) {
+      await saveCampaignState('audience_data', null)
+    }
+    
+    // Reset local state
     setAudienceState({
       status: "idle",
       targeting: {

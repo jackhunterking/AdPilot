@@ -55,25 +55,58 @@ export function useDraftAutoSave(
   const { goalState } = useGoal()
   const { budgetState } = useBudget()
   
+  // Store latest context values in refs (updated on every render, no deps)
+  const contextsRef = useRef({
+    adContent: null as typeof adContent,
+    selectedImageIndex: null as typeof selectedImageIndex,
+    selectedCreativeVariation: null as typeof selectedCreativeVariation,
+    adCopyState: null as typeof adCopyState,
+    destinationState: null as typeof destinationState,
+    locationState: null as typeof locationState,
+    audienceState: null as typeof audienceState,
+    goalState: null as typeof goalState,
+    budgetState: null as typeof budgetState,
+    getSelectedCopy: null as typeof getSelectedCopy,
+  })
+  
+  // Update refs on every render (no deps, no loops)
+  contextsRef.current = {
+    adContent,
+    selectedImageIndex,
+    selectedCreativeVariation,
+    adCopyState,
+    destinationState,
+    locationState,
+    audienceState,
+    goalState,
+    budgetState,
+    getSelectedCopy,
+  }
+  
+  // Stable save function - ONLY depends on campaignId and adId
   const saveDraft = useCallback(async () => {
     if (!campaignId || !adId) return
     
+    const contexts = contextsRef.current
+    
     try {
-      // Build snapshot
+      // Build snapshot from ref values
       const { buildAdSnapshot } = await import('@/lib/services/ad-snapshot-builder')
       const snapshot = buildAdSnapshot({
-        adPreview: { adContent, selectedImageIndex, selectedCreativeVariation },
-        adCopy: adCopyState,
-        destination: destinationState,
-        location: locationState,
-        audience: audienceState,
-        goal: goalState,
-        budget: budgetState,
+        adPreview: { 
+          adContent: contexts.adContent, 
+          selectedImageIndex: contexts.selectedImageIndex,
+          selectedCreativeVariation: contexts.selectedCreativeVariation
+        },
+        adCopy: contexts.adCopyState,
+        destination: contexts.destinationState,
+        location: contexts.locationState,
+        audience: contexts.audienceState,
+        goal: contexts.goalState,
+        budget: contexts.budgetState,
       })
       
       // Create stable snapshot signature by omitting volatile fields
-      // IMPORTANT: We exclude `createdAt` and `wizardVersion` because they change
-      // on every snapshot creation, causing infinite loops. Only compare actual data.
       const stableSnapshot = {
         creative: snapshot.creative,
         copy: snapshot.copy,
@@ -82,33 +115,31 @@ export function useDraftAutoSave(
         audience: snapshot.audience,
         goal: snapshot.goal,
         budget: snapshot.budget,
-        // Explicitly exclude: createdAt, wizardVersion, metaConnection
       }
       
       // Check if anything changed by comparing stable fields only
       const currentSignature = JSON.stringify(stableSnapshot)
       if (currentSignature === lastSaveRef.current) {
-        console.log('[DraftAutoSave] No changes detected, skipping save')
         return
       }
       
       // Prepare ad data
-      const selectedCopy = getSelectedCopy()
-      const selectedImageUrl = selectedImageIndex !== null && adContent?.imageVariations?.[selectedImageIndex]
-        ? adContent.imageVariations[selectedImageIndex]
-        : adContent?.imageUrl || adContent?.imageVariations?.[0]
+      const selectedCopy = contexts.getSelectedCopy?.()
+      const selectedImageUrl = contexts.selectedImageIndex !== null && contexts.adContent?.imageVariations?.[contexts.selectedImageIndex]
+        ? contexts.adContent.imageVariations[contexts.selectedImageIndex]
+        : contexts.adContent?.imageUrl || contexts.adContent?.imageVariations?.[0]
         
       const adData = {
         creative_data: {
           imageUrl: selectedImageUrl,
-          imageVariations: adContent?.imageVariations,
-          baseImageUrl: adContent?.baseImageUrl,
+          imageVariations: contexts.adContent?.imageVariations,
+          baseImageUrl: contexts.adContent?.baseImageUrl,
         },
         copy_data: {
-          headline: selectedCopy?.headline || adContent?.headline,
-          primaryText: selectedCopy?.primaryText || adContent?.body,
-          description: selectedCopy?.description || adContent?.body,
-          cta: adContent?.cta || 'Learn More',
+          headline: selectedCopy?.headline || contexts.adContent?.headline,
+          primaryText: selectedCopy?.primaryText || contexts.adContent?.body,
+          description: selectedCopy?.description || contexts.adContent?.body,
+          cta: contexts.adContent?.cta || 'Learn More',
         },
         setup_snapshot: snapshot,
       }
@@ -123,27 +154,13 @@ export function useDraftAutoSave(
       if (response.ok) {
         // ONLY update lastSaveRef on successful save to prevent re-save on failure
         lastSaveRef.current = currentSignature
-        console.log('[DraftAutoSave] Draft saved successfully at', new Date().toISOString())
       } else {
         console.error('[DraftAutoSave] Failed to save draft:', await response.text())
       }
     } catch (error) {
       console.error('[DraftAutoSave] Error saving draft:', error)
     }
-  }, [
-    campaignId,
-    adId,
-    adContent,
-    selectedImageIndex,
-    selectedCreativeVariation,
-    adCopyState,
-    destinationState,
-    locationState,
-    audienceState,
-    goalState,
-    budgetState,
-    getSelectedCopy,
-  ])
+  }, [campaignId, adId]) // ONLY campaignId and adId - stable dependencies!
   
   // Set up interval
   useEffect(() => {
