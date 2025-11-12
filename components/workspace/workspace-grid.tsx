@@ -110,14 +110,20 @@ export function WorkspaceGrid() {
     })
   }
 
-  const getThumbnail = (campaign: Campaign) => {
+  const getThumbnail = (campaign: Campaign): string => {
     const adPreviewData = campaign.campaign_states?.ad_preview_data as unknown as { adContent?: { baseImageUrl?: string; imageVariations?: string[] } } | null
+    
     if (adPreviewData?.adContent?.baseImageUrl) {
       return adPreviewData.adContent.baseImageUrl
     }
+    
     if (adPreviewData?.adContent?.imageVariations && adPreviewData.adContent.imageVariations.length > 0) {
-      return adPreviewData.adContent.imageVariations[0]
+      const firstImage = adPreviewData.adContent.imageVariations[0]
+      if (firstImage) {
+        return firstImage
+      }
     }
+    
     return '/placeholder.svg'
   }
 
