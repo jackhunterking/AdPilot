@@ -77,6 +77,7 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
     isSelected: false,
   })
   const [isInitialized, setIsInitialized] = useState(false)
+  const lastConfirmedParams = useRef<string | null>(null)
 
   // Memoize state to prevent unnecessary recreations
   const memoizedAudienceState = useMemo(() => audienceState, [audienceState])
@@ -275,6 +276,9 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
   }
 
   const setConfirmedParameters = (demographics: Demographics, interests: TargetingOption[], behaviors: TargetingOption[]) => {
+    // Create unique key for parameters to prevent duplicate emissions
+    const paramsKey = `${demographics.ageMin}-${demographics.ageMax}-${demographics.gender}-${interests.length}-${behaviors.length}`
+    
     setAudienceState(prev => ({
       ...prev,
       targeting: {
@@ -290,8 +294,13 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
       status: 'completed',
       isSelected: true
     }))
-    // Emit event for success card in chat
-    window.dispatchEvent(new CustomEvent('manualTargetingConfirmed'))
+    
+    // Only emit event if parameters actually changed (prevents infinite loop)
+    if (lastConfirmedParams.current !== paramsKey) {
+      console.log('[AudienceContext] Parameters confirmed, emitting event')
+      window.dispatchEvent(new CustomEvent('manualTargetingConfirmed'))
+      lastConfirmedParams.current = paramsKey
+    }
   }
 
   // Auto-advance when AI targeting completes, but avoid hydration-induced idle→completed jumps
