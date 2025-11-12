@@ -2204,25 +2204,44 @@ Make it conversational and easy to understand for a business owner.`,
                                     updateAudienceStatus('setup-in-progress');
                                   }, 100);
                                   
+                                  // Build preview text
+                                  const genderText = output.demographics.gender === 'all' ? 'All' : output.demographics.gender;
+                                  const previewText = `${genderText} aged ${output.demographics.ageMin}-${output.demographics.ageMax}`;
+                                  const detailsText = `${output.interests.length} interests${output.behaviors.length > 0 ? `, ${output.behaviors.length} behaviors` : ''}`;
+                                  
                                   return (
                                     <div key={callId} className="w-full my-4 space-y-3">
-                                      <div
-                                        className="flex items-center justify-between p-4 rounded-lg border panel-surface hover:border-cyan-500/50 transition-colors cursor-pointer"
-                                        onClick={() => emitBrowserEvent('switchToTab', 'audience')}
-                                      >
-                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                      <div className="rounded-lg border panel-surface p-4 space-y-3">
+                                        {/* Header */}
+                                        <div className="flex items-center gap-3">
                                           <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 flex items-center justify-center flex-shrink-0">
                                             <Target className="h-5 w-5 text-blue-600" />
                                           </div>
-                                          <div className="min-w-0 flex-1">
+                                          <div className="flex-1">
                                             <div className="flex items-center gap-2">
                                               <p className="font-semibold text-sm">Manual targeting parameters generated!</p>
                                               <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
                                             </div>
-                                            <p className="text-xs text-muted-foreground line-clamp-1">Review and refine your targeting on the canvas</p>
                                           </div>
                                         </div>
-                                        <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors flex-shrink-0 ml-2" />
+                                        
+                                        {/* Quick Preview */}
+                                        <div className="pl-[52px] space-y-1 text-xs text-muted-foreground">
+                                          <p>• {previewText}</p>
+                                          <p>• {detailsText}</p>
+                                        </div>
+                                        
+                                        {/* Review Button */}
+                                        <div className="pl-[52px] pt-1">
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => emitBrowserEvent('switchToTab', 'audience')}
+                                            className="h-8 text-xs"
+                                          >
+                                            Review on Canvas →
+                                          </Button>
+                                        </div>
                                       </div>
                                     </div>
                                   );
@@ -2722,3 +2741,4 @@ Make it conversational and easy to understand for a business owner.`,
 };
 
 export default AIChat;
+

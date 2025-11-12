@@ -1,13 +1,8 @@
 "use client"
 
-import { Check, Lock, Target, Loader2, Sparkles, AlertCircle, X, User, Heart, Activity } from "lucide-react"
+import { Check, Target, Loader2, Sparkles, AlertCircle, Users, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Slider } from "@/components/ui/slider"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useState, useEffect } from "react"
 import { useAudience } from "@/lib/context/audience-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
@@ -16,6 +11,52 @@ import { toast } from "sonner"
 
 interface AudienceSelectionCanvasProps {
   variant?: "step" | "summary"
+}
+
+// Display Card Component for read-only targeting parameters
+function DisplayCard({
+  icon: Icon,
+  title,
+  items,
+  collapsible = false
+}: {
+  icon: React.ElementType;
+  title: string;
+  items: string[];
+  collapsible?: boolean;
+}) {
+  const [expanded, setExpanded] = useState(!collapsible);
+  const displayItems = expanded ? items : items.slice(0, 5);
+  const hasMore = items.length > 5 && !expanded;
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-6 space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+          <Icon className="h-5 w-5 text-blue-600" />
+        </div>
+        <h3 className="text-lg font-semibold">{title}</h3>
+      </div>
+      
+      <ul className="space-y-2">
+        {displayItems.map((item, idx) => (
+          <li key={idx} className="flex items-center gap-2 text-sm">
+            <div className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+      
+      {hasMore && (
+        <button
+          onClick={() => setExpanded(true)}
+          className="text-xs text-blue-600 hover:underline"
+        >
+          + {items.length - 5} more
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionCanvasProps = {}) {
@@ -352,160 +393,57 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
       window.dispatchEvent(new CustomEvent('manualTargetingConfirmed'))
     }
     
+    // Build display items
+    const genderLabel = demographics.gender === 'all' ? 'All genders' : demographics.gender === 'male' ? 'Male' : 'Female';
+    const demographicItems = [
+      `Age: ${demographics.ageMin || 18}-${demographics.ageMax || 65} years`,
+      `Gender: ${genderLabel}`
+    ];
+    
+    const interestItems = detailedTargeting.interests?.map(i => i.name) || [];
+    const behaviorItems = detailedTargeting.behaviors?.map(b => b.name) || [];
+    
     const content = (
-      <div className="max-w-3xl mx-auto w-full space-y-6">
+      <div className="max-w-2xl mx-auto w-full space-y-6">
+        {/* Header */}
         <div className="text-center space-y-2 mb-6">
           <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
             <Sparkles className="h-8 w-8 text-blue-600" />
           </div>
-          <h2 className="text-2xl font-bold">Refine Your Targeting</h2>
+          <h2 className="text-2xl font-bold">Your Target Audience</h2>
           <p className="text-muted-foreground">
-            Review and adjust the AI-generated targeting parameters
+            AI-generated based on your campaign and description
           </p>
         </div>
         
-        {/* Demographics Section */}
-        <div className="rounded-lg border border-border bg-card p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Demographics</h3>
-            <Badge variant="outline" className="text-xs">
-              <Sparkles className="h-3 w-3 mr-1" />
-              AI Suggested
-            </Badge>
-          </div>
-          
-          {/* Age Range */}
-          <div className="space-y-3">
-            <Label className="text-base font-medium">Age Range</Label>
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-muted-foreground">{demographics.ageMin}</span>
-                  <span className="text-sm text-muted-foreground">{demographics.ageMax}</span>
-                </div>
-                <Slider
-                  min={18}
-                  max={65}
-                  step={1}
-                  value={[demographics.ageMin || 18, demographics.ageMax || 65]}
-                  onValueChange={([min, max]) => {
-                    if (min !== undefined && max !== undefined) {
-                      setDemographics({ ...demographics, ageMin: min, ageMax: max })
-                    }
-                  }}
-                  className="w-full"
-                />
-              </div>
-            </div>
-          </div>
-          
-          {/* Gender */}
-          <div className="space-y-3">
-            <Label className="text-base font-medium">Gender</Label>
-            <RadioGroup 
-              value={demographics.gender} 
-              onValueChange={(value: "all" | "male" | "female") => setDemographics({ ...demographics, gender: value })}
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="all" id="gender-all" />
-                <Label htmlFor="gender-all" className="font-normal cursor-pointer">All Genders</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="male" id="gender-male" />
-                <Label htmlFor="gender-male" className="font-normal cursor-pointer">Male</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="female" id="gender-female" />
-                <Label htmlFor="gender-female" className="font-normal cursor-pointer">Female</Label>
-              </div>
-            </RadioGroup>
-          </div>
-        </div>
+        {/* Demographics Card */}
+        <DisplayCard
+          icon={Users}
+          title="Demographics"
+          items={demographicItems}
+        />
         
-        {/* Detailed Targeting Section */}
-        <div className="rounded-lg border border-border bg-card p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Detailed Targeting</h3>
-            <Badge variant="outline" className="text-xs">
-              <Sparkles className="h-3 w-3 mr-1" />
-              AI Suggested
-            </Badge>
-          </div>
-          
-          {/* Interests */}
-          <div className="space-y-3">
-            <Label className="text-base font-medium">Interests</Label>
-            {detailedTargeting.interests && detailedTargeting.interests.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {detailedTargeting.interests.map((interest) => (
-                  <Badge 
-                    key={interest.id} 
-                    variant="secondary"
-                    className="px-3 py-1.5 text-sm flex items-center gap-2"
-                  >
-                    {interest.name}
-                    <button
-                      onClick={() => removeInterest(interest.id)}
-                      className="hover:bg-destructive/20 rounded-full p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">No interests selected</p>
-            )}
-            <Button variant="outline" size="sm" className="mt-2">
-              <Sparkles className="h-4 w-4 mr-2" />
-              Search for more interests
-            </Button>
-          </div>
-          
-          {/* Behaviors */}
-          <div className="space-y-3">
-            <Label className="text-base font-medium">Behaviors</Label>
-            {detailedTargeting.behaviors && detailedTargeting.behaviors.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {detailedTargeting.behaviors.map((behavior) => (
-                  <Badge 
-                    key={behavior.id} 
-                    variant="secondary"
-                    className="px-3 py-1.5 text-sm flex items-center gap-2"
-                  >
-                    {behavior.name}
-                    <button
-                      onClick={() => removeBehavior(behavior.id)}
-                      className="hover:bg-destructive/20 rounded-full p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">No behaviors selected</p>
-            )}
-            <Button variant="outline" size="sm" className="mt-2">
-              <Sparkles className="h-4 w-4 mr-2" />
-              Search for more behaviors
-            </Button>
-          </div>
-        </div>
+        {/* Interests Card */}
+        {interestItems.length > 0 && (
+          <DisplayCard
+            icon={Heart}
+            title="Interests"
+            items={interestItems}
+            collapsible={interestItems.length > 5}
+          />
+        )}
         
-        {/* AI Tip Box */}
-        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <Sparkles className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm space-y-1">
-              <p className="font-medium text-blue-700 dark:text-blue-400">AI Tip</p>
-              <p className="text-blue-600 dark:text-blue-300 text-xs">
-                Your targeting looks good! These parameters will help you reach {(detailedTargeting.interests?.length || 0) + (detailedTargeting.behaviors?.length || 0) > 0 ? 'a specific audience' : 'a broad audience'}. You can always adjust these later.
-              </p>
-            </div>
-          </div>
-        </div>
+        {/* Behaviors Card */}
+        {behaviorItems.length > 0 && (
+          <DisplayCard
+            icon={Target}
+            title="Behaviors"
+            items={behaviorItems}
+            collapsible={behaviorItems.length > 5}
+          />
+        )}
         
+        {/* Action Buttons */}
         <div className="flex justify-center gap-4 pt-4">
           <Button
             variant="outline"
