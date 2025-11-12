@@ -38,16 +38,14 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
   const [isSwitching, setIsSwitching] = useState(false)
   const isSummary = variant === "summary"
 
-  // Debug logging to track state transitions (uncomment if needed for debugging)
-  // console.log('[Canvas] Audience State:', {
-  //   status: audienceState.status,
-  //   mode: audienceState.targeting.mode,
-  //   isAIMode: audienceState.targeting.mode === 'ai',
-  //   hasAdvantage: audienceState.targeting.advantage_plus_enabled,
-  //   hasDescription: !!audienceState.targeting.description,
-  //   hasDemographics: !!audienceState.targeting.demographics,
-  //   hasDetailedTargeting: !!audienceState.targeting.detailedTargeting,
-  // })
+  // Debug logging to track state transitions
+  console.log('[Canvas] Audience State:', {
+    status: audienceState.status,
+    mode: audienceState.targeting.mode,
+    isAIMode: audienceState.targeting.mode === 'ai',
+    hasAdvantage: audienceState.targeting.advantage_plus_enabled,
+    isSelected: audienceState.isSelected,
+  })
 
   const renderLayout = (content: React.ReactNode, maxWidthClass = "max-w-2xl") => {
     if (isSummary) {
@@ -117,9 +115,11 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
             <Button
               size="lg"
               onClick={() => {
+                console.log('[Canvas Button] Enable AI Advantage+ clicked')
                 if (isEnabling) return
                 setIsEnabling(true)
                 
+                console.log('[Canvas Button] Calling setAudienceTargeting with mode: ai')
                 // Update audience state via machine (triggers: idle → enablingAI → aiCompleted)
                 setAudienceTargeting({ 
                   mode: 'ai', 
@@ -208,6 +208,56 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
       </div>
     )
 
+    return renderLayout(content, "max-w-5xl")
+  }
+
+  // Enabling AI Advantage+ - Show loading state during transition
+  if (audienceState.status === "generating" && audienceState.targeting.mode === "ai") {
+    const content = (
+      <div className="max-w-4xl mx-auto w-full">
+        <div className="grid grid-cols-1 gap-6">
+          {/* AI Advantage+ Card (Enabling) */}
+          <div className={cn(
+            "group relative flex flex-col items-center p-8 rounded-2xl border-2 border-blue-500 bg-blue-500/5 transition-all duration-300 shadow-lg",
+            "animate-in fade-in zoom-in duration-500"
+          )}>
+            {/* Enabling Badge */}
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+              <Badge className="bg-blue-600 text-white px-3 py-1 text-xs font-semibold shadow-md animate-pulse">
+                Enabling AI Advantage+...
+              </Badge>
+            </div>
+            
+            <div className="h-16 w-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-4 mt-2">
+              <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+            </div>
+            
+            <div className="text-center space-y-2 flex-1 flex flex-col justify-start mb-4">
+              <h3 className="text-xl font-semibold">AI Advantage+</h3>
+              <p className="text-sm text-muted-foreground">
+                Activating automatic audience optimization
+              </p>
+              
+              {/* Benefits List */}
+              <ul className="text-xs text-muted-foreground space-y-1.5 mt-3 text-left">
+                <li className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                  <span>Automatic optimization</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                  <span>Broader reach</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                  <span>Better performance</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
     return renderLayout(content, "max-w-5xl")
   }
 

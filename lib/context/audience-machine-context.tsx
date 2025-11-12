@@ -111,11 +111,29 @@ export function AudienceMachineProvider({ children }: { children: ReactNode }) {
 
     // Backward-compatible actions
     setAudienceTargeting: (targeting) => {
+      console.log('[AudienceContext] setAudienceTargeting called:', {
+        targeting,
+        currentState: machine.state,
+        isAIMode: machine.isAIMode,
+        isIdle: machine.isIdle,
+      });
+      
       // Handle mode setting
-      if (targeting.mode === 'ai' && !machine.isAIMode) {
-        machine.selectAIMode();
-      } else if (targeting.mode === 'manual' && !machine.isManualMode) {
-        machine.selectManualMode();
+      // Allow mode selection when in idle state, or when switching to a different mode
+      if (targeting.mode === 'ai') {
+        if (!machine.isAIMode || machine.isIdle) {
+          console.log('[AudienceContext] Calling machine.selectAIMode()');
+          machine.selectAIMode();
+        } else {
+          console.log('[AudienceContext] Already in AI mode and not idle - skipping');
+        }
+      } else if (targeting.mode === 'manual') {
+        if (!machine.isManualMode || machine.isIdle) {
+          console.log('[AudienceContext] Calling machine.selectManualMode()');
+          machine.selectManualMode();
+        } else {
+          console.log('[AudienceContext] Already in manual mode and not idle - skipping');
+        }
       }
 
       // Handle demographics update
