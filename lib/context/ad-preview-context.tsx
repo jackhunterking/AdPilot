@@ -1,9 +1,10 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from "react"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useAutoSave } from "@/lib/hooks/use-auto-save"
 import { AUTO_SAVE_CONFIGS } from "@/lib/types/auto-save"
+import { logger } from "@/lib/utils/logger"
 
 interface AdContent {
   imageUrl?: string // Legacy single image support
@@ -46,6 +47,9 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false)
   const [loadingVariations] = useState<boolean[]>([false, false, false])
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null)
+  
+  // Track previous save config mode to only log transitions
+  const prevSaveConfigModeRef = useRef<'CRITICAL' | 'NORMAL' | null>(null)
 
   // CRITICAL: Memoize state to prevent unnecessary recreations
   const adPreviewState = useMemo(() => ({ 
@@ -59,9 +63,11 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!campaign?.id || isInitialized) return
     
-    console.log(`[AdPreviewContext] Attempting to restore state for campaign ${campaign.id}`);
-    console.log(`[AdPreviewContext] campaign_states available:`, !!campaign.campaign_states);
-    console.log(`[AdPreviewContext] campaign_states is object:`, typeof campaign.campaign_states === 'object');
+    logger.debug('AdPreviewContext', `Attempting to restore state for campaign ${campaign.id}`)
+    logger.debug('AdPreviewContext', 'campaign_states available', { 
+      available: !!campaign.campaign_states,
+      isObject: typeof campaign.campaign_states === 'object'
+    })
     
     // campaign_states is 1-to-1 object, not array
     const savedData = campaign.campaign_states?.ad_preview_data as unknown as {
@@ -71,22 +77,20 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
       selectedImageIndex?: number | null;
     } | null
     
-    console.log(`[AdPreviewContext] Saved ad_preview_data:`, savedData ? {
-      hasAdContent: !!savedData.adContent,
-      adContentKeys: savedData.adContent ? Object.keys(savedData.adContent) : [],
-      imageVariationsCount: savedData.adContent?.imageVariations?.length || 0
-    } : 'null');
-    
     if (savedData) {
+      logger.debug('AdPreviewContext', '✅ Restoring ad preview state', {
+        hasAdContent: !!savedData.adContent,
+        imageVariationsCount: savedData.adContent?.imageVariations?.length || 0
+      })
+      
       if (savedData.adContent) {
-        console.log(`[AdPreviewContext] ✅ Restoring adContent with ${savedData.adContent.imageVariations?.length || 0} image variations`);
         setAdContent(savedData.adContent);
       }
       if (savedData.isPublished !== undefined) setIsPublished(savedData.isPublished)
       if (savedData.selectedCreativeVariation) setSelectedCreativeVariation(savedData.selectedCreativeVariation)
       if (savedData.selectedImageIndex !== undefined) setSelectedImageIndex(savedData.selectedImageIndex ?? null)
     } else {
-      console.warn(`[AdPreviewContext] ⚠️ No saved ad_preview_data found!`);
+      logger.debug('AdPreviewContext', 'No saved ad_preview_data found')
     }
     
     setIsInitialized(true) // Mark initialized regardless of saved data
@@ -95,7 +99,7 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
   // Save function with proper return type
   const saveFn = useCallback(async (state: typeof adPreviewState) => {
     if (!campaign?.id || !isInitialized) return
-    console.log(`[AdPreviewContext] 💾 Saving ad_preview_data:`, {
+    logger.debug('AdPreviewContext', '💾 Saving ad_preview_data', {
       hasImageVariations: !!state.adContent?.imageVariations?.length,
       imageCount: state.adContent?.imageVariations?.length || 0,
       hasBaseImage: !!state.adContent?.baseImageUrl,
@@ -107,14 +111,21 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
   // This ensures images save immediately (0ms) instead of 300ms debounce
   const saveConfig = useMemo(() => {
     const hasImages = !!(adContent?.imageVariations?.length || adContent?.baseImageUrl)
+    const currentMode = hasImages ? 'CRITICAL' : 'NORMAL'
     const config = hasImages ? AUTO_SAVE_CONFIGS.CRITICAL : AUTO_SAVE_CONFIGS.NORMAL
-    console.log(`[AdPreviewContext] Save config:`, {
-      hasImages,
-      configType: hasImages ? 'CRITICAL (immediate)' : 'NORMAL (300ms debounce)',
-      imageCount: adContent?.imageVariations?.length || 0
-    })
+    
+    // Only log when mode transitions (not on every render)
+    if (prevSaveConfigModeRef.current !== currentMode) {
+      logger.info('AdPreviewContext', `⚙️ Switched to ${currentMode} save mode`, {
+        hasImages,
+        imageCount: adContent?.imageVariations?.length || 0,
+        debounceMs: config.debounceMs
+      })
+      prevSaveConfigModeRef.current = currentMode
+    }
+    
     return config
-  }, [adContent?.imageVariations?.length, adContent?.baseImageUrl])
+  }, [adContent?.imageVariations?.length, adContent?.baseImageUrl, adContent])
   
   // Auto-save with dynamic config based on whether images are present
   const { isSaving, lastSaved, error } = useAutoSave(
@@ -127,7 +138,7 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
   // NOTE: This function is now a no-op since AI generates all 3 variations upfront
   // Keeping it for backward compatibility
   const generateImageVariations = async (_baseImageUrl: string, _campaignId?: string) => {
-    console.log('⚠️ generateImageVariations called but AI already generated all 3 variations');
+    logger.debug('AdPreviewContext', 'generateImageVariations called but AI already generated all 3 variations')
     // All 3 variations are generated by AI in handleImageGeneration
     // This function is kept for backward compatibility but does nothing
     return Promise.resolve();
@@ -135,11 +146,12 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
 
   // Reset function to clear all ad preview state
   const resetAdPreview = useCallback(() => {
-    console.log('[AdPreviewContext] Resetting ad preview state');
+    logger.debug('AdPreviewContext', 'Resetting ad preview state')
     setAdContent(null);
     setIsPublished(false);
     setSelectedCreativeVariation(null);
     setSelectedImageIndex(null);
+    prevSaveConfigModeRef.current = null; // Reset mode tracking
   }, []);
 
   return (

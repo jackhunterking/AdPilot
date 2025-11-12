@@ -11,6 +11,7 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback, t
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useAutoSave } from "@/lib/hooks/use-auto-save"
 import { AUTO_SAVE_CONFIGS } from "@/lib/types/auto-save"
+import { logger } from "@/lib/utils/logger"
 
 interface GeoJSONGeometry {
   type: string;
@@ -74,7 +75,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         status: rawSaved.status ?? ((rawSaved.locations?.length ?? 0) > 0 ? "completed" : "idle"),
         errorMessage: rawSaved.errorMessage,
       }
-      console.log('[LocationContext] ✅ Restoring location state:', normalized)
+      logger.debug('LocationContext', '✅ Restoring location state', normalized)
       setLocationState(normalized)
     }
 
@@ -111,7 +112,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
             status: (rawSaved.locations?.length ?? 0) > 0 ? "completed" : "idle",
             errorMessage: rawSaved.errorMessage,
           }
-          console.log('[LocationContext] ♻️ Fallback restored location state:', normalized)
+          logger.debug('LocationContext', '♻️ Fallback restored location state', normalized)
           setLocationState(normalized)
         }
       } catch {

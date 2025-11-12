@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react"
+import { logger } from "@/lib/utils/logger"
 
 export interface CampaignAd {
   id: string
@@ -53,7 +54,7 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
     }
 
     const traceId = `fetch_ads_${Date.now()}`
-    console.log(`[${traceId}] fetchAds start:`, { campaignId })
+    logger.debug('useCampaignAds', `[${traceId}] fetchAds start`, { campaignId })
     
     setLoading(true)
     setError(null)
@@ -107,7 +108,7 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
   }, [campaignId])
 
   const updateAdStatus = useCallback((adId: string, status: CampaignAd['status']) => {
-    console.log('[useCampaignAds] updateAdStatus optimistic update:', {
+    logger.debug('useCampaignAds', 'updateAdStatus optimistic update', {
       adId,
       status,
     })
@@ -193,7 +194,7 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
 
     const traceId = `delete_ad_${adId.substring(0, 8)}_${Date.now()}`
     
-    console.log(`[${traceId}] Delete operation started:`, { campaignId, adId })
+    logger.debug('useCampaignAds', `[${traceId}] Delete operation started`, { campaignId, adId })
 
     try {
       const res = await fetch(`/api/campaigns/${campaignId}/ads/${adId}`, {
@@ -219,14 +220,14 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
       }
 
       const data = await res.json()
-      console.log(`[${traceId}] Delete succeeded:`, {
+      logger.debug('useCampaignAds', `[${traceId}] Delete succeeded`, {
         deletedAd: data.deletedAd?.id
       })
 
       // Remove from local state after confirmed deletion
       setAds(prev => {
         const newAds = prev.filter(ad => ad.id !== adId)
-        console.log(`[${traceId}] Local state updated:`, {
+        logger.debug('useCampaignAds', `[${traceId}] Local state updated`, {
           previousCount: prev.length,
           newCount: newAds.length
         })

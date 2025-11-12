@@ -12,6 +12,7 @@ import { useCampaignContext } from '@/lib/context/campaign-context'
 import { metaStorage } from '@/lib/meta/storage'
 import { META_EVENTS, type MetaConnectionChangeEvent, type MetaPaymentUpdateEvent, type MetaDisconnectionEvent } from '@/lib/utils/meta-events'
 import type { MetaConnectionStatus, PaymentStatus } from '@/lib/types/meta-integration'
+import { logger } from '@/lib/utils/logger'
 
 export function useMetaConnection() {
   const { campaign } = useCampaignContext()
@@ -33,7 +34,7 @@ export function useMetaConnection() {
       const summary = metaStorage.getConnectionSummary(campaign.id)
       const connection = metaStorage.getConnection(campaign.id)
       
-      console.log('[useMetaConnection] Reading localStorage on mount (ONCE)', {
+      logger.debug('useMetaConnection', 'Reading localStorage on mount (ONCE)', {
         campaignId: campaign.id,
         hasSummary: !!summary,
         hasConnection: !!connection,
@@ -65,24 +66,24 @@ export function useMetaConnection() {
         // Set connection status explicitly
         if (isConnected) {
           setMetaStatus('connected')
-          console.log('[useMetaConnection] Set metaStatus to: connected')
+          logger.debug('useMetaConnection', 'Set metaStatus to: connected')
         } else {
           setMetaStatus('disconnected')
-          console.log('[useMetaConnection] Set metaStatus to: disconnected')
+          logger.debug('useMetaConnection', 'Set metaStatus to: disconnected')
         }
         
         // Set payment status explicitly based on connection state
         if (isConnected) {
           if (hasPayment) {
             setPaymentStatus('verified')
-            console.log('[useMetaConnection] Set paymentStatus to: verified')
+            logger.debug('useMetaConnection', 'Set paymentStatus to: verified')
           } else {
             setPaymentStatus('missing')
-            console.log('[useMetaConnection] Set paymentStatus to: missing (connected but no payment)')
+            logger.debug('useMetaConnection', 'Set paymentStatus to: missing (connected but no payment)')
           }
         } else {
           setPaymentStatus('unknown')
-          console.log('[useMetaConnection] Set paymentStatus to: unknown (no connection)')
+          logger.debug('useMetaConnection', 'Set paymentStatus to: unknown (no connection)')
         }
         
         setLastChecked(new Date())
@@ -90,10 +91,10 @@ export function useMetaConnection() {
         // No connection data at all
         setMetaStatus('disconnected')
         setPaymentStatus('unknown')
-        console.log('[useMetaConnection] No connection data found, set to disconnected/unknown')
+        logger.debug('useMetaConnection', 'No connection data found, set to disconnected/unknown')
       }
     } catch (error) {
-      console.error('[useMetaConnection] localStorage check failed:', error)
+      logger.error('useMetaConnection', 'localStorage check failed', error)
     }
   }, [campaign?.id])
 
@@ -102,7 +103,7 @@ export function useMetaConnection() {
     if (!campaign?.id) return
     if (typeof window === 'undefined') return
     
-    console.log('[useMetaConnection] Manual refresh from localStorage', {
+    logger.debug('useMetaConnection', 'Manual refresh from localStorage', {
       campaignId: campaign.id,
     })
     
@@ -110,7 +111,7 @@ export function useMetaConnection() {
       const summary = metaStorage.getConnectionSummary(campaign.id)
       const connection = metaStorage.getConnection(campaign.id)
       
-      console.log('[useMetaConnection] Read from localStorage', {
+      logger.debug('useMetaConnection', 'Read from localStorage', {
         hasSummary: !!summary,
         hasConnection: !!connection,
         summaryStatus: summary?.status,
@@ -142,23 +143,23 @@ export function useMetaConnection() {
       if (isConnected) {
         setMetaStatus('connected')
         setPaymentStatus(hasPayment ? 'verified' : 'missing')
-        console.log('[useMetaConnection] Set to connected', {
+        logger.debug('useMetaConnection', 'Set to connected', {
           paymentStatus: hasPayment ? 'verified' : 'missing',
         })
       } else {
         setMetaStatus('disconnected')
         setPaymentStatus('unknown')
-        console.log('[useMetaConnection] Set to disconnected')
+        logger.debug('useMetaConnection', 'Set to disconnected')
       }
       
       setLastChecked(new Date())
       
-      console.log('[useMetaConnection] Refreshed from localStorage - FINAL STATE', {
+      logger.debug('useMetaConnection', 'Refreshed from localStorage - FINAL STATE', {
         metaStatus: isConnected ? 'connected' : 'disconnected',
         paymentStatus: isConnected ? (hasPayment ? 'verified' : 'missing') : 'unknown',
       })
     } catch (error) {
-      console.error('[useMetaConnection] Refresh failed:', error)
+      logger.error('useMetaConnection', 'Refresh failed', error)
     }
   }, [campaign?.id])
 

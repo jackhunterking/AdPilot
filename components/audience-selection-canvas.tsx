@@ -1,5 +1,17 @@
 "use client"
 
+/**
+ * Feature: Audience Selection Canvas
+ * Purpose: UI for selecting and configuring audience targeting
+ * 
+ * Architecture: This component works with both:
+ * - Legacy useState-based audience context (audience-context.tsx)
+ * - New XState-based machine context (audience-machine-context.tsx)
+ * 
+ * The context provider is selected at layout level based on NEXT_PUBLIC_USE_XSTATE_AUDIENCE flag.
+ * Both contexts expose the same API via useAudience() hook.
+ */
+
 import { Check, Target, Loader2, Sparkles, AlertCircle, Users, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"

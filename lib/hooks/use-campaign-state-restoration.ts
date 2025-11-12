@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { UIMessage } from 'ai';
+import { logger } from '@/lib/utils/logger';
 
 export interface CampaignState {
   goal_data: Record<string, unknown> | null;
@@ -41,7 +42,7 @@ export function useCampaignStateRestoration(campaignId: string | undefined): Res
         setIsLoading(true);
         setError(null);
 
-        console.log('🔄 Starting campaign state restoration for:', campaignId);
+        logger.debug('useCampaignStateRestoration', '🔄 Starting campaign state restoration', { campaignId });
 
         // Load state and messages in parallel
         const [stateResponse, messagesResponse] = await Promise.all([
@@ -54,7 +55,7 @@ export function useCampaignStateRestoration(campaignId: string | undefined): Res
           const stateData = await stateResponse.json();
           if (stateData.state) {
             setCampaignState(stateData.state);
-            console.log('✅ Campaign state loaded:', stateData.state);
+            logger.debug('useCampaignStateRestoration', '✅ Campaign state loaded', stateData.state);
           }
         } else {
           console.warn('⚠️ Failed to load campaign state:', await stateResponse.text());
@@ -98,9 +99,9 @@ export function useCampaignStateRestoration(campaignId: string | undefined): Res
           });
 
           setChatMessages(messages);
-          console.log('✅ Chat messages loaded:', messages.length);
+          logger.debug('useCampaignStateRestoration', '✅ Chat messages loaded', { count: messages.length });
         } else {
-          console.warn('⚠️ Failed to load chat messages:', await messagesResponse.text());
+          logger.warn('useCampaignStateRestoration', '⚠️ Failed to load chat messages', await messagesResponse.text());
         }
 
       } catch (err) {
@@ -108,7 +109,7 @@ export function useCampaignStateRestoration(campaignId: string | undefined): Res
         setError(err instanceof Error ? err.message : 'Failed to restore state');
       } finally {
         setIsLoading(false);
-        console.log('✅ Campaign state restoration complete');
+        logger.debug('useCampaignStateRestoration', '✅ Campaign state restoration complete');
       }
     };
 
@@ -141,9 +142,9 @@ export function useDebouncedStateSaver(campaignId: string | undefined, _delay: n
         throw new Error('Failed to save state');
       }
 
-      console.log('💾 Campaign state saved:', Object.keys(stateUpdates));
+      logger.debug('useCampaignStateRestoration', '💾 Campaign state saved', { fields: Object.keys(stateUpdates) });
     } catch (err) {
-      console.error('❌ Error saving campaign state:', err);
+      logger.error('useCampaignStateRestoration', '❌ Error saving campaign state', err);
     }
   };
 

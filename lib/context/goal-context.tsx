@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback, u
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useAutoSave } from "@/lib/hooks/use-auto-save"
 import { AUTO_SAVE_CONFIGS } from "@/lib/types/auto-save"
+import { logger } from "@/lib/utils/logger"
 
 type GoalType = "leads" | "calls" | "website-visits" | null
 type GoalStatus = "idle" | "selecting" | "setup-in-progress" | "completed" | "error"
@@ -70,7 +71,7 @@ export function GoalProvider({ children }: { children: ReactNode }) {
     // campaign_states is 1-to-1 object, not array
     const savedData = campaign.campaign_states?.goal_data as unknown as GoalState | null
     if (savedData) {
-      console.log('[GoalContext] ✅ Restoring goal state:', savedData);
+      logger.debug('GoalContext', '✅ Restoring goal state', savedData)
       setGoalState(savedData)
     }
     
@@ -112,9 +113,9 @@ export function GoalProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ conversationId, message: systemMessage })
       })
       
-      console.log(`[GoalContext] Notified AI of goal change: ${oldGoal} → ${newGoal}`)
+      logger.info('GoalContext', `Notified AI of goal change: ${oldGoal} → ${newGoal}`)
     } catch (error) {
-      console.error('[GoalContext] Failed to notify AI of goal change:', error)
+      logger.error('GoalContext', 'Failed to notify AI of goal change', error)
     }
   }, [])
 
@@ -127,7 +128,7 @@ export function GoalProvider({ children }: { children: ReactNode }) {
     
     // Goal changed (not initial load)
     if (previousGoal && currentGoal && previousGoal !== currentGoal) {
-      console.log(`[GoalContext] Goal changed: ${previousGoal} → ${currentGoal}`)
+      logger.info('GoalContext', `Goal changed: ${previousGoal} → ${currentGoal}`)
       notifyGoalChange(campaign.conversationId, previousGoal, currentGoal)
     }
     

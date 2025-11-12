@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback, t
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useAutoSave } from "@/lib/hooks/use-auto-save"
 import { AUTO_SAVE_CONFIGS } from "@/lib/types/auto-save"
+import { logger } from "@/lib/utils/logger"
 
 interface AdCopyVariation {
   id: string
@@ -59,11 +60,11 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
       const limitedVariations = savedData.customCopyVariations 
         ? savedData.customCopyVariations.slice(0, 3)
         : null
-      console.log('[AdCopyContext] ✅ Restoring ad copy state:', {
+      logger.debug('AdCopyContext', '✅ Restoring ad copy state', {
         selectedIndex: savedData.selectedCopyIndex,
         hasCustomVariations: !!limitedVariations,
         customVariationsCount: limitedVariations?.length || 0,
-      });
+      })
       // Reset selected index if it's out of range (greater than 2 for 3 variations)
       const validSelectedIndex = savedData.selectedCopyIndex != null && savedData.selectedCopyIndex < 3
         ? savedData.selectedCopyIndex
@@ -99,7 +100,7 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
   const setCustomCopyVariations = (variations: AdCopyVariation[]) => {
     // Always limit to first 3 variations for consistency
     const limitedVariations = variations.slice(0, 3)
-    console.log('[AdCopyContext] 📝 Setting custom copy variations:', {
+    logger.debug('AdCopyContext', '📝 Setting custom copy variations', {
       count: limitedVariations.length,
       firstHeadline: limitedVariations[0]?.headline,
     })
@@ -137,7 +138,7 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
   }
 
   const resetAdCopy = () => {
-    console.log('[AdCopyContext] 🔄 Resetting ad copy state')
+    logger.debug('AdCopyContext', '🔄 Resetting ad copy state')
     setAdCopyState({
       selectedCopyIndex: null,
       status: "idle",

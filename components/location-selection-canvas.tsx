@@ -7,6 +7,7 @@ import { useLocation } from "@/lib/context/location-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { useEffect, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
+import { logger } from "@/lib/utils/logger"
 
 interface LeafletBounds {
   isValid(): boolean;
@@ -133,7 +134,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     shapesRef.current = []
 
     const locations = locationState.locations
-    console.log("[Map] Updating with locations:", locations.length)
+    logger.debug('Map', 'Updating with locations', { count: locations.length })
 
     if (locations.length === 0) {
       map.setView([20, 0], 2)
@@ -151,9 +152,13 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       !isNaN(loc.coordinates[1])
     );
 
-    console.log("[Map] Valid locations after filtering:", validLocations.length)
-    validLocations.forEach(loc => {
-      console.log(`[Map] ${loc.name}: [${loc.coordinates[0]}, ${loc.coordinates[1]}] - ${loc.mode}`)
+    logger.debug('Map', 'Valid locations after filtering', { 
+      validCount: validLocations.length,
+      locations: validLocations.map(loc => ({
+        name: loc.name,
+        coords: loc.coordinates,
+        mode: loc.mode
+      }))
     })
 
     if (validLocations.length === 0) {

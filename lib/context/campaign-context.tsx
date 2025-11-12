@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { logger } from "@/lib/utils/logger"
 import { useAuth } from '@/components/auth/auth-provider'
 
 interface CampaignState {
@@ -71,19 +72,18 @@ export function CampaignProvider({
         const data = await response.json()
         const campaign = data.campaign
         
-        console.log(`[CampaignContext] Raw campaign data:`, {
+        logger.debug('CampaignContext', 'Raw campaign data', {
           id: campaign.id,
           name: campaign.name,
           hasStates: !!campaign.campaign_states,
           statesType: typeof campaign.campaign_states,
           statesKeys: campaign.campaign_states ? Object.keys(campaign.campaign_states) : [],
-          fullStatesStructure: JSON.stringify(campaign.campaign_states, null, 2)
-        });
+        })
         
         if (campaign.campaign_states && typeof campaign.campaign_states === 'object') {
-          console.log(`[CampaignContext] ✅ campaign_states exists as object:`, campaign.campaign_states);
+          logger.debug('CampaignContext', '✅ campaign_states exists as object', campaign.campaign_states)
         } else {
-          console.warn(`[CampaignContext] ⚠️ campaign_states is NULL or wrong type!`, campaign.campaign_states);
+          logger.warn('CampaignContext', '⚠️ campaign_states is NULL or wrong type!', campaign.campaign_states)
         }
         
         // Fetch linked conversation (AI SDK pattern)
@@ -92,7 +92,7 @@ export function CampaignProvider({
           if (convResponse.ok) {
             const convData = await convResponse.json()
             campaign.conversationId = convData.conversation.id
-            console.log(`[CampaignContext] Loaded conversation ${campaign.conversationId} for campaign ${id}`)
+            logger.debug('CampaignContext', `Loaded conversation ${campaign.conversationId} for campaign ${id}`)
           }
         } catch (convError) {
           console.warn('[CampaignContext] Failed to load conversation:', convError)
@@ -137,7 +137,7 @@ export function CampaignProvider({
           if (convResponse.ok) {
             const convData = await convResponse.json()
             campaign.conversationId = convData.conversation.id
-            console.log(`[CampaignContext] Created conversation ${campaign.conversationId} for campaign ${campaign.id}`)
+            logger.debug('CampaignContext', `Created conversation ${campaign.conversationId} for campaign ${campaign.id}`)
           }
         } catch (convError) {
           console.warn('[CampaignContext] Failed to fetch conversation:', convError)
@@ -218,9 +218,9 @@ export function CampaignProvider({
 
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        // Log what we're saving
+        // Log what we're saving (debug mode only)
         if (field === 'ad_preview_data') {
-          console.log(`[CampaignContext] 💾 Saving ${field}:`, {
+          logger.debug('CampaignContext', `💾 Saving ${field}`, {
             campaignId: campaign.id,
             hasImageVariations: Boolean((value as { adContent?: { imageVariations?: unknown[] } })?.adContent?.imageVariations?.length),
             imageCount: ((value as { adContent?: { imageVariations?: unknown[] } })?.adContent?.imageVariations?.length) || 0,
@@ -238,12 +238,12 @@ export function CampaignProvider({
           throw new Error(`HTTP ${response.status}: ${await response.text()}`)
         }
 
-        console.log(`[CampaignContext] ✅ Saved ${field} to campaign ${campaign.id}`)
+        logger.debug('CampaignContext', `✅ Saved ${field} to campaign ${campaign.id}`)
         return true
 
       } catch (err) {
         lastError = err instanceof Error ? err : new Error('Save failed')
-        console.error(`❌ Save attempt ${attempt}/${retries} failed for ${field}:`, lastError)
+        logger.error('CampaignContext', `Save attempt ${attempt}/${retries} failed for ${field}`, lastError)
 
         if (attempt < retries) {
           const delay = Math.pow(2, attempt - 1) * 1000

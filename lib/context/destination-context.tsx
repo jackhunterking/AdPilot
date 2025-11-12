@@ -8,6 +8,8 @@
 
 "use client"
 
+import { logger } from '@/lib/utils/logger';
+
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
 import { useCampaignContext } from "./campaign-context"
 import { useSearchParams } from "next/navigation"
@@ -60,7 +62,7 @@ export function DestinationProvider({ children }: { children: ReactNode }) {
       if (saved) {
         const parsed = JSON.parse(saved) as DestinationState
         setDestinationState(parsed)
-        console.log('[DestinationContext] Loaded destination from localStorage:', storageKey, parsed)
+        logger.debug('DestinationContext', 'Loaded destination from localStorage', { storageKey, parsed })
       } else {
         // No saved destination, reset to idle
         setDestinationState({
@@ -88,7 +90,7 @@ export function DestinationProvider({ children }: { children: ReactNode }) {
     try {
       if (destinationState.data) {
         localStorage.setItem(storageKey, JSON.stringify(destinationState))
-        console.log('[DestinationContext] Saved destination to localStorage:', storageKey)
+        logger.debug('DestinationContext', 'Saved destination to localStorage', { storageKey })
       } else if (destinationState.status === 'idle') {
         // Clear storage if destination is idle with no data
         localStorage.removeItem(storageKey)
@@ -103,7 +105,7 @@ export function DestinationProvider({ children }: { children: ReactNode }) {
       status: 'completed',
       data,
     })
-    console.log('[DestinationContext] Destination set:', data)
+    logger.debug('DestinationContext', 'Destination set', data)
   }, [])
   
   const clearDestination = useCallback(() => {
@@ -117,7 +119,7 @@ export function DestinationProvider({ children }: { children: ReactNode }) {
         ? `destination:${campaign.id}:${currentAdId}`
         : `destination:${campaign.id}:draft`
       localStorage.removeItem(storageKey)
-      console.log('[DestinationContext] Destination cleared')
+      logger.debug('DestinationContext', 'Destination cleared')
     }
   }, [campaign?.id, currentAdId])
   
@@ -126,7 +128,7 @@ export function DestinationProvider({ children }: { children: ReactNode }) {
       status: 'idle',
       data: null,
     })
-    console.log('[DestinationContext] Destination reset (not clearing storage)')
+    logger.debug('DestinationContext', 'Destination reset (not clearing storage)')
   }, [])
   
   return (

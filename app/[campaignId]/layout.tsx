@@ -12,9 +12,11 @@ import { GoalProvider } from "@/lib/context/goal-context";
 import { DestinationProvider } from "@/lib/context/destination-context";
 import { LocationProvider } from "@/lib/context/location-context";
 import { AudienceProvider } from "@/lib/context/audience-context";
+import { AudienceMachineProvider } from "@/lib/context/audience-machine-context";
 import { BudgetProvider } from "@/lib/context/budget-context";
 import { AdCopyProvider } from "@/lib/context/ad-copy-context";
 import { GenerationProvider } from "@/lib/context/generation-context";
+import { FEATURE_FLAGS } from "@/lib/machines/audience/constants";
 
 export default async function CampaignLayout({
   children,
@@ -25,13 +27,18 @@ export default async function CampaignLayout({
 }) {
   const { campaignId } = await params;
   
+  // Choose audience provider based on feature flag
+  const AudienceContextProvider = FEATURE_FLAGS.USE_XSTATE_MACHINE
+    ? AudienceMachineProvider
+    : AudienceProvider;
+  
   return (
     <CampaignProvider initialCampaignId={campaignId}>
       <AdPreviewProvider>
         <GoalProvider>
           <DestinationProvider>
             <LocationProvider>
-              <AudienceProvider>
+              <AudienceContextProvider>
                 <BudgetProvider>
                   <AdCopyProvider>
                     <GenerationProvider>
@@ -39,7 +46,7 @@ export default async function CampaignLayout({
                     </GenerationProvider>
                   </AdCopyProvider>
                 </BudgetProvider>
-              </AudienceProvider>
+              </AudienceContextProvider>
             </LocationProvider>
           </DestinationProvider>
         </GoalProvider>

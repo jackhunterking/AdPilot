@@ -40,6 +40,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { PublishFlowDialog } from "@/components/launch/publish-flow-dialog"
 import { LaunchCampaignView } from "@/components/launch/launch-campaign-view"
+import { logger } from "@/lib/utils/logger"
 
 export function PreviewPanel() {
   const searchParams = useSearchParams()
@@ -140,18 +141,18 @@ export function PreviewPanel() {
       // Only accept tool-originated updates that carry a sessionId
       if (!sessionId) return;
       
-      console.log(`[CANVAS] Received imageEdited event for variation ${variationIndex}:`, newImageUrl);
+      logger.debug('PreviewPanel', `Received imageEdited event for variation ${variationIndex}`, { newImageUrl });
       
       // Update ad content with new image URL using functional update to avoid stale closure
       setAdContent((prev) => {
         if (!prev?.imageVariations) {
-          console.warn(`[CANVAS] No imageVariations to update`);
+          logger.warn('PreviewPanel', 'No imageVariations to update');
           return prev;
         }
         const updatedVariations = [...prev.imageVariations];
         updatedVariations[variationIndex] = newImageUrl;
-        console.log(`[CANVAS] ✅ Updated variation ${variationIndex} with new image`);
-        console.log(`[CANVAS] 📤 Auto-save will trigger (context change)`);
+        logger.debug('PreviewPanel', `✅ Updated variation ${variationIndex} with new image`);
+        logger.debug('PreviewPanel', '📤 Auto-save will trigger (context change)');
         return {
           ...prev,
           imageVariations: updatedVariations,
@@ -321,9 +322,9 @@ export function PreviewPanel() {
       const { toast } = await import('sonner')
       toast.success('Draft saved successfully!')
       
-      console.log('✅ Draft saved successfully')
+      logger.info('PreviewPanel', '✅ Draft saved successfully')
     } catch (error) {
-      console.error('Error saving draft:', error)
+      logger.error('PreviewPanel', 'Error saving draft', error)
       const { toast } = await import('sonner')
       toast.error('Failed to save draft')
     } finally {
@@ -372,12 +373,12 @@ export function PreviewPanel() {
       // Validate snapshot before submitting
       const validation = validateAdSnapshot(snapshot)
       if (!validation.isValid) {
-        console.error('Snapshot validation failed:', validation.errors)
+        logger.error('PreviewPanel', 'Snapshot validation failed', validation.errors)
         throw new Error(`Cannot publish: ${validation.errors.join(', ')}`)
       }
       
       if (validation.warnings.length > 0) {
-        console.warn('Snapshot warnings:', validation.warnings)
+        logger.warn('PreviewPanel', 'Snapshot warnings', validation.warnings)
       }
       
       // Gather the finalized ad data from snapshot - use canonical copy source
@@ -428,15 +429,15 @@ export function PreviewPanel() {
       
       if (!saveResponse.ok) {
         const errorText = await saveResponse.text()
-        console.error('Failed to save ad:', errorText)
+        logger.error('PreviewPanel', 'Failed to save ad', errorText)
         throw new Error('Failed to save ad data')
       }
       
       const { ad } = await saveResponse.json()
-      console.log(`✅ Step 1 complete: Ad saved (${ad.id})`)
+      logger.info('PreviewPanel', `✅ Step 1 complete: Ad saved (${ad.id})`)
       
       // Step 2: Publish the ad
-      console.log('📦 Step 2: Publishing ad to Meta...')
+      logger.info('PreviewPanel', '📦 Step 2: Publishing ad to Meta...')
       
       const publishResponse = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAdId}/publish`, {
         method: 'POST',
@@ -444,12 +445,12 @@ export function PreviewPanel() {
       
       if (!publishResponse.ok) {
         const errorData = await publishResponse.json()
-        console.error('Failed to publish ad:', errorData)
+        logger.error('PreviewPanel', 'Failed to publish ad', errorData)
         throw new Error(errorData.error || 'Failed to publish ad')
       }
       
       const publishResult = await publishResponse.json()
-      console.log(`✅ Step 2 complete: Ad published (status: ${publishResult.status})`)
+      logger.info('PreviewPanel', `✅ Step 2 complete: Ad published (status: ${publishResult.status})`)
       
       // Mark as published in context
       setIsPublished(true)
@@ -467,7 +468,7 @@ export function PreviewPanel() {
         }))
       }
     } catch (error) {
-      console.error('Error in handlePublishComplete:', error)
+      logger.error('PreviewPanel', 'Error in handlePublishComplete', error)
       throw error // Re-throw so dialog can handle error state
     } finally {
       setIsPublishing(false)

@@ -383,7 +383,7 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
     
     // Only emit event if parameters actually changed (prevents infinite loop)
     if (lastConfirmedParams.current !== paramsKey) {
-      console.log('[AudienceContext] Parameters confirmed, emitting event')
+      console.log('[AudienceContext] Parameters confirmed, emitting event');
       window.dispatchEvent(new CustomEvent('manualTargetingConfirmed'))
       lastConfirmedParams.current = paramsKey
     }

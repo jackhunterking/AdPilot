@@ -14,6 +14,7 @@ import { createContext, useContext, useState, useEffect, useMemo, useCallback, t
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useAutoSave } from "@/lib/hooks/use-auto-save"
 import { AUTO_SAVE_CONFIGS } from "@/lib/types/auto-save"
+import { logger } from "@/lib/utils/logger"
 import { metaStorage } from "@/lib/meta/storage"
 
 interface BudgetState {
@@ -62,7 +63,7 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     // campaign_states is 1-to-1 object, not array
     const savedData = campaign.campaign_states?.budget_data as unknown as Partial<BudgetState> | null
     if (savedData) {
-      console.log('[BudgetContext] ✅ Restoring budget state:', savedData);
+      logger.debug('BudgetContext', '✅ Restoring budget state', savedData)
       setBudgetState(prev => ({
         ...prev,
         dailyBudget: typeof savedData.dailyBudget === "number" ? savedData.dailyBudget : prev.dailyBudget,
