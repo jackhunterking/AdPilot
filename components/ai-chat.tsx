@@ -62,7 +62,7 @@ import { useAdPreview } from "@/lib/context/ad-preview-context";
 import { searchLocations, getLocationBoundary } from "@/app/actions/geocoding";
 import { useGoal } from "@/lib/context/goal-context";
 import { useLocation } from "@/lib/context/location-context";
-import { useAudience } from "@/lib/context/audience-context";
+import { useAudience } from "@/lib/context/audience-machine-context";
 import { AdReferenceCard } from "@/components/ad-reference-card-example";
 import { AudienceContextCard } from "@/components/audience-context-card";
 import { useGeneration } from "@/lib/context/generation-context";

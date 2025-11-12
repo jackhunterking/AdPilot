@@ -3,10 +3,11 @@
 /**
  * Feature: Launch - Audience Summary Card
  * Purpose: Compact audience summary for final launch view
+ * Architecture: Uses XState v5 audience machine
  */
 
 import { Button } from "@/components/ui/button"
-import { useAudience } from "@/lib/context/audience-context"
+import { useAudience } from "@/lib/context/audience-machine-context"
 import { Check, Target, Sparkles } from "lucide-react"
 
 export function AudienceSummaryCard() {

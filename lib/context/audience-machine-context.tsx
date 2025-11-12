@@ -8,7 +8,7 @@
 
 'use client';
 
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { useAudienceMachine as useAudienceMachineHook, type UseAudienceMachineReturn } from '@/lib/hooks/use-audience-machine';
 import { useCampaignContext } from './campaign-context';
 import type {
@@ -84,8 +84,8 @@ export function AudienceMachineProvider({ children }: { children: ReactNode }) {
   // Use XState machine hook
   const machine = useAudienceMachineHook(campaignId);
 
-  // Build backward-compatible API
-  const value: AudienceMachineContextType = {
+  // Build backward-compatible API with memoization
+  const value: AudienceMachineContextType = useMemo(() => ({
     // Map XState state to legacy state structure
     audienceState: {
       status: STATE_TO_LEGACY_STATUS[machine.state] || 'idle',
@@ -218,7 +218,25 @@ export function AudienceMachineProvider({ children }: { children: ReactNode }) {
       console.log('[AudienceMachineContext] removeConnection:', connectionId);
       // Connections not implemented in machine yet
     },
-  };
+  }), [
+    machine.state,
+    machine.context,
+    machine.isAICompleted,
+    machine.isManualCompleted,
+    machine.isLoading,
+    machine.isSwitching,
+    machine.selectAIMode,
+    machine.selectManualMode,
+    machine.switchToAI,
+    machine.switchToManual,
+    machine.confirmManualParameters,
+    machine.updateDemographics,
+    machine.addInterest,
+    machine.removeInterest,
+    machine.addBehavior,
+    machine.removeBehavior,
+    machine.reset,
+  ]);
 
   return (
     <AudienceMachineContext.Provider value={value}>

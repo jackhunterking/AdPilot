@@ -4,19 +4,18 @@
  * Feature: Audience Selection Canvas
  * Purpose: UI for selecting and configuring audience targeting
  * 
- * Architecture: This component works with both:
- * - Legacy useState-based audience context (audience-context.tsx)
- * - New XState-based machine context (audience-machine-context.tsx)
- * 
- * The context provider is selected at layout level based on NEXT_PUBLIC_USE_XSTATE_AUDIENCE flag.
- * Both contexts expose the same API via useAudience() hook.
+ * Architecture: Powered by XState v5 finite state machine
+ * - Single source of truth
+ * - Atomic state updates
+ * - Zero race conditions
+ * - Predictable state transitions
  */
 
 import { Check, Target, Loader2, Sparkles, AlertCircle, Users, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { useState } from "react"
-import { useAudience } from "@/lib/context/audience-context"
+import { useState, memo } from "react"
+import { useAudience } from "@/lib/context/audience-machine-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
@@ -25,7 +24,7 @@ interface AudienceSelectionCanvasProps {
   variant?: "step" | "summary"
 }
 
-export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionCanvasProps = {}) {
+export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionCanvasProps = {}) {
   const { 
     audienceState, 
     resetAudience, 
@@ -543,5 +542,5 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
   }
 
   return null
-}
+});
 

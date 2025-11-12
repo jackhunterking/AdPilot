@@ -20,9 +20,9 @@ import { AllAdsGrid } from "@/components/all-ads-grid"
 import { ABTestBuilder } from "@/components/ab-test/ab-test-builder"
 import { PublishFlowDialog } from "@/components/launch/publish-flow-dialog"
 import { useCampaignContext } from "@/lib/context/campaign-context"
+import { useAudience } from "@/lib/context/audience-machine-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { useLocation } from "@/lib/context/location-context"
-import { useAudience } from "@/lib/context/audience-context"
 import { useAdCopy } from "@/lib/context/ad-copy-context"
 import { useBudget } from "@/lib/context/budget-context"
 import { useCampaignAds } from "@/lib/hooks/use-campaign-ads"
@@ -777,7 +777,7 @@ export function CampaignWorkspace() {
           
           // Hydrate audience context
           const audienceData = hydrateAudienceFromSnapshot(snapshot)
-          setAudienceTargeting(audienceData.targeting)
+          setAudienceTargeting(audienceData.targeting as any) // Type widening for XState context compatibility
           console.log(`[${traceId}] ✅ Hydrated audience from snapshot`)
           
           // Hydrate destination context

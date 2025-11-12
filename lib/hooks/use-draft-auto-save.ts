@@ -34,7 +34,7 @@ import { useAdPreview } from '@/lib/context/ad-preview-context'
 import { useAdCopy } from '@/lib/context/ad-copy-context'
 import { useDestination } from '@/lib/context/destination-context'
 import { useLocation } from '@/lib/context/location-context'
-import { useAudience } from '@/lib/context/audience-context'
+import { useAudience } from '@/lib/context/audience-machine-context'
 import { useGoal } from '@/lib/context/goal-context'
 import { useBudget } from '@/lib/context/budget-context'
 
