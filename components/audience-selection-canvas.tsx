@@ -38,16 +38,16 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
   const [isSwitching, setIsSwitching] = useState(false)
   const isSummary = variant === "summary"
 
-  // Debug logging to track state transitions
-  console.log('[Canvas] Audience State:', {
-    status: audienceState.status,
-    mode: audienceState.targeting.mode,
-    isAIMode: audienceState.targeting.mode === 'ai',
-    hasAdvantage: audienceState.targeting.advantage_plus_enabled,
-    hasDescription: !!audienceState.targeting.description,
-    hasDemographics: !!audienceState.targeting.demographics,
-    hasDetailedTargeting: !!audienceState.targeting.detailedTargeting,
-  })
+  // Debug logging to track state transitions (uncomment if needed for debugging)
+  // console.log('[Canvas] Audience State:', {
+  //   status: audienceState.status,
+  //   mode: audienceState.targeting.mode,
+  //   isAIMode: audienceState.targeting.mode === 'ai',
+  //   hasAdvantage: audienceState.targeting.advantage_plus_enabled,
+  //   hasDescription: !!audienceState.targeting.description,
+  //   hasDemographics: !!audienceState.targeting.demographics,
+  //   hasDetailedTargeting: !!audienceState.targeting.detailedTargeting,
+  // })
 
   const renderLayout = (content: React.ReactNode, maxWidthClass = "max-w-2xl") => {
     if (isSummary) {
@@ -120,12 +120,12 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
                 if (isEnabling) return
                 setIsEnabling(true)
                 
-                // Update audience state immediately
+                // Update audience state via machine (triggers: idle → enablingAI → aiCompleted)
                 setAudienceTargeting({ 
                   mode: 'ai', 
                   advantage_plus_enabled: true 
                 })
-                updateStatus('completed')
+                // Don't manually set status - let machine handle it
                 
                 // Show success toast
                 toast.success('AI Advantage+ enabled')
@@ -190,6 +190,10 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
               size="lg"
               variant="outline"
               onClick={() => {
+                // Update state via machine (triggers: idle → gatheringManualInfo)
+                setAudienceTargeting({ mode: 'manual' });
+                // Don't manually set status - let machine handle it
+                
                 // Emit event to trigger AI chat tool call for visual feedback
                 window.dispatchEvent(new CustomEvent('triggerAudienceModeSelection', { 
                   detail: { mode: 'manual' } 

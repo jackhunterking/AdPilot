@@ -1055,9 +1055,9 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       
       if (mode === 'ai') {
         try {
-          // Set AI Advantage+ targeting and mark as completed
+          // Set AI Advantage+ targeting (triggers machine: idle → enablingAI → aiCompleted)
           setAudienceTargeting({ mode: 'ai', advantage_plus_enabled: true });
-          updateAudienceStatus('completed');
+          // Don't manually set status - let machine handle transition to 'completed'
           
           // Show card immediately (direct rendering, no AI involvement)
           const cardId = `ai-advantage-${Date.now()}`;
@@ -1075,9 +1075,9 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
         }
       } else {
         try {
-          // Set manual targeting mode and move to gathering-info status
+          // Set manual targeting mode (triggers machine: idle → gatheringManualInfo)
           setAudienceTargeting({ mode: 'manual' });
-          updateAudienceStatus('gathering-info');
+          // Don't manually set status - let machine handle transition to 'gathering-info'
           
           // Show "Manual Targeting Enabled" card immediately
           setShowManualTargetingEnabledCard(true);
