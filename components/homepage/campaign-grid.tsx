@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Badge } from '@/components/ui/badge'
 import { Tables } from '@/lib/supabase/database.types'
 import { CampaignCardMenu } from '@/components/workspace/campaign-card-menu'
@@ -17,7 +18,6 @@ export function CampaignGrid() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(false)
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null)
   
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -145,37 +145,40 @@ export function CampaignGrid() {
           {hasMore && (
             <button
               onClick={() => router.push('/workspace')}
-              className="text-sm font-medium text-blue-500 hover:text-blue-600 transition-colors"
+              className="text-sm font-medium text-blue-500 hover:text-blue-600 transition-colors cursor-pointer"
             >
               View all →
             </button>
           )}
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {campaigns.map((campaign) => (
+          {campaigns.map((campaign, index) => (
             <div
               key={campaign.id}
-              onMouseEnter={() => setHoveredCard(campaign.id)}
-              onMouseLeave={() => setHoveredCard(null)}
-              className="group relative cursor-pointer bg-card rounded-xl overflow-hidden border border-border hover:border-blue-500 transition-all hover:shadow-xl"
+              className="group relative bg-card rounded-xl overflow-hidden border border-border hover:border-blue-500 transition-all hover:shadow-xl"
             >
-              {/* Three-dot menu - shown on hover */}
-              {hoveredCard === campaign.id && (
-                <div className="absolute top-2 right-2 z-10">
-                  <CampaignCardMenu
-                    campaign={campaign}
-                    onOpen={() => router.push(`/${campaign.id}`)}
-                    onRename={() => handleRename(campaign)}
-                    onDelete={() => handleDelete(campaign)}
-                  />
-                </div>
-              )}
+              {/* Three-dot menu - always visible */}
+              <div className="absolute top-2 right-2 z-10">
+                <CampaignCardMenu
+                  campaign={campaign}
+                  onOpen={() => router.push(`/${campaign.id}`)}
+                  onRename={() => handleRename(campaign)}
+                  onDelete={() => handleDelete(campaign)}
+                />
+              </div>
               
-              <div onClick={() => router.push(`/${campaign.id}`)}>
+              <div 
+                onClick={() => router.push(`/${campaign.id}`)}
+                className="cursor-pointer"
+              >
                 <div className="relative aspect-video bg-muted">
-                  <img
+                  <Image
                     src={getThumbnail(campaign)}
                     alt={campaign.name}
+                    width={800}
+                    height={450}
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    priority={index < 3}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>

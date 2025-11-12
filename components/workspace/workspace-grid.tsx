@@ -9,6 +9,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Tables } from '@/lib/supabase/database.types'
@@ -36,7 +37,6 @@ export function WorkspaceGrid() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [sortBy, setSortBy] = useState('updated')
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null)
   
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -232,30 +232,33 @@ export function WorkspaceGrid() {
 
         {/* Campaign Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredCampaigns.map((campaign) => (
+          {filteredCampaigns.map((campaign, index) => (
             <div
               key={campaign.id}
-              onMouseEnter={() => setHoveredCard(campaign.id)}
-              onMouseLeave={() => setHoveredCard(null)}
-              className="group relative cursor-pointer bg-card rounded-xl overflow-hidden border border-border hover:border-blue-500 transition-all hover:shadow-xl"
+              className="group relative bg-card rounded-xl overflow-hidden border border-border hover:border-blue-500 transition-all hover:shadow-xl"
             >
-              {/* Three-dot menu - shown on hover */}
-              {hoveredCard === campaign.id && (
-                <div className="absolute top-2 right-2 z-10">
-                  <CampaignCardMenu
-                    campaign={campaign}
-                    onOpen={() => router.push(`/${campaign.id}`)}
-                    onRename={() => handleRename(campaign)}
-                    onDelete={() => handleDelete(campaign)}
-                  />
-                </div>
-              )}
+              {/* Three-dot menu - always visible */}
+              <div className="absolute top-2 right-2 z-10">
+                <CampaignCardMenu
+                  campaign={campaign}
+                  onOpen={() => router.push(`/${campaign.id}`)}
+                  onRename={() => handleRename(campaign)}
+                  onDelete={() => handleDelete(campaign)}
+                />
+              </div>
               
-              <div onClick={() => router.push(`/${campaign.id}`)}>
+              <div 
+                onClick={() => router.push(`/${campaign.id}`)}
+                className="cursor-pointer"
+              >
                 <div className="relative aspect-video bg-muted">
-                  <img
+                  <Image
                     src={getThumbnail(campaign)}
                     alt={campaign.name}
+                    width={800}
+                    height={450}
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, (max-width: 1536px) 33vw, 25vw"
+                    priority={index < 4}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>

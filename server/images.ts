@@ -32,7 +32,7 @@ export async function uploadToSupabase(
             .from('campaign-assets')
             .upload(path, imageBuffer, {
                 contentType: 'image/png',
-                cacheControl: '3600',
+                cacheControl: '31536000', // 1 year - images are immutable (unique filenames)
                 upsert: false,
                 metadata: metadata || {}
             });

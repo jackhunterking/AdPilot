@@ -30,16 +30,30 @@ interface CampaignCardMenuProps {
 export function CampaignCardMenu({ campaign, onOpen, onRename, onDelete }: CampaignCardMenuProps) {
   const handleMenuClick = (e: React.MouseEvent, action: () => void) => {
     e.stopPropagation()
+    e.preventDefault()
     action()
+  }
+
+  const handleTriggerClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+  }
+
+  const handleTriggerPointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation()
   }
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+      <DropdownMenuTrigger 
+        asChild 
+        onClick={handleTriggerClick}
+        onPointerDown={handleTriggerPointerDown}
+      >
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0 bg-background/80 backdrop-blur-sm hover:bg-background"
+          className="h-8 w-8 p-0 bg-background/90 backdrop-blur-sm hover:bg-background shadow-sm"
         >
           <MoreHorizontal className="h-4 w-4" />
           <span className="sr-only">Open menu</span>
