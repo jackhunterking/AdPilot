@@ -57,14 +57,14 @@ import { generateImage } from "@/server/images";
 import { ImageGenerationConfirmation } from "@/components/ai-elements/image-generation-confirmation";
 // Removed legacy FormSelectionUI in favor of unified canvas in Goal step
 import { ImageEditProgressLoader } from "@/components/ai-elements/image-edit-progress-loader";
-import { renderEditImageResult, renderRegenerateImageResult, renderEditAdCopyResult, renderAudienceModeResult, renderManualTargetingParametersResult, renderSwitchTargetingModeResult } from "@/components/ai-elements/tool-renderers";
+import { renderEditImageResult, renderRegenerateImageResult, renderEditAdCopyResult } from "@/components/ai-elements/tool-renderers";
 import { useAdPreview } from "@/lib/context/ad-preview-context";
 import { searchLocations, getLocationBoundary } from "@/app/actions/geocoding";
 import { useGoal } from "@/lib/context/goal-context";
 import { useLocation } from "@/lib/context/location-context";
-import { useAudience } from "@/lib/context/audience-machine-context";
+// Audience context removed - clean slate for fresh implementation
 import { AdReferenceCard } from "@/components/ad-reference-card-example";
-import { AudienceContextCard } from "@/components/audience-context-card";
+// AudienceContextCard removed - clean slate for fresh implementation
 import { useGeneration } from "@/lib/context/generation-context";
 import { emitBrowserEvent } from "@/lib/utils/browser-events";
 import { useCampaignContext } from "@/lib/context/campaign-context";

@@ -11,7 +11,7 @@ import { AdPreviewProvider } from "@/lib/context/ad-preview-context";
 import { GoalProvider } from "@/lib/context/goal-context";
 import { DestinationProvider } from "@/lib/context/destination-context";
 import { LocationProvider } from "@/lib/context/location-context";
-import { AudienceMachineProvider } from "@/lib/context/audience-machine-context";
+import { AudienceProvider } from "@/lib/context/audience-context";
 import { BudgetProvider } from "@/lib/context/budget-context";
 import { AdCopyProvider } from "@/lib/context/ad-copy-context";
 import { GenerationProvider } from "@/lib/context/generation-context";
@@ -31,7 +31,7 @@ export default async function CampaignLayout({
         <GoalProvider>
           <DestinationProvider>
             <LocationProvider>
-              <AudienceMachineProvider>
+              <AudienceProvider>
                 <BudgetProvider>
                   <AdCopyProvider>
                     <GenerationProvider>
@@ -39,7 +39,7 @@ export default async function CampaignLayout({
                     </GenerationProvider>
                   </AdCopyProvider>
                 </BudgetProvider>
-              </AudienceMachineProvider>
+              </AudienceProvider>
             </LocationProvider>
           </DestinationProvider>
         </GoalProvider>
