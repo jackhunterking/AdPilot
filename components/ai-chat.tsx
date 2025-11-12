@@ -1011,9 +1011,17 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   }, []);
 
   // Listen for audience mode selection (AI Advantage+ or Manual Targeting)
+  // GUARD: Only handle during initial selection (idle state), not during switches
   useEffect(() => {
     const handleAudienceModeSelection = (event: CustomEvent<{ mode: 'ai' | 'manual' }>) => {
       const { mode } = event.detail;
+      
+      // GUARD: Prevent re-triggering during switches or when already set
+      // This should only work when user is making initial selection from idle state
+      if (audienceState.status !== 'idle') {
+        console.log('[AIChat] Ignoring triggerAudienceModeSelection - not in idle state:', audienceState.status);
+        return;
+      }
       
       if (mode === 'ai') {
         // Set AI Advantage+ targeting and mark as completed
@@ -1042,7 +1050,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
 
     window.addEventListener('triggerAudienceModeSelection', handleAudienceModeSelection as EventListener);
     return () => window.removeEventListener('triggerAudienceModeSelection', handleAudienceModeSelection as EventListener);
-  }, [setAudienceTargeting, updateAudienceStatus]);
+  }, [setAudienceTargeting, updateAudienceStatus, audienceState.status]);
 
   // Listen for audience reset to clear processed tools registry and UI flags
   useEffect(() => {
@@ -1073,6 +1081,74 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     window.addEventListener('audienceReset', handleAudienceReset);
     return () => window.removeEventListener('audienceReset', handleAudienceReset);
   }, [conversationId]);
+
+  // Listen for audience mode switch to clear tool registry without clearing conversation
+  useEffect(() => {
+    const handleAudienceModeSwitch = (event: CustomEvent<{ newMode: 'ai' | 'manual'; fromMode: 'ai' | 'manual' }>) => {
+      const { newMode, fromMode } = event.detail;
+      console.log(`[AIChat] Audience mode switch detected: ${fromMode} → ${newMode}`);
+      
+      // Clear the processed tools registry (stale tool calls from previous mode)
+      processedAudienceToolsRef.current.clear();
+      
+      // Clear sessionStorage
+      const storageKey = `processed-audience-tools-${conversationId || 'default'}`;
+      try {
+        sessionStorage.removeItem(storageKey);
+      } catch (error) {
+        console.error('[AIChat] Failed to clear processed tools from storage:', error);
+      }
+      
+      // Clear UI flags
+      setShowAIAdvantageCard(false);
+      setAIAdvantageCardId(null);
+      setShowManualTargetingSuccessCard(false);
+      
+      // Clear pending and processing states
+      setPendingAudienceCalls([]);
+      setProcessingAudience(new Set());
+      
+      // NOTE: We do NOT clear conversation history - that's preserved during switches
+    };
+
+    window.addEventListener('audienceModeSwitch', handleAudienceModeSwitch as EventListener);
+    return () => window.removeEventListener('audienceModeSwitch', handleAudienceModeSwitch as EventListener);
+  }, [conversationId]);
+
+  // Journey 1: AI → Manual - Send transition message + first question
+  useEffect(() => {
+    const handleManualTargetingTransition = () => {
+      console.log('[AIChat] Journey 1: Transitioning to manual targeting - sending welcome message');
+      
+      // Send transition message acknowledging the switch + first question
+      sendMessageRef.current({
+        text: `I've switched you to manual targeting. Let me help you build your audience profile. Who is your ideal customer? Please describe them in terms of age, gender, interests, and behaviors.`,
+      });
+    };
+
+    window.addEventListener('triggerManualTargetingTransition', handleManualTargetingTransition);
+    return () => window.removeEventListener('triggerManualTargetingTransition', handleManualTargetingTransition);
+  }, []);
+
+  // Journey 2: Manual → AI - Send confirmation message
+  useEffect(() => {
+    const handleAIAdvantageConfirmation = () => {
+      console.log('[AIChat] Journey 2: Switched to AI Advantage+ - sending confirmation');
+      
+      // Send confirmation message about AI Advantage+ being enabled
+      sendMessageRef.current({
+        text: `Perfect! I've enabled AI Advantage+ targeting. Meta's AI will automatically find and show your ads to people most likely to engage, optimizing for the best results. This typically delivers 22% better ROAS.`,
+      });
+      
+      // Show the AI advantage card
+      const cardId = `ai-advantage-${Date.now()}`;
+      setAIAdvantageCardId(cardId);
+      setShowAIAdvantageCard(true);
+    };
+
+    window.addEventListener('triggerAIAdvantageConfirmation', handleAIAdvantageConfirmation);
+    return () => window.removeEventListener('triggerAIAdvantageConfirmation', handleAIAdvantageConfirmation);
+  }, []);
 
   // Listen for audience parameters confirmation (when user clicks "Confirm Targeting" in chat)
   useEffect(() => {

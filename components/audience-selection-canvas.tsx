@@ -196,6 +196,80 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
     return renderLayout(content, "max-w-5xl")
   }
 
+  // Switching state: Show appropriate transition UI
+  if (audienceState.status === "switching") {
+    const switchingToManual = audienceState.targeting.mode === "manual"
+    const switchingToAI = audienceState.targeting.mode === "ai"
+    
+    // Journey 2: Manual → AI (show AI card briefly before transitioning to completed)
+    if (switchingToAI) {
+      const content = (
+        <div className="max-w-4xl mx-auto w-full">
+          <div className="grid grid-cols-1 gap-6">
+            {/* AI Advantage+ Card (Transitioning) */}
+            <div className={cn(
+              "group relative flex flex-col items-center p-8 rounded-2xl border-2 border-blue-500 bg-blue-500/5 transition-all duration-300 shadow-lg",
+              "animate-in fade-in zoom-in duration-500"
+            )}>
+              {/* Switching Badge */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <Badge className="bg-blue-600 text-white px-3 py-1 text-xs font-semibold shadow-md animate-pulse">
+                  Enabling AI Advantage+...
+                </Badge>
+              </div>
+              
+              <div className="h-16 w-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-4 mt-2">
+                <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+              </div>
+              
+              <div className="text-center space-y-2 flex-1 flex flex-col justify-start mb-4">
+                <h3 className="text-xl font-semibold">AI Advantage+</h3>
+                <p className="text-sm text-muted-foreground">
+                  Switching to automatic audience optimization
+                </p>
+                
+                {/* Benefits List */}
+                <ul className="text-xs text-muted-foreground space-y-1.5 mt-3 text-left">
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                    <span>Automatic optimization</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                    <span>Broader reach</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                    <span>Better performance</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+      return renderLayout(content, "max-w-5xl")
+    }
+    
+    // Journey 1: AI → Manual (show loading state)
+    if (switchingToManual) {
+      const content = (
+        <div className="max-w-2xl mx-auto w-full space-y-6">
+          <div className="text-center space-y-4">
+            <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto">
+              <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+            </div>
+            <h2 className="text-2xl font-bold">Switching to Manual Targeting...</h2>
+            <p className="text-muted-foreground">
+              Preparing conversational targeting setup
+            </p>
+          </div>
+        </div>
+      )
+      return renderLayout(content, "max-w-3xl")
+    }
+  }
+
   // Manual targeting: AI gathering information through conversation
   if (audienceState.status === "gathering-info" && audienceState.targeting.mode === "manual") {
     const content = (
@@ -235,9 +309,12 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
           <Button
             variant="outline"
             size="lg"
-            onClick={resetAudience}
+            onClick={async () => {
+              await switchTargetingMode('ai')
+            }}
+            disabled={isSwitching}
           >
-            Back to Options
+            {isSwitching ? 'Switching...' : 'Switch to AI Advantage+'}
           </Button>
         </div>
       </div>
@@ -285,9 +362,12 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
           <Button
             variant="outline"
             size="lg"
-            onClick={resetAudience}
+            onClick={async () => {
+              await switchTargetingMode('ai')
+            }}
+            disabled={isSwitching}
           >
-            Back to Options
+            {isSwitching ? 'Switching...' : 'Switch to AI Advantage+'}
           </Button>
         </div>
       </div>

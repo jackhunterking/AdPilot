@@ -155,10 +155,45 @@ export function AudienceMachineProvider({ children }: { children: ReactNode }) {
     },
 
     switchTargetingMode: async (newMode) => {
+      const currentMode = machine.context.mode;
+      
+      // Don't switch if already in target mode
+      if (currentMode === newMode) {
+        console.log('[AudienceMachineContext] Already in target mode:', newMode);
+        return;
+      }
+      
+      console.log(`[AudienceMachineContext] Switching mode: ${currentMode} → ${newMode}`);
+      
+      // Dispatch audienceModeSwitch event to clear tool registry and UI flags
+      window.dispatchEvent(new CustomEvent('audienceModeSwitch', {
+        detail: { newMode, fromMode: currentMode }
+      }));
+      
+      // Trigger machine transition
       if (newMode === 'ai') {
         machine.switchToAI();
       } else {
         machine.switchToManual();
+      }
+      
+      // Wait for state transition to complete
+      // The machine handles the delay through the switching state
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Trigger appropriate AI chat messages based on journey
+      if (newMode === 'manual') {
+        // Journey 1: AI → Manual
+        // Wait for machine to reach gatheringManualInfo state, then send transition message
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('triggerManualTargetingTransition'));
+        }, 600); // After switching state delay
+      } else {
+        // Journey 2: Manual → AI
+        // Send confirmation message after AI card display
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('triggerAIAdvantageConfirmation'));
+        }, 900); // After AI card display
       }
     },
 
