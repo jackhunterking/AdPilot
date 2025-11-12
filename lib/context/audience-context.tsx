@@ -82,19 +82,35 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
   // Memoize state to prevent unnecessary recreations
   const memoizedAudienceState = useMemo(() => audienceState, [audienceState])
 
-  // Load initial state from campaign ONCE (even if empty)
+  // Load initial state from campaign ONCE - show saved data or default to selection screen
   useEffect(() => {
     if (!campaign?.id || isInitialized) return
     
     // campaign_states is 1-to-1 object, not array
-    const savedData = campaign.campaign_states?.audience_data as unknown as AudienceState | null
-    if (savedData) {
-      console.log('[AudienceContext] ✅ Restoring audience state:', savedData);
-      setAudienceState(savedData)
+    const audienceData = campaign.campaign_states?.audience_data as unknown as AudienceState | null
+    
+    if (audienceData) {
+      console.log('[AudienceContext] Loading saved audience data', audienceData)
+      // Restore from saved data
+      setAudienceState({
+        status: audienceData.status || "completed",
+        targeting: audienceData.targeting || { mode: "ai" },
+        errorMessage: audienceData.errorMessage,
+        isSelected: true,
+      })
+    } else {
+      // No saved data - show selection screen
+      console.log('[AudienceContext] No saved data, showing selection')
+      setAudienceState({
+        status: "idle",
+        targeting: { mode: "ai" },
+        errorMessage: undefined,
+        isSelected: false,
+      })
     }
     
     setIsInitialized(true) // Mark initialized regardless of saved data
-  }, [campaign, isInitialized])
+  }, [campaign?.id, isInitialized])
 
   // Save function
   const saveFn = useCallback(async (state: AudienceState) => {

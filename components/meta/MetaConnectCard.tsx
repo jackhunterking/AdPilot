@@ -137,32 +137,6 @@ export function MetaConnectCard() {
     }
   }, [enabled, campaign?.id])
 
-  useEffect(() => { void hydrate() }, [hydrate])
-
-  // Emit events on mount/summary change to ensure all components sync
-  useEffect(() => {
-    if (!enabled || !campaign?.id || !summary) return
-    
-    // If we have a connection, emit current state
-    if (summary.status === 'connected' || summary.status === 'selected_assets' || summary.status === 'payment_linked' || summary.adAccount?.id) {
-      console.log('[MetaConnectCard] Emitting connection state on mount/update', {
-        campaignId: campaign.id,
-        status: summary.status,
-        hasAdAccount: !!summary.adAccount?.id,
-        paymentConnected: summary.paymentConnected,
-      })
-      
-      emitMetaConnectionChange(campaign.id, 'connected')
-      
-      // Emit payment status
-      if (summary.paymentConnected) {
-        emitMetaPaymentUpdate(campaign.id, 'verified')
-      } else {
-        emitMetaPaymentUpdate(campaign.id, 'missing')
-      }
-    }
-  }, [enabled, campaign?.id, summary?.status, summary?.adAccount?.id, summary?.paymentConnected])
-
   // Fetch payment capability when ad account is selected
   useEffect(() => {
     const run = async () => {
@@ -244,33 +218,12 @@ export function MetaConnectCard() {
               hasToken: !!(messageData.connectionData.long_lived_user_token || messageData.connectionData.user_app_token),
             })
 
-            // Store connection data in localStorage
+            // Store connection data in localStorage (single source of truth)
             metaStorage.setConnection(campaign.id, messageData.connectionData)
-          }
-
-          // Refresh from localStorage, then emit events
-          void hydrate().then(() => {
-            // Debounce event emission to prevent duplicates (100ms window)
-            if (eventDebounceTimer.current) {
-              clearTimeout(eventDebounceTimer.current)
-            }
             
-            eventDebounceTimer.current = setTimeout(() => {
-              if (!campaign?.id) return
-              
-              // Emit connection change event AFTER localStorage and hydrate complete
-              if (messageData.status === 'payment-added') {
-                emitMetaPaymentUpdate(campaign.id, 'verified')
-              } else {
-                emitMetaConnectionChange(campaign.id, 'connected')
-              }
-              
-              metaLogger.info('MetaConnectCard', 'Emitted connection event', {
-                campaignId: campaign.id,
-                status: messageData.status,
-              })
-            }, 100)
-          })
+            // Refresh local state once
+            void hydrate()
+          }
         }
       } catch (error) {
         metaLogger.error('MetaConnectCard', 'Error handling META_CONNECTED message', error as Error)

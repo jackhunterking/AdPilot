@@ -250,8 +250,7 @@ export function WorkspaceHeader({
                       })
                       // Update localStorage with payment connected
                       metaStorage.markPaymentConnected(campaign.id)
-                      // Refresh status to update button
-                      refreshStatus()
+                      // Status will be read from localStorage on next mount
                     }
                   }
                 })
@@ -259,9 +258,6 @@ export function WorkspaceHeader({
                   metaLogger.error('WorkspaceHeader', 'Payment verification failed', err as Error)
                 })
             }
-            
-            // Refresh status immediately
-            refreshStatus()
             
             // Call onMetaConnect callback
             onMetaConnect?.()
@@ -277,18 +273,7 @@ export function WorkspaceHeader({
     return () => {
       window.removeEventListener('message', handleMessage)
     }
-  }, [campaign?.id, refreshStatus, onMetaConnect])
-  
-  // Add window focus listener to refresh status when popup closes
-  useEffect(() => {
-    const handleFocus = () => {
-      // When window regains focus (popup closed), refresh status
-      refreshStatus()
-    }
-    
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, [refreshStatus])
+  }, [campaign?.id, onMetaConnect])
 
   // Auto-verify payment status for existing connections (fixes old data with hardcoded false)
   useEffect(() => {
@@ -370,9 +355,7 @@ export function WorkspaceHeader({
             })
             metaStorage.markPaymentConnected(campaign.id)
             setAccountRestriction(null)
-            
-            // Refresh status to update button color
-            refreshStatus()
+            // Status will be read from localStorage on next page load
           } else if (data.accountStatus === META_ACCOUNT_STATUS.DISABLED || data.accountStatus === META_ACCOUNT_STATUS.CLOSED) {
             // Account is restricted/disabled by Meta
             metaLogger.warn('WorkspaceHeader', 'Ad account is restricted by Meta', {
@@ -387,9 +370,7 @@ export function WorkspaceHeader({
               accountStatus: data.accountStatus,
               disableReason: data.disableReason,
             })
-            
-            // Refresh status
-            refreshStatus()
+            // Status will be read from localStorage on next page load
           } else {
             metaLogger.info('WorkspaceHeader', 'Payment confirmed as missing', {
               campaignId: campaign.id,
@@ -405,7 +386,7 @@ export function WorkspaceHeader({
       .catch((err) => {
         metaLogger.error('WorkspaceHeader', 'Payment verification request failed', err as Error)
       })
-  }, [metaConnectionStatus, paymentStatus, campaign?.id, metaActions, refreshStatus])
+  }, [metaConnectionStatus, paymentStatus, campaign?.id, metaActions])
 
   // Call onMetaConnect when connection status changes to connected
   useEffect(() => {
@@ -413,39 +394,6 @@ export function WorkspaceHeader({
       onMetaConnect()
     }
   }, [metaConnectionStatus, onMetaConnect])
-
-  // Fallback check: If hook has default values but localStorage has connection, force refresh
-  useEffect(() => {
-    if (!campaign?.id) return
-    
-    console.log('[WorkspaceHeader] Current status from hook', {
-      campaignId: campaign.id,
-      hookMetaStatus,
-      hookPaymentStatus,
-      propsMetaStatus,
-      propsPaymentStatus,
-      effectiveMetaStatus: metaConnectionStatus,
-      effectivePaymentStatus: paymentStatus,
-    })
-    
-    // If hook still has default values, check localStorage directly
-    if (hookMetaStatus === 'disconnected' && hookPaymentStatus === 'unknown') {
-      const summary = metaActions.getSummary()
-      
-      console.log('[WorkspaceHeader] Checking localStorage directly', {
-        hasSummary: !!summary,
-        summaryStatus: summary?.status,
-        hasAdAccount: !!summary?.adAccount?.id,
-        paymentConnected: summary?.paymentConnected,
-      })
-      
-      if (summary?.status === 'connected' || summary?.status === 'selected_assets' || summary?.status === 'payment_linked' || summary?.adAccount?.id) {
-        // We have a connection that hook hasn't detected yet
-        console.log('[WorkspaceHeader] Found connection in localStorage, forcing refresh')
-        refreshStatus()
-      }
-    }
-  }, [campaign?.id, hookMetaStatus, hookPaymentStatus, metaActions, refreshStatus, propsMetaStatus, propsPaymentStatus, metaConnectionStatus, paymentStatus])
 
   const getMetaConnectionBadge = () => {
     // Connected state - show dropdown

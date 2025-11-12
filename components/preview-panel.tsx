@@ -1273,7 +1273,7 @@ export function PreviewPanel() {
         number: 4,
         title: "Define Audience",
         description: "Select who should see your ads",
-        completed: audienceState.status === "completed",
+        completed: audienceState.status === "completed" || audienceState.isSelected,
         content: <AudienceSelectionCanvas />,
         icon: Target,
       },
