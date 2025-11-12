@@ -6,7 +6,7 @@ import { useAutoSave } from "@/lib/hooks/use-auto-save"
 import { AUTO_SAVE_CONFIGS } from "@/lib/types/auto-save"
 
 type AudienceMode = "ai" | "manual"
-type AudienceStatus = "idle" | "generating" | "gathering-info" | "setup-in-progress" | "completed" | "error"
+type AudienceStatus = "idle" | "generating" | "gathering-info" | "setup-in-progress" | "switching" | "completed" | "error"
 
 interface TargetingOption {
   id: string
@@ -162,10 +162,21 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
   }
 
   const switchTargetingMode = async (newMode: 'ai' | 'manual') => {
-    // Mark as explicit reset to prevent re-initialization from DB
-    setExplicitReset(true)
+    // Prevent concurrent switches - mutex pattern
+    if (audienceState.status === 'switching') {
+      console.log('[AudienceContext] ⚠️  Already switching, ignoring duplicate request');
+      return;
+    }
     
-    // Determine new state based on mode
+    console.log(`[AudienceContext] 🔄 Switching to ${newMode} mode`);
+    
+    // Set switching status immediately to prevent concurrent calls
+    setAudienceState(prev => ({
+      ...prev,
+      status: 'switching'
+    }));
+    
+    // Determine final state based on mode
     const newState: AudienceState = newMode === 'ai' 
       ? {
           // AI mode: immediately set to completed with advantage_plus_enabled
@@ -187,13 +198,16 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
           isSelected: false,
         }
     
-    // Save new state to database
+    // Save new state to database FIRST
     if (campaign?.id) {
       await saveCampaignState('audience_data', newState as unknown as Record<string, unknown>)
     }
     
-    // Update local state
-    setAudienceState(newState)
+    // Then update local state
+    setAudienceState(newState);
+    setExplicitReset(true);
+    
+    console.log(`[AudienceContext] ✅ Switched to ${newMode} mode`);
   }
 
   const setSelected = (selected: boolean) => {
@@ -370,12 +384,25 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const transitionedToCompleted = audienceState.status === "completed" && prevStatus.current !== "completed"
     const notFromIdleHydration = prevStatus.current !== "idle"
+    const notFromSwitching = prevStatus.current !== "switching" // Don't auto-advance when switching modes
     const isAIMode = audienceState.targeting?.mode === "ai"
-    if (transitionedToCompleted && notFromIdleHydration && isAIMode) {
+    if (transitionedToCompleted && notFromIdleHydration && notFromSwitching && isAIMode) {
       window.dispatchEvent(new CustomEvent("autoAdvanceStep"))
     }
     prevStatus.current = audienceState.status
   }, [audienceState.status, audienceState.targeting?.mode])
+
+  // Listen for targeting mode switch requests from AI chat tool
+  useEffect(() => {
+    const handleModeSwitchRequest = async (event: Event) => {
+      const customEvent = event as CustomEvent<{ newMode: 'ai' | 'manual' }>;
+      console.log('[AudienceContext] 📨 Received mode switch request:', customEvent.detail.newMode);
+      await switchTargetingMode(customEvent.detail.newMode);
+    };
+
+    window.addEventListener('requestTargetingModeSwitch', handleModeSwitchRequest as EventListener);
+    return () => window.removeEventListener('requestTargetingModeSwitch', handleModeSwitchRequest as EventListener);
+  }, [switchTargetingMode]);
 
   return (
     <AudienceContext.Provider 

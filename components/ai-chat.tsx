@@ -2173,20 +2173,25 @@ Make it conversational and easy to understand for a business owner.`,
                                     );
                                   }
                                   
-                                  // Show toast notification
+                                  // Show toast notification and dispatch event to audience context
                                   const toastMessage = output.newMode === 'ai' 
                                     ? 'Switched to AI Advantage+ targeting' 
                                     : 'Switched to Manual targeting';
                                   
-                                  // Update audience context state AFTER tool completes
+                                  // Request the mode switch via event (audience context will handle the state update)
                                   setTimeout(() => {
+                                    // Dispatch event to audience context listener
+                                    window.dispatchEvent(new CustomEvent('requestTargetingModeSwitch', {
+                                      detail: { newMode: output.newMode }
+                                    }));
+                                    
+                                    // Show toast notification
                                     toast.success(toastMessage);
                                     
-                                    // Call switchTargetingMode to update state
-                                    switchTargetingMode(output.newMode).catch(error => {
-                                      console.error('Failed to update audience mode:', error);
-                                      toast.error('Failed to switch targeting mode');
-                                    });
+                                    // Emit optional event for canvas refresh (if needed)
+                                    window.dispatchEvent(new CustomEvent('targetingModeSwitched', {
+                                      detail: { mode: output.newMode }
+                                    }));
                                   }, 0);
                                   
                                   // Return visual feedback in chat
