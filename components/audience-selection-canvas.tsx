@@ -79,17 +79,6 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
   const [showLoadingAnimation, setShowLoadingAnimation] = useState(false)
   const isSummary = variant === "summary"
 
-  // Debug logging for audience state changes
-  useEffect(() => {
-    console.log('[AudienceCanvas] State changed:', {
-      status: audienceState.status,
-      mode: audienceState.targeting.mode,
-      hasDemographics: !!audienceState.targeting.demographics,
-      hasInterests: !!audienceState.targeting.detailedTargeting?.interests?.length,
-      isSelected: audienceState.isSelected
-    });
-  }, [audienceState]);
-
   const renderLayout = (content: React.ReactNode, maxWidthClass = "max-w-2xl") => {
     if (isSummary) {
       return (

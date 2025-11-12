@@ -2201,8 +2201,8 @@ Make it conversational and easy to understand for a business owner.`,
                                       addBehavior(behavior);
                                     });
                                     
-                                    // Transition to refinement interface
-                                    updateAudienceStatus('setup-in-progress');
+                                    // Mark as completed - this sets status: "completed" and isSelected: true
+                                    setAudienceTargeting({ mode: 'manual' });
                                   }, 100);
                                   
                                   // Build preview text
@@ -2297,8 +2297,8 @@ Make it conversational and easy to understand for a business owner.`,
                                         addBehavior(behavior);
                                       });
                                       
-                                      // Transition to refinement interface
-                                      updateAudienceStatus('setup-in-progress');
+                                      // Mark as completed - this sets status: "completed" and isSelected: true
+                                      setAudienceTargeting({ mode: 'manual' });
                                       
                                       // Complete the tool call
                                       addToolResult({
