@@ -234,6 +234,10 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   const [activeEditSession, setActiveEditSession] = useState<{ sessionId: string; variationIndex: number } | null>(null);
   const [customPlaceholder, setCustomPlaceholder] = useState("Type your message...");
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
+  
+  // AI Advantage+ direct feedback state
+  const [showAIAdvantageCard, setShowAIAdvantageCard] = useState(false);
+  const [aiAdvantageCardId, setAIAdvantageCardId] = useState<string | null>(null);
 
   // Update placeholder based on context mode
   useEffect(() => {
@@ -1037,8 +1041,15 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
         // Set AI Advantage+ targeting and mark as completed
         setAudienceTargeting({ mode: 'ai', advantage_plus_enabled: true });
         updateAudienceStatus('completed');
+        
+        // Show card immediately (direct rendering, no AI involvement)
+        const cardId = `ai-advantage-${Date.now()}`;
+        setAIAdvantageCardId(cardId);
+        setShowAIAdvantageCard(true);
+        
+        // Optional: Send message for conversation history (but don't wait for it)
         sendMessageRef.current({
-          text: `Enable AI Advantage+ targeting`,
+          text: `AI Advantage+ targeting enabled`,
         });
       } else {
         // Set manual targeting mode and move to gathering-info status
@@ -2481,6 +2492,35 @@ Make it conversational and easy to understand for a business owner.`,
             {status === "submitted" && <Loader />}
           </ConversationContent>
         <ConversationScrollButton />
+        
+        {/* AI Advantage+ Success Card - Direct Rendering */}
+        {showAIAdvantageCard && (
+          <div className="w-full px-4 my-4 space-y-3">
+            <div
+              className="flex items-center justify-between p-4 rounded-lg border panel-surface hover:border-cyan-500/50 transition-colors cursor-pointer"
+              onClick={() => {
+                emitBrowserEvent('switchToTab', 'audience');
+                setShowAIAdvantageCard(false); // Hide after navigation
+              }}
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-sm">AI Advantage+ targeting enabled!</p>
+                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-1">
+                    Your ad will be shown to people most likely to engage
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors flex-shrink-0 ml-2" />
+            </div>
+          </div>
+        )}
       </Conversation>
 
       <div className="grid shrink-0 gap-4 pt-4">
