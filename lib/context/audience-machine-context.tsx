@@ -174,10 +174,29 @@ export function AudienceMachineProvider({ children }: { children: ReactNode }) {
 
     switchTargetingMode: async (newMode) => {
       const currentMode = machine.context.mode;
+      const currentState = machine.state;
       
-      // Don't switch if already in target mode
+      // Guard 1: Don't switch if already switching
+      if (currentState === 'switching') {
+        console.log('[AudienceMachineContext] Already switching - ignoring');
+        return;
+      }
+      
+      // Guard 2: Don't switch if already in target mode
       if (currentMode === newMode) {
         console.log('[AudienceMachineContext] Already in target mode:', newMode);
+        return;
+      }
+      
+      // Guard 3: Don't switch if already completed in target AI mode
+      if (newMode === 'ai' && machine.isAICompleted) {
+        console.log('[AudienceMachineContext] Already completed in AI mode');
+        return;
+      }
+      
+      // Guard 4: Don't switch if already completed in target manual mode
+      if (newMode === 'manual' && machine.isManualCompleted) {
+        console.log('[AudienceMachineContext] Already completed in manual mode');
         return;
       }
       

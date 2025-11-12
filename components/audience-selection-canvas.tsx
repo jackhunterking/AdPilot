@@ -716,12 +716,6 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
                     try {
                       // Direct context call - this is the ONLY state mutation
                       await switchTargetingMode('manual')
-                      
-                      // Optional: Dispatch event ONLY for AI chat visual feedback
-                      // This does NOT mutate state, only triggers a chat message
-                      window.dispatchEvent(new CustomEvent('triggerTargetingModeSwitch', { 
-                        detail: { newMode: 'manual', currentMode: 'ai' } 
-                      }))
                     } finally {
                       setIsSwitching(false)
                     }
@@ -822,12 +816,6 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
                 try {
                   // Direct context call - this is the ONLY state mutation
                   await switchTargetingMode('ai')
-                  
-                  // Optional: Dispatch event ONLY for AI chat visual feedback
-                  // This does NOT mutate state, only triggers a chat message
-                  window.dispatchEvent(new CustomEvent('triggerTargetingModeSwitch', { 
-                    detail: { newMode: 'ai', currentMode: 'manual' } 
-                  }))
                 } finally {
                   setIsSwitching(false)
                 }

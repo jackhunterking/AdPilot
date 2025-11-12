@@ -861,6 +861,75 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
             const mode = (input.mode as 'ai' | 'manual') || 'ai';
             const explanation = (input.explanation as string) || '';
 
+            // Guard: Don't process if already in switching state
+            if (audienceState.status === 'switching') {
+              console.log('[AIChat] Skipping audienceMode tool - already switching');
+              addToolResult({
+                tool: 'audienceMode',
+                toolCallId,
+                output: {
+                  success: true,
+                  skipped: true,
+                  reason: 'already_switching',
+                  mode,
+                  explanation,
+                },
+              });
+              processedAudienceToolsRef.current.add(toolCallId);
+              setProcessingAudience(prev => {
+                const next = new Set(prev);
+                next.delete(toolCallId);
+                return next;
+              });
+              continue;
+            }
+
+            // Guard: Don't process if already in AI completed state
+            if (mode === 'ai' && audienceState.status === 'completed' && audienceState.targeting.mode === 'ai') {
+              console.log('[AIChat] Skipping audienceMode tool - already in AI completed state');
+              addToolResult({
+                tool: 'audienceMode',
+                toolCallId,
+                output: {
+                  success: true,
+                  skipped: true,
+                  reason: 'already_in_state',
+                  mode,
+                  explanation,
+                },
+              });
+              processedAudienceToolsRef.current.add(toolCallId);
+              setProcessingAudience(prev => {
+                const next = new Set(prev);
+                next.delete(toolCallId);
+                return next;
+              });
+              continue;
+            }
+
+            // Guard: Don't process if already in manual mode
+            if (mode === 'manual' && audienceState.targeting.mode === 'manual') {
+              console.log('[AIChat] Skipping audienceMode tool - already in manual mode');
+              addToolResult({
+                tool: 'audienceMode',
+                toolCallId,
+                output: {
+                  success: true,
+                  skipped: true,
+                  reason: 'already_in_state',
+                  mode,
+                  explanation,
+                },
+              });
+              processedAudienceToolsRef.current.add(toolCallId);
+              setProcessingAudience(prev => {
+                const next = new Set(prev);
+                next.delete(toolCallId);
+                return next;
+              });
+              continue;
+            }
+
             // Update audience context based on mode
             if (mode === 'ai') {
               setAudienceTargeting({ mode: 'ai', advantage_plus_enabled: true });
@@ -1252,23 +1321,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
 
     window.addEventListener('manualTargetingConfirmed', handleManualTargetingConfirmed);
     return () => window.removeEventListener('manualTargetingConfirmed', handleManualTargetingConfirmed);
-  }, []);
-
-  // Listen for targeting mode switch (when user clicks "Switch to Manual/AI Advantage+" button)
-  useEffect(() => {
-    const handleTargetingModeSwitch = (event: Event) => {
-      const customEvent = event as CustomEvent<{ newMode: 'ai' | 'manual'; currentMode: 'ai' | 'manual' }>;
-      const { newMode, currentMode } = customEvent.detail;
-      
-      // INFORMATIONAL ONLY - State already updated by canvas button
-      // This just provides visual feedback in the chat
-      sendMessageRef.current({
-        text: `Switching from ${currentMode === 'ai' ? 'AI Advantage+' : 'manual targeting'} to ${newMode === 'ai' ? 'AI Advantage+' : 'manual targeting'}. Use the switchTargetingMode tool to provide feedback.`,
-      });
-    };
-
-    window.addEventListener('triggerTargetingModeSwitch', handleTargetingModeSwitch);
-    return () => window.removeEventListener('triggerTargetingModeSwitch', handleTargetingModeSwitch);
   }, []);
 
   // Listen for audience generation (when user clicks "Find My Audience with AI")
