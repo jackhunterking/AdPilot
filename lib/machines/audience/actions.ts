@@ -285,3 +285,22 @@ export const resetToInitial = assign({
   },
 });
 
+/**
+ * Update mode based on switch event (for switching state)
+ */
+export const updateModeFromEvent = assign(({ event }) => {
+  if (event.type === 'SWITCH_TO_AI') {
+    return {
+      mode: 'ai' as const,
+      advantage_plus_enabled: true,
+    };
+  }
+  if (event.type === 'SWITCH_TO_MANUAL') {
+    return {
+      mode: 'manual' as const,
+      advantage_plus_enabled: false,
+    };
+  }
+  return {};
+});
+

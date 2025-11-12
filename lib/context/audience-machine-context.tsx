@@ -205,8 +205,14 @@ export function AudienceMachineProvider({ children }: { children: ReactNode }) {
     },
 
     setManualDescription: (description) => {
+      // Only update if in manual mode
+      if (machine.context.mode !== 'manual') {
+        console.log('[AudienceMachineContext] Skipping setManualDescription - mode is:', machine.context.mode);
+        return;
+      }
+      
       // Store description in context
-      // Note: This would require adding description to the machine context
+      // Note: description is already part of the machine context
       console.log('[AudienceMachineContext] setManualDescription:', description);
     },
 

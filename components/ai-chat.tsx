@@ -889,6 +889,17 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
             const behaviors = (input.behaviors as Array<{ id: string; name: string }>) || [];
             const explanation = (input.explanation as string) || '';
 
+            // Guard: Only update if still in manual mode
+            if (audienceState.targeting.mode !== 'manual') {
+              console.log('[AIChat] Skipping manualTargetingParameters tool - mode is now:', audienceState.targeting.mode);
+              addToolResult({
+                tool: 'manualTargetingParameters',
+                toolCallId,
+                output: { success: false, message: 'Mode changed during processing' },
+              });
+              return;
+            }
+
             // Update audience context with parameters
             setManualDescription(description);
             if (demographics) {
@@ -2324,6 +2335,12 @@ Make it conversational and easy to understand for a business owner.`,
                                   
                                   // Update audience context with parameters
                                   setTimeout(() => {
+                                    // Guard: Only update if still in manual mode
+                                    if (audienceState.targeting.mode !== 'manual') {
+                                      console.log('[AIChat] Skipping manualTargetingParameters update - mode is now:', audienceState.targeting.mode);
+                                      return;
+                                    }
+                                    
                                     setManualDescription(output.description);
                                     setDemographics(output.demographics);
                                     
@@ -2473,6 +2490,12 @@ Make it conversational and easy to understand for a business owner.`,
                                       if (!response.ok) throw new Error('Translation failed');
                                       
                                       const data = await response.json();
+                                      
+                                      // Guard: Only update if still in manual mode
+                                      if (audienceState.targeting.mode !== 'manual') {
+                                        console.log('[AIChat] Skipping setupManualTargeting update - mode is now:', audienceState.targeting.mode);
+                                        return;
+                                      }
                                       
                                       // Update audience context
                                       setManualDescription(input.description);

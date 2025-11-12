@@ -38,6 +38,17 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
   const [isSwitching, setIsSwitching] = useState(false)
   const isSummary = variant === "summary"
 
+  // Debug logging to track state transitions
+  console.log('[Canvas] Audience State:', {
+    status: audienceState.status,
+    mode: audienceState.targeting.mode,
+    isAIMode: audienceState.targeting.mode === 'ai',
+    hasAdvantage: audienceState.targeting.advantage_plus_enabled,
+    hasDescription: !!audienceState.targeting.description,
+    hasDemographics: !!audienceState.targeting.demographics,
+    hasDetailedTargeting: !!audienceState.targeting.detailedTargeting,
+  })
+
   const renderLayout = (content: React.ReactNode, maxWidthClass = "max-w-2xl") => {
     if (isSummary) {
       return (

@@ -37,6 +37,7 @@ import {
   clearError,
   incrementTransitionCount,
   resetToInitial,
+  updateModeFromEvent,
 } from './actions';
 import { INITIAL_CONTEXT, TIMING, MACHINE_CONFIG } from './constants';
 
@@ -139,6 +140,8 @@ export const audienceMachine = setup({
     incrementTransitionCount,
     // @ts-ignore - XState v5 action type inference limitations
     resetToInitial,
+    // @ts-ignore - XState v5 action type inference limitations
+    updateModeFromEvent,
   },
 }).createMachine({
   /** @xstate-layout N8IgpgJg5mDOIC5QBsD2UDKAXATmAxgBYCWAdmAHQAqAKgMoDKAogPICCAogNoAMAuoqAAcA9rFwBLaqh4gAHogC0ANgAsADnkBmAEwA2RfIC 
@@ -289,7 +292,7 @@ export const audienceMachine = setup({
     // SWITCHING - Mode Transition
     // ========================================
     switching: {
-      entry: ['logTransition', 'incrementTransitionCount'],
+      entry: ['updateModeFromEvent', 'logTransition', 'incrementTransitionCount'],
       invoke: {
         id: 'switching-delay',
         src: 'delayTransition',
@@ -297,12 +300,12 @@ export const audienceMachine = setup({
           {
             target: 'aiCompleted',
             guard: 'isAIMode',
-            actions: ['setAIMode', 'clearManualData'],
+            actions: ['clearManualData'],
           },
           {
             target: 'gatheringManualInfo',
             guard: 'isManualMode',
-            actions: ['setManualMode'],
+            actions: [],
           },
         ],
         onError: {
