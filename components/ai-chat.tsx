@@ -227,7 +227,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   
   // Track dispatched events to prevent duplicates (infinite loop prevention)
   const dispatchedEvents = useRef<Set<string>>(new Set());
-  const dispatchedSwitchTools = useRef<Set<string>>(new Set());
   const [dislikedMessages, setDislikedMessages] = useState<Set<string>>(new Set());
   const [processingLocations, setProcessingLocations] = useState<Set<string>>(new Set());
   const [pendingLocationCalls, setPendingLocationCalls] = useState<Array<{ toolCallId: string; input: LocationToolInput }>>([]);
@@ -394,12 +393,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   useEffect(() => {
     sendMessageRef.current = sendMessage;
   }, [sendMessage]);
-
-  // Clear tool tracking refs when messages change (prevent stale refs)
-  useEffect(() => {
-    dispatchedSwitchTools.current.clear();
-    console.log('[AI Chat] 🧹 Cleared dispatchedSwitchTools ref');
-  }, [messages.length]);
 
   // AUTO-SUBMIT INITIAL PROMPT (AI SDK Native Pattern)
   useEffect(() => {
@@ -2180,31 +2173,31 @@ Make it conversational and easy to understand for a business owner.`,
                                     );
                                   }
                                   
-                                  // Check if we already processed this tool call (prevent duplicate processing on re-renders)
-                                  const toolKey = `${callId}-${output.newMode}`;
-                                  if (!dispatchedSwitchTools.current.has(toolKey)) {
-                                    dispatchedSwitchTools.current.add(toolKey);
+                                  // Use eventKey pattern like editImage/regenerateImage tools
+                                  const eventKey = `${callId}-switch-${output.newMode}`;
+                                  
+                                  // Check and add to ref IMMEDIATELY (before setTimeout) to prevent race conditions
+                                  if (!dispatchedEvents.current.has(eventKey)) {
+                                    dispatchedEvents.current.add(eventKey);
                                     
-                                    console.log(`[AI Chat] 🎯 Processing switch tool once: ${toolKey}`);
-                                    
-                                    // Call switchTargetingMode directly (no event cascade)
+                                    // NOW do the async work
                                     setTimeout(() => {
+                                      console.log(`[AI Chat] 🎯 Executing switch to ${output.newMode}`);
+                                      
                                       switchTargetingMode(output.newMode).catch(error => {
                                         console.error('[AI Chat] ❌ Failed to switch mode:', error);
                                         toast.error('Failed to switch targeting mode');
                                       });
                                       
-                                      // Show toast notification
+                                      // Show toast notification ONCE
                                       const toastMessage = output.newMode === 'ai' 
                                         ? 'Switched to AI Advantage+ targeting' 
                                         : 'Switched to Manual targeting';
                                       toast.success(toastMessage);
                                     }, 0);
-                                  } else {
-                                    console.log(`[AI Chat] ⏭️  Tool ${toolKey} already processed, skipping`);
                                   }
                                   
-                                  // Return visual feedback in chat
+                                  // Always return the UI (idempotent rendering)
                                   return renderSwitchTargetingModeResult({
                                     callId,
                                     keyId: `${callId}-output`,

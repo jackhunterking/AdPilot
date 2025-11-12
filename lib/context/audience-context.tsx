@@ -166,6 +166,12 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
   }
 
   const switchTargetingMode = useCallback(async (newMode: 'ai' | 'manual') => {
+    // Check if mode is already set (prevent no-op switches)
+    if (audienceState.targeting.mode === newMode && audienceState.status === 'completed') {
+      console.log(`[AudienceContext] ✅ Already in ${newMode} mode, skipping switch`);
+      return;
+    }
+    
     // Prevent concurrent switches - mutex pattern
     if (audienceState.status === 'switching') {
       console.log('[AudienceContext] ⚠️  Already switching, ignoring duplicate request');
@@ -212,7 +218,7 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
     setExplicitReset(true);
     
     console.log(`[AudienceContext] ✅ Switched to ${newMode} mode`);
-  }, [audienceState.status, campaign?.id, saveCampaignState])
+  }, [audienceState.status, audienceState.targeting.mode, campaign?.id, saveCampaignState])
 
   const setSelected = (selected: boolean) => {
     setAudienceState(prev => ({ ...prev, isSelected: selected }))
