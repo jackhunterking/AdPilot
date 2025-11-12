@@ -227,6 +227,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   
   // Track dispatched events to prevent duplicates (infinite loop prevention)
   const dispatchedEvents = useRef<Set<string>>(new Set());
+  const dispatchedSwitchTools = useRef<Set<string>>(new Set());
   const [dislikedMessages, setDislikedMessages] = useState<Set<string>>(new Set());
   const [processingLocations, setProcessingLocations] = useState<Set<string>>(new Set());
   const [pendingLocationCalls, setPendingLocationCalls] = useState<Array<{ toolCallId: string; input: LocationToolInput }>>([]);
@@ -393,6 +394,12 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   useEffect(() => {
     sendMessageRef.current = sendMessage;
   }, [sendMessage]);
+
+  // Clear tool tracking refs when messages change (prevent stale refs)
+  useEffect(() => {
+    dispatchedSwitchTools.current.clear();
+    console.log('[AI Chat] 🧹 Cleared dispatchedSwitchTools ref');
+  }, [messages.length]);
 
   // AUTO-SUBMIT INITIAL PROMPT (AI SDK Native Pattern)
   useEffect(() => {
@@ -2173,26 +2180,29 @@ Make it conversational and easy to understand for a business owner.`,
                                     );
                                   }
                                   
-                                  // Show toast notification and dispatch event to audience context
-                                  const toastMessage = output.newMode === 'ai' 
-                                    ? 'Switched to AI Advantage+ targeting' 
-                                    : 'Switched to Manual targeting';
-                                  
-                                  // Request the mode switch via event (audience context will handle the state update)
-                                  setTimeout(() => {
-                                    // Dispatch event to audience context listener
-                                    window.dispatchEvent(new CustomEvent('requestTargetingModeSwitch', {
-                                      detail: { newMode: output.newMode }
-                                    }));
+                                  // Check if we already processed this tool call (prevent duplicate processing on re-renders)
+                                  const toolKey = `${callId}-${output.newMode}`;
+                                  if (!dispatchedSwitchTools.current.has(toolKey)) {
+                                    dispatchedSwitchTools.current.add(toolKey);
                                     
-                                    // Show toast notification
-                                    toast.success(toastMessage);
+                                    console.log(`[AI Chat] 🎯 Processing switch tool once: ${toolKey}`);
                                     
-                                    // Emit optional event for canvas refresh (if needed)
-                                    window.dispatchEvent(new CustomEvent('targetingModeSwitched', {
-                                      detail: { mode: output.newMode }
-                                    }));
-                                  }, 0);
+                                    // Call switchTargetingMode directly (no event cascade)
+                                    setTimeout(() => {
+                                      switchTargetingMode(output.newMode).catch(error => {
+                                        console.error('[AI Chat] ❌ Failed to switch mode:', error);
+                                        toast.error('Failed to switch targeting mode');
+                                      });
+                                      
+                                      // Show toast notification
+                                      const toastMessage = output.newMode === 'ai' 
+                                        ? 'Switched to AI Advantage+ targeting' 
+                                        : 'Switched to Manual targeting';
+                                      toast.success(toastMessage);
+                                    }, 0);
+                                  } else {
+                                    console.log(`[AI Chat] ⏭️  Tool ${toolKey} already processed, skipping`);
+                                  }
                                   
                                   // Return visual feedback in chat
                                   return renderSwitchTargetingModeResult({

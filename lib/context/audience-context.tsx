@@ -112,9 +112,13 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
     setIsInitialized(true) // Mark initialized regardless of saved data
   }, [campaign?.id, isInitialized, explicitReset])
 
-  // Save function
+  // Save function - skip during switching to prevent auto-save loops
   const saveFn = useCallback(async (state: AudienceState) => {
     if (!campaign?.id || !isInitialized) return
+    if (state.status === 'switching') {
+      console.log('[AudienceContext] ⏭️  Skipping auto-save during switch');
+      return;
+    }
     await saveCampaignState('audience_data', state as unknown as Record<string, unknown>)
   }, [campaign?.id, saveCampaignState, isInitialized])
 
@@ -161,7 +165,7 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  const switchTargetingMode = async (newMode: 'ai' | 'manual') => {
+  const switchTargetingMode = useCallback(async (newMode: 'ai' | 'manual') => {
     // Prevent concurrent switches - mutex pattern
     if (audienceState.status === 'switching') {
       console.log('[AudienceContext] ⚠️  Already switching, ignoring duplicate request');
@@ -208,7 +212,7 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
     setExplicitReset(true);
     
     console.log(`[AudienceContext] ✅ Switched to ${newMode} mode`);
-  }
+  }, [audienceState.status, campaign?.id, saveCampaignState])
 
   const setSelected = (selected: boolean) => {
     setAudienceState(prev => ({ ...prev, isSelected: selected }))
@@ -391,18 +395,6 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
     }
     prevStatus.current = audienceState.status
   }, [audienceState.status, audienceState.targeting?.mode])
-
-  // Listen for targeting mode switch requests from AI chat tool
-  useEffect(() => {
-    const handleModeSwitchRequest = async (event: Event) => {
-      const customEvent = event as CustomEvent<{ newMode: 'ai' | 'manual' }>;
-      console.log('[AudienceContext] 📨 Received mode switch request:', customEvent.detail.newMode);
-      await switchTargetingMode(customEvent.detail.newMode);
-    };
-
-    window.addEventListener('requestTargetingModeSwitch', handleModeSwitchRequest as EventListener);
-    return () => window.removeEventListener('requestTargetingModeSwitch', handleModeSwitchRequest as EventListener);
-  }, [switchTargetingMode]);
 
   return (
     <AudienceContext.Provider 
