@@ -330,21 +330,62 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
         {isAIMode ? (
           /* AI Advantage+ Summary */
           <div className="rounded-lg border border-border bg-card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-blue-600" />
-                <h3 className="font-semibold">AI Advantage+ Targeting</h3>
-              </div>
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-blue-600" />
-                <div>
-                  <p className="text-sm font-medium">AI Advantage+</p>
-                  <p className="text-xs text-muted-foreground">Automatic optimization enabled</p>
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="icon-tile-muted">
+                    <Sparkles className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <h3 className="font-semibold">AI Advantage+ Targeting</h3>
                 </div>
               </div>
-              <Check className="h-4 w-4 text-green-600" />
+              <div className="space-y-2">
+                {/* How It Works */}
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
+                  <Sparkles className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">How It Works</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Meta's AI automatically finds and shows your ads to people most likely to engage with your business, continuously optimizing for the best results.
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Key Benefits */}
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
+                  <Target className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium mb-2">Key Benefits</p>
+                    <div className="space-y-1.5">
+                      <div className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                        <span className="text-xs text-muted-foreground">Automatic optimization - AI learns and improves over time</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                        <span className="text-xs text-muted-foreground">Broader reach to find more potential customers</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                        <span className="text-xs text-muted-foreground">Better performance - 22% better ROAS on average</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                        <span className="text-xs text-muted-foreground">No manual parameter setup needed</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Status Indicator */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-blue-600 animate-pulse" />
+                    <span className="text-xs font-medium text-blue-700 dark:text-blue-400">AI Advantage+ Active</span>
+                  </div>
+                  <Check className="h-4 w-4 text-blue-600" />
+                </div>
+              </div>
             </div>
           </div>
         ) : (
