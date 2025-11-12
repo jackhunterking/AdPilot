@@ -3,7 +3,7 @@
 import { Check, Target, Loader2, Sparkles, AlertCircle, Users, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useAudience } from "@/lib/context/audience-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { cn } from "@/lib/utils"
@@ -13,70 +13,18 @@ interface AudienceSelectionCanvasProps {
   variant?: "step" | "summary"
 }
 
-// Display Card Component for read-only targeting parameters
-function DisplayCard({
-  icon: Icon,
-  title,
-  items,
-  collapsible = false
-}: {
-  icon: React.ElementType;
-  title: string;
-  items: string[];
-  collapsible?: boolean;
-}) {
-  const [expanded, setExpanded] = useState(!collapsible);
-  const displayItems = expanded ? items : items.slice(0, 5);
-  const hasMore = items.length > 5 && !expanded;
-
-  return (
-    <div className="rounded-lg border border-border bg-card p-6 space-y-4">
-      <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-          <Icon className="h-5 w-5 text-blue-600" />
-        </div>
-        <h3 className="text-lg font-semibold">{title}</h3>
-      </div>
-      
-      <ul className="space-y-2">
-        {displayItems.map((item, idx) => (
-          <li key={idx} className="flex items-center gap-2 text-sm">
-            <div className="h-1.5 w-1.5 rounded-full bg-blue-600 flex-shrink-0" />
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-      
-      {hasMore && (
-        <button
-          onClick={() => setExpanded(true)}
-          className="text-xs text-blue-600 hover:underline"
-        >
-          + {items.length - 5} more
-        </button>
-      )}
-    </div>
-  );
-}
-
 export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionCanvasProps = {}) {
   const { 
     audienceState, 
     resetAudience, 
     setAudienceTargeting,
     updateStatus,
-    setManualDescription,
-    setDemographics,
-    addInterest,
-    removeInterest,
-    addBehavior,
-    removeBehavior
+    switchTargetingMode
   } = useAudience()
   const { isPublished } = useAdPreview()
   const [isEnabling, setIsEnabling] = useState(false)
-  const [localDescription, setLocalDescription] = useState("")
-  const [isTranslating, setIsTranslating] = useState(false)
   const [showLoadingAnimation, setShowLoadingAnimation] = useState(false)
+  const [isSwitching, setIsSwitching] = useState(false)
   const isSummary = variant === "summary"
 
   const renderLayout = (content: React.ReactNode, maxWidthClass = "max-w-2xl") => {
@@ -478,14 +426,34 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
             <Button
               variant="outline"
               size="lg"
-              onClick={() => {
+              onClick={async () => {
+                // Guard 1: Prevent double-clicks
+                if (isSwitching) return
+                
+                // Guard 2: Check if already in target mode (redundant with context check, but safe)
                 const newMode = isAIMode ? 'manual' : 'ai'
-                window.dispatchEvent(new CustomEvent('triggerTargetingModeSwitch', { 
-                  detail: { newMode, currentMode: isAIMode ? 'ai' : 'manual' } 
-                }))
+                if (audienceState.targeting.mode === newMode) return
+                
+                setIsSwitching(true)
+                
+                try {
+                  // Direct context call - this is the ONLY state mutation
+                  await switchTargetingMode(newMode)
+                  
+                  // Optional: Dispatch event ONLY for AI chat visual feedback
+                  // This does NOT mutate state, only triggers a chat message
+                  window.dispatchEvent(new CustomEvent('triggerTargetingModeSwitch', { 
+                    detail: { newMode, currentMode: isAIMode ? 'ai' : 'manual' } 
+                  }))
+                } finally {
+                  setIsSwitching(false)
+                }
               }}
+              disabled={isSwitching}
             >
-              {isAIMode ? 'Switch to Manual Targeting' : 'Switch to AI Advantage+'}
+              {isSwitching 
+                ? 'Switching...' 
+                : isAIMode ? 'Switch to Manual Targeting' : 'Switch to AI Advantage+'}
             </Button>
           </div>
         )}

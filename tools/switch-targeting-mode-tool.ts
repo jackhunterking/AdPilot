@@ -9,45 +9,40 @@ import { tool } from 'ai';
 import { z } from 'zod';
 
 export const switchTargetingModeTool = tool({
-  description: `Switch between AI Advantage+ and Manual targeting modes with conversational guidance.
+  description: `Provide feedback when the user switches between AI Advantage+ and Manual targeting modes.
   
   Use this tool when:
-  - User clicks "Switch to Manual Targeting" button from AI Advantage+ mode
-  - User clicks "Switch to AI Advantage+" button from Manual targeting mode
-  - User explicitly requests to change their targeting mode
+  - User switches targeting modes via the canvas button
+  - The mode switch has already been completed by the canvas component
   
-  The tool will:
-  1. Acknowledge the mode switch
-  2. Inform user that previous targeting data will be cleared
-  3. Provide appropriate guidance for the new mode:
-     - For AI Advantage+: Explain automatic optimization benefits
-     - For Manual: Start conversational targeting flow with first question
+  The tool provides:
+  - Acknowledgment of the mode switch
+  - Information about what the new mode means
+  - Next steps guidance for the user
   
-  IMPORTANT: This tool provides guidance only. The actual state change is handled by the audience context via event listener.`,
+  IMPORTANT: This tool is INFORMATIONAL ONLY. The actual state change is handled by the canvas button 
+  calling the audience context directly. This tool does NOT mutate state - it only provides conversational feedback.`,
   
   inputSchema: z.object({
-    newMode: z.enum(['ai', 'manual']).describe('The targeting mode to switch to'),
-    currentMode: z.enum(['ai', 'manual']).describe('The current targeting mode'),
+    newMode: z.enum(['ai', 'manual']).describe('The targeting mode that was switched to'),
+    currentMode: z.enum(['ai', 'manual']).describe('The previous targeting mode'),
   }),
   
   execute: async (input, { toolCallId }) => {
+    // INFORMATIONAL ONLY - State already updated by canvas
     if (input.newMode === 'ai') {
-      // Switching to AI Advantage+
+      // Switched to AI Advantage+
       return {
         success: true,
-        newMode: 'ai',
-        currentMode: input.currentMode,
+        message: `Switched to AI Advantage+! Meta's AI will now automatically find and show your ads to people most likely to engage, optimizing for the best results. This typically delivers 22% better ROAS. You're all set!`,
         toolCallId,
-        message: `Switching to AI Advantage+ targeting! Your manual targeting parameters will be cleared. Meta's AI will now automatically find and show your ads to people most likely to engage, optimizing for the best results. This typically delivers 22% better ROAS. You're all set!`,
       };
     } else {
-      // Switching to Manual targeting
+      // Switched to Manual targeting
       return {
         success: true,
-        newMode: 'manual',
-        currentMode: input.currentMode,
+        message: `Switched to manual targeting! I'll help you build your audience. Let's start by defining the age range for your ideal customers. What age group would you like to target? (e.g., 18-25, 26-35)`,
         toolCallId,
-        message: `I'll help you set up manual targeting. Your AI Advantage+ settings will be cleared. Let's start by defining the age range for your ideal customers. What age group would you like to target? (e.g., 18-25, 26-35)`,
       };
     }
   },

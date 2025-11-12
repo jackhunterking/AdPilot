@@ -164,10 +164,10 @@ export function renderSwitchTargetingModeResult(opts: {
   callId: string;
   keyId?: string;
   input: { newMode: 'ai' | 'manual'; currentMode: 'ai' | 'manual' };
-  output: { success: boolean; newMode: 'ai' | 'manual'; message: string };
+  output: { success: boolean; message: string };
 }): React.JSX.Element {
-  const { callId, keyId, output } = opts;
-  const isAI = output.newMode === 'ai';
+  const { callId, keyId, input, output } = opts;
+  const isAI = input.newMode === 'ai';
 
   return (
     <Fragment key={keyId || callId}>

@@ -214,7 +214,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   const { 
     setAudienceTargeting, 
     updateStatus: updateAudienceStatus,
-    switchTargetingMode,
     setManualDescription,
     setDemographics,
     setConfirmedParameters,
@@ -1009,10 +1008,10 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       const customEvent = event as CustomEvent<{ newMode: 'ai' | 'manual'; currentMode: 'ai' | 'manual' }>;
       const { newMode, currentMode } = customEvent.detail;
       
-      // Send message to AI to trigger switchTargetingMode tool
-      // The tool will handle updating the audience context and showing feedback
+      // INFORMATIONAL ONLY - State already updated by canvas button
+      // This just provides visual feedback in the chat
       sendMessageRef.current({
-        text: `Please switch my targeting mode from ${currentMode === 'ai' ? 'AI Advantage+' : 'manual targeting'} to ${newMode === 'ai' ? 'AI Advantage+' : 'manual targeting'}. Use the switchTargetingMode tool.`,
+        text: `Switching from ${currentMode === 'ai' ? 'AI Advantage+' : 'manual targeting'} to ${newMode === 'ai' ? 'AI Advantage+' : 'manual targeting'}. Use the switchTargetingMode tool to provide feedback.`,
       });
     };
 
@@ -2163,7 +2162,7 @@ Make it conversational and easy to understand for a business owner.`,
                                   return <Loader key={callId} size={16} />;
                                 
                                 case 'output-available': {
-                                  const output = part.output as { success: boolean; newMode: 'ai' | 'manual'; currentMode: 'ai' | 'manual'; message: string };
+                                  const output = part.output as { success: boolean; message: string };
                                   
                                   if (!output.success) {
                                     return (
@@ -2173,24 +2172,20 @@ Make it conversational and easy to understand for a business owner.`,
                                     );
                                   }
                                   
-                                  // Use eventKey pattern like editImage/regenerateImage tools
-                                  const eventKey = `${callId}-switch-${output.newMode}`;
+                                  // INFORMATIONAL ONLY - State already updated by canvas button
+                                  // No context call here to prevent duplicate state mutations
+                                  // Use eventKey pattern to show toast ONCE
+                                  const eventKey = `${callId}-switch-toast`;
                                   
                                   // Check and add to ref IMMEDIATELY (before setTimeout) to prevent race conditions
                                   if (!dispatchedEvents.current.has(eventKey)) {
                                     dispatchedEvents.current.add(eventKey);
                                     
-                                    // NOW do the async work
+                                    // Show toast notification ONCE (no state mutation)
                                     setTimeout(() => {
-                                      console.log(`[AI Chat] 🎯 Executing switch to ${output.newMode}`);
+                                      console.log(`[AI Chat] 💬 Showing switch feedback (state already updated by canvas)`);
                                       
-                                      switchTargetingMode(output.newMode).catch(error => {
-                                        console.error('[AI Chat] ❌ Failed to switch mode:', error);
-                                        toast.error('Failed to switch targeting mode');
-                                      });
-                                      
-                                      // Show toast notification ONCE
-                                      const toastMessage = output.newMode === 'ai' 
+                                      const toastMessage = input.newMode === 'ai' 
                                         ? 'Switched to AI Advantage+ targeting' 
                                         : 'Switched to Manual targeting';
                                       toast.success(toastMessage);
