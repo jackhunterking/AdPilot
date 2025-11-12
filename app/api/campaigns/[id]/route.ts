@@ -155,11 +155,17 @@ export async function DELETE(
     const { id } = await params
     const campaignId = id
 
+    console.log('[DELETE Campaign] Starting deletion for campaign:', campaignId)
+
     const supabase = await createServerClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
     if (authError || !user) {
+      console.error('[DELETE Campaign] Auth error:', authError)
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    console.log('[DELETE Campaign] User authenticated:', user.id)
 
     // Verify ownership
     const { data: campaign, error: fetchErr } = await supabaseServer
@@ -168,9 +174,24 @@ export async function DELETE(
       .eq('id', campaignId)
       .single()
     
-    if (fetchErr || !campaign || campaign.user_id !== user.id) {
+    console.log('[DELETE Campaign] Campaign lookup result:', { campaign, fetchErr })
+    
+    if (fetchErr) {
+      console.error('[DELETE Campaign] Fetch error:', fetchErr)
+      return NextResponse.json({ error: `Campaign not found: ${fetchErr.message}` }, { status: 404 })
+    }
+    
+    if (!campaign) {
+      console.error('[DELETE Campaign] Campaign not found in database')
       return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
     }
+    
+    if (campaign.user_id !== user.id) {
+      console.error('[DELETE Campaign] Ownership mismatch:', { campaignUserId: campaign.user_id, requestUserId: user.id })
+      return NextResponse.json({ error: 'Unauthorized - not campaign owner' }, { status: 403 })
+    }
+
+    console.log('[DELETE Campaign] Ownership verified, proceeding with deletion')
 
     // Delete campaign_states (cascade should handle this, but being explicit)
     const { error: stateError } = await supabaseServer
@@ -179,7 +200,10 @@ export async function DELETE(
       .eq('campaign_id', campaignId)
     
     if (stateError) {
-      console.error('Error deleting campaign states:', stateError)
+      console.error('[DELETE Campaign] Error deleting campaign states:', stateError)
+      // Don't fail the whole operation for related data errors
+    } else {
+      console.log('[DELETE Campaign] Campaign states deleted successfully')
     }
 
     // Delete ads associated with this campaign
@@ -189,7 +213,10 @@ export async function DELETE(
       .eq('campaign_id', campaignId)
     
     if (adsError) {
-      console.error('Error deleting ads:', adsError)
+      console.error('[DELETE Campaign] Error deleting ads:', adsError)
+      // Don't fail the whole operation for related data errors
+    } else {
+      console.log('[DELETE Campaign] Ads deleted successfully')
     }
 
     // Delete conversations (if conversation table has campaign_id)
@@ -199,7 +226,10 @@ export async function DELETE(
       .eq('campaign_id', campaignId)
     
     if (convError) {
-      console.error('Error deleting conversations:', convError)
+      console.error('[DELETE Campaign] Error deleting conversations:', convError)
+      // Don't fail the whole operation for related data errors
+    } else {
+      console.log('[DELETE Campaign] Conversations deleted successfully')
     }
 
     // Finally, delete the campaign itself
@@ -209,13 +239,15 @@ export async function DELETE(
       .eq('id', campaignId)
     
     if (deleteError) {
-      console.error('Error deleting campaign:', deleteError)
-      return NextResponse.json({ error: deleteError.message }, { status: 500 })
+      console.error('[DELETE Campaign] Error deleting campaign:', deleteError)
+      return NextResponse.json({ error: `Failed to delete campaign: ${deleteError.message}` }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true }, { status: 200 })
+    console.log('[DELETE Campaign] ✅ Campaign deleted successfully:', campaignId)
+    return NextResponse.json({ success: true, message: 'Campaign deleted successfully' }, { status: 200 })
   } catch (error) {
-    console.error('Unexpected error:', error)
-    return NextResponse.json({ error: 'Failed to delete campaign' }, { status: 500 })
+    console.error('[DELETE Campaign] Unexpected error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to delete campaign'
+    return NextResponse.json({ error: errorMessage }, { status: 500 })
   }
 }

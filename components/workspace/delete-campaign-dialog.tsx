@@ -25,6 +25,7 @@ interface DeleteCampaignDialogProps {
   onOpenChange: (open: boolean) => void
   campaign: Campaign | null
   onConfirm: () => void
+  isDeleting?: boolean
 }
 
 export function DeleteCampaignDialog({
@@ -32,11 +33,12 @@ export function DeleteCampaignDialog({
   onOpenChange,
   campaign,
   onConfirm,
+  isDeleting = false,
 }: DeleteCampaignDialogProps) {
   if (!campaign) return null
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={isDeleting ? undefined : onOpenChange}>
       <DialogContent className="sm:max-w-md p-6">
         <DialogHeader className="mb-4">
           <div className="flex items-center gap-3">
@@ -54,6 +56,7 @@ export function DeleteCampaignDialog({
             variant="outline"
             size="lg"
             onClick={() => onOpenChange(false)}
+            disabled={isDeleting}
           >
             Cancel
           </Button>
@@ -61,8 +64,16 @@ export function DeleteCampaignDialog({
             variant="destructive"
             size="lg"
             onClick={onConfirm}
+            disabled={isDeleting}
           >
-            Delete
+            {isDeleting ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                Deleting...
+              </>
+            ) : (
+              'Delete'
+            )}
           </Button>
         </div>
       </DialogContent>

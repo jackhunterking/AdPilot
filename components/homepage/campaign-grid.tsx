@@ -8,6 +8,7 @@ import { Tables } from '@/lib/supabase/database.types'
 import { CampaignCardMenu } from '@/components/workspace/campaign-card-menu'
 import { DeleteCampaignDialog } from '@/components/workspace/delete-campaign-dialog'
 import { RenameCampaignDialog } from '@/components/workspace/rename-campaign-dialog'
+import { toast } from 'sonner'
 
 type Campaign = Tables<'campaigns'> & {
   campaign_states?: Tables<'campaign_states'>
@@ -18,6 +19,7 @@ export function CampaignGrid() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -30,9 +32,8 @@ export function CampaignGrid() {
   const fetchCampaigns = useCallback(async () => {
     try {
       // Fetch 7 campaigns to check if there are more than 6
-      // Use Next.js caching with 60 second revalidation to improve performance
       const response = await fetch('/api/campaigns?limit=7', {
-        next: { revalidate: 60 },
+        cache: 'no-store',
       })
       if (response.ok) {
         const { campaigns: data } = await response.json()
@@ -43,6 +44,7 @@ export function CampaignGrid() {
       }
     } catch (error) {
       console.error('Error fetching campaigns:', error)
+      toast.error('Failed to load campaigns')
     } finally {
       setLoading(false)
     }
@@ -90,23 +92,55 @@ export function CampaignGrid() {
   }
 
   const handleDeleteConfirm = async () => {
-    if (!campaignToDelete) return
+    if (!campaignToDelete || isDeleting) return
+
+    setIsDeleting(true)
+    const campaignName = campaignToDelete.name
+    const campaignId = campaignToDelete.id
+
+    // Store campaigns for rollback if needed
+    const previousCampaigns = campaigns
 
     try {
-      const response = await fetch(`/api/campaigns/${campaignToDelete.id}`, {
+      // Optimistically remove from UI
+      setCampaigns(prev => prev.filter(c => c.id !== campaignId))
+      setDeleteDialogOpen(false)
+      setCampaignToDelete(null)
+
+      const response = await fetch(`/api/campaigns/${campaignId}`, {
         method: 'DELETE',
+        cache: 'no-store',
       })
 
-      if (response.ok) {
-        // Optimistically remove from UI
-        setCampaigns(prev => prev.filter(c => c.id !== campaignToDelete.id))
-        setDeleteDialogOpen(false)
-        setCampaignToDelete(null)
-      } else {
-        console.error('Failed to delete campaign')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Failed to delete campaign:', errorData)
+        
+        // Rollback: restore the campaign
+        setCampaigns(previousCampaigns)
+        
+        toast.error(`Failed to delete campaign: ${errorData.error || 'Unknown error'}`)
+        return
       }
+
+      // Success - invalidate and refresh
+      toast.success(`"${campaignName}" deleted successfully`)
+      
+      // Refresh the data from server
+      router.refresh()
+      
+      // Refetch to ensure we have latest data
+      await fetchCampaigns()
     } catch (error) {
       console.error('Error deleting campaign:', error)
+      
+      // Rollback: restore the campaign
+      setCampaigns(previousCampaigns)
+      
+      const errorMessage = error instanceof Error ? error.message : 'Network error'
+      toast.error(`Failed to delete campaign: ${errorMessage}`)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -216,6 +250,7 @@ export function CampaignGrid() {
         onOpenChange={setDeleteDialogOpen}
         campaign={campaignToDelete}
         onConfirm={handleDeleteConfirm}
+        isDeleting={isDeleting}
       />
 
       <RenameCampaignDialog

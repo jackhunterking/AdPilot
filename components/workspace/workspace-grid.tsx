@@ -17,6 +17,7 @@ import { CampaignCardMenu } from './campaign-card-menu'
 import { DeleteCampaignDialog } from './delete-campaign-dialog'
 import { RenameCampaignDialog } from './rename-campaign-dialog'
 import { Search } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   Select,
   SelectContent,
@@ -37,6 +38,7 @@ export function WorkspaceGrid() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [sortBy, setSortBy] = useState('updated')
+  const [isDeleting, setIsDeleting] = useState(false)
   
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -48,9 +50,8 @@ export function WorkspaceGrid() {
 
   const fetchCampaigns = useCallback(async () => {
     try {
-      // Use Next.js caching with 60 second revalidation to improve performance
       const response = await fetch('/api/campaigns', {
-        next: { revalidate: 60 },
+        cache: 'no-store',
       })
       if (response.ok) {
         const { campaigns: data } = await response.json()
@@ -59,6 +60,7 @@ export function WorkspaceGrid() {
       }
     } catch (error) {
       console.error('Error fetching campaigns:', error)
+      toast.error('Failed to load campaigns')
     } finally {
       setLoading(false)
     }
@@ -141,23 +143,55 @@ export function WorkspaceGrid() {
   }
 
   const handleDeleteConfirm = async () => {
-    if (!campaignToDelete) return
+    if (!campaignToDelete || isDeleting) return
+
+    setIsDeleting(true)
+    const campaignName = campaignToDelete.name
+    const campaignId = campaignToDelete.id
+
+    // Store campaigns for rollback if needed
+    const previousCampaigns = campaigns
 
     try {
-      const response = await fetch(`/api/campaigns/${campaignToDelete.id}`, {
+      // Optimistically remove from UI
+      setCampaigns(prev => prev.filter(c => c.id !== campaignId))
+      setDeleteDialogOpen(false)
+      setCampaignToDelete(null)
+
+      const response = await fetch(`/api/campaigns/${campaignId}`, {
         method: 'DELETE',
+        cache: 'no-store',
       })
 
-      if (response.ok) {
-        // Optimistically remove from UI
-        setCampaigns(prev => prev.filter(c => c.id !== campaignToDelete.id))
-        setDeleteDialogOpen(false)
-        setCampaignToDelete(null)
-      } else {
-        console.error('Failed to delete campaign')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Failed to delete campaign:', errorData)
+        
+        // Rollback: restore the campaign
+        setCampaigns(previousCampaigns)
+        
+        toast.error(`Failed to delete campaign: ${errorData.error || 'Unknown error'}`)
+        return
       }
+
+      // Success - invalidate and refresh
+      toast.success(`"${campaignName}" deleted successfully`)
+      
+      // Refresh the data from server
+      router.refresh()
+      
+      // Refetch to ensure we have latest data
+      await fetchCampaigns()
     } catch (error) {
       console.error('Error deleting campaign:', error)
+      
+      // Rollback: restore the campaign
+      setCampaigns(previousCampaigns)
+      
+      const errorMessage = error instanceof Error ? error.message : 'Network error'
+      toast.error(`Failed to delete campaign: ${errorMessage}`)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -302,6 +336,7 @@ export function WorkspaceGrid() {
         onOpenChange={setDeleteDialogOpen}
         campaign={campaignToDelete}
         onConfirm={handleDeleteConfirm}
+        isDeleting={isDeleting}
       />
 
       <RenameCampaignDialog
