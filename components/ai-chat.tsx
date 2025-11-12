@@ -36,6 +36,7 @@ import { useSearchParams } from "next/navigation";
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import { Response } from "@/components/ai-elements/response";
 import { ThumbsUpIcon, ThumbsDownIcon, CopyIcon, Sparkles, ChevronRight, MapPin, CheckCircle2, XCircle, Reply, X, Check, Target } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Source,
   Sources,
