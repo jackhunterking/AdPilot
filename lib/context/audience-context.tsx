@@ -287,8 +287,11 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
           connections: []
         }
       },
-      status: 'setup-in-progress'
+      status: 'completed',
+      isSelected: true
     }))
+    // Emit event for success card in chat
+    window.dispatchEvent(new CustomEvent('manualTargetingConfirmed'))
   }
 
   // Auto-advance when AI targeting completes, but avoid hydration-induced idle→completed jumps
