@@ -83,9 +83,17 @@ export function WorkspaceGrid() {
 
     // Apply sorting
     if (sortBy === 'updated') {
-      result.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      result.sort((a, b) => {
+        const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0
+        const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0
+        return bTime - aTime
+      })
     } else if (sortBy === 'created') {
-      result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      result.sort((a, b) => {
+        const bTime = b.created_at ? new Date(b.created_at).getTime() : 0
+        const aTime = a.created_at ? new Date(a.created_at).getTime() : 0
+        return bTime - aTime
+      })
     } else if (sortBy === 'name') {
       result.sort((a, b) => a.name.localeCompare(b.name))
     }

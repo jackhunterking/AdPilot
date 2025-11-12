@@ -290,7 +290,7 @@ export async function POST(req: Request) {
       }
       if (!offerText) {
         // Stricter ask-one-offer-question branch; plan will be created after user answers
-        offerAskContext = `\n[OFFER REQUIRED]\nAsk ONE concise question to capture the user's concrete offer/value (e.g., "Free quote", "% off", "Consultation", "Download").\nRules:\n- Ask ONLY this one question, no extra text.\n- Do NOT call any tools.\n- After the user answers, proceed to create the Creative Plan automatically.`;
+        offerAskContext = `\n[OFFER REQUIRED - INITIAL SETUP]\nAsk ONE concise question to capture the user's concrete offer/value (e.g., "Free quote", "% off", "Consultation", "Download").\n\n**When Asking:**\n- Ask ONLY this one question, no extra text.\n- Do NOT call any tools yet.\n- Wait for user's response.\n\n**CRITICAL - After User Answers:**\n- Provide brief acknowledgment (1 sentence): "Perfect! Creating your ${effectiveGoal || 'campaign'} ads with that offer..."\n- IMMEDIATELY call generateImage tool with the offer incorporated\n- Use appropriate format based on offer type:\n  * Discounts/percentages (e.g., "20% off") → Include text overlay in prompt\n  * "Free" offers → Text overlay or notes-style aesthetic\n  * Product/service names → Clean professional imagery\n- Do NOT ask any follow-up questions\n- Do NOT call setupGoal or any other tools\n- Generate creative immediately`;
       } else {
         // Create plan now that we have an offer
         try {
@@ -610,6 +610,38 @@ ${!isEditMode ? referenceContext : ''}
 - Do NOT repeat the same question multiple times
 - Do NOT ask follow-up questions in the same message
 - After user responds, acknowledge their answer and THEN proceed with the next step
+
+## 🚨 CRITICAL: Offer-to-Creative Generation Flow
+
+**When goal is already set (from homepage):**
+
+**Step 1 - Ask for Offer (ONLY if not provided):**
+- If user provides minimal context (e.g., "car detailing business"), ask ONE comprehensive question about their offer
+- Example: "What's the main offer you're promoting to generate leads? (For example: 'Free quote', '20% off', etc.)"
+- DO NOT ask about goal - it's already set
+- DO NOT ask multiple questions
+
+**Step 2 - Generate Immediately After Offer:**
+- User provides offer → You provide 1-sentence acknowledgment → IMMEDIATELY call generateImage tool
+- Example flow:
+  * User: "20% off first cleaning"
+  * You: "Perfect! Creating your lead generation ads with that discount offer..." [CALLS generateImage]
+- Include the offer in image generation prompt using appropriate format:
+  * Discounts → Text overlay: "bold text overlay displaying '20% OFF FIRST CLEANING'"
+  * Free offers → Text overlay or notes-style
+  * Products/services → Professional imagery representing the offer
+
+**🚨 WHAT NOT TO DO:**
+- ❌ Do NOT call setupGoal tool (goal is already set from homepage)
+- ❌ Do NOT ask follow-up questions after receiving the offer
+- ❌ Do NOT show "Goal Setup Complete" message
+- ❌ Do NOT wait for additional information
+- ❌ Do NOT explain the plan - just generate
+
+**✅ CORRECT BEHAVIOR:**
+  User: [Describes business with offer]
+  AI: Brief acknowledgment + CALL generateImage tool immediately
+  Result: Creative generation starts (3 variations appear)
 
 ## Smart Questioning Framework
 
@@ -951,22 +983,7 @@ Use mode 'include' for targeting, 'exclude' for exclusions.
 IMPORTANT: Users can remove locations by clicking X. When they ask to add new locations, ONLY include:
 1. Locations they explicitly mentioned in current request
 2. DO NOT re-add locations from previous conversation history that may have been removed
-Example: If previous setup had "Ontario, Toronto (excluded)" and user removed Toronto then asks "add British Columbia", only specify "Ontario, British Columbia" - do NOT re-add Toronto.
-
-## Goal Setup
-When user wants to set up a goal (leads or calls):
-- IMMEDIATELY call setupGoal tool - DO NOT ask text questions first
-- The tool shows an interactive UI where users click to choose between creating new or using existing form
-- Let the interactive UI handle all user choices (create new vs use existing)
-- Set goalType to "leads" or "calls", conversionMethod to "instant-forms"
-
-CRITICAL - NO TEXT RESPONSES AFTER SETUP GOAL:
-- After calling setupGoal, DO NOT generate ANY follow-up text message
-- If cancelled (output is undefined/null or errorText contains "cancelled"): Say NOTHING - the cancellation UI shows in the tool card
-- If successful (output.success = true): Say NOTHING - the success UI shows in the tool card
-- If error: Say NOTHING - the error UI shows in the tool card
-- The tool's UI card is the ONLY feedback needed - never add text explaining what happened
-- EXCEPTION: Only respond with text if user sends a NEW message asking a different question`,
+Example: If previous setup had "Ontario, Toronto (excluded)" and user removed Toronto then asks "add British Columbia", only specify "Ontario, British Columbia" - do NOT re-add Toronto.`,
     tools,
     // Add provider options based on model capabilities
     ...(isGeminiImageModel && {
