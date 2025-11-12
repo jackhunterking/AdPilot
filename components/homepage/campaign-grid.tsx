@@ -35,24 +35,33 @@ export function CampaignGrid() {
       const response = await fetch('/api/campaigns?limit=7', {
         cache: 'no-store',
       })
+      
       if (response.ok) {
         const { campaigns: data } = await response.json()
-        const campaignList = data || []
+        // Filter out any null/invalid campaigns
+        const campaignList = (data || []).filter((c: Campaign | null) => c && c.id)
         // Show only first 6, but check if there are more
         setHasMore(campaignList.length > 6)
         setCampaigns(campaignList.slice(0, 6))
+      } else {
+        console.error('Failed to fetch campaigns:', response.status)
+        setCampaigns([])
+        toast.error('Failed to load campaigns')
       }
     } catch (error) {
       console.error('Error fetching campaigns:', error)
-      toast.error('Failed to load campaigns')
+      setCampaigns([])
+      toast.error('Network error')
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
+    // Force refresh Next.js cache on mount to prevent stale data
+    router.refresh()
     fetchCampaigns()
-  }, [fetchCampaigns])
+  }, [router, fetchCampaigns])
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'N/A'
@@ -97,12 +106,10 @@ export function CampaignGrid() {
     setIsDeleting(true)
     const campaignName = campaignToDelete.name
     const campaignId = campaignToDelete.id
-
-    // Store campaigns for rollback if needed
     const previousCampaigns = campaigns
 
     try {
-      // Optimistically remove from UI
+      // Optimistic update - remove immediately
       setCampaigns(prev => prev.filter(c => c.id !== campaignId))
       setDeleteDialogOpen(false)
       setCampaignToDelete(null)
@@ -112,33 +119,35 @@ export function CampaignGrid() {
         cache: 'no-store',
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        console.error('Failed to delete campaign:', errorData)
-        
-        // Rollback: restore the campaign
-        setCampaigns(previousCampaigns)
-        
-        toast.error(`Failed to delete campaign: ${errorData.error || 'Unknown error'}`)
+      // Success: 200-299 (including idempotent 200 for already-deleted)
+      if (response.ok) {
+        toast.success(`"${campaignName}" deleted successfully`)
+        router.refresh() // Invalidate Next.js cache
+        await fetchCampaigns() // Get fresh data
         return
       }
 
-      // Success - invalidate and refresh
-      toast.success(`"${campaignName}" deleted successfully`)
-      
-      // Refresh the data from server
-      router.refresh()
-      
-      // Refetch to ensure we have latest data
-      await fetchCampaigns()
+      // Client errors (400-499) = operation complete (no retry will help)
+      if (response.status >= 400 && response.status < 500) {
+        const errorData = await response.json().catch(() => ({ error: 'Access denied' }))
+        toast.warning(`Cannot delete: ${errorData.error}`)
+        // Don't rollback - user can't delete this anyway
+        return
+      }
+
+      // Server errors (500+) = temporary issue, rollback and let user retry
+      if (response.status >= 500) {
+        const errorData = await response.json().catch(() => ({ error: 'Server error' }))
+        setCampaigns(previousCampaigns) // Rollback
+        toast.error(`Server error: ${errorData.error}. Please try again.`)
+        return
+      }
+
     } catch (error) {
-      console.error('Error deleting campaign:', error)
-      
-      // Rollback: restore the campaign
+      // Network error - rollback
+      console.error('Delete campaign error:', error)
       setCampaigns(previousCampaigns)
-      
-      const errorMessage = error instanceof Error ? error.message : 'Network error'
-      toast.error(`Failed to delete campaign: ${errorMessage}`)
+      toast.error('Network error. Please check your connection.')
     } finally {
       setIsDeleting(false)
     }

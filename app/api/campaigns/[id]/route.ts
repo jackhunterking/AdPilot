@@ -147,10 +147,18 @@ export async function PATCH(
 }
 
 // DELETE /api/campaigns/[id] - Delete campaign and all related data
+// Idempotent: Returns success even if campaign doesn't exist (REST best practice)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // No-cache headers to prevent stale data
+  const noCacheHeaders = {
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+  }
+
   try {
     const { id } = await params
     const campaignId = id
@@ -162,7 +170,10 @@ export async function DELETE(
     
     if (authError || !user) {
       console.error('[DELETE Campaign] Auth error:', authError)
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Unauthorized' }, 
+        { status: 401, headers: noCacheHeaders }
+      )
     }
 
     console.log('[DELETE Campaign] User authenticated:', user.id)
@@ -176,19 +187,22 @@ export async function DELETE(
     
     console.log('[DELETE Campaign] Campaign lookup result:', { campaign, fetchErr })
     
-    if (fetchErr) {
-      console.error('[DELETE Campaign] Fetch error:', fetchErr)
-      return NextResponse.json({ error: `Campaign not found: ${fetchErr.message}` }, { status: 404 })
+    // Idempotent behavior: If campaign doesn't exist, deletion succeeded (desired state achieved)
+    if (fetchErr || !campaign) {
+      console.log('[DELETE Campaign] Campaign already deleted or never existed:', campaignId)
+      return NextResponse.json(
+        { success: true, message: 'Campaign deleted' }, 
+        { status: 200, headers: noCacheHeaders }
+      )
     }
     
-    if (!campaign) {
-      console.error('[DELETE Campaign] Campaign not found in database')
-      return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
-    }
-    
+    // Check ownership - only case where we return error
     if (campaign.user_id !== user.id) {
       console.error('[DELETE Campaign] Ownership mismatch:', { campaignUserId: campaign.user_id, requestUserId: user.id })
-      return NextResponse.json({ error: 'Unauthorized - not campaign owner' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'Unauthorized - not campaign owner' }, 
+        { status: 403, headers: noCacheHeaders }
+      )
     }
 
     console.log('[DELETE Campaign] Ownership verified, proceeding with deletion')
@@ -201,7 +215,6 @@ export async function DELETE(
     
     if (stateError) {
       console.error('[DELETE Campaign] Error deleting campaign states:', stateError)
-      // Don't fail the whole operation for related data errors
     } else {
       console.log('[DELETE Campaign] Campaign states deleted successfully')
     }
@@ -214,7 +227,6 @@ export async function DELETE(
     
     if (adsError) {
       console.error('[DELETE Campaign] Error deleting ads:', adsError)
-      // Don't fail the whole operation for related data errors
     } else {
       console.log('[DELETE Campaign] Ads deleted successfully')
     }
@@ -227,7 +239,6 @@ export async function DELETE(
     
     if (convError) {
       console.error('[DELETE Campaign] Error deleting conversations:', convError)
-      // Don't fail the whole operation for related data errors
     } else {
       console.log('[DELETE Campaign] Conversations deleted successfully')
     }
@@ -240,14 +251,23 @@ export async function DELETE(
     
     if (deleteError) {
       console.error('[DELETE Campaign] Error deleting campaign:', deleteError)
-      return NextResponse.json({ error: `Failed to delete campaign: ${deleteError.message}` }, { status: 500 })
+      return NextResponse.json(
+        { error: `Failed to delete campaign: ${deleteError.message}` }, 
+        { status: 500, headers: noCacheHeaders }
+      )
     }
 
     console.log('[DELETE Campaign] ✅ Campaign deleted successfully:', campaignId)
-    return NextResponse.json({ success: true, message: 'Campaign deleted successfully' }, { status: 200 })
+    return NextResponse.json(
+      { success: true, message: 'Campaign deleted successfully' }, 
+      { status: 200, headers: noCacheHeaders }
+    )
   } catch (error) {
     console.error('[DELETE Campaign] Unexpected error:', error)
     const errorMessage = error instanceof Error ? error.message : 'Failed to delete campaign'
-    return NextResponse.json({ error: errorMessage }, { status: 500 })
+    return NextResponse.json(
+      { error: errorMessage }, 
+      { status: 500, headers: noCacheHeaders }
+    )
   }
 }
