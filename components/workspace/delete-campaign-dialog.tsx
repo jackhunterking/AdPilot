@@ -12,7 +12,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -38,33 +37,34 @@ export function DeleteCampaignDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
-              <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+      <DialogContent className="sm:max-w-md p-6">
+        <DialogHeader className="mb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
+              <AlertTriangle className="h-6 w-6 text-red-600" />
             </div>
-            <DialogTitle>Delete Campaign</DialogTitle>
+            <DialogTitle className="text-xl">Delete Campaign</DialogTitle>
           </div>
-          <DialogDescription className="pt-4">
-            Are you sure you want to delete <span className="font-semibold">{campaign.name}</span>?
-            This action cannot be undone.
-          </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogDescription className="text-sm text-muted-foreground mb-6">
+          Are you sure you want to delete <strong>{campaign.name}</strong>? This action cannot be undone.
+        </DialogDescription>
+        <div className="flex justify-end gap-2">
           <Button
             variant="outline"
+            size="lg"
             onClick={() => onOpenChange(false)}
           >
             Cancel
           </Button>
           <Button
             variant="destructive"
+            size="lg"
             onClick={onConfirm}
           >
-            Delete Campaign
+            Delete
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   )

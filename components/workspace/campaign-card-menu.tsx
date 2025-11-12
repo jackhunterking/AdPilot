@@ -7,6 +7,7 @@
 
 "use client"
 
+import { useState } from 'react'
 import { Tables } from '@/lib/supabase/database.types'
 import { MoreHorizontal, FolderOpen, Edit, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -28,9 +29,12 @@ interface CampaignCardMenuProps {
 }
 
 export function CampaignCardMenu({ campaign, onOpen, onRename, onDelete }: CampaignCardMenuProps) {
+  const [open, setOpen] = useState(false)
+  
   const handleMenuClick = (e: React.MouseEvent, action: () => void) => {
     e.stopPropagation()
     e.preventDefault()
+    setOpen(false)
     action()
   }
 
@@ -44,7 +48,7 @@ export function CampaignCardMenu({ campaign, onOpen, onRename, onDelete }: Campa
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger 
         asChild 
         onClick={handleTriggerClick}
