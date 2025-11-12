@@ -1,9 +1,12 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Tables } from '@/lib/supabase/database.types'
+import { CampaignCardMenu } from '@/components/workspace/campaign-card-menu'
+import { DeleteCampaignDialog } from '@/components/workspace/delete-campaign-dialog'
+import { RenameCampaignDialog } from '@/components/workspace/rename-campaign-dialog'
 
 type Campaign = Tables<'campaigns'> & {
   campaign_states?: Tables<'campaign_states'>
@@ -14,28 +17,37 @@ export function CampaignGrid() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
   const [hasMore, setHasMore] = useState(false)
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null)
+  
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [campaignToDelete, setCampaignToDelete] = useState<Campaign | null>(null)
+  
+  // Rename dialog state
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false)
+  const [campaignToRename, setCampaignToRename] = useState<Campaign | null>(null)
+
+  const fetchCampaigns = useCallback(async () => {
+    try {
+      // Fetch 7 campaigns to check if there are more than 6
+      const response = await fetch('/api/campaigns?limit=7')
+      if (response.ok) {
+        const { campaigns: data } = await response.json()
+        const campaignList = data || []
+        // Show only first 6, but check if there are more
+        setHasMore(campaignList.length > 6)
+        setCampaigns(campaignList.slice(0, 6))
+      }
+    } catch (error) {
+      console.error('Error fetching campaigns:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    const fetchCampaigns = async () => {
-      try {
-        // Fetch 7 campaigns to check if there are more than 6
-        const response = await fetch('/api/campaigns?limit=7')
-        if (response.ok) {
-          const { campaigns: data } = await response.json()
-          const campaignList = data || []
-          // Show only first 6, but check if there are more
-          setHasMore(campaignList.length > 6)
-          setCampaigns(campaignList.slice(0, 6))
-        }
-      } catch (error) {
-        console.error('Error fetching campaigns:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchCampaigns()
-  }, [])
+  }, [fetchCampaigns])
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'N/A'
@@ -56,6 +68,43 @@ export function CampaignGrid() {
       return adPreviewData.adContent.imageVariations[0]
     }
     return '/placeholder.svg'
+  }
+
+  const handleDelete = (campaign: Campaign) => {
+    setCampaignToDelete(campaign)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleRename = (campaign: Campaign) => {
+    setCampaignToRename(campaign)
+    setRenameDialogOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!campaignToDelete) return
+
+    try {
+      const response = await fetch(`/api/campaigns/${campaignToDelete.id}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        // Optimistically remove from UI
+        setCampaigns(prev => prev.filter(c => c.id !== campaignToDelete.id))
+        setDeleteDialogOpen(false)
+        setCampaignToDelete(null)
+      } else {
+        console.error('Failed to delete campaign')
+      }
+    } catch (error) {
+      console.error('Error deleting campaign:', error)
+    }
+  }
+
+  const handleRenameSuccess = (updatedCampaign: Campaign) => {
+    setCampaigns(prev => prev.map(c => c.id === updatedCampaign.id ? updatedCampaign : c))
+    setRenameDialogOpen(false)
+    setCampaignToRename(null)
   }
 
   if (loading) {
@@ -106,33 +155,63 @@ export function CampaignGrid() {
           {campaigns.map((campaign) => (
             <div
               key={campaign.id}
-              onClick={() => router.push(`/${campaign.id}`)}
-              className="group cursor-pointer bg-card rounded-xl overflow-hidden border border-border hover:border-blue-500 transition-all hover:shadow-xl"
+              onMouseEnter={() => setHoveredCard(campaign.id)}
+              onMouseLeave={() => setHoveredCard(null)}
+              className="group relative cursor-pointer bg-card rounded-xl overflow-hidden border border-border hover:border-blue-500 transition-all hover:shadow-xl"
             >
-              <div className="relative aspect-video bg-muted">
-                <img
-                  src={getThumbnail(campaign)}
-                  alt={campaign.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-              </div>
-              <div className="p-4 space-y-2">
-                <h3 className="font-semibold text-lg truncate">
-                  {campaign.name}
-                </h3>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {formatDate(campaign.created_at)}
-                  </span>
-                  <Badge variant={campaign.status === 'draft' ? 'secondary' : 'default'}>
-                    {campaign.status || 'draft'}
-                  </Badge>
+              {/* Three-dot menu - shown on hover */}
+              {hoveredCard === campaign.id && (
+                <div className="absolute top-2 right-2 z-10">
+                  <CampaignCardMenu
+                    campaign={campaign}
+                    onOpen={() => router.push(`/${campaign.id}`)}
+                    onRename={() => handleRename(campaign)}
+                    onDelete={() => handleDelete(campaign)}
+                  />
+                </div>
+              )}
+              
+              <div onClick={() => router.push(`/${campaign.id}`)}>
+                <div className="relative aspect-video bg-muted">
+                  <img
+                    src={getThumbnail(campaign)}
+                    alt={campaign.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <div className="p-4 space-y-2">
+                  <h3 className="font-semibold text-lg truncate">
+                    {campaign.name}
+                  </h3>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {formatDate(campaign.created_at)}
+                    </span>
+                    <Badge variant={campaign.status === 'draft' ? 'secondary' : 'default'}>
+                      {campaign.status || 'draft'}
+                    </Badge>
+                  </div>
                 </div>
               </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Dialogs */}
+      <DeleteCampaignDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        campaign={campaignToDelete}
+        onConfirm={handleDeleteConfirm}
+      />
+
+      <RenameCampaignDialog
+        open={renameDialogOpen}
+        onOpenChange={setRenameDialogOpen}
+        campaign={campaignToRename}
+        onSuccess={handleRenameSuccess}
+      />
     </section>
   )
 }
