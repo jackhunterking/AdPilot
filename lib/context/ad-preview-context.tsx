@@ -111,21 +111,25 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
   // This ensures images save immediately (0ms) instead of 300ms debounce
   const saveConfig = useMemo(() => {
     const hasImages = !!(adContent?.imageVariations?.length || adContent?.baseImageUrl)
+    return hasImages ? AUTO_SAVE_CONFIGS.CRITICAL : AUTO_SAVE_CONFIGS.NORMAL
+  }, [adContent?.imageVariations?.length, adContent?.baseImageUrl])
+  
+  // Track mode changes in a separate effect to avoid logging on every render
+  useEffect(() => {
+    const hasImages = !!(adContent?.imageVariations?.length || adContent?.baseImageUrl)
     const currentMode = hasImages ? 'CRITICAL' : 'NORMAL'
-    const config = hasImages ? AUTO_SAVE_CONFIGS.CRITICAL : AUTO_SAVE_CONFIGS.NORMAL
     
-    // Only log when mode transitions (not on every render)
-    if (prevSaveConfigModeRef.current !== currentMode) {
-      logger.info('AdPreviewContext', `⚙️ Switched to ${currentMode} save mode`, {
+    // Only log when mode actually transitions (not on initial mount or same mode)
+    if (prevSaveConfigModeRef.current !== null && prevSaveConfigModeRef.current !== currentMode) {
+      logger.debug('AdPreviewContext', `⚙️ Switched to ${currentMode} save mode`, {
         hasImages,
         imageCount: adContent?.imageVariations?.length || 0,
-        debounceMs: config.debounceMs
+        debounceMs: saveConfig.debounceMs
       })
-      prevSaveConfigModeRef.current = currentMode
     }
     
-    return config
-  }, [adContent?.imageVariations?.length, adContent?.baseImageUrl, adContent])
+    prevSaveConfigModeRef.current = currentMode
+  }, [adContent?.imageVariations?.length, adContent?.baseImageUrl, saveConfig.debounceMs])
   
   // Auto-save with dynamic config based on whether images are present
   const { isSaving, lastSaved, error } = useAutoSave(
