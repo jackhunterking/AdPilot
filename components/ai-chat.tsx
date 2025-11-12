@@ -1004,11 +1004,14 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
 
   // Listen for targeting mode switch (when user clicks "Switch to Manual/AI Advantage+" button)
   useEffect(() => {
-    const handleTargetingModeSwitch = async (event: CustomEvent<{ newMode: 'ai' | 'manual'; currentMode: 'ai' | 'manual' }>) => {
-      const { newMode, currentMode } = event.detail;
+    const handleTargetingModeSwitch = (event: Event) => {
+      const customEvent = event as CustomEvent<{ newMode: 'ai' | 'manual'; currentMode: 'ai' | 'manual' }>;
+      const { newMode, currentMode } = customEvent.detail;
       
-      // Call audience context to switch mode and reset data
-      await switchTargetingMode(newMode);
+      // Call audience context to switch mode and reset data (async, but don't await)
+      switchTargetingMode(newMode).catch(error => {
+        console.error('Failed to switch targeting mode:', error);
+      });
       
       // Trigger AI chat tool call for guidance
       sendMessageRef.current({
@@ -1016,8 +1019,8 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       });
     };
 
-    window.addEventListener('triggerTargetingModeSwitch', handleTargetingModeSwitch as EventListener);
-    return () => window.removeEventListener('triggerTargetingModeSwitch', handleTargetingModeSwitch as EventListener);
+    window.addEventListener('triggerTargetingModeSwitch', handleTargetingModeSwitch);
+    return () => window.removeEventListener('triggerTargetingModeSwitch', handleTargetingModeSwitch);
   }, [switchTargetingMode]);
 
   // Listen for audience generation (when user clicks "Find My Audience with AI")
