@@ -319,20 +319,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     }
   }, [context]);
   
-  // Auto-hide AI Advantage+ card when user sends a new message
-  useEffect(() => {
-    if (messages.length > 0 && showAIAdvantageCard) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage.role === 'user') {
-        // User sent a message, hide the card after a short delay
-        const timer = setTimeout(() => {
-          setShowAIAdvantageCard(false);
-        }, 1000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [messages, showAIAdvantageCard]);
-  
   // Keep latest Authorization header (Bearer <token>) in a ref for sync headers
   const authHeaderRef = useRef<string | null>(null);
   const { setIsGenerating, setGenerationMessage, generationMessage } = useGeneration();
@@ -454,6 +440,20 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   useEffect(() => {
     sendMessageRef.current = sendMessage;
   }, [sendMessage]);
+
+  // Auto-hide AI Advantage+ card when user sends a new message
+  useEffect(() => {
+    if (messages.length > 0 && showAIAdvantageCard) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.role === 'user') {
+        // User sent a message, hide the card after a short delay
+        const timer = setTimeout(() => {
+          setShowAIAdvantageCard(false);
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [messages, showAIAdvantageCard]);
 
   // AUTO-SUBMIT INITIAL PROMPT (AI SDK Native Pattern)
   useEffect(() => {

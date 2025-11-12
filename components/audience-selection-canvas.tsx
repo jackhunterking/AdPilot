@@ -272,6 +272,9 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
 
   // Manual targeting: AI gathering information through conversation
   if (audienceState.status === "gathering-info" && audienceState.targeting.mode === "manual") {
+    const demographics = audienceState.targeting.demographics
+    const detailedTargeting = audienceState.targeting.detailedTargeting
+    
     const content = (
       <div className="max-w-2xl mx-auto w-full space-y-6">
         <div className="text-center space-y-2 mb-6">
@@ -343,7 +346,7 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">Interests</p>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {detailedTargeting.interests.map((interest) => (
+                    {detailedTargeting.interests.map((interest: { id: string; name: string }) => (
                       <Badge key={interest.id} variant="secondary" className="text-xs">
                         {interest.name}
                       </Badge>
@@ -360,7 +363,7 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">Behaviors</p>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {detailedTargeting.behaviors.map((behavior) => (
+                    {detailedTargeting.behaviors.map((behavior: { id: string; name: string }) => (
                       <Badge key={behavior.id} variant="secondary" className="text-xs">
                         {behavior.name}
                       </Badge>
@@ -392,6 +395,9 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
 
   // Manual targeting: Prompt user to use AI Chat (when status is "generating")
   if (audienceState.status === "generating" && audienceState.targeting.mode === "manual") {
+    const demographics = audienceState.targeting.demographics
+    const detailedTargeting = audienceState.targeting.detailedTargeting
+    
     const content = (
       <div className="max-w-2xl mx-auto w-full space-y-6">
         <div className="text-center space-y-2 mb-6">
@@ -463,7 +469,7 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">Interests</p>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {detailedTargeting.interests.map((interest) => (
+                    {detailedTargeting.interests.map((interest: { id: string; name: string }) => (
                       <Badge key={interest.id} variant="secondary" className="text-xs">
                         {interest.name}
                       </Badge>
@@ -480,7 +486,7 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">Behaviors</p>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {detailedTargeting.behaviors.map((behavior) => (
+                    {detailedTargeting.behaviors.map((behavior: { id: string; name: string }) => (
                       <Badge key={behavior.id} variant="secondary" className="text-xs">
                         {behavior.name}
                       </Badge>
