@@ -382,17 +382,6 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
       connections: []
     }
     
-    const handleSaveTargeting = () => {
-      setAudienceTargeting({
-        mode: 'manual',
-        demographics,
-        detailedTargeting
-      })
-      updateStatus('completed')
-      // Emit event for success card in chat
-      window.dispatchEvent(new CustomEvent('manualTargetingConfirmed'))
-    }
-    
     // Build display items
     const genderLabel = demographics.gender === 'all' ? 'All genders' : demographics.gender === 'male' ? 'Male' : 'Female';
     const demographicItems = [
@@ -403,17 +392,24 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
     const interestItems = detailedTargeting.interests?.map(i => i.name) || [];
     const behaviorItems = detailedTargeting.behaviors?.map(b => b.name) || [];
     
+    // Auto-save targeting when parameters are displayed
+    useEffect(() => {
+      setAudienceTargeting({
+        mode: 'manual',
+        demographics,
+        detailedTargeting
+      })
+      updateStatus('completed')
+      // Emit event for success card in chat
+      window.dispatchEvent(new CustomEvent('manualTargetingConfirmed'))
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []) // Run once on mount when parameters are first displayed
+    
     const content = (
       <div className="max-w-2xl mx-auto w-full space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2 mb-6">
-          <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
-            <Sparkles className="h-8 w-8 text-blue-600" />
-          </div>
+        <div className="text-center mb-6">
           <h2 className="text-2xl font-bold">Your Target Audience</h2>
-          <p className="text-muted-foreground">
-            AI-generated based on your campaign and description
-          </p>
         </div>
         
         {/* Demographics Card */}
@@ -443,21 +439,25 @@ export function AudienceSelectionCanvas({ variant = "step" }: AudienceSelectionC
           />
         )}
         
-        {/* Action Buttons */}
-        <div className="flex justify-center gap-4 pt-4">
+        {/* Action Button */}
+        <div className="flex justify-center pt-4">
           <Button
             variant="outline"
             size="lg"
-            onClick={resetAudience}
+            onClick={() => {
+              resetAudience()
+              setAudienceTargeting({ 
+                mode: 'ai', 
+                advantage_plus_enabled: true 
+              })
+              updateStatus('completed')
+              toast.success('AI Advantage+ enabled')
+              window.dispatchEvent(new CustomEvent('triggerAudienceModeSelection', { 
+                detail: { mode: 'ai' } 
+              }))
+            }}
           >
-            Start Over
-          </Button>
-          <Button
-            size="lg"
-            onClick={handleSaveTargeting}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            Confirm Targeting
+            Enable AI Advantage+
           </Button>
         </div>
       </div>
