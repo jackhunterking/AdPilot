@@ -37,6 +37,7 @@ import { useChat, type UIMessage } from "@ai-sdk/react";
 import { Response } from "@/components/ai-elements/response";
 import { ThumbsUpIcon, ThumbsDownIcon, CopyIcon, Sparkles, ChevronRight, MapPin, CheckCircle2, XCircle, Reply, X, Check, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Source,
   Sources,
@@ -56,7 +57,7 @@ import { generateImage } from "@/server/images";
 import { ImageGenerationConfirmation } from "@/components/ai-elements/image-generation-confirmation";
 // Removed legacy FormSelectionUI in favor of unified canvas in Goal step
 import { ImageEditProgressLoader } from "@/components/ai-elements/image-edit-progress-loader";
-import { renderEditImageResult, renderRegenerateImageResult, renderEditAdCopyResult, renderAudienceModeResult, renderManualTargetingParametersResult } from "@/components/ai-elements/tool-renderers";
+import { renderEditImageResult, renderRegenerateImageResult, renderEditAdCopyResult, renderAudienceModeResult, renderManualTargetingParametersResult, renderSwitchTargetingModeResult } from "@/components/ai-elements/tool-renderers";
 import { useAdPreview } from "@/lib/context/ad-preview-context";
 import { searchLocations, getLocationBoundary } from "@/app/actions/geocoding";
 import { useGoal } from "@/lib/context/goal-context";
@@ -1008,20 +1009,16 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       const customEvent = event as CustomEvent<{ newMode: 'ai' | 'manual'; currentMode: 'ai' | 'manual' }>;
       const { newMode, currentMode } = customEvent.detail;
       
-      // Call audience context to switch mode and reset data (async, but don't await)
-      switchTargetingMode(newMode).catch(error => {
-        console.error('Failed to switch targeting mode:', error);
-      });
-      
-      // Trigger AI chat tool call for guidance
+      // Send message to AI to trigger switchTargetingMode tool
+      // The tool will handle updating the audience context and showing feedback
       sendMessageRef.current({
-        text: `Switch from ${currentMode === 'ai' ? 'AI Advantage+' : 'manual targeting'} to ${newMode === 'ai' ? 'AI Advantage+' : 'manual targeting'}`,
+        text: `Please switch my targeting mode from ${currentMode === 'ai' ? 'AI Advantage+' : 'manual targeting'} to ${newMode === 'ai' ? 'AI Advantage+' : 'manual targeting'}. Use the switchTargetingMode tool.`,
       });
     };
 
     window.addEventListener('triggerTargetingModeSwitch', handleTargetingModeSwitch);
     return () => window.removeEventListener('triggerTargetingModeSwitch', handleTargetingModeSwitch);
-  }, [switchTargetingMode]);
+  }, []);
 
   // Listen for audience generation (when user clicks "Find My Audience with AI")
   useEffect(() => {
@@ -2151,6 +2148,60 @@ Make it conversational and easy to understand for a business owner.`,
                                   return (
                                     <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
                                       {part.errorText || 'Failed to generate targeting parameters'}
+                                    </div>
+                                  );
+                              }
+                              break;
+                            }
+                            case "tool-switchTargetingMode": {
+                              const callId = part.toolCallId;
+                              const input = part.input as { newMode: 'ai' | 'manual'; currentMode: 'ai' | 'manual' };
+                              
+                              switch (part.state) {
+                                case 'input-streaming':
+                                case 'input-available':
+                                  return <Loader key={callId} size={16} />;
+                                
+                                case 'output-available': {
+                                  const output = part.output as { success: boolean; newMode: 'ai' | 'manual'; currentMode: 'ai' | 'manual'; message: string };
+                                  
+                                  if (!output.success) {
+                                    return (
+                                      <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
+                                        Failed to switch targeting mode
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  // Show toast notification
+                                  const toastMessage = output.newMode === 'ai' 
+                                    ? 'Switched to AI Advantage+ targeting' 
+                                    : 'Switched to Manual targeting';
+                                  
+                                  // Update audience context state AFTER tool completes
+                                  setTimeout(() => {
+                                    toast.success(toastMessage);
+                                    
+                                    // Call switchTargetingMode to update state
+                                    switchTargetingMode(output.newMode).catch(error => {
+                                      console.error('Failed to update audience mode:', error);
+                                      toast.error('Failed to switch targeting mode');
+                                    });
+                                  }, 0);
+                                  
+                                  // Return visual feedback in chat
+                                  return renderSwitchTargetingModeResult({
+                                    callId,
+                                    keyId: `${callId}-output`,
+                                    input,
+                                    output
+                                  });
+                                }
+                                
+                                case 'output-error':
+                                  return (
+                                    <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
+                                      {part.errorText || 'Failed to switch targeting mode'}
                                     </div>
                                   );
                               }

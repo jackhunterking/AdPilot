@@ -160,6 +160,71 @@ export function renderAudienceModeResult(opts: {
   );
 }
 
+export function renderSwitchTargetingModeResult(opts: {
+  callId: string;
+  keyId?: string;
+  input: { newMode: 'ai' | 'manual'; currentMode: 'ai' | 'manual' };
+  output: { success: boolean; newMode: 'ai' | 'manual'; message: string };
+}): React.JSX.Element {
+  const { callId, keyId, output } = opts;
+  const isAI = output.newMode === 'ai';
+
+  return (
+    <Fragment key={keyId || callId}>
+      <div 
+        className={`border rounded-lg p-4 my-2 ${
+          isAI 
+            ? 'bg-green-500/5 border-green-500/30' 
+            : 'bg-blue-500/5 border-blue-500/30'
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          {isAI ? (
+            <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
+              <Sparkles className="h-5 w-5 text-green-600" />
+            </div>
+          ) : (
+            <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+              <Target className="h-5 w-5 text-blue-600" />
+            </div>
+          )}
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-2">
+              <CheckCircle2 className={`h-4 w-4 flex-shrink-0 ${
+                isAI ? 'text-green-600' : 'text-blue-600'
+              }`} />
+              <p className={`text-sm font-semibold ${
+                isAI ? 'text-green-600' : 'text-blue-600'
+              }`}>
+                {isAI ? 'Switched to AI Advantage+' : 'Switched to Manual Targeting'}
+              </p>
+            </div>
+            <p className="text-sm text-foreground mb-2">
+              {output.message}
+            </p>
+            {isAI ? (
+              <div className="flex items-center gap-2 mt-3 p-2 rounded-lg bg-green-500/10">
+                <Badge className="bg-green-600 text-white text-xs">
+                  22% Better ROAS
+                </Badge>
+                <p className="text-xs text-muted-foreground">
+                  Meta&apos;s AI will automatically optimize your audience
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 mt-3 p-2 rounded-lg bg-blue-500/10">
+                <p className="text-xs text-muted-foreground">
+                  I&apos;ll help you set up your target audience through conversation
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Fragment>
+  );
+}
+
 // Component for manual targeting parameters with confirmation
 function ManualTargetingParametersCard(props: {
   callId: string;
