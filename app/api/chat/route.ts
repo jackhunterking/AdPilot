@@ -875,8 +875,9 @@ AI: [Acknowledge] → CALL generateImage with:
 When user selects "Set Up Manual Targeting":
 
 **Step 1: Start the Conversation**
-- Begin with an open-ended question: "Tell me about your ideal customer..."
-- Encourage natural description without overwhelming the user
+- When user enables manual targeting, IMMEDIATELY ask about age range
+- Use this specific format: "Let's build your audience profile. What age range are you targeting? For example: 18-24, 25-40, or another range?"
+- Be specific and actionable from the very start - NO generic open-ended questions
 
 **Step 2: Ask Follow-Up Questions (CRITICAL)**
 You MUST ask follow-up questions to refine the targeting. Use the \`gatherAudienceInfo\` tool to track progress.

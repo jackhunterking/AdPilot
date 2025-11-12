@@ -285,7 +285,10 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   const [showAIAdvantageCard, setShowAIAdvantageCard] = useState(false);
   const [aiAdvantageCardId, setAIAdvantageCardId] = useState<string | null>(null);
   
-  // Manual Targeting success card state
+  // Manual Targeting enabled card state (shown immediately when mode selected)
+  const [showManualTargetingEnabledCard, setShowManualTargetingEnabledCard] = useState(false);
+  
+  // Manual Targeting success card state (shown when parameters confirmed)
   const [showManualTargetingSuccessCard, setShowManualTargetingSuccessCard] = useState(false);
 
   // Update placeholder based on context mode
@@ -315,6 +318,21 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
         setCustomPlaceholder('Type your message...');
     }
   }, [context]);
+  
+  // Auto-hide AI Advantage+ card when user sends a new message
+  useEffect(() => {
+    if (messages.length > 0 && showAIAdvantageCard) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === 'user') {
+        // User sent a message, hide the card after a short delay
+        const timer = setTimeout(() => {
+          setShowAIAdvantageCard(false);
+        }, 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [messages, showAIAdvantageCard]);
+  
   // Keep latest Authorization header (Bearer <token>) in a ref for sync headers
   const authHeaderRef = useRef<string | null>(null);
   const { setIsGenerating, setGenerationMessage, generationMessage } = useGeneration();
@@ -1025,27 +1043,48 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       }
       
       if (mode === 'ai') {
-        // Set AI Advantage+ targeting and mark as completed
-        setAudienceTargeting({ mode: 'ai', advantage_plus_enabled: true });
-        updateAudienceStatus('completed');
-        
-        // Show card immediately (direct rendering, no AI involvement)
-        const cardId = `ai-advantage-${Date.now()}`;
-        setAIAdvantageCardId(cardId);
-        setShowAIAdvantageCard(true);
-        
-        // Optional: Send message for conversation history (but don't wait for it)
-        sendMessageRef.current({
-          text: `AI Advantage+ targeting enabled`,
-        });
+        try {
+          // Set AI Advantage+ targeting and mark as completed
+          setAudienceTargeting({ mode: 'ai', advantage_plus_enabled: true });
+          updateAudienceStatus('completed');
+          
+          // Show card immediately (direct rendering, no AI involvement)
+          const cardId = `ai-advantage-${Date.now()}`;
+          setAIAdvantageCardId(cardId);
+          setShowAIAdvantageCard(true);
+          
+          // Optional: Send message for conversation history (but don't wait for it)
+          if (sendMessageRef.current) {
+            sendMessageRef.current({
+              text: `AI Advantage+ targeting enabled`,
+            });
+          }
+        } catch (error) {
+          console.error('[AIChat] Error enabling AI Advantage+:', error);
+        }
       } else {
-        // Set manual targeting mode and move to gathering-info status
-        setAudienceTargeting({ mode: 'manual' });
-        updateAudienceStatus('gathering-info');
-        // Send structured prompt that forces AI to ask first question
-        sendMessageRef.current({
-          text: `I want to set up manual audience targeting. Please help me define my target audience by asking me questions about demographics, interests, and behaviors.`,
-        });
+        try {
+          // Set manual targeting mode and move to gathering-info status
+          setAudienceTargeting({ mode: 'manual' });
+          updateAudienceStatus('gathering-info');
+          
+          // Show "Manual Targeting Enabled" card immediately
+          setShowManualTargetingEnabledCard(true);
+          
+          // Auto-hide the card after the AI response appears (5 seconds)
+          setTimeout(() => {
+            setShowManualTargetingEnabledCard(false);
+          }, 5000);
+          
+          // Send specific instruction to AI to ask the first question about age range
+          if (sendMessageRef.current) {
+            sendMessageRef.current({
+              text: `I have enabled manual targeting. Please ask me: "Let's build your audience profile. What age range are you targeting? For example: 18-24, 25-40, or another range?"`,
+            });
+          }
+        } catch (error) {
+          console.error('[AIChat] Error enabling manual targeting:', error);
+        }
       }
     };
 
@@ -1103,6 +1142,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       // Clear UI flags
       setShowAIAdvantageCard(false);
       setAIAdvantageCardId(null);
+      setShowManualTargetingEnabledCard(false);
       setShowManualTargetingSuccessCard(false);
       
       // Clear pending and processing states
@@ -1119,12 +1159,29 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   // Journey 1: AI → Manual - Send transition message + first question
   useEffect(() => {
     const handleManualTargetingTransition = () => {
-      console.log('[AIChat] Journey 1: Transitioning to manual targeting - sending welcome message');
-      
-      // Send transition message acknowledging the switch + first question
-      sendMessageRef.current({
-        text: `I've switched you to manual targeting. Let me help you build your audience profile. Who is your ideal customer? Please describe them in terms of age, gender, interests, and behaviors.`,
-      });
+      try {
+        console.log('[AIChat] Journey 1: Transitioning to manual targeting - sending welcome message');
+        
+        // Clear AI Advantage+ card if showing
+        setShowAIAdvantageCard(false);
+        
+        // Show "Manual Targeting Enabled" card immediately
+        setShowManualTargetingEnabledCard(true);
+        
+        // Auto-hide the card after the AI response appears (5 seconds)
+        setTimeout(() => {
+          setShowManualTargetingEnabledCard(false);
+        }, 5000);
+        
+        // Send specific instruction to AI to ask the first question about age range
+        if (sendMessageRef.current) {
+          sendMessageRef.current({
+            text: `I've switched to manual targeting. Please ask me: "Let's build your audience profile. What age range are you targeting? For example: 18-24, 25-40, or another range?"`,
+          });
+        }
+      } catch (error) {
+        console.error('[AIChat] Error in manual targeting transition:', error);
+      }
     };
 
     window.addEventListener('triggerManualTargetingTransition', handleManualTargetingTransition);
@@ -1134,17 +1191,27 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   // Journey 2: Manual → AI - Send confirmation message
   useEffect(() => {
     const handleAIAdvantageConfirmation = () => {
-      console.log('[AIChat] Journey 2: Switched to AI Advantage+ - sending confirmation');
-      
-      // Send confirmation message about AI Advantage+ being enabled
-      sendMessageRef.current({
-        text: `Perfect! I've enabled AI Advantage+ targeting. Meta's AI will automatically find and show your ads to people most likely to engage, optimizing for the best results. This typically delivers 22% better ROAS.`,
-      });
-      
-      // Show the AI advantage card
-      const cardId = `ai-advantage-${Date.now()}`;
-      setAIAdvantageCardId(cardId);
-      setShowAIAdvantageCard(true);
+      try {
+        console.log('[AIChat] Journey 2: Switched to AI Advantage+ - sending confirmation');
+        
+        // Clear Manual Targeting cards if showing
+        setShowManualTargetingEnabledCard(false);
+        setShowManualTargetingSuccessCard(false);
+        
+        // Send confirmation message about AI Advantage+ being enabled
+        if (sendMessageRef.current) {
+          sendMessageRef.current({
+            text: `Perfect! I've enabled AI Advantage+ targeting. Meta's AI will automatically find and show your ads to people most likely to engage, optimizing for the best results. This typically delivers 22% better ROAS.`,
+          });
+        }
+        
+        // Show the AI advantage card
+        const cardId = `ai-advantage-${Date.now()}`;
+        setAIAdvantageCardId(cardId);
+        setShowAIAdvantageCard(true);
+      } catch (error) {
+        console.error('[AIChat] Error in AI Advantage+ confirmation:', error);
+      }
     };
 
     window.addEventListener('triggerAIAdvantageConfirmation', handleAIAdvantageConfirmation);
@@ -2757,6 +2824,28 @@ Make it conversational and easy to understand for a business owner.`,
                 </div>
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors flex-shrink-0 ml-2" />
+            </div>
+          </div>
+        )}
+        
+        {/* Manual Targeting Enabled Card - Shows immediately when mode selected */}
+        {showManualTargetingEnabledCard && (
+          <div className="w-full px-4 my-4 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex items-center justify-between p-4 rounded-lg border border-blue-500/30 bg-blue-500/5">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center flex-shrink-0">
+                  <Target className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-sm">Manual Targeting Enabled</p>
+                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-1">
+                    Let's build your ideal audience profile together
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}

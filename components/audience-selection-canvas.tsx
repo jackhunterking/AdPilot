@@ -305,6 +305,73 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
           </div>
         </div>
         
+        {/* Progress Indicators - Show what's been gathered */}
+        {(demographics || detailedTargeting) && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="h-px flex-1 bg-border" />
+              <p className="text-xs font-medium text-muted-foreground">Gathered So Far</p>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+            
+            {/* Demographics */}
+            {demographics && (demographics.ageMin || demographics.ageMax || (demographics.gender && demographics.gender !== 'all')) && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+                <Users className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Demographics</p>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {demographics.ageMin && demographics.ageMax && (
+                      <Badge variant="secondary" className="text-xs">
+                        Age {demographics.ageMin}-{demographics.ageMax}
+                      </Badge>
+                    )}
+                    {demographics.gender && demographics.gender !== 'all' && (
+                      <Badge variant="secondary" className="text-xs">
+                        {demographics.gender.charAt(0).toUpperCase() + demographics.gender.slice(1)}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Interests */}
+            {detailedTargeting?.interests && detailedTargeting.interests.length > 0 && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+                <Heart className="h-4 w-4 text-pink-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Interests</p>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {detailedTargeting.interests.map((interest) => (
+                      <Badge key={interest.id} variant="secondary" className="text-xs">
+                        {interest.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Behaviors */}
+            {detailedTargeting?.behaviors && detailedTargeting.behaviors.length > 0 && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+                <Target className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Behaviors</p>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {detailedTargeting.behaviors.map((behavior) => (
+                      <Badge key={behavior.id} variant="secondary" className="text-xs">
+                        {behavior.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        
         <div className="flex justify-center gap-4 pt-4">
           <Button
             variant="outline"
@@ -357,6 +424,73 @@ export const AudienceSelectionCanvas = memo(function AudienceSelectionCanvas({ v
             </div>
           </div>
         </div>
+        
+        {/* Progress Indicators - Show what's been gathered */}
+        {(demographics || detailedTargeting) && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="h-px flex-1 bg-border" />
+              <p className="text-xs font-medium text-muted-foreground">Gathered So Far</p>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+            
+            {/* Demographics */}
+            {demographics && (demographics.ageMin || demographics.ageMax || (demographics.gender && demographics.gender !== 'all')) && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+                <Users className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Demographics</p>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {demographics.ageMin && demographics.ageMax && (
+                      <Badge variant="secondary" className="text-xs">
+                        Age {demographics.ageMin}-{demographics.ageMax}
+                      </Badge>
+                    )}
+                    {demographics.gender && demographics.gender !== 'all' && (
+                      <Badge variant="secondary" className="text-xs">
+                        {demographics.gender.charAt(0).toUpperCase() + demographics.gender.slice(1)}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Interests */}
+            {detailedTargeting?.interests && detailedTargeting.interests.length > 0 && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+                <Heart className="h-4 w-4 text-pink-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Interests</p>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {detailedTargeting.interests.map((interest) => (
+                      <Badge key={interest.id} variant="secondary" className="text-xs">
+                        {interest.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Behaviors */}
+            {detailedTargeting?.behaviors && detailedTargeting.behaviors.length > 0 && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+                <Target className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Behaviors</p>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {detailedTargeting.behaviors.map((behavior) => (
+                      <Badge key={behavior.id} variant="secondary" className="text-xs">
+                        {behavior.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         
         <div className="flex justify-center gap-4 pt-4">
           <Button
