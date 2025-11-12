@@ -11,7 +11,6 @@ import type {
   AdCreativeSnapshot,
   AdCopySnapshot,
   LocationSnapshot,
-  AudienceSnapshot,
   GoalSnapshot,
   BudgetSnapshot,
   DestinationSnapshot,
@@ -72,33 +71,6 @@ interface LocationState {
   status: string
 }
 
-interface TargetingOption {
-  id: string
-  name: string
-}
-
-interface DetailedTargeting {
-  interests?: TargetingOption[]
-  behaviors?: TargetingOption[]
-  connections?: TargetingOption[]
-}
-
-interface AudienceState {
-  targeting: {
-    mode: 'ai' | 'manual'
-    advantage_plus_enabled?: boolean
-    description?: string
-    demographics?: {
-      ageMin?: number
-      ageMax?: number
-      gender?: 'all' | 'male' | 'female'
-      languages?: string[]
-    }
-    detailedTargeting?: DetailedTargeting
-  }
-  status: string
-}
-
 interface GoalState {
   selectedGoal: 'leads' | 'calls' | 'website-visits' | null
   formData: {
@@ -146,7 +118,6 @@ export interface BuildAdSnapshotInput {
   adCopy: AdCopyState
   destination: DestinationState
   location: LocationState
-  audience: AudienceState
   goal: GoalState
   budget: BudgetState
 }
@@ -156,7 +127,7 @@ export interface BuildAdSnapshotInput {
  * This is the single source of truth builder
  */
 export function buildAdSnapshot(input: BuildAdSnapshotInput): AdSetupSnapshot {
-  const { adPreview, adCopy, destination, location, audience, goal, budget } = input
+  const { adPreview, adCopy, destination, location, goal, budget } = input
 
   // Build creative snapshot
   const creative: AdCreativeSnapshot = {
@@ -188,15 +159,6 @@ export function buildAdSnapshot(input: BuildAdSnapshotInput): AdSetupSnapshot {
   // Build location snapshot
   const locationSnapshot: LocationSnapshot = {
     locations: location.locations || [],
-  }
-
-  // Build audience snapshot
-  const audienceSnapshot: AudienceSnapshot = {
-    mode: audience.targeting.mode,
-    advantage_plus_enabled: audience.targeting.advantage_plus_enabled,
-    description: audience.targeting.description,
-    demographics: audience.targeting.demographics,
-    detailedTargeting: audience.targeting.detailedTargeting,
   }
 
   // Build destination snapshot
@@ -234,7 +196,6 @@ export function buildAdSnapshot(input: BuildAdSnapshotInput): AdSetupSnapshot {
     copy,
     destination: destinationSnapshot,
     location: locationSnapshot,
-    audience: audienceSnapshot,
     goal: goalSnapshot,
     budget: budgetSnapshot,
     createdAt: new Date().toISOString(),
@@ -268,11 +229,6 @@ export function validateAdSnapshot(snapshot: AdSetupSnapshot): SnapshotValidatio
   // Validate location
   if (!snapshot.location.locations.length) {
     errors.push('No target locations selected')
-  }
-
-  // Validate audience
-  if (snapshot.audience.mode === 'ai' && !snapshot.audience.description) {
-    warnings.push('AI audience has no description')
   }
 
   // Validate goal (campaign-level)

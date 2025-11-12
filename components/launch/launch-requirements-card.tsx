@@ -115,14 +115,12 @@ export function createRequirements({
   hasCreative,
   hasCopy,
   hasLocation,
-  hasAudience,
   hasDestination,
   isMetaConnected,
 }: {
   hasCreative: boolean
   hasCopy: boolean
   hasLocation: boolean
-  hasAudience: boolean
   hasDestination: boolean
   isMetaConnected: boolean
 }): RequirementItem[] {
@@ -150,12 +148,6 @@ export function createRequirements({
       label: "Location",
       completed: hasLocation,
       description: hasLocation ? undefined : "Target at least one location",
-    },
-    {
-      id: "audience",
-      label: "Audience",
-      completed: hasAudience,
-      description: hasAudience ? undefined : "Define your target audience",
     },
     {
       id: "meta",

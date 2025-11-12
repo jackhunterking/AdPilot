@@ -141,16 +141,6 @@ export function CampaignEditor() {
               </div>
             </AccordionContent>
           </AccordionItem>
-          <AccordionItem value="audience" disabled>
-            <AccordionTrigger className="text-left opacity-60">
-              Audience targeting (coming soon)
-            </AccordionTrigger>
-            <AccordionContent>
-              <p className="text-sm text-muted-foreground">
-                You can already adjust your audience in the Setup tab. Quick edits from the Results view are on the roadmap.
-              </p>
-            </AccordionContent>
-          </AccordionItem>
           <AccordionItem value="location" disabled>
             <AccordionTrigger className="text-left opacity-60">
               Locations (coming soon)

@@ -1,13 +1,3 @@
-/**
- * Feature: Supabase Database Types
- * Purpose: TypeScript types generated from database schema
- * References:
- *  - Supabase: https://supabase.com/docs/guides/api/rest/generating-types
- * 
- * Note: These types are synced with the database schema. Run `npx supabase gen types typescript`
- * to regenerate after schema changes.
- */
-
 export type Json =
   | string
   | number
@@ -31,6 +21,8 @@ export type Database = {
           copy_data: Json | null
           created_at: string
           creative_data: Json | null
+          destination_data: Json | null
+          destination_type: string | null
           id: string
           meta_ad_id: string | null
           meta_review_status: string
@@ -48,6 +40,8 @@ export type Database = {
           copy_data?: Json | null
           created_at?: string
           creative_data?: Json | null
+          destination_data?: Json | null
+          destination_type?: string | null
           id?: string
           meta_ad_id?: string | null
           meta_review_status?: string
@@ -65,6 +59,8 @@ export type Database = {
           copy_data?: Json | null
           created_at?: string
           creative_data?: Json | null
+          destination_data?: Json | null
+          destination_type?: string | null
           id?: string
           meta_ad_id?: string | null
           meta_review_status?: string
@@ -79,41 +75,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ads_campaign_id_fkey"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      audience_sets: {
-        Row: {
-          ai_targeting_enabled: boolean
-          campaign_id: string
-          config_json: Json
-          created_at: string
-          id: string
-          is_test: boolean
-        }
-        Insert: {
-          ai_targeting_enabled?: boolean
-          campaign_id: string
-          config_json?: Json
-          created_at?: string
-          id?: string
-          is_test?: boolean
-        }
-        Update: {
-          ai_targeting_enabled?: boolean
-          campaign_id?: string
-          config_json?: Json
-          created_at?: string
-          id?: string
-          is_test?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "audience_sets_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "campaigns"
@@ -470,7 +431,6 @@ export type Database = {
         Row: {
           ad_copy_data: Json | null
           ad_preview_data: Json | null
-          audience_data: Json | null
           budget_data: Json | null
           campaign_id: string | null
           generated_images: Json | null
@@ -484,7 +444,6 @@ export type Database = {
         Insert: {
           ad_copy_data?: Json | null
           ad_preview_data?: Json | null
-          audience_data?: Json | null
           budget_data?: Json | null
           campaign_id?: string | null
           generated_images?: Json | null
@@ -498,7 +457,6 @@ export type Database = {
         Update: {
           ad_copy_data?: Json | null
           ad_preview_data?: Json | null
-          audience_data?: Json | null
           budget_data?: Json | null
           campaign_id?: string | null
           generated_images?: Json | null
@@ -1629,3 +1587,4 @@ export const Constants = {
     },
   },
 } as const
+

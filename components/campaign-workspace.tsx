@@ -20,7 +20,6 @@ import { AllAdsGrid } from "@/components/all-ads-grid"
 import { ABTestBuilder } from "@/components/ab-test/ab-test-builder"
 import { PublishFlowDialog } from "@/components/launch/publish-flow-dialog"
 import { useCampaignContext } from "@/lib/context/campaign-context"
-import { useAudience } from "@/lib/context/audience-machine-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { useLocation } from "@/lib/context/location-context"
 import { useAdCopy } from "@/lib/context/ad-copy-context"
@@ -45,7 +44,6 @@ export function CampaignWorkspace() {
   const { destinationState, clearDestination, setDestination } = useDestination()
   const { adContent, resetAdPreview, selectedImageIndex, selectedCreativeVariation, setIsPublished, setAdContent, setSelectedImageIndex, setSelectedCreativeVariation } = useAdPreview()
   const { clearLocations, locationState, addLocations } = useLocation()
-  const { resetAudience, audienceState, setAudienceTargeting } = useAudience()
   const { adCopyState, getSelectedCopy, resetAdCopy, setCustomCopyVariations, setSelectedCopyIndex } = useAdCopy()
   const { budgetState, isComplete: isBudgetComplete } = useBudget()
   const { metaStatus, paymentStatus } = useMetaConnection()
@@ -418,7 +416,6 @@ export function CampaignWorkspace() {
       adCopyState.status === "completed" &&
       destinationState.status === "completed" &&
       locationState.status === "completed" &&
-      audienceState.status === "completed" &&
       isMetaConnectionComplete &&
       hasPaymentMethod &&
       isBudgetComplete()
@@ -428,7 +425,6 @@ export function CampaignWorkspace() {
     adCopyState.status,
     destinationState.status,
     locationState.status,
-    audienceState.status,
     isMetaConnectionComplete,
     hasPaymentMethod,
     isBudgetComplete,
@@ -455,11 +451,10 @@ export function CampaignWorkspace() {
     )
     
     const hasLocationWork = locationState.locations.length > 0
-    const hasAudienceWork = audienceState.status === 'completed'
     const hasCopyWork = (adCopyState.customCopyVariations?.length ?? 0) > 0
     
-    return hasCreativeWork || hasLocationWork || hasAudienceWork || hasCopyWork
-  }, [effectiveMode, adContent, locationState.locations, audienceState.status, adCopyState.customCopyVariations])
+    return hasCreativeWork || hasLocationWork || hasCopyWork
+  }, [effectiveMode, adContent, locationState.locations, adCopyState.customCopyVariations])
 
   // Track unsaved changes in edit mode and progress in build mode
   useEffect(() => {
@@ -639,7 +634,6 @@ export function CampaignWorkspace() {
       resetAdCopy()
       clearDestination()
       clearLocations()
-      resetAudience()
       
       // Step 3: Generate new conversation ID to force AI chat reset
       const newConversationId = `conv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -659,7 +653,7 @@ export function CampaignWorkspace() {
       
       // Step 5: Navigate to build mode with adId and newAd flag
       // Goal and budget are locked (inherited from campaign)
-      // User can only modify creative, audience, and location
+      // User can only modify creative and location
       const params = new URLSearchParams()
       params.set("view", "build")
       params.set("adId", newAdId)
@@ -694,7 +688,7 @@ export function CampaignWorkspace() {
       // Always release lock
       releaseLock()
     }
-  }, [campaignId, effectiveMode, pathname, router, resetAdPreview, resetAdCopy, clearDestination, clearLocations, resetAudience])
+  }, [campaignId, effectiveMode, pathname, router, resetAdPreview, resetAdCopy, clearDestination, clearLocations])
 
   const handleViewAllAds = useCallback(() => {
     setWorkspaceMode('all-ads')
@@ -744,7 +738,6 @@ export function CampaignWorkspace() {
           hydrateAdPreviewFromSnapshot, 
           hydrateAdCopyFromSnapshot, 
           hydrateLocationFromSnapshot, 
-          hydrateAudienceFromSnapshot,
           hydrateDestinationFromSnapshot,
           isValidSnapshot
         } = await import('@/lib/utils/snapshot-hydration')
@@ -774,11 +767,6 @@ export function CampaignWorkspace() {
             addLocations(locationData.locations, false) // Replace, don't merge
           }
           console.log(`[${traceId}] ✅ Hydrated locations from snapshot`)
-          
-          // Hydrate audience context
-          const audienceData = hydrateAudienceFromSnapshot(snapshot)
-          setAudienceTargeting(audienceData.targeting as any) // Type widening for XState context compatibility
-          console.log(`[${traceId}] ✅ Hydrated audience from snapshot`)
           
           // Hydrate destination context
           const destinationData = hydrateDestinationFromSnapshot(snapshot)
@@ -820,7 +808,7 @@ export function CampaignWorkspace() {
       console.error(`[${traceId}] Error entering edit mode:`, error)
       toast.error('Failed to load ad for editing')
     }
-  }, [ads, setAdContent, setSelectedImageIndex, setSelectedCreativeVariation, setCustomCopyVariations, setSelectedCopyIndex, addLocations, setAudienceTargeting, setDestination, setWorkspaceMode])
+  }, [ads, setAdContent, setSelectedImageIndex, setSelectedCreativeVariation, setCustomCopyVariations, setSelectedCopyIndex, addLocations, setDestination, setWorkspaceMode])
 
   const getMetaToken = useCallback(() => {
     if (typeof window === 'undefined' || !campaignId) return null
@@ -1075,7 +1063,6 @@ export function CampaignWorkspace() {
     const statesComplete = 
       destinationState.status === 'completed' &&
       locationState.status === 'completed' &&
-      audienceState.status === 'completed' &&
       adCopyState.status === 'completed'
     
     // Check ad content exists (images + copy)
@@ -1099,7 +1086,6 @@ export function CampaignWorkspace() {
   }, [
     destinationState.status,
     locationState.status,
-    audienceState.status,
     adCopyState.status,
     adContent,
     metaStatus,
@@ -1127,7 +1113,6 @@ export function CampaignWorkspace() {
         adCopy: adCopyState,
         destination: destinationState,
         location: locationState,
-        audience: audienceState,
         goal: goalState,
         budget: budgetState,
       })
@@ -1196,7 +1181,6 @@ export function CampaignWorkspace() {
     adCopyState,
     destinationState,
     locationState,
-    audienceState,
     goalState,
     budgetState,
     getSelectedCopy,

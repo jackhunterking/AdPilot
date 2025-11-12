@@ -5,7 +5,6 @@ import { logger } from '@/lib/utils/logger';
 export interface CampaignState {
   goal_data: Record<string, unknown> | null;
   location_data: Record<string, unknown> | null;
-  audience_data: Record<string, unknown> | null;
   ad_copy_data: Record<string, unknown> | null;
   ad_preview_data: Record<string, unknown> | null;
   budget_data: Record<string, unknown> | null;
@@ -21,7 +20,7 @@ export interface RestoredState {
 
 /**
  * Comprehensive hook to restore all campaign state including:
- * - Context states (goal, location, audience, budget, ad copy, ad preview)
+ * - Context states (goal, location, budget, ad copy, ad preview)
  * - Generated images and variations
  * - Chat message history
  */

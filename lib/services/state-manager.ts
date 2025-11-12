@@ -19,7 +19,6 @@ export type CampaignState = Database['public']['Tables']['campaign_states']['Row
 type StateField = 
   | 'goal_data'
   | 'location_data'
-  | 'audience_data'
   | 'ad_copy_data'
   | 'ad_preview_data'
   | 'budget_data'
@@ -71,7 +70,6 @@ export const stateManager = {
           campaign_id: campaignId,
           goal_data: null,
           location_data: null,
-          audience_data: null,
           ad_copy_data: null,
           ad_preview_data: null,
           budget_data: null,
@@ -194,7 +192,6 @@ export const stateManager = {
         .update({
           goal_data: null,
           location_data: null,
-          audience_data: null,
           ad_copy_data: null,
           ad_preview_data: null,
           budget_data: null,

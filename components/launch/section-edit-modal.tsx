@@ -2,7 +2,7 @@
 
 /**
  * Feature: Launch - Section Edit Modal
- * Purpose: Modal wrapper for editing launch sections (Location, Audience, Goal) without leaving launch view
+ * Purpose: Modal wrapper for editing launch sections (Location, Goal) without leaving launch view
  * References:
  *  - AI Elements: https://ai-sdk.dev/elements/overview#components
  */

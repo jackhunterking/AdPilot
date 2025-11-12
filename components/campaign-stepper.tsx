@@ -38,11 +38,6 @@ const stepHeaders: Record<string, { title: string; subtitle: string; subtext: st
     subtitle: "Reach the right places",
     subtext: "Define where your ads will appear"
   },
-  audience: {
-    title: "Ad Audience",
-    subtitle: "Connect with ideal customers",
-    subtext: "Define who will see your ads"
-  },
   goal: {
     title: "Set Your Objective",
     subtitle: "Define what success looks like",

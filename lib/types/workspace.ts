@@ -297,7 +297,6 @@ export interface VariantCreationConfig {
   inherit_settings: boolean
   custom_settings?: {
     location?: boolean
-    audience?: boolean
     budget?: boolean
   }
 }

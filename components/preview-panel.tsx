@@ -15,14 +15,12 @@ import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Play, ImageIcon, Video, Layers, Sparkles, Building2, Check, Facebook, Loader2, Edit2, Palette, Type, MapPin, Target, Rocket, Flag, Link2, MoreVertical, Globe, Heart, ThumbsUp, MessageCircle, Share2, ChevronDown, AlertTriangle, ChevronUp } from "lucide-react"
 import { LocationSelectionCanvas } from "./location-selection-canvas"
-import { AudienceSelectionCanvas } from "./audience-selection-canvas"
 import { AdCopySelectionCanvas } from "./ad-copy-selection-canvas"
 import { DestinationSetupCanvas } from "./destination-setup-canvas"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { CampaignStepper } from "./campaign-stepper"
 import { useBudget } from "@/lib/context/budget-context"
 import { useLocation } from "@/lib/context/location-context"
-import { useAudience } from "@/lib/context/audience-machine-context"
 import { useGoal } from "@/lib/context/goal-context"
 import { useDestination } from "@/lib/context/destination-context"
 import { useAdCopy } from "@/lib/context/ad-copy-context"
@@ -57,7 +55,6 @@ export function PreviewPanel() {
   const { budgetState, isComplete } = useBudget()
   const { campaign } = useCampaignContext()
   const { locationState } = useLocation()
-  const { audienceState } = useAudience()
   const { goalState } = useGoal()
   const { destinationState } = useDestination()
   const { adCopyState, getActiveVariations, getSelectedCopy } = useAdCopy()
@@ -66,7 +63,6 @@ export function PreviewPanel() {
   
   // Modal state management for section editing
   const [locationModalOpen, setLocationModalOpen] = useState(false)
-  const [audienceModalOpen, setAudienceModalOpen] = useState(false)
   
   // Publish flow dialog state
   const [publishDialogOpen, setPublishDialogOpen] = useState(false)
@@ -126,12 +122,6 @@ export function PreviewPanel() {
       setLocationModalOpen(false)
     }
   }, [locationState.status, locationModalOpen])
-
-  useEffect(() => {
-    if (audienceState.status === "completed" && audienceModalOpen) {
-      setAudienceModalOpen(false)
-    }
-  }, [audienceState.status, audienceModalOpen])
 
   // Listen for image edit events from AI chat (always mounted)
   useEffect(() => {
@@ -258,7 +248,6 @@ export function PreviewPanel() {
     adCopyState.status === "completed" &&
     destinationState.status === "completed" &&
     locationState.status === "completed" &&
-    audienceState.status === "completed" &&
     isMetaConnectionComplete &&
     hasPaymentMethod &&
     isComplete()
@@ -283,7 +272,6 @@ export function PreviewPanel() {
         adCopy: adCopyState,
         destination: destinationState,
         location: locationState,
-        audience: audienceState,
         goal: goalState,
         budget: budgetState,
       })
@@ -330,7 +318,7 @@ export function PreviewPanel() {
     } finally {
       setIsSaving(false)
     }
-  }, [campaign?.id, campaign?.name, currentAdId, isSaving, adContent, selectedImageIndex, selectedCreativeVariation, adCopyState, destinationState, locationState, audienceState, goalState, budgetState, getSelectedCopy])
+  }, [campaign?.id, campaign?.name, currentAdId, isSaving, adContent, selectedImageIndex, selectedCreativeVariation, adCopyState, destinationState, locationState, goalState, budgetState, getSelectedCopy])
   
   /**
    * Handles ad publish action - opens confirmation dialog
@@ -365,7 +353,6 @@ export function PreviewPanel() {
         adCopy: adCopyState,
         destination: destinationState,
         location: locationState,
-        audience: audienceState,
         goal: goalState,
         budget: budgetState,
       })
@@ -948,19 +935,6 @@ export function PreviewPanel() {
   // Step 1: Ads Content with 3x2 Grid
   const adsContent = (
     <div className="space-y-6">
-      {/* AI Advantage+ Enabled Badge */}
-      {audienceState.status === "completed" && audienceState.targeting.mode === "ai" && (
-        <div className="flex justify-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/30">
-            <Sparkles className="h-4 w-4 text-blue-600" />
-            <span className="text-sm font-medium text-blue-700 dark:text-blue-400">
-              AI Advantage+ Enabled
-            </span>
-            <Check className="h-4 w-4 text-green-600" />
-          </div>
-        </div>
-      )}
-      
       <div className="flex justify-center pb-4">
         <div className="inline-flex rounded-lg border border-border p-1 bg-card">
           {previewFormats.map((format) => {
@@ -1048,10 +1022,6 @@ export function PreviewPanel() {
 
   const locationSummaryContent = (
     <LocationSelectionCanvas variant="summary" />
-  )
-
-  const audienceSummaryContent = (
-    <AudienceSelectionCanvas variant="summary" />
   )
 
   // Launch Content - New minimal UX for final step
@@ -1202,16 +1172,6 @@ export function PreviewPanel() {
           onEdit={() => setLocationModalOpen(true)}
         />
 
-        {/* Audience Section */}
-        <CollapsibleSection
-          title="Audience"
-          icon={Target}
-          isComplete={audienceState.status === "completed"}
-          summaryContent={audienceSummaryContent}
-          editStepId="audience"
-          onEdit={() => setAudienceModalOpen(true)}
-        />
-
         {/* Edit Modals */}
         <SectionEditModal
           open={locationModalOpen}
@@ -1223,17 +1183,6 @@ export function PreviewPanel() {
           innerClassName="max-w-none mx-0 h-full"
         >
           <LocationSelectionCanvas />
-        </SectionEditModal>
-
-        <SectionEditModal
-          open={audienceModalOpen}
-          onOpenChange={setAudienceModalOpen}
-          title="Define Audience"
-          size="xl"
-          bodyClassName="bg-muted/20 px-0 py-0"
-          innerClassName="max-w-none mx-0"
-        >
-          <AudienceSelectionCanvas />
         </SectionEditModal>
       </div>
     </div>
@@ -1270,17 +1219,8 @@ export function PreviewPanel() {
         icon: MapPin,
       },
       {
-        id: "audience",
-        number: 4,
-        title: "Define Audience",
-        description: "Select who should see your ads",
-        completed: audienceState.status === "completed" || audienceState.isSelected,
-        content: <AudienceSelectionCanvas />,
-        icon: Target,
-      },
-      {
         id: "destination",
-        number: 5,
+        number: 4,
         title: "Destination",
         description: "Configure where users will be directed",
         completed: destinationState.status === "completed",
@@ -1289,7 +1229,7 @@ export function PreviewPanel() {
       },
       {
         id: "budget",
-        number: 6,
+        number: 5,
         title: "Ad Preview",
         description: "Review details and publish your ad",
         completed: isComplete(),
@@ -1303,7 +1243,7 @@ export function PreviewPanel() {
       ...step,
       number: index + 1,
     }))
-  }, [selectedImageIndex, adCopyState.status, destinationState.status, locationState.status, audienceState.status, isMetaConnectionComplete, isComplete, adsContent, launchContent])
+  }, [selectedImageIndex, adCopyState.status, destinationState.status, locationState.status, isMetaConnectionComplete, isComplete, adsContent, launchContent])
 
   return (
     <div className="flex flex-1 h-full flex-col relative min-h-0">
@@ -1329,20 +1269,6 @@ export function PreviewPanel() {
         })()}
         dailyBudget={budgetState.dailyBudget > 0 ? `$${budgetState.dailyBudget}` : undefined}
         locationCount={locationState.locations.length}
-        audienceSummary={(() => {
-          const targeting = audienceState.targeting
-          if (!targeting) return undefined
-          
-          const parts: string[] = []
-          if (targeting.demographics?.ageMin !== undefined && targeting.demographics?.ageMax !== undefined) {
-            parts.push(`Ages ${targeting.demographics.ageMin}-${targeting.demographics.ageMax}`)
-          }
-          if (targeting.detailedTargeting?.interests && targeting.detailedTargeting.interests.length > 0) {
-            parts.push(`${targeting.detailedTargeting.interests.length} ${targeting.detailedTargeting.interests.length === 1 ? 'interest' : 'interests'}`)
-          }
-          
-          return parts.length > 0 ? parts.join(', ') : 'Custom audience'
-        })()}
         adAccountName={(() => {
           if (!campaign?.id) return undefined
           const summary = metaStorage.getConnectionSummary(campaign.id)

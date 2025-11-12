@@ -50,26 +50,6 @@ export function hydrateLocationFromSnapshot(snapshot: AdSetupSnapshot) {
 }
 
 /**
- * Hydrate audience context from snapshot
- */
-export function hydrateAudienceFromSnapshot(snapshot: AdSetupSnapshot) {
-  // The snapshot.audience.mode is already typed as 'ai' | 'manual'
-  const mode = snapshot.audience.mode
-  
-  return {
-    status: 'completed' as const,
-    targeting: {
-      mode,
-      description: snapshot.audience.description,
-      demographics: snapshot.audience.demographics,
-      detailedTargeting: snapshot.audience.detailedTargeting,
-      advantage_plus_enabled: snapshot.audience.advantage_plus_enabled || mode === 'ai',
-    },
-    isSelected: true,
-  }
-}
-
-/**
  * Hydrate destination context from snapshot
  */
 export function hydrateDestinationFromSnapshot(snapshot: AdSetupSnapshot) {
@@ -107,7 +87,6 @@ export function isValidSnapshot(snapshot: unknown): snapshot is AdSetupSnapshot 
     s.creative && typeof s.creative === 'object' &&
     s.copy && typeof s.copy === 'object' &&
     s.location && typeof s.location === 'object' &&
-    s.audience && typeof s.audience === 'object' &&
     s.goal && typeof s.goal === 'object'
   )
   
@@ -123,7 +102,6 @@ export function hydrateAllContextsFromSnapshot(snapshot: AdSetupSnapshot) {
     adPreview: hydrateAdPreviewFromSnapshot(snapshot),
     adCopy: hydrateAdCopyFromSnapshot(snapshot),
     location: hydrateLocationFromSnapshot(snapshot),
-    audience: hydrateAudienceFromSnapshot(snapshot),
     destination: hydrateDestinationFromSnapshot(snapshot),
   }
 }

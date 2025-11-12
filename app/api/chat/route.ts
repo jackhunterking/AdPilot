@@ -30,15 +30,8 @@ import { generateImageTool } from '@/lib/ai/tools/generate-image';
 import { editImageTool } from '@/lib/ai/tools/edit-image';
 import { regenerateImageTool } from '@/lib/ai/tools/regenerate-image';
 import { locationTargetingTool } from '@/lib/ai/tools/location-targeting-tool';
-import { audienceTargetingTool } from '@/lib/ai/tools/audience-targeting-tool';
-import { setupManualTargetingTool } from '@/lib/ai/tools/setup-manual-targeting';
 import { setupGoalTool } from '@/lib/ai/tools/setup-goal-tool';
 import { editAdCopyTool } from '@/lib/ai/tools/edit-ad-copy';
-import { audienceModeTool } from '@/lib/ai/tools/audience-mode-tool';
-import { manualTargetingParametersTool } from '@/lib/ai/tools/manual-targeting-parameters-tool';
-import { gatherAudienceInfoTool } from '@/lib/ai/tools/gather-audience-info-tool';
-import { enableAIAdvantageTool } from '@/tools/enable-ai-advantage-tool';
-import { switchTargetingModeTool } from '@/tools/switch-targeting-mode-tool';
 import { getCachedMetrics } from '@/lib/meta/insights';
 import { getModel } from '@/lib/ai/gateway-provider';
 import { messageStore } from '@/lib/services/message-store';
@@ -160,15 +153,8 @@ export async function POST(req: Request) {
     editImage: editImageTool,
     regenerateImage: regenerateImageTool,
     locationTargeting: locationTargetingTool,
-    audienceTargeting: audienceTargetingTool,
-    setupManualTargeting: setupManualTargetingTool,
     setupGoal: setupGoalTool,
     editAdCopy: editAdCopyTool,
-    audienceMode: audienceModeTool,
-    gatherAudienceInfo: gatherAudienceInfoTool,
-    manualTargetingParameters: manualTargetingParametersTool,
-    enableAIAdvantage: enableAIAdvantageTool,
-    switchTargetingMode: switchTargetingModeTool,
   };
 
   // Get or create conversation
@@ -506,15 +492,6 @@ export async function POST(req: Request) {
           }
         } as unknown;
       }
-    }
-    
-    // Handle audience context reference
-    if ((metadata as { audienceContext?: unknown }).audienceContext) {
-      const ctx = (metadata as { audienceContext?: { demographics?: string; interests?: string } }).audienceContext!;
-      referenceContext += `\n\n[USER IS EDITING AUDIENCE TARGETING]\n`;
-      referenceContext += `Current targeting: ${ctx.demographics || 'general audience'}`;
-      if (ctx.interests) referenceContext += `, interested in: ${ctx.interests}`;
-      referenceContext += `\n\nThe user's message below describes how they want to change the audience targeting.\n`;
     }
   }
 
@@ -870,64 +847,6 @@ AI: [Acknowledge] → CALL generateImage with:
 
 **CRITICAL**: When you see "generate", "create", or "make" + enough context (especially with OFFER), you MUST CALL the generateImage tool with the offer incorporated into the prompt. Do NOT just explain what you're going to do - ACTUALLY USE THE TOOL!
 
-## Manual Targeting Conversational Flow
-
-When user selects "Set Up Manual Targeting":
-
-**Step 1: Start the Conversation**
-- When user enables manual targeting, IMMEDIATELY ask about age range
-- Use this specific format: "Let's build your audience profile. What age range are you targeting? For example: 18-24, 25-40, or another range?"
-- Be specific and actionable from the very start - NO generic open-ended questions
-
-**Step 2: Ask Follow-Up Questions (CRITICAL)**
-You MUST ask follow-up questions to refine the targeting. Use the \`gatherAudienceInfo\` tool to track progress.
-
-**What You Need:**
-- Demographics: Age range (e.g., "25-40") and gender
-- Interests: At least 2-3 specific interests (e.g., "yoga", "healthy eating")
-- OR Behaviors: 1-2 behaviors (e.g., "small business owners")
-
-**Follow-Up Question Examples:**
-- "What age range are you targeting? For example, young adults (18-24), professionals (25-40), or another range?"
-- "What specific interests does your audience have? For example: yoga, running, healthy eating, etc."
-- "Are there any behaviors that describe your audience? Such as small business owners, recent movers, engaged shoppers?"
-
-**Step 3: Generate Parameters**
-Once you have:
-- Demographics (age + gender)
-- AND at least 2-3 interests OR 1-2 behaviors
-
-Use the \`manualTargetingParameters\` tool to generate targeting parameters.
-
-**Step 4: Wait for Confirmation**
-After calling \`manualTargetingParameters\`:
-- The tool will display a preview card with a "Confirm Targeting" button
-- DO NOT proceed until the user clicks the button
-- The canvas will update automatically after confirmation
-
-**Example Flow:**
-
-User: "Set up manual targeting"
-AI: "Tell me about your ideal customer. Who are you trying to reach with this ad?"
-
-User: "Women interested in fitness"
-AI: [Use gatherAudienceInfo] → "Great! What age range are you targeting?"
-
-User: "25-40"
-AI: [Use gatherAudienceInfo] → "Perfect! What specific fitness interests? For example: yoga, running, gym workouts, healthy eating?"
-
-User: "Yoga and healthy eating"
-AI: [Use manualTargetingParameters with all gathered info]
-→ Preview card appears with confirmation button
-→ User clicks "Confirm Targeting"
-→ Canvas shows loading animation, then refinement UI
-
-**CRITICAL RULES:**
-1. ALWAYS use \`gatherAudienceInfo\` before \`manualTargetingParameters\`
-2. Ask ONE follow-up question at a time
-3. Only generate parameters when you have complete information
-4. Never skip the confirmation step
-
 ## Tool Cancellation Handling
 When a tool is cancelled by the user (tool result contains "cancelled: true"):
 - Acknowledge the cancellation with a brief, friendly text message
@@ -1033,95 +952,6 @@ IMPORTANT: Users can remove locations by clicking X. When they ask to add new lo
 1. Locations they explicitly mentioned in current request
 2. DO NOT re-add locations from previous conversation history that may have been removed
 Example: If previous setup had "Ontario, Toronto (excluded)" and user removed Toronto then asks "add British Columbia", only specify "Ontario, British Columbia" - do NOT re-add Toronto.
-
-## Audience Targeting
-
-**When user selects a targeting mode:**
-
-1. **AI Advantage+ Selection:**
-   - User clicks "Enable AI Advantage+" button or says "enable AI Advantage+"
-   - IMMEDIATELY call 'enableAIAdvantage' tool to show visual feedback card
-   - DO NOT mention creating visuals, next steps, or anything else
-   - DO NOT generate additional text after the tool call
-   - The tool shows ONLY a success confirmation card in chat, nothing more
-
-2. **Manual Targeting Selection:**
-   - User says "I want to set up manual audience targeting" or similar
-   - ANALYZE campaign context first:
-     * Review ad copy/headline for business type, keywords, offers
-     * Check location targeting for demographic clues
-     * Consider goal type (leads, calls, visits) for behavior inference
-   
-   **Ask ONE comprehensive, context-aware question:**
-   - Reference their specific campaign (ad copy, business type, etc.)
-   - Ask for age range, gender, AND interests/characteristics together
-   - Provide examples based on campaign context
-   - Encourage complete description in one message
-   
-   **Example context-aware questions:**
-   
-   If campaign has "Cookie shop, holiday collection":
-   "I see you're promoting a cookie shop with a holiday collection. Describe your ideal customer in one message - age range, gender, and their interests (e.g., baking, food lovers, gift shopping)."
-   
-   If campaign has "Law firm, free consultation":
-   "For your legal services, describe your ideal client: age range, gender, and their situation or interests (e.g., small business owners, families, accident victims). Tell me all at once!"
-   
-   If no campaign context available:
-   "Describe your ideal customer in one message: age range (e.g., 25-40), gender preference (all, male, female), and their main interests or characteristics."
-   
-   **When user responds:**
-   - Parse ALL information from their single response (age, gender, interests)
-   - ENHANCE with campaign context:
-     * Add related interests from ad copy keywords
-     * Include behaviors inferred from goal type
-     * Adjust based on location demographics
-   - IMMEDIATELY call manualTargetingParameters with ENHANCED comprehensive parameters
-   - DO NOT ask follow-up questions unless critical information is missing
-   
-**When calling manualTargetingParameters:**
-- description: User's natural language description
-- demographics: { ageMin: X, ageMax: Y, gender: 'all'|'male'|'female' }
-- interests: User-specified PLUS campaign-enhanced interests (can be 5-10 total)
-- behaviors: AI-inferred from goal type and campaign context
-- explanation: Brief summary of complete targeting strategy
-- DO NOT generate additional text after calling the tool
-- The tool shows parameters in a card that user can review on canvas
-
-**Parameter Generation Guidelines:**
-- Age range: 18-65 (adjust based on business/description)
-- Gender: "all", "male", or "female"
-- Interests: Specific Meta ad interests (e.g., "Fitness and wellness", "Technology", "Small business")
-- Behaviors: Specific Meta behaviors (e.g., "Small business owners", "Frequent travelers")
-- Use campaign context (ad copy, locations) to inform parameters
-- Make them specific to THIS campaign, not generic
-
-**Examples:**
-
-User: "Enable AI Advantage+"
-→ Call: enableAIAdvantage()
-→ Shows success confirmation card ONLY, no additional messaging
-
-User: "Women aged 25-40 interested in fitness and healthy eating"
-Campaign context: "Free gym trial", Location: "Urban areas", Goal: "Leads"
-→ AI enhances with: Yoga, Nutrition, Wellness, Health apps
-→ AI adds behaviors: Lead form fillers, Health-conscious consumers
-→ Call: manualTargetingParameters({
-  description: 'Women aged 25-40 interested in fitness and healthy eating',
-  demographics: { ageMin: 25, ageMax: 40, gender: 'female' },
-  interests: [
-    { id: 'fitness_wellness', name: 'Fitness and wellness' },
-    { id: 'healthy_eating', name: 'Healthy eating' },
-    { id: 'health_fitness', name: 'Health & fitness' },
-    { id: 'yoga', name: 'Yoga' },
-    { id: 'nutrition', name: 'Nutrition' },
-    { id: 'wellness', name: 'Wellness' }
-  ],
-  behaviors: [
-    { id: 'health_conscious', name: 'Health-conscious consumers' },
-    { id: 'lead_form_users', name: 'Lead form fillers' }
-  ],
-  explanation: 'Targeting health-conscious women in their late 20s to early 40s interested in fitness, wellness, and nutrition. Enhanced with campaign-relevant interests and lead generation behaviors.'
-})
 
 ## Goal Setup
 When user wants to set up a goal (leads or calls):

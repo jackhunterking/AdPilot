@@ -35,7 +35,6 @@ interface PublishFlowDialogProps {
   goalType?: string
   dailyBudget?: string
   locationCount?: number
-  audienceSummary?: string
   adAccountName?: string
   creativeSummary?: string
 }
@@ -49,7 +48,6 @@ export function PublishFlowDialog({
   goalType,
   dailyBudget,
   locationCount,
-  audienceSummary,
   adAccountName,
   creativeSummary,
 }: PublishFlowDialogProps) {
@@ -141,12 +139,6 @@ export function PublishFlowDialog({
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground">Locations:</span>
                       <span className="font-medium">{locationCount} {locationCount === 1 ? 'location' : 'locations'}</span>
-                    </div>
-                  )}
-                  {audienceSummary && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Audience:</span>
-                      <span className="font-medium text-right">{audienceSummary}</span>
                     </div>
                   )}
                   {adAccountName && (

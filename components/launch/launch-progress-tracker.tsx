@@ -77,14 +77,12 @@ export function createProgressSteps({
   hasCreative,
   hasCopy,
   hasLocation,
-  hasAudience,
   hasDestination,
   isMetaConnected,
 }: {
   hasCreative: boolean
   hasCopy: boolean
   hasLocation: boolean
-  hasAudience: boolean
   hasDestination: boolean
   isMetaConnected: boolean
 }): ProgressStep[] {
@@ -112,12 +110,6 @@ export function createProgressSteps({
       label: "Location",
       icon: MapPin,
       completed: hasLocation,
-    },
-    {
-      id: "audience",
-      label: "Audience",
-      icon: Target,
-      completed: hasAudience,
     },
     {
       id: "launch",

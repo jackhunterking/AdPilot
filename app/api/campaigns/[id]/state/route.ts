@@ -57,7 +57,6 @@ export async function PATCH(
     const validFields = [
       'goal_data',
       'location_data',
-      'audience_data',
       'ad_copy_data',
       'ad_preview_data',
       'budget_data',

@@ -8,7 +8,7 @@
  *  - Supabase: https://supabase.com/docs
  */
 
-import type { AdStatus, AdVariant } from '@/lib/types/workspace'
+import type { AdVariant } from '@/lib/types/workspace'
 import { canPublish, canEdit, canPause, canResume } from './ad-status'
 
 export interface AdValidationState {
@@ -16,7 +16,6 @@ export interface AdValidationState {
   adCopyStatus: string
   destinationStatus: string
   locationStatus: string
-  audienceStatus: string
   isMetaConnectionComplete: boolean
   hasPaymentMethod: boolean
   isBudgetComplete: boolean
@@ -55,10 +54,6 @@ export function validateAdForPublish(state: AdValidationState): AdValidationResu
 
   if (state.locationStatus !== 'completed') {
     missingRequirements.push('Set target locations')
-  }
-
-  if (state.audienceStatus !== 'completed') {
-    missingRequirements.push('Define target audience')
   }
 
   if (!state.isMetaConnectionComplete) {

@@ -19,7 +19,6 @@
  *  - copy: Headlines, text, CTA
  *  - destination: Form/URL/phone config
  *  - location: Targeting locations
- *  - audience: Demographics, interests
  *  - goal: Campaign objective
  *  - budget: Daily spend, schedule
  * 
@@ -34,7 +33,6 @@ import { useAdPreview } from '@/lib/context/ad-preview-context'
 import { useAdCopy } from '@/lib/context/ad-copy-context'
 import { useDestination } from '@/lib/context/destination-context'
 import { useLocation } from '@/lib/context/location-context'
-import { useAudience } from '@/lib/context/audience-machine-context'
 import { useGoal } from '@/lib/context/goal-context'
 import { useBudget } from '@/lib/context/budget-context'
 
@@ -51,7 +49,6 @@ export function useDraftAutoSave(
   const { adCopyState, getSelectedCopy } = useAdCopy()
   const { destinationState } = useDestination()
   const { locationState } = useLocation()
-  const { audienceState } = useAudience()
   const { goalState } = useGoal()
   const { budgetState } = useBudget()
   
@@ -63,7 +60,6 @@ export function useDraftAutoSave(
     adCopyState: null as unknown as typeof adCopyState,
     destinationState: null as unknown as typeof destinationState,
     locationState: null as unknown as typeof locationState,
-    audienceState: null as unknown as typeof audienceState,
     goalState: null as unknown as typeof goalState,
     budgetState: null as unknown as typeof budgetState,
     getSelectedCopy: null as unknown as typeof getSelectedCopy,
@@ -77,7 +73,6 @@ export function useDraftAutoSave(
     adCopyState,
     destinationState,
     locationState,
-    audienceState,
     goalState,
     budgetState,
     getSelectedCopy,
@@ -101,7 +96,6 @@ export function useDraftAutoSave(
         adCopy: contexts.adCopyState,
         destination: contexts.destinationState,
         location: contexts.locationState,
-        audience: contexts.audienceState,
         goal: contexts.goalState,
         budget: contexts.budgetState,
       })
@@ -112,7 +106,6 @@ export function useDraftAutoSave(
         copy: snapshot.copy,
         destination: snapshot.destination,
         location: snapshot.location,
-        audience: snapshot.audience,
         goal: snapshot.goal,
         budget: snapshot.budget,
       }

@@ -7,7 +7,6 @@ import { useAuth } from '@/components/auth/auth-provider'
 interface CampaignState {
   goal_data?: Record<string, unknown> | null
   location_data?: Record<string, unknown> | null
-  audience_data?: Record<string, unknown> | null
   budget_data?: Record<string, unknown> | null
   ad_copy_data?: Record<string, unknown> | null
   ad_preview_data?: Record<string, unknown> | null
@@ -201,7 +200,7 @@ export function CampaignProvider({
     }
   }
 
-  // Save campaign state (goal, location, audience, etc.) with retry logic
+  // Save campaign state (goal, location, etc.) with retry logic
   const saveCampaignState = async (
     field: string, 
     value: Record<string, unknown> | null,

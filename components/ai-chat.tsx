@@ -62,9 +62,7 @@ import { useAdPreview } from "@/lib/context/ad-preview-context";
 import { searchLocations, getLocationBoundary } from "@/app/actions/geocoding";
 import { useGoal } from "@/lib/context/goal-context";
 import { useLocation } from "@/lib/context/location-context";
-// Audience context removed - clean slate for fresh implementation
 import { AdReferenceCard } from "@/components/ad-reference-card-example";
-// AudienceContextCard removed - clean slate for fresh implementation
 import { useGeneration } from "@/lib/context/generation-context";
 import { emitBrowserEvent } from "@/lib/utils/browser-events";
 import { useCampaignContext } from "@/lib/context/campaign-context";
@@ -102,11 +100,7 @@ interface MessageMetadata {
     gradient?: string;
     editSession?: { sessionId: string; variationIndex: number };
   };
-  audienceContext?: {
-  demographics?: string;
-  interests?: string;
-};
-activeView?: 'home' | 'build' | 'view';
+  activeView?: 'home' | 'build' | 'view';
 }
 
 interface LocationInput {
@@ -129,12 +123,6 @@ interface LocationOutput {
   radius?: number;
 }
 
-interface AudienceToolInput {
-  description: string;
-  interests?: string;
-  demographics?: string;
-}
-
 interface GoalToolInput {
   goalType: string;
   conversionMethod: string;
@@ -144,18 +132,7 @@ interface CustomEvent<T = unknown> extends Event {
   detail: T;
 }
 
-interface AudienceEventDetail {
-  adContent?: { headline?: string; body?: string };
-  locations?: Array<{ name: string }>;
-}
-
-interface AudienceContext {
-  demographics?: string;
-  interests?: string;
-  currentAudience?: {
-    demographics?: string;
-    interests?: string;
-  };
+interface EditReferenceContext {
   type?: string;
   variationNumber?: number;
   variationTitle?: string;
@@ -167,8 +144,6 @@ interface AudienceContext {
     primaryText?: string;
     headline?: string;
     description?: string;
-    demographics?: string;
-    interests?: string;
   };
   preview?: {
     brandName?: string;
@@ -182,6 +157,8 @@ interface AudienceContext {
       aspect: string;
     };
   };
+  variationIndex?: number;
+  editSession?: { sessionId: string; variationIndex: number };
 }
 
 interface ToolResult {
@@ -211,16 +188,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   const { adContent, setAdContent } = useAdPreview();
   const { goalState, setFormData, setError, resetGoal } = useGoal();
   const { locationState, addLocations, updateStatus: updateLocationStatus } = useLocation();
-  const { 
-    audienceState,
-    setAudienceTargeting, 
-    updateStatus: updateAudienceStatus,
-    setManualDescription,
-    setDemographics,
-    setConfirmedParameters,
-    addInterest,
-    addBehavior
-  } = useAudience();
   const [generatingImages, setGeneratingImages] = useState<Set<string>>(new Set());
   // removed unused editingImages setter
   const [likedMessages, setLikedMessages] = useState<Set<string>>(new Set());
@@ -230,37 +197,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   const [dislikedMessages, setDislikedMessages] = useState<Set<string>>(new Set());
   const [processingLocations, setProcessingLocations] = useState<Set<string>>(new Set());
   const [pendingLocationCalls, setPendingLocationCalls] = useState<Array<{ toolCallId: string; input: LocationToolInput }>>([]);
-  const [processingAudience, setProcessingAudience] = useState<Set<string>>(new Set());
-  const [pendingAudienceCalls, setPendingAudienceCalls] = useState<Array<{ toolCallId: string; toolName: string; input: Record<string, unknown> }>>([]);
-  
-  // Durable registry to prevent duplicate audience tool execution across renders/reloads
-  const processedAudienceToolsRef = useRef<Set<string>>(new Set());
-  
-  // Load processed tools from sessionStorage on mount
-  useEffect(() => {
-    const storageKey = `processed-audience-tools-${conversationId || 'default'}`;
-    try {
-      const stored = sessionStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored) as string[];
-        processedAudienceToolsRef.current = new Set(parsed);
-        console.log('[AIChat] Loaded processed audience tools from storage:', parsed.length);
-      }
-    } catch (error) {
-      console.error('[AIChat] Failed to load processed tools:', error);
-    }
-  }, [conversationId]);
-  
-  // Save processed tools to sessionStorage whenever it changes
-  const saveProcessedTools = () => {
-    const storageKey = `processed-audience-tools-${conversationId || 'default'}`;
-    try {
-      const array = Array.from(processedAudienceToolsRef.current);
-      sessionStorage.setItem(storageKey, JSON.stringify(array));
-    } catch (error) {
-      console.error('[AIChat] Failed to save processed tools:', error);
-    }
-  };
   
   // Helper to check if a tool call already has a result in messages
   const hasToolResult = (toolCallId: string): boolean => {
@@ -275,22 +211,11 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     return false;
   };
   
-  const [adEditReference, setAdEditReference] = useState<AudienceContext | null>(null);
-  const [audienceContext, setAudienceContext] = useState<AudienceContext | null>(null);
+  const [adEditReference, setAdEditReference] = useState<EditReferenceContext | null>(null);
   const [activeEditSession, setActiveEditSession] = useState<{ sessionId: string; variationIndex: number } | null>(null);
   const [customPlaceholder, setCustomPlaceholder] = useState("Type your message...");
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   
-  // AI Advantage+ direct feedback state
-  const [showAIAdvantageCard, setShowAIAdvantageCard] = useState(false);
-  const [aiAdvantageCardId, setAIAdvantageCardId] = useState<string | null>(null);
-  
-  // Manual Targeting enabled card state (shown immediately when mode selected)
-  const [showManualTargetingEnabledCard, setShowManualTargetingEnabledCard] = useState(false);
-  
-  // Manual Targeting success card state (shown when parameters confirmed)
-  const [showManualTargetingSuccessCard, setShowManualTargetingSuccessCard] = useState(false);
-
   // Update placeholder based on context mode
   useEffect(() => {
     if (!context) {
@@ -340,7 +265,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       // Clear edit sessions and contexts
       setActiveEditSession(null)
       setAdEditReference(null)
-      setAudienceContext(null)
       
       // Clear processing states
       setProcessingLocations(new Set())
@@ -441,20 +365,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     sendMessageRef.current = sendMessage;
   }, [sendMessage]);
 
-  // Auto-hide AI Advantage+ card when user sends a new message
-  useEffect(() => {
-    if (messages.length > 0 && showAIAdvantageCard) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage && lastMessage.role === 'user') {
-        // User sent a message, hide the card after a short delay
-        const timer = setTimeout(() => {
-          setShowAIAdvantageCard(false);
-        }, 1000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [messages, showAIAdvantageCard]);
-
   // AUTO-SUBMIT INITIAL PROMPT (AI SDK Native Pattern)
   useEffect(() => {
     // Only run once when component mounts with campaign metadata
@@ -537,15 +447,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       setGenerationMessage("Editing image...");
     }
     
-    if (audienceContext) {
-      messageMetadata.audienceContext = {
-        demographics: audienceContext.demographics,
-        interests: audienceContext.interests,
-      };
-      messageMetadata.editMode = true;
-    }
-    
-    
     // Send the message with metadata (AI SDK v5 native - preserved through entire flow)
     sendMessage({ 
       text: message.text || 'Sent with attachments',
@@ -558,14 +459,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     if (adEditReference) {
       setTimeout(() => {
         setAdEditReference(null);
-        setCustomPlaceholder("Type your message...");
-      }, 1000);
-    }
-    
-    // Clear the audience context after sending the first message
-    if (audienceContext) {
-      setTimeout(() => {
-        setAudienceContext(null);
         setCustomPlaceholder("Type your message...");
       }, 1000);
     }
@@ -838,235 +731,6 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     }
   }, [messages, pendingLocationCalls, processingLocations]);
 
-  // Process pending audience tool calls
-  useEffect(() => {
-    if (pendingAudienceCalls.length === 0) return;
-
-    const processAudienceCalls = async () => {
-      for (const { toolCallId, toolName, input } of pendingAudienceCalls) {
-        // Skip if already processed (check both registry and existing tool results)
-        if (
-          processingAudience.has(toolCallId) || 
-          processedAudienceToolsRef.current.has(toolCallId) ||
-          hasToolResult(toolCallId)
-        ) {
-          console.log(`[AIChat] Skipping already processed audience tool call: ${toolCallId}`);
-          continue;
-        }
-
-        setProcessingAudience(prev => new Set(prev).add(toolCallId));
-
-        try {
-          if (toolName === 'audienceMode') {
-            const mode = (input.mode as 'ai' | 'manual') || 'ai';
-            const explanation = (input.explanation as string) || '';
-
-            // Guard: Don't process if already in switching state
-            if (audienceState.status === 'switching') {
-              console.log('[AIChat] Skipping audienceMode tool - already switching');
-              addToolResult({
-                tool: 'audienceMode',
-                toolCallId,
-                output: {
-                  success: true,
-                  skipped: true,
-                  reason: 'already_switching',
-                  mode,
-                  explanation,
-                },
-              });
-              processedAudienceToolsRef.current.add(toolCallId);
-              setProcessingAudience(prev => {
-                const next = new Set(prev);
-                next.delete(toolCallId);
-                return next;
-              });
-              continue;
-            }
-
-            // Guard: Don't process if already in AI completed state
-            if (mode === 'ai' && audienceState.status === 'completed' && audienceState.targeting.mode === 'ai') {
-              console.log('[AIChat] Skipping audienceMode tool - already in AI completed state');
-              addToolResult({
-                tool: 'audienceMode',
-                toolCallId,
-                output: {
-                  success: true,
-                  skipped: true,
-                  reason: 'already_in_state',
-                  mode,
-                  explanation,
-                },
-              });
-              processedAudienceToolsRef.current.add(toolCallId);
-              setProcessingAudience(prev => {
-                const next = new Set(prev);
-                next.delete(toolCallId);
-                return next;
-              });
-              continue;
-            }
-
-            // Guard: Don't process if already in manual mode
-            if (mode === 'manual' && audienceState.targeting.mode === 'manual') {
-              console.log('[AIChat] Skipping audienceMode tool - already in manual mode');
-              addToolResult({
-                tool: 'audienceMode',
-                toolCallId,
-                output: {
-                  success: true,
-                  skipped: true,
-                  reason: 'already_in_state',
-                  mode,
-                  explanation,
-                },
-              });
-              processedAudienceToolsRef.current.add(toolCallId);
-              setProcessingAudience(prev => {
-                const next = new Set(prev);
-                next.delete(toolCallId);
-                return next;
-              });
-              continue;
-            }
-
-            // Update audience context based on mode
-            if (mode === 'ai') {
-              setAudienceTargeting({ mode: 'ai', advantage_plus_enabled: true });
-              updateAudienceStatus('completed');
-            } else {
-              setAudienceTargeting({ mode: 'manual' });
-              updateAudienceStatus('generating');
-            }
-
-            // Switch to audience tab
-            emitBrowserEvent('switchToTab', 'audience');
-
-            addToolResult({
-              tool: 'audienceMode',
-              toolCallId,
-              output: {
-                success: true,
-                mode,
-                explanation,
-              },
-            });
-          } else if (toolName === 'manualTargetingParameters') {
-            const description = (input.description as string) || '';
-            const demographics = input.demographics as { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' } | undefined;
-            const interests = (input.interests as Array<{ id: string; name: string }>) || [];
-            const behaviors = (input.behaviors as Array<{ id: string; name: string }>) || [];
-            const explanation = (input.explanation as string) || '';
-
-            // Guard: Only update if still in manual mode
-            if (audienceState.targeting.mode !== 'manual') {
-              console.log('[AIChat] Skipping manualTargetingParameters tool - mode is now:', audienceState.targeting.mode);
-              addToolResult({
-                tool: 'manualTargetingParameters',
-                toolCallId,
-                output: { success: false, message: 'Mode changed during processing' },
-              });
-              return;
-            }
-
-            // Update audience context with parameters
-            setManualDescription(description);
-            if (demographics) {
-              setDemographics(demographics);
-            }
-            // Add interests and behaviors
-            interests.forEach(interest => addInterest(interest));
-            behaviors.forEach(behavior => addBehavior(behavior));
-            
-            // Set status to setup-in-progress to show the parameter refinement UI
-            updateAudienceStatus('setup-in-progress');
-
-            // Switch to audience tab
-            emitBrowserEvent('switchToTab', 'audience');
-
-            addToolResult({
-              tool: 'manualTargetingParameters',
-              toolCallId,
-              output: {
-                success: true,
-                demographics,
-                interests,
-                behaviors,
-                explanation,
-              },
-            });
-          }
-          
-          // Mark as processed and save to sessionStorage
-          processedAudienceToolsRef.current.add(toolCallId);
-          saveProcessedTools();
-          console.log(`[AIChat] Marked audience tool as processed: ${toolCallId}`);
-        } catch (error) {
-          console.error('Audience tool processing error:', error);
-          addToolResult({
-            tool: toolName,
-            toolCallId,
-            output: undefined,
-            errorText: `Failed to process ${toolName}`,
-          } as ToolResult);
-          
-          // Still mark as processed to prevent retry loops
-          processedAudienceToolsRef.current.add(toolCallId);
-          saveProcessedTools();
-        } finally {
-          setProcessingAudience(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(toolCallId);
-            return newSet;
-          });
-        }
-      }
-
-      // Clear pending calls after processing
-      setPendingAudienceCalls([]);
-    };
-
-    processAudienceCalls();
-  }, [pendingAudienceCalls, processingAudience, setAudienceTargeting, updateAudienceStatus, setManualDescription, setDemographics, addInterest, addBehavior, addToolResult, hasToolResult, saveProcessedTools]);
-
-  // Safety net: scan for audience tool-call parts that we didn't enqueue yet
-  useEffect(() => {
-    const newlyDiscovered: Array<{ toolCallId: string; toolName: string; input: Record<string, unknown> }> = [];
-    for (const msg of messages) {
-      const parts = (msg as unknown as { parts?: Array<{ type?: string; toolName?: string; toolCallId?: string; input?: unknown }> }).parts || [];
-      for (const p of parts) {
-        if (p && p.type === 'tool-call' && (p.toolName === 'audienceMode' || p.toolName === 'manualTargetingParameters')) {
-          const callId = p.toolCallId || `${msg.id}-auto`;
-          
-          // Skip if already pending, processing, processed, or has a result
-          const alreadyHandled = 
-            pendingAudienceCalls.some(c => c.toolCallId === callId) || 
-            processingAudience.has(callId) ||
-            processedAudienceToolsRef.current.has(callId) ||
-            hasToolResult(callId);
-          
-          if (alreadyHandled) continue;
-
-          const rawInput = (p as unknown as { input?: unknown }).input;
-          if (rawInput && typeof rawInput === 'object') {
-            newlyDiscovered.push({ 
-              toolCallId: callId, 
-              toolName: p.toolName || '', 
-              input: rawInput as Record<string, unknown> 
-            });
-          }
-        }
-      }
-    }
-    if (newlyDiscovered.length > 0) {
-      setPendingAudienceCalls(prev => {
-        const existingIds = new Set(prev.map(p => p.toolCallId));
-        const deduped = newlyDiscovered.filter(n => !existingIds.has(n.toolCallId));
-        return deduped.length ? [...prev, ...deduped] : prev;
-      });
-    }
-  }, [messages, pendingAudienceCalls, processingAudience, hasToolResult]);
-
   // Listen for goal setup trigger from canvas
   useEffect(() => {
     const handleGoalSetup = (event: CustomEvent<{ goalType: string }>) => {
@@ -1097,314 +761,12 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
     return () => window.removeEventListener('triggerLocationSetup', handleLocationSetup);
   }, [locationState.locations.length]);
 
-  // Listen for audience setup trigger from canvas
-  useEffect(() => {
-    const handleAudienceSetup = () => {
-      sendMessageRef.current({
-        text: `Set up AI Advantage+ audience targeting for my ad`,
-      });
-    };
-
-    window.addEventListener('triggerAudienceSetup', handleAudienceSetup);
-    return () => window.removeEventListener('triggerAudienceSetup', handleAudienceSetup);
-  }, []);
-
-  // Listen for audience mode selection (AI Advantage+ or Manual Targeting)
-  // GUARD: Only handle during initial selection (idle state), not during switches
-  useEffect(() => {
-    const handleAudienceModeSelection = (event: CustomEvent<{ mode: 'ai' | 'manual' }>) => {
-      const { mode } = event.detail;
-      
-      // GUARD: Prevent re-triggering during switches or when already set
-      // This should only work when user is making initial selection from idle state
-      if (audienceState.status !== 'idle') {
-        console.log('[AIChat] Ignoring triggerAudienceModeSelection - not in idle state:', audienceState.status);
-        return;
-      }
-      
-      if (mode === 'ai') {
-        try {
-          // Set AI Advantage+ targeting (triggers machine: idle → enablingAI → aiCompleted)
-          setAudienceTargeting({ mode: 'ai', advantage_plus_enabled: true });
-          // Don't manually set status - let machine handle transition to 'completed'
-          
-          // Show card immediately (direct rendering, no AI involvement)
-          const cardId = `ai-advantage-${Date.now()}`;
-          setAIAdvantageCardId(cardId);
-          setShowAIAdvantageCard(true);
-          
-          // Optional: Send message for conversation history (but don't wait for it)
-          if (sendMessageRef.current) {
-            sendMessageRef.current({
-              text: `AI Advantage+ targeting enabled`,
-            });
-          }
-        } catch (error) {
-          console.error('[AIChat] Error enabling AI Advantage+:', error);
-        }
-      } else {
-        try {
-          // Set manual targeting mode (triggers machine: idle → gatheringManualInfo)
-          setAudienceTargeting({ mode: 'manual' });
-          // Don't manually set status - let machine handle transition to 'gathering-info'
-          
-          // Show "Manual Targeting Enabled" card immediately
-          setShowManualTargetingEnabledCard(true);
-          
-          // Auto-hide the card after the AI response appears (5 seconds)
-          setTimeout(() => {
-            setShowManualTargetingEnabledCard(false);
-          }, 5000);
-          
-          // Send specific instruction to AI to ask the first question about age range
-          if (sendMessageRef.current) {
-            sendMessageRef.current({
-              text: `I have enabled manual targeting. Please ask me: "Let's build your audience profile. What age range are you targeting? For example: 18-24, 25-40, or another range?"`,
-            });
-          }
-        } catch (error) {
-          console.error('[AIChat] Error enabling manual targeting:', error);
-        }
-      }
-    };
-
-    window.addEventListener('triggerAudienceModeSelection', handleAudienceModeSelection as EventListener);
-    return () => window.removeEventListener('triggerAudienceModeSelection', handleAudienceModeSelection as EventListener);
-  }, [setAudienceTargeting, updateAudienceStatus, audienceState.status]);
-
-  // Listen for audience reset to clear processed tools registry and UI flags
-  useEffect(() => {
-    const handleAudienceReset = () => {
-      console.log('[AIChat] Audience reset detected - clearing processed tools registry and UI flags');
-      
-      // Clear the processed tools registry
-      processedAudienceToolsRef.current.clear();
-      
-      // Clear sessionStorage
-      const storageKey = `processed-audience-tools-${conversationId || 'default'}`;
-      try {
-        sessionStorage.removeItem(storageKey);
-      } catch (error) {
-        console.error('[AIChat] Failed to clear processed tools from storage:', error);
-      }
-      
-      // Clear UI flags
-      setShowAIAdvantageCard(false);
-      setAIAdvantageCardId(null);
-      setShowManualTargetingSuccessCard(false);
-      
-      // Clear pending and processing states
-      setPendingAudienceCalls([]);
-      setProcessingAudience(new Set());
-    };
-
-    window.addEventListener('audienceReset', handleAudienceReset);
-    return () => window.removeEventListener('audienceReset', handleAudienceReset);
-  }, [conversationId]);
-
-  // Listen for audience mode switch to clear tool registry without clearing conversation
-  useEffect(() => {
-    const handleAudienceModeSwitch = (event: CustomEvent<{ newMode: 'ai' | 'manual'; fromMode: 'ai' | 'manual' }>) => {
-      const { newMode, fromMode } = event.detail;
-      console.log(`[AIChat] Audience mode switch detected: ${fromMode} → ${newMode}`);
-      
-      // Clear the processed tools registry (stale tool calls from previous mode)
-      processedAudienceToolsRef.current.clear();
-      
-      // Clear sessionStorage
-      const storageKey = `processed-audience-tools-${conversationId || 'default'}`;
-      try {
-        sessionStorage.removeItem(storageKey);
-      } catch (error) {
-        console.error('[AIChat] Failed to clear processed tools from storage:', error);
-      }
-      
-      // Clear UI flags
-      setShowAIAdvantageCard(false);
-      setAIAdvantageCardId(null);
-      setShowManualTargetingEnabledCard(false);
-      setShowManualTargetingSuccessCard(false);
-      
-      // Clear pending and processing states
-      setPendingAudienceCalls([]);
-      setProcessingAudience(new Set());
-      
-      // NOTE: We do NOT clear conversation history - that's preserved during switches
-    };
-
-    window.addEventListener('audienceModeSwitch', handleAudienceModeSwitch as EventListener);
-    return () => window.removeEventListener('audienceModeSwitch', handleAudienceModeSwitch as EventListener);
-  }, [conversationId]);
-
-  // Journey 1: AI → Manual - Send transition message + first question
-  useEffect(() => {
-    const handleManualTargetingTransition = () => {
-      try {
-        console.log('[AIChat] Journey 1: Transitioning to manual targeting - sending welcome message');
-        
-        // Clear AI Advantage+ card if showing
-        setShowAIAdvantageCard(false);
-        
-        // Show "Manual Targeting Enabled" card immediately
-        setShowManualTargetingEnabledCard(true);
-        
-        // Auto-hide the card after the AI response appears (5 seconds)
-        setTimeout(() => {
-          setShowManualTargetingEnabledCard(false);
-        }, 5000);
-        
-        // Send specific instruction to AI to ask the first question about age range
-        if (sendMessageRef.current) {
-          sendMessageRef.current({
-            text: `I've switched to manual targeting. Please ask me: "Let's build your audience profile. What age range are you targeting? For example: 18-24, 25-40, or another range?"`,
-          });
-        }
-      } catch (error) {
-        console.error('[AIChat] Error in manual targeting transition:', error);
-      }
-    };
-
-    window.addEventListener('triggerManualTargetingTransition', handleManualTargetingTransition);
-    return () => window.removeEventListener('triggerManualTargetingTransition', handleManualTargetingTransition);
-  }, []);
-
-  // Journey 2: Manual → AI - Send confirmation message
-  useEffect(() => {
-    const handleAIAdvantageConfirmation = () => {
-      try {
-        console.log('[AIChat] Journey 2: Switched to AI Advantage+ - sending confirmation');
-        
-        // Clear Manual Targeting cards if showing
-        setShowManualTargetingEnabledCard(false);
-        setShowManualTargetingSuccessCard(false);
-        
-        // Send confirmation message about AI Advantage+ being enabled
-        if (sendMessageRef.current) {
-          sendMessageRef.current({
-            text: `Perfect! I've enabled AI Advantage+ targeting. Meta's AI will automatically find and show your ads to people most likely to engage, optimizing for the best results. This typically delivers 22% better ROAS.`,
-          });
-        }
-        
-        // Show the AI advantage card
-        const cardId = `ai-advantage-${Date.now()}`;
-        setAIAdvantageCardId(cardId);
-        setShowAIAdvantageCard(true);
-      } catch (error) {
-        console.error('[AIChat] Error in AI Advantage+ confirmation:', error);
-      }
-    };
-
-    window.addEventListener('triggerAIAdvantageConfirmation', handleAIAdvantageConfirmation);
-    return () => window.removeEventListener('triggerAIAdvantageConfirmation', handleAIAdvantageConfirmation);
-  }, []);
-
-  // Listen for audience parameters confirmation (when user clicks "Confirm Targeting" in chat)
-  useEffect(() => {
-    const handleAudienceParametersConfirmed = (event: CustomEvent<{
-      demographics: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
-      interests: Array<{ id: string; name: string }>;
-      behaviors: Array<{ id: string; name: string }>;
-    }>) => {
-      const { demographics, interests, behaviors } = event.detail;
-      setConfirmedParameters(demographics, interests, behaviors);
-    };
-
-    window.addEventListener('audienceParametersConfirmed', handleAudienceParametersConfirmed as EventListener);
-    return () => window.removeEventListener('audienceParametersConfirmed', handleAudienceParametersConfirmed as EventListener);
-  }, [setConfirmedParameters]);
-
-  // Listen for manual targeting confirmation (when user clicks "Confirm Targeting" on canvas)
-  useEffect(() => {
-    const handleManualTargetingConfirmed = () => {
-      setShowManualTargetingSuccessCard(true);
-    };
-
-    window.addEventListener('manualTargetingConfirmed', handleManualTargetingConfirmed);
-    return () => window.removeEventListener('manualTargetingConfirmed', handleManualTargetingConfirmed);
-  }, []);
-
-  // Listen for audience generation (when user clicks "Find My Audience with AI")
-  useEffect(() => {
-    const handleAudienceGeneration = (event: CustomEvent<AudienceEventDetail>) => {
-      const { adContent, locations } = event.detail;
-      
-      // Build comprehensive context message
-      // NOTE: We do NOT include goal here - goal comes AFTER finding the audience
-      // The correct flow is: Creative → Copy → Location → Audience → Goal
-      const contextParts = [];
-      
-      if (adContent) {
-        if (adContent.headline) {
-          contextParts.push(`Ad headline: "${adContent.headline}"`);
-        }
-        if (adContent.body) {
-          contextParts.push(`Ad message: "${adContent.body}"`);
-        }
-      }
-      
-      if (locations && locations.length > 0) {
-        const locationNames = locations.map((l) => l.name).join(', ');
-        contextParts.push(`Targeting locations: ${locationNames}`);
-      }
-      
-      const fullContext = contextParts.length > 0 
-        ? contextParts.join('. ') 
-        : 'No specific context provided yet';
-      
-      sendMessageRef.current({
-        text: `Based on my campaign details, generate an AI Advantage+ audience profile that makes perfect sense for this campaign. 
-
-Campaign Context: ${fullContext}
-
-Please analyze this information and create a detailed, natural language audience targeting strategy. Include:
-1. A simple description of who will see the ad
-2. Relevant interests based on the campaign
-3. Appropriate demographics (age, gender if relevant)
-
-Make it conversational and easy to understand for a business owner.`,
-      });
-    };
-
-    window.addEventListener('generateAudience', handleAudienceGeneration as EventListener);
-    return () => window.removeEventListener('generateAudience', handleAudienceGeneration as EventListener);
-  }, []);
-
-  // Listen for audience chat opening (when user clicks "Change This")
-  useEffect(() => {
-    const handleOpenAudienceChat = (event: CustomEvent<AudienceContext>) => {
-      const context = event.detail;
-      // Store the audience context for display
-      setAudienceContext(context.currentAudience || null);
-      
-      // Set placeholder with natural language
-      setCustomPlaceholder("What would you like to change about who sees this?");
-      
-      // Focus chat input
-      setTimeout(() => {
-        chatInputRef.current?.focus();
-      }, 100);
-      
-      sendMessageRef.current({
-        text: `I want to update who sees my ad. Currently targeting: ${context.currentAudience?.demographics || 'general audience'}${context.currentAudience?.interests ? `, ${context.currentAudience.interests}` : ''}`,
-      });
-    };
-
-    window.addEventListener('openAudienceChat', handleOpenAudienceChat as EventListener);
-    return () => window.removeEventListener('openAudienceChat', handleOpenAudienceChat as EventListener);
-  }, []);
-
   // Listen for ad edit events from preview panel
   useEffect(() => {
-    const handleOpenEditInChat = (event: CustomEvent<AudienceContext>) => {
+    const handleOpenEditInChat = (event: CustomEvent<EditReferenceContext>) => {
       const context = event.detail;
       
-      // Route to appropriate reference based on type
-      if (context.type === 'audience_reference') {
-        // Store as audience context
-        setAudienceContext(context.content as AudienceContext | null || null);
-        setCustomPlaceholder("Describe how you'd like to change the audience targeting...");
-      } else {
-        // Store as ad edit reference (for ad copy/creative) with normalized index
+      // Store as ad edit reference (for ad copy/creative) with normalized index
         const normalizedIndex = toZeroBasedIndex({
           variationIndex: (context as unknown as { variationIndex?: number }).variationIndex,
           variationNumber: (context as unknown as { variationNumber?: number }).variationNumber,
@@ -1412,12 +774,11 @@ Make it conversational and easy to understand for a business owner.`,
         setAdEditReference({
           ...context,
           variationIndex: normalizedIndex,
-        } as unknown as AudienceContext);
+        } as unknown as EditReferenceContext);
         if ((context as unknown as { editSession?: { sessionId?: string } }).editSession?.sessionId && typeof normalizedIndex === 'number') {
           setActiveEditSession({ sessionId: (context as unknown as { editSession?: { sessionId?: string } }).editSession!.sessionId!, variationIndex: normalizedIndex });
         }
         setCustomPlaceholder(`Describe the changes you'd like to make to ${context.variationTitle}...`);
-      }
       
       // Focus chat input
       setTimeout(() => {
@@ -1452,12 +813,6 @@ Make it conversational and easy to understand for a business owner.`,
         setAdEditReference(null);
         setCustomPlaceholder("Type your message...");
       }
-      
-      // Clear audience context when navigating between steps
-      if (audienceContext) {
-        setAudienceContext(null);
-        setCustomPlaceholder("Type your message...");
-      }
     };
 
     window.addEventListener('stepNavigation', handleStepNavigation);
@@ -1465,7 +820,7 @@ Make it conversational and easy to understand for a business owner.`,
     return () => {
       window.removeEventListener('stepNavigation', handleStepNavigation);
     };
-  }, [adEditReference, audienceContext]);
+  }, [adEditReference]);
 
   // Track generation state for showing animations on ad mockups
   useEffect(() => {
@@ -1741,47 +1096,6 @@ Make it conversational and easy to understand for a business owner.`,
                                     })}
                                   </div>
                                 );
-                              }
-
-                              if (toolName === 'audienceMode') {
-                                const input = (part as unknown as { input?: unknown }).input as { mode?: 'ai' | 'manual'; explanation?: string } | undefined;
-                                const output = (part as unknown as { output?: unknown }).output as { success?: boolean; mode?: 'ai' | 'manual'; explanation?: string } | undefined;
-                                
-                                if (!input && !output) return null;
-
-                                const mode = output?.mode || input?.mode || 'ai';
-                                const explanation = output?.explanation || input?.explanation;
-
-                                return renderAudienceModeResult({
-                                  callId,
-                                  input: { mode, explanation },
-                                  output: output || {},
-                                });
-                              }
-
-                              if (toolName === 'manualTargetingParameters') {
-                                const input = (part as unknown as { input?: unknown }).input as {
-                                  description?: string;
-                                  demographics?: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
-                                  interests?: Array<{ id: string; name: string }>;
-                                  behaviors?: Array<{ id: string; name: string }>;
-                                  explanation?: string;
-                                } | undefined;
-                                const output = (part as unknown as { output?: unknown }).output as {
-                                  success?: boolean;
-                                  demographics?: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
-                                  interests?: Array<{ id: string; name: string }>;
-                                  behaviors?: Array<{ id: string; name: string }>;
-                                  explanation?: string;
-                                } | undefined;
-                                
-                                if (!input && !output) return null;
-
-                                return renderManualTargetingParametersResult({
-                                  callId,
-                                  input: input || {},
-                                  output: output || {},
-                                });
                               }
 
                               // Unknown tool result → let specific handlers (below) or default handle it
@@ -2247,403 +1561,6 @@ Make it conversational and easy to understand for a business owner.`,
                               }
                               break;
                             }
-                            case "tool-audienceTargeting": {
-                              const callId = part.toolCallId;
-                              const input = part.input as AudienceToolInput;
-
-                              switch (part.state) {
-                                case 'input-streaming':
-                                  return <div key={callId} className="text-sm text-muted-foreground">Finding your people...</div>;
-                                
-                                case 'input-available':
-                                  // Auto-process - AI Advantage+ requires no confirmation
-                                  setTimeout(() => {
-                                    updateAudienceStatus("setup-in-progress");
-                                    
-                                    // Set the audience targeting
-                                    setAudienceTargeting({
-                                      mode: 'ai',
-                                      advantage_plus_enabled: true,
-                                      description: input.description,
-                                      demographics: typeof input.demographics === 'object' ? input.demographics : undefined
-                                    });
-
-                                    // Complete the tool call
-                                    addToolResult({
-                                      tool: 'audienceTargeting',
-                                      toolCallId: callId,
-                                      output: {
-                                        success: true,
-                                        mode: 'ai',
-                                        description: input.description
-                                      }
-                                    });
-
-                                    // Switch to audience tab
-                                    emitBrowserEvent('switchToTab', 'audience');
-                                  }, 0);
-                                  
-                                  return (
-                                    <div key={callId} className="flex items-center gap-3 p-4 border rounded-lg bg-card">
-                                      <Loader size={16} />
-                                      <span className="text-sm text-muted-foreground">Finding your people...</span>
-                                    </div>
-                                  );
-                                
-                                case 'output-available': {
-                                  const output = part.output as { success: boolean; mode: string; description: string };
-                                  
-                                  return (
-                                    <div key={callId} className="w-full my-4 space-y-3">
-                                      <div
-                                        className="flex items-center justify-between p-4 rounded-lg border panel-surface hover:border-cyan-500/50 transition-colors cursor-pointer"
-                                        onClick={() => emitBrowserEvent('switchToTab', 'audience')}
-                                      >
-                                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                                          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                                            <Sparkles className="h-5 w-5 text-blue-600" />
-                                          </div>
-                                          <div className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-2">
-                                              <p className="font-semibold text-sm">Got it! We&apos;ll show your ad to these people</p>
-                                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                                            </div>
-                                            <p className="text-xs text-muted-foreground line-clamp-1">{output.description}</p>
-                                          </div>
-                                        </div>
-                                        <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors flex-shrink-0 ml-2" />
-                                      </div>
-                                      
-                                      {/* Quick Action Chips */}
-                                      <div className="space-y-2">
-                                        <p className="text-xs text-muted-foreground px-1">Want to adjust? Try asking:</p>
-                                        <div className="flex flex-wrap gap-2">
-                                          <button
-                                            onClick={() => {
-                                              setInput("Make them younger");
-                                              chatInputRef.current?.focus();
-                                            }}
-                                            className="text-xs px-3 py-1.5 rounded-full bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border border-cyan-500/20 hover:border-cyan-500/30 transition-colors"
-                                          >
-                                            Make them younger
-                                          </button>
-                                          <button
-                                            onClick={() => {
-                                              setInput("Focus on families");
-                                              chatInputRef.current?.focus();
-                                            }}
-                                            className="text-xs px-3 py-1.5 rounded-full bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/20 hover:border-purple-500/30 transition-colors"
-                                          >
-                                            Focus on families
-                                          </button>
-                                          <button
-                                            onClick={() => {
-                                              setInput("Add more interests");
-                                              chatInputRef.current?.focus();
-                                            }}
-                                            className="text-xs px-3 py-1.5 rounded-full bg-blue-500/10 hover:bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/20 hover:border-blue-500/30 transition-colors"
-                                          >
-                                            Add more interests
-                                          </button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                }
-                                
-                                case 'output-error':
-                                  return (
-                                    <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
-                                      {part.errorText}
-                                    </div>
-                                  );
-                              }
-                              break;
-                            }
-                            case "tool-manualTargetingParameters": {
-                              const callId = part.toolCallId;
-                              
-                              switch (part.state) {
-                                case 'input-streaming':
-                                  return <div key={callId} className="text-sm text-muted-foreground">Generating targeting parameters...</div>;
-                                
-                                case 'output-available': {
-                                  const output = part.output as {
-                                    success: boolean;
-                                    description: string;
-                                    demographics: { ageMin: number; ageMax: number; gender: 'all' | 'male' | 'female' };
-                                    interests: Array<{ id: string; name: string }>;
-                                    behaviors: Array<{ id: string; name: string }>;
-                                    explanation: string;
-                                  };
-                                  
-                                  if (!output.success) {
-                                    return (
-                                      <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
-                                        Failed to generate targeting parameters
-                                      </div>
-                                    );
-                                  }
-                                  
-                                  // Update audience context with parameters
-                                  setTimeout(() => {
-                                    // Guard: Only update if still in manual mode
-                                    if (audienceState.targeting.mode !== 'manual') {
-                                      console.log('[AIChat] Skipping manualTargetingParameters update - mode is now:', audienceState.targeting.mode);
-                                      return;
-                                    }
-                                    
-                                    setManualDescription(output.description);
-                                    setDemographics(output.demographics);
-                                    
-                                    // Add interests
-                                    output.interests?.forEach((interest) => {
-                                      addInterest(interest);
-                                    });
-                                    
-                                    // Add behaviors
-                                    output.behaviors?.forEach((behavior) => {
-                                      addBehavior(behavior);
-                                    });
-                                    
-                                    // Mark as completed - this sets status: "completed" and isSelected: true
-                                    setAudienceTargeting({ mode: 'manual' });
-                                  }, 100);
-                                  
-                                  // Build preview text
-                                  const genderText = output.demographics.gender === 'all' ? 'All' : output.demographics.gender;
-                                  const previewText = `${genderText} aged ${output.demographics.ageMin}-${output.demographics.ageMax}`;
-                                  const detailsText = `${output.interests.length} interests${output.behaviors.length > 0 ? `, ${output.behaviors.length} behaviors` : ''}`;
-                                  
-                                  return (
-                                    <div key={callId} className="w-full my-4 space-y-3">
-                                      <div className="rounded-lg border panel-surface p-4 space-y-3">
-                                        {/* Header */}
-                                        <div className="flex items-center gap-3">
-                                          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                                            <Target className="h-5 w-5 text-blue-600" />
-                                          </div>
-                                          <div className="flex-1">
-                                            <div className="flex items-center gap-2">
-                                              <p className="font-semibold text-sm">Manual targeting parameters generated!</p>
-                                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                                            </div>
-                                          </div>
-                                        </div>
-                                        
-                                        {/* Quick Preview */}
-                                        <div className="pl-[52px] space-y-1 text-xs text-muted-foreground">
-                                          <p>• {previewText}</p>
-                                          <p>• {detailsText}</p>
-                                        </div>
-                                        
-                                        {/* Review Button */}
-                                        <div className="pl-[52px] pt-1">
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => emitBrowserEvent('switchToTab', 'audience')}
-                                            className="h-8 text-xs"
-                                          >
-                                            Review on Canvas →
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                }
-                                
-                                case 'output-error':
-                                  return (
-                                    <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
-                                      {part.errorText || 'Failed to generate targeting parameters'}
-                                    </div>
-                                  );
-                              }
-                              break;
-                            }
-                            case "tool-switchTargetingMode": {
-                              const callId = part.toolCallId;
-                              const input = part.input as { newMode: 'ai' | 'manual'; currentMode: 'ai' | 'manual' };
-                              
-                              switch (part.state) {
-                                case 'input-streaming':
-                                case 'input-available':
-                                  return <Loader key={callId} size={16} />;
-                                
-                                case 'output-available': {
-                                  const output = part.output as { success: boolean; message: string };
-                                  
-                                  if (!output.success) {
-                                    return (
-                                      <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
-                                        Failed to switch targeting mode
-                                      </div>
-                                    );
-                                  }
-                                  
-                                  // INFORMATIONAL ONLY - State already updated by canvas button
-                                  // No context call here to prevent duplicate state mutations
-                                  // Use eventKey pattern to show toast ONCE
-                                  const eventKey = `${callId}-switch-toast`;
-                                  
-                                  // Check and add to ref IMMEDIATELY (before setTimeout) to prevent race conditions
-                                  if (!dispatchedEvents.current.has(eventKey)) {
-                                    dispatchedEvents.current.add(eventKey);
-                                    
-                                    // Show toast notification ONCE (no state mutation)
-                                    setTimeout(() => {
-                                      console.log(`[AI Chat] 💬 Showing switch feedback (state already updated by canvas)`);
-                                      
-                                      const toastMessage = input.newMode === 'ai' 
-                                        ? 'Switched to AI Advantage+ targeting' 
-                                        : 'Switched to Manual targeting';
-                                      toast.success(toastMessage);
-                                    }, 0);
-                                  }
-                                  
-                                  // Always return the UI (idempotent rendering)
-                                  return renderSwitchTargetingModeResult({
-                                    callId,
-                                    keyId: `${callId}-output`,
-                                    input,
-                                    output
-                                  });
-                                }
-                                
-                                case 'output-error':
-                                  return (
-                                    <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
-                                      {part.errorText || 'Failed to switch targeting mode'}
-                                    </div>
-                                  );
-                              }
-                              break;
-                            }
-                            case "tool-setupManualTargeting": {
-                              const callId = part.toolCallId;
-                              const input = part.input as { description: string };
-
-                              switch (part.state) {
-                                case 'input-streaming':
-                                  return <div key={callId} className="text-sm text-muted-foreground">Translating your description...</div>;
-                                
-                                case 'input-available':
-                                  // Auto-process - call translate API and update context
-                                  setTimeout(async () => {
-                                    try {
-                                      // Call translate API
-                                      const response = await fetch('/api/meta/targeting/translate-description', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ description: input.description })
-                                      });
-                                      
-                                      if (!response.ok) throw new Error('Translation failed');
-                                      
-                                      const data = await response.json();
-                                      
-                                      // Guard: Only update if still in manual mode
-                                      if (audienceState.targeting.mode !== 'manual') {
-                                        console.log('[AIChat] Skipping setupManualTargeting update - mode is now:', audienceState.targeting.mode);
-                                        return;
-                                      }
-                                      
-                                      // Update audience context
-                                      setManualDescription(input.description);
-                                      
-                                      if (data.demographics) {
-                                        setDemographics(data.demographics);
-                                      }
-                                      
-                                      // Add interests
-                                      data.detailedTargeting?.interests?.forEach((interest: {id: string, name: string}) => {
-                                        addInterest(interest);
-                                      });
-                                      
-                                      // Add behaviors
-                                      data.detailedTargeting?.behaviors?.forEach((behavior: {id: string, name: string}) => {
-                                        addBehavior(behavior);
-                                      });
-                                      
-                                      // Mark as completed - this sets status: "completed" and isSelected: true
-                                      setAudienceTargeting({ mode: 'manual' });
-                                      
-                                      // Complete the tool call
-                                      addToolResult({
-                                        tool: 'setupManualTargeting',
-                                        toolCallId: callId,
-                                        output: {
-                                          success: true,
-                                          description: input.description,
-                                          demographics: data.demographics,
-                                          detailedTargeting: data.detailedTargeting
-                                        }
-                                      });
-                                      
-                                      // Switch to audience tab
-                                      emitBrowserEvent('switchToTab', 'audience');
-                                    } catch (error) {
-                                      console.error('Error setting up manual targeting:', error);
-                                      addToolResult({
-                                        tool: 'setupManualTargeting',
-                                        toolCallId: callId,
-                                        output: { success: false, error: 'Failed to translate description' }
-                                      });
-                                    }
-                                  }, 0);
-                                  
-                                  return (
-                                    <div key={callId} className="flex items-center gap-3 p-4 border rounded-lg bg-card">
-                                      <Loader size={16} />
-                                      <span className="text-sm text-muted-foreground">Translating your description...</span>
-                                    </div>
-                                  );
-                                
-                                case 'output-available': {
-                                  const output = part.output as { success: boolean; description: string; demographics?: unknown; detailedTargeting?: unknown };
-                                  
-                                  if (!output.success) {
-                                    return (
-                                      <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
-                                        Failed to set up manual targeting
-                                      </div>
-                                    );
-                                  }
-                                  
-                                  return (
-                                    <div key={callId} className="w-full my-4 space-y-3">
-                                      <div
-                                        className="flex items-center justify-between p-4 rounded-lg border panel-surface hover:border-cyan-500/50 transition-colors cursor-pointer"
-                                        onClick={() => emitBrowserEvent('switchToTab', 'audience')}
-                                      >
-                                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                                          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                                            <Target className="h-5 w-5 text-blue-600" />
-                                          </div>
-                                          <div className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-2">
-                                              <p className="font-semibold text-sm">Manual targeting parameters generated!</p>
-                                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                                            </div>
-                                            <p className="text-xs text-muted-foreground line-clamp-1">Review and refine your targeting on the canvas</p>
-                                          </div>
-                                        </div>
-                                        <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors flex-shrink-0 ml-2" />
-                                      </div>
-                                    </div>
-                                  );
-                                }
-                                
-                                case 'output-error':
-                                  return (
-                                    <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
-                                      {part.errorText}
-                                    </div>
-                                  );
-                              }
-                              break;
-                            }
                             case "tool-setupGoal": {
                               const callId = part.toolCallId;
                               const input = part.input as GoalToolInput;
@@ -2774,29 +1691,7 @@ Make it conversational and easy to understand for a business owner.`,
                                 
                                 case 'input-available':
                                 case 'output-available':
-                                  // Show success card immediately when tool is called
-                                  return (
-                                    <div key={callId} className="w-full my-4 space-y-3">
-                                      <div
-                                        className="flex items-center justify-between p-4 rounded-lg border panel-surface hover:border-cyan-500/50 transition-colors cursor-pointer"
-                                        onClick={() => emitBrowserEvent('switchToTab', 'audience')}
-                                      >
-                                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                                          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                                            <Sparkles className="h-5 w-5 text-blue-600" />
-                                          </div>
-                                          <div className="min-w-0 flex-1">
-                                            <div className="flex items-center gap-2">
-                                              <p className="font-semibold text-sm">AI Advantage+ targeting enabled!</p>
-                                              <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                                            </div>
-                                            <p className="text-xs text-muted-foreground line-clamp-1">Your ad will be shown to people most likely to engage</p>
-                                          </div>
-                                        </div>
-                                        <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors flex-shrink-0 ml-2" />
-                                      </div>
-                                    </div>
-                                  );
+                                  return null;
                                 
                                 case 'output-error':
                                   return (
@@ -2859,100 +1754,9 @@ Make it conversational and easy to understand for a business owner.`,
               />
             )}
             
-            {/* Show audience context card if active - appears at bottom after all messages */}
-            {audienceContext && (
-              <AudienceContextCard 
-                currentAudience={audienceContext}
-                onDismiss={() => {
-                  setAudienceContext(null);
-                  setCustomPlaceholder("Type your message...");
-                }}
-              />
-            )}
-            
             {status === "submitted" && <Loader />}
           </ConversationContent>
         <ConversationScrollButton />
-        
-        {/* AI Advantage+ Success Card - Direct Rendering */}
-        {showAIAdvantageCard && (
-          <div className="w-full px-4 my-4 space-y-3">
-            <div
-              className="flex items-center justify-between p-4 rounded-lg border panel-surface hover:border-cyan-500/50 transition-colors cursor-pointer"
-              onClick={() => {
-                emitBrowserEvent('switchToTab', 'audience');
-                setShowAIAdvantageCard(false); // Hide after navigation
-              }}
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="h-5 w-5 text-blue-600" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-sm">AI Advantage+ targeting enabled!</p>
-                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-1">
-                    Your ad will be shown to people most likely to engage
-                  </p>
-                </div>
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors flex-shrink-0 ml-2" />
-            </div>
-          </div>
-        )}
-        
-        {/* Manual Targeting Enabled Card - Shows immediately when mode selected */}
-        {showManualTargetingEnabledCard && (
-          <div className="w-full px-4 my-4 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div className="flex items-center justify-between p-4 rounded-lg border border-blue-500/30 bg-blue-500/5">
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10 flex items-center justify-center flex-shrink-0">
-                  <Target className="h-5 w-5 text-blue-600" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-sm">Manual Targeting Enabled</p>
-                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-1">
-                    Let's build your ideal audience profile together
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Manual Targeting Success Card - Direct Rendering */}
-        {showManualTargetingSuccessCard && (
-          <div className="w-full px-4 my-4 space-y-3">
-            <div
-              className="flex items-center justify-between p-4 rounded-lg border panel-surface hover:border-cyan-500/50 transition-colors cursor-pointer"
-              onClick={() => {
-                emitBrowserEvent('switchToTab', 'audience');
-                setShowManualTargetingSuccessCard(false); // Hide after navigation
-              }}
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 flex items-center justify-center flex-shrink-0">
-                  <Target className="h-5 w-5 text-blue-600" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-sm">Manual targeting parameters confirmed!</p>
-                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-1">
-                    Review and refine your targeting on the canvas
-                  </p>
-                </div>
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors flex-shrink-0 ml-2" />
-            </div>
-          </div>
-        )}
       </Conversation>
 
       <div className="grid shrink-0 gap-4 pt-4">
@@ -2970,23 +1774,16 @@ Make it conversational and easy to understand for a business owner.`,
           >
             <PromptInputBody>
               {/* Reference Badge - shows when editing */}
-              {(adEditReference || audienceContext) && (
+              {adEditReference && (
                 <div className="w-full px-3 pt-3 pb-1">
                   <div className="flex items-center gap-2 rounded-lg border border-blue-500/30 bg-blue-500/5 px-3 py-2 w-fit">
                     <Reply className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
                     <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                      {adEditReference 
-                        ? `Editing: ${adEditReference.variationTitle}` 
-                        : `Editing: Audience Targeting`}
+                      {`Editing: ${adEditReference.variationTitle}`}
                     </span>
                     <button
                       onClick={() => {
-                        if (adEditReference) {
-                          setAdEditReference(null);
-                        }
-                        if (audienceContext) {
-                          setAudienceContext(null);
-                        }
+                        setAdEditReference(null);
                         setCustomPlaceholder("Type your message...");
                       }}
                       className="p-0.5 rounded hover:bg-blue-500/10 transition-colors"
