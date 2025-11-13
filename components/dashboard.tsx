@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import AiChat from "./ai-chat"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ArrowLeft, Edit, Moon, Sun, Check, PanelLeftClose, PanelLeftOpen, Facebook, Instagram } from "lucide-react"
+import { ChevronDown, ArrowLeft, Edit, Moon, Sun, Check, PanelLeftClose, PanelLeftOpen, Facebook, Instagram, AlertCircle } from "lucide-react"
 import { COMPANY_NAME } from "@/lib/constants"
 import { useTheme } from "next-themes"
 import {
