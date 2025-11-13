@@ -51,24 +51,26 @@ interface LocationData {
   [key: string]: unknown;
 }
 
-declare global {
-  interface Window {
-    L: {
-      map(element: HTMLElement, options?: unknown): LeafletMap;
-      tileLayer(url: string, options?: unknown): { addTo(map: LeafletMap): void };
-      marker(coords: [number, number], options?: unknown): LeafletMarker;
-      circle(coords: [number, number], options?: unknown): LeafletShape;
-      circleMarker(coords: [number, number], options?: unknown): LeafletMarker;
-      geoJSON(data: unknown, options?: unknown): LeafletShape;
-      latLngBounds(): LeafletBounds;
-      rectangle(bounds: [[number, number], [number, number]], options?: unknown): LeafletShape;
-      [key: string]: unknown;
-    };
-  }
+interface LeafletLib {
+  map(element: HTMLElement, options?: unknown): LeafletMap;
+  tileLayer(url: string, options?: unknown): { addTo(map: LeafletMap): void };
+  marker(coords: [number, number], options?: unknown): LeafletMarker;
+  circle(coords: [number, number], options?: unknown): LeafletShape;
+  circleMarker(coords: [number, number], options?: unknown): LeafletMarker;
+  geoJSON(data: unknown, options?: unknown): LeafletShape;
+  latLngBounds(): LeafletBounds;
+  rectangle(bounds: [[number, number], [number, number]], options?: unknown): LeafletShape;
+  [key: string]: unknown;
 }
 
 interface LocationSelectionCanvasProps {
   variant?: "step" | "summary"
+}
+
+// Helper function to safely access Leaflet library
+function getLeaflet(): LeafletLib | null {
+  if (typeof window === "undefined") return null
+  return (window as unknown as { L?: LeafletLib }).L ?? null
 }
 
 export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionCanvasProps = {}) {
@@ -104,7 +106,8 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       return
     }
     
-    if (typeof window === "undefined" || !window.L) {
+    const L = getLeaflet()
+    if (!L) {
       console.error("[Map] Leaflet not available despite ready signal")
       setMapError("Map library not available")
       setIsMapLoading(false)
@@ -116,11 +119,14 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       requestAnimationFrame(() => {
         if (!mapContainerRef.current || mapRef.current) return
 
+        const L = getLeaflet()
+        if (!L) return
+
         try {
           console.log("[Map] Initializing map instance with Leaflet ready")
           setIsMapLoading(true)
 
-          mapRef.current = window.L.map(mapContainerRef.current, {
+          mapRef.current = L.map(mapContainerRef.current, {
             center: [20, 0],
             zoom: 2,
             zoomControl: true,
@@ -129,7 +135,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
             scrollWheelZoom: true,
           })
 
-          window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
             maxZoom: 19,
           }).addTo(mapRef.current)
@@ -169,7 +175,8 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
 
   // Update map markers when locations change
   useEffect(() => {
-    if (!mapRef.current || !window.L) {
+    const L = getLeaflet()
+    if (!mapRef.current || !L) {
       return
     }
 
@@ -219,7 +226,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       const color = location.mode === "include" ? "#16A34A" : "#DC2626"
 
       // Add marker
-      const marker = window.L.circleMarker(
+      const marker = L.circleMarker(
         [location.coordinates[1], location.coordinates[0]],
         {
           radius: 8,
@@ -237,7 +244,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       // Add radius circle or boundaries based on type
       if (location.type === "radius" && location.radius) {
         const radiusInMeters = location.radius * 1609.34
-        const circle = window.L.circle(
+        const circle = L.circle(
           [location.coordinates[1], location.coordinates[0]],
           {
             radius: radiusInMeters,
@@ -251,7 +258,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
         shapesRef.current.push(circle)
       } else if (location.geometry) {
         try {
-          const geoJsonLayer = window.L.geoJSON(location.geometry, {
+          const geoJsonLayer = L.geoJSON(location.geometry, {
             style: {
               fillColor: color,
               fillOpacity: 0.25,
@@ -268,7 +275,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     })
 
     // Fit map to show all locations
-    const bounds = window.L.latLngBounds() as LeafletBounds & { extend: (coords: [number, number]) => void }
+    const bounds = L.latLngBounds() as LeafletBounds & { extend: (coords: [number, number]) => void }
     validLocations.forEach(loc => {
       if (loc.bbox) {
         bounds.extend([loc.bbox[1], loc.bbox[0]])
