@@ -25,13 +25,14 @@ export interface DestinationData {
 }
 
 export interface DestinationState {
-  status: 'idle' | 'in_progress' | 'completed'
+  status: 'idle' | 'selecting_type' | 'in_progress' | 'completed'
   data: DestinationData | null
 }
 
 interface DestinationContextType {
   destinationState: DestinationState
   setDestination: (data: DestinationData) => void
+  setDestinationType: (type: 'instant_form' | 'other_form') => void
   clearDestination: () => void
   resetDestination: () => void
 }
@@ -108,6 +109,16 @@ export function DestinationProvider({ children }: { children: ReactNode }) {
     logger.debug('DestinationContext', 'Destination set', data)
   }, [])
   
+  const setDestinationType = useCallback((type: 'instant_form' | 'other_form') => {
+    setDestinationState({
+      status: 'in_progress',
+      data: {
+        type: type,
+      },
+    })
+    logger.debug('DestinationContext', 'Destination type selected', { type })
+  }, [])
+  
   const clearDestination = useCallback(() => {
     setDestinationState({
       status: 'idle',
@@ -132,7 +143,7 @@ export function DestinationProvider({ children }: { children: ReactNode }) {
   }, [])
   
   return (
-    <DestinationContext.Provider value={{ destinationState, setDestination, clearDestination, resetDestination }}>
+    <DestinationContext.Provider value={{ destinationState, setDestination, setDestinationType, clearDestination, resetDestination }}>
       {children}
     </DestinationContext.Provider>
   )

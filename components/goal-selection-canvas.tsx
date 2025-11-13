@@ -33,7 +33,14 @@ export function GoalSelectionCanvas({ variant = "step" }: GoalSelectionCanvasPro
 
   // Handle goal selection with Meta connection check
   const handleGoalSelect = (goal: "leads" | "calls" | "website-visits") => {
-    // Check if Meta is connected
+    // For leads, proceed directly without Meta check (check happens at destination selection)
+    if (goal === 'leads') {
+      console.log('[GoalSelectionCanvas] Leads selected, proceeding to destination selection')
+      setSelectedGoal(goal)
+      return
+    }
+    
+    // For calls and website-visits, check if Meta is connected
     if (metaStatus !== 'connected') {
       console.log('[GoalSelectionCanvas] Meta not connected, showing dialog')
       setPendingGoal(goal)

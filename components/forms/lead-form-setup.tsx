@@ -17,8 +17,11 @@ import { LeadFormExisting } from "@/components/forms/lead-form-existing"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { useGoal } from "@/lib/context/goal-context"
 import { useCampaignContext } from "@/lib/context/campaign-context"
+import { useDestination } from "@/lib/context/destination-context"
 import { metaStorage } from "@/lib/meta/storage"
 import { mapBuilderStateToMetaForm } from "@/lib/meta/instant-form-mapper"
+import { DestinationSelectionCanvas } from "@/components/destination-selection-canvas"
+import { MetaConnectionCheckDialog } from "@/components/meta/meta-connection-check-dialog"
 
 interface SelectedFormData {
   id: string
@@ -41,11 +44,21 @@ const PREVIEW_STEPS = [
 export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupProps) {
   const { goalState } = useGoal()
   const { campaign } = useCampaignContext()
+  const { destinationState, setDestinationType } = useDestination()
   const hasSavedForm = !!goalState.formData?.id
   const [tab, setTab] = useState<"create" | "existing">(hasSavedForm ? "existing" : "create")
   const [selectedFormId, setSelectedFormId] = useState<string | null>(goalState.formData?.id ?? null)
   const [currentStep, setCurrentStep] = useState<number>(0)
   const [previewError, setPreviewError] = useState<string | null>(null)
+  const [showMetaConnectionDialog, setShowMetaConnectionDialog] = useState(false)
+  const [hasSelectedDestination, setHasSelectedDestination] = useState(false)
+
+  // Check if destination was already selected (restoring state)
+  useEffect(() => {
+    if (destinationState.data?.type === 'instant_form' || destinationState.status === 'in_progress' || destinationState.status === 'completed') {
+      setHasSelectedDestination(true)
+    }
+  }, [destinationState])
 
   // Shared preview state for Create tab
   const [formName, setFormName] = useState<string>("Lead Form")
@@ -154,6 +167,45 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
     selectedFormId,
   ])
 
+  // Handle destination type selection
+  const handleInstantFormsSelected = useCallback(() => {
+    console.log('[LeadFormSetup] Instant Forms selected, proceeding to form builder')
+    setDestinationType('instant_form')
+    setHasSelectedDestination(true)
+    setShowMetaConnectionDialog(false)
+  }, [setDestinationType])
+
+  const handleMetaConnectionRequired = useCallback(() => {
+    console.log('[LeadFormSetup] Meta connection required, showing dialog')
+    setShowMetaConnectionDialog(true)
+  }, [])
+
+  const handleMetaConnectionSuccess = useCallback(() => {
+    console.log('[LeadFormSetup] Meta connection successful, proceeding to form builder')
+    setDestinationType('instant_form')
+    setHasSelectedDestination(true)
+    setShowMetaConnectionDialog(false)
+  }, [setDestinationType])
+
+  // If destination type not selected yet, show destination selection
+  if (!hasSelectedDestination) {
+    return (
+      <>
+        <DestinationSelectionCanvas
+          onInstantFormsSelected={handleInstantFormsSelected}
+          onChangeGoal={onChangeGoal}
+          onMetaConnectionRequired={handleMetaConnectionRequired}
+        />
+        <MetaConnectionCheckDialog
+          open={showMetaConnectionDialog}
+          onOpenChange={setShowMetaConnectionDialog}
+          onSuccess={handleMetaConnectionSuccess}
+        />
+      </>
+    )
+  }
+
+  // Show form builder after destination is selected
   return (
     <div className="w-full px-4 py-6">
       <div className="grid lg:grid-cols-2 gap-8 w-full">
