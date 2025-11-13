@@ -292,7 +292,7 @@ export function Dashboard({
                                   {paymentStatus === 'missing' && summary?.adAccount?.id && (
                                     <>
                                       <DropdownMenuSeparator />
-                                      <DropdownMenuItem onClick={() => metaActions.addPayment(summary.adAccount.id)}>
+                                      <DropdownMenuItem onClick={() => summary.adAccount?.id && metaActions.addPayment(summary.adAccount.id)}>
                                         <CreditCard className="h-4 w-4 mr-2" />
                                         Add Payment Method
                                       </DropdownMenuItem>
