@@ -16,7 +16,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { KPIMetricsTable } from "@/components/results/kpi-metrics-table"
 import { LeadsTable } from "@/components/results/leads-table"
-import { CampaignEditor } from "@/components/results/campaign-editor"
 import { UnpublishedWarningBanner } from "@/components/results/unpublished-warning-banner"
 import { type CampaignMetricsSnapshot, type MetricsRangeKey } from "@/lib/meta/insights"
 import type { KPIMetricsRow } from "@/lib/types/workspace"
@@ -142,8 +141,8 @@ export function ResultsPanel({ isEnabled }: ResultsPanelProps) {
   const isLeadGoal = goal === "leads"
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 bg-muted/20 px-6 py-3">
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 bg-card/50 px-6 py-3">
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">Results</h2>
           <p className="text-sm text-muted-foreground">
@@ -186,9 +185,6 @@ export function ResultsPanel({ isEnabled }: ResultsPanelProps) {
         {isLeadGoal && (
           <LeadsTable campaignId={campaignId} onRefresh={refreshMetrics} />
         )}
-
-        {/* Campaign Editor */}
-        <CampaignEditor />
       </div>
     </div>
   )

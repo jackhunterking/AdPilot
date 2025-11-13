@@ -48,7 +48,7 @@ export function LeadsTable({ campaignId, onRefresh }: LeadsTableProps) {
     dateFrom: null,
     dateTo: null,
   })
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -156,22 +156,6 @@ export function LeadsTable({ campaignId, onRefresh }: LeadsTableProps) {
       <ArrowUp className="ml-1 h-3 w-3" />
     ) : (
       <ArrowDown className="ml-1 h-3 w-3" />
-    )
-  }
-
-  // Loading skeleton
-  if (loading && leads.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Lead Inbox</CardTitle>
-          <CardDescription>Loading leads...</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-64 w-full" />
-        </CardContent>
-      </Card>
     )
   }
 

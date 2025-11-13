@@ -96,29 +96,7 @@ export function KPIMetricsTable({
     )
   }
 
-  // Empty state
-  if (!metrics) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Campaign Performance</CardTitle>
-          <CardDescription>
-            No metrics available yet. Give the campaign a little more time, then refresh.
-          </CardDescription>
-        </CardHeader>
-        {onRefresh && (
-          <CardContent>
-            <Button onClick={onRefresh} variant="outline" size="sm">
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh Metrics
-            </Button>
-          </CardContent>
-        )}
-      </Card>
-    )
-  }
-
-  // Success state with data
+  // Always render table structure (even when no metrics)
   return (
     <Card>
       <CardHeader>
@@ -134,6 +112,12 @@ export function KPIMetricsTable({
               )}
             </CardDescription>
           </div>
+          {onRefresh && (
+            <Button onClick={onRefresh} variant="outline" size="sm" disabled={loading}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent>
@@ -151,7 +135,7 @@ export function KPIMetricsTable({
             <TableBody>
               <TableRow>
                 {COLUMNS.map((column) => {
-                  const value = metrics[column.key]
+                  const value = metrics?.[column.key]
                   const formattedValue = formatMetricValue(value, column.type, currency)
                   
                   return (
@@ -168,7 +152,7 @@ export function KPIMetricsTable({
         {/* Mobile-friendly card view for small screens */}
         <div className="mt-4 grid gap-3 sm:hidden">
           {COLUMNS.map((column) => {
-            const value = metrics[column.key]
+            const value = metrics?.[column.key]
             const formattedValue = formatMetricValue(value, column.type, currency)
             
             return (

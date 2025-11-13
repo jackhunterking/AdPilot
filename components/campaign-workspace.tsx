@@ -1248,7 +1248,7 @@ export function CampaignWorkspace() {
         )}
 
         {effectiveMode === 'results' && (
-          <div className="flex-1 h-full overflow-hidden min-h-0">
+          <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
             <ResultsPanel isEnabled={hasPublishedAds} />
           </div>
         )}
