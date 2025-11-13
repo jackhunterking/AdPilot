@@ -35,20 +35,22 @@ interface GeoJSONGeometry {
   coordinates: number[] | number[][] | number[][][] | number[][][][];
 }
 
-declare global {
-  interface Window {
-    L: {
-      map(element: HTMLElement, options?: unknown): LeafletMap;
-      tileLayer(url: string, options?: unknown): { addTo(map: LeafletMap): void };
-      marker(coords: [number, number], options?: unknown): LeafletMarker;
-      circle(coords: [number, number], options?: unknown): LeafletShape;
-      circleMarker(coords: [number, number], options?: unknown): LeafletMarker;
-      geoJSON(data: unknown, options?: unknown): LeafletShape;
-      latLngBounds(): LeafletBounds;
-      rectangle(bounds: [[number, number], [number, number]], options?: unknown): LeafletShape;
-      [key: string]: unknown;
-    };
-  }
+interface LeafletLib {
+  map(element: HTMLElement, options?: unknown): LeafletMap;
+  tileLayer(url: string, options?: unknown): { addTo(map: LeafletMap): void };
+  marker(coords: [number, number], options?: unknown): LeafletMarker;
+  circle(coords: [number, number], options?: unknown): LeafletShape;
+  circleMarker(coords: [number, number], options?: unknown): LeafletMarker;
+  geoJSON(data: unknown, options?: unknown): LeafletShape;
+  latLngBounds(): LeafletBounds;
+  rectangle(bounds: [[number, number], [number, number]], options?: unknown): LeafletShape;
+  [key: string]: unknown;
+}
+
+// Helper function to safely access Leaflet library
+function getLeaflet(): LeafletLib | null {
+  if (typeof window === "undefined") return null
+  return (window as unknown as { L?: LeafletLib }).L ?? null
 }
 
 interface Location {
@@ -84,13 +86,14 @@ export function LocationTargeting({ externalLocations }: LocationTargetingProps)
   // Initialize Leaflet map
   useEffect(() => {
     if (!mapContainerRef.current || isMapInitializedRef.current) return
-    if (typeof window === "undefined" || !window.L) return
+    const L = getLeaflet()
+    if (!L) return
 
     console.log("[OpenStreetMap] Initializing map...")
 
     try {
       // Create map with world view as placeholder
-      mapRef.current = window.L.map(mapContainerRef.current, {
+      mapRef.current = L.map(mapContainerRef.current, {
         center: [20, 0], // Center on world map
         zoom: 2, // World view zoom level
         zoomControl: true,
@@ -99,7 +102,7 @@ export function LocationTargeting({ externalLocations }: LocationTargetingProps)
       })
 
       // Add OpenStreetMap tile layer
-      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 19,
       }).addTo(mapRef.current)
@@ -121,7 +124,8 @@ export function LocationTargeting({ externalLocations }: LocationTargetingProps)
 
   // Update map when locations change
   useEffect(() => {
-    if (!mapRef.current || !window.L) return
+    const L = getLeaflet()
+    if (!mapRef.current || !L) return
 
     console.log("[OpenStreetMap] Updating map with", locations.length, "locations")
 
@@ -144,7 +148,7 @@ export function LocationTargeting({ externalLocations }: LocationTargetingProps)
       // Add marker
       if (!mapRef.current) return;
       
-      const marker = window.L.circleMarker(
+      const marker = L.circleMarker(
         [location.coordinates[1], location.coordinates[0]], // Leaflet uses [lat, lng]
         {
           radius: 8,
@@ -162,7 +166,7 @@ export function LocationTargeting({ externalLocations }: LocationTargetingProps)
       // Add circle for radius type
       if (location.type === "radius" && location.radius && mapRef.current) {
         const radiusInMeters = location.radius * 1609.34 // miles to meters
-        const circle = window.L.circle(
+        const circle = L.circle(
           [location.coordinates[1], location.coordinates[0]],
           {
             radius: radiusInMeters,
@@ -179,7 +183,7 @@ export function LocationTargeting({ externalLocations }: LocationTargetingProps)
       // Add boundary for city/region/country
       else if (location.geometry && (location.type === "city" || location.type === "region" || location.type === "country") && mapRef.current) {
         try {
-          const geoJsonLayer = window.L.geoJSON(location.geometry, {
+          const geoJsonLayer = L.geoJSON(location.geometry, {
             style: {
               fillColor: color,
               fillOpacity: 0.25,
@@ -206,7 +210,7 @@ export function LocationTargeting({ externalLocations }: LocationTargetingProps)
     })
 
     // Fit map to show all locations
-    const bounds = window.L.latLngBounds() as LeafletBounds & { extend: (coords: [number, number]) => void }
+    const bounds = L.latLngBounds() as LeafletBounds & { extend: (coords: [number, number]) => void }
     
     locations.forEach(loc => {
       if (loc.bbox) {
@@ -224,11 +228,12 @@ export function LocationTargeting({ externalLocations }: LocationTargetingProps)
   }, [locations])
 
   const addBboxRectangle = (location: Location, color: string) => {
-    if (!location.bbox || !window.L || !mapRef.current) return
+    const L = getLeaflet()
+    if (!location.bbox || !L || !mapRef.current) return
 
     const [minLng, minLat, maxLng, maxLat] = location.bbox
 
-    const rectangle = window.L.rectangle(
+    const rectangle = L.rectangle(
       [[minLat, minLng], [maxLat, maxLng]], // Leaflet uses [lat, lng]
       {
         fillColor: color,
