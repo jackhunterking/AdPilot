@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { ChevronLeft, X, Info, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { MetaInstantForm } from '@/lib/types/meta-instant-form'
+import { IntroPageVisual } from './IntroPageVisual'
 
 interface MetaInstantFormPreviewProps {
   form: MetaInstantForm
@@ -180,25 +181,13 @@ export function MetaInstantFormPreview({
           <div className="flex-1 p-6 flex flex-col">
             {/* Step 0: Intro */}
             {currentStep === 0 && (
-              <div className="flex-1 flex flex-col items-center justify-center">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 mb-4 overflow-hidden">
-                  {form.pageProfilePicture ? (
-                    <img
-                      src={form.pageProfilePicture}
-                      alt={pageName}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-white text-2xl font-bold">
-                      {initials}
-                    </div>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground mb-2">{pageName}</p>
-                <h3 className="text-2xl font-bold text-center">
-                  {form.introHeadline || 'Headline text'}
-                </h3>
-              </div>
+              <IntroPageVisual
+                logoUrl={form.pageProfilePicture}
+                businessName={pageName}
+                headline={form.introHeadline || 'Lead Form'}
+                description={form.introDescription}
+                initials={initials}
+              />
             )}
 
             {/* Step 1: Contact Information */}

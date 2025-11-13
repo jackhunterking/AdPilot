@@ -37,6 +37,7 @@ export interface MetaInstantForm {
   pageName?: string
   pageProfilePicture?: string
   introHeadline?: string
+  introDescription?: string
 }
 
 /**
