@@ -553,7 +553,8 @@ export function PreviewPanel() {
       metadata: {
         timestamp: new Date().toISOString(),
         editMode: true,
-        selectedFormat: currentFormat
+        selectedFormat: currentFormat,
+        showSkeleton: true  // Creative step should show skeleton placeholders
       }
     }
     
@@ -758,7 +759,7 @@ export function PreviewPanel() {
         <div className="flex items-center gap-2 justify-center">
           <Button
             size="sm"
-            variant="secondary"
+            variant="outline"
             onClick={(e) => {
               e.stopPropagation()
               handleEditAd(index)
@@ -921,7 +922,7 @@ export function PreviewPanel() {
         <div className="flex items-center gap-2 justify-center">
           <Button
             size="sm"
-            variant="secondary"
+            variant="outline"
             onClick={(e) => {
               e.stopPropagation()
               handleEditAd(index)

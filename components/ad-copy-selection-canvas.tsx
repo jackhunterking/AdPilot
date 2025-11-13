@@ -103,7 +103,8 @@ export function AdCopySelectionCanvas() {
         editMode: true,
         canRegenerate: true,
         selectedFormat: currentFormat,
-        fields: ['primaryText', 'headline', 'description']
+        fields: ['primaryText', 'headline', 'description'],
+        showSkeleton: false  // Copy step should show actual text
       }
     }
     
@@ -403,7 +404,7 @@ export function AdCopySelectionCanvas() {
           <div className="flex items-center gap-2 justify-center">
             <Button
               size="sm"
-              variant="secondary"
+              variant="outline"
               onClick={(e) => {
                 e.stopPropagation()
                 handleEditCopy(copyIndex)
@@ -586,7 +587,7 @@ export function AdCopySelectionCanvas() {
           <div className="flex items-center gap-2 justify-center">
             <Button
               size="sm"
-              variant="secondary"
+              variant="outline"
               onClick={(e) => {
                 e.stopPropagation()
                 handleEditCopy(copyIndex)

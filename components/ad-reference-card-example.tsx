@@ -13,6 +13,7 @@
 import { Reply, X } from 'lucide-react'
 import { Message, MessageContent } from '@/components/ai-elements/message'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface AdReferenceCardProps {
   reference: {
@@ -39,6 +40,12 @@ interface AdReferenceCardProps {
         aspect: string
       }
     }
+    metadata?: {
+      showSkeleton?: boolean
+      editMode?: boolean
+      timestamp?: string
+      selectedFormat?: string
+    }
   }
   onDismiss?: () => void
 }
@@ -49,6 +56,8 @@ export function AdReferenceCard({ reference, onDismiss }: AdReferenceCardProps) 
   const format = reference.format
   const gradient = reference.gradient || reference.preview?.gradient || 'from-blue-600 via-blue-500 to-cyan-500'
   const imageUrl = reference.preview?.imageUrl
+  // Check if we should show skeleton (creative step) or actual text (copy step)
+  const showSkeleton = reference.metadata?.showSkeleton ?? false
   
   // Render full Feed ad mockup
   const renderFeedMockup = () => (
@@ -92,27 +101,46 @@ export function AdReferenceCard({ reference, onDismiss }: AdReferenceCardProps) 
         </div>
 
         {/* Primary Text */}
-        {reference.content?.primaryText && (
+        {showSkeleton ? (
+          <div className="space-y-1.5">
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-3/4" />
+          </div>
+        ) : reference.content?.primaryText ? (
           <p className="text-xs line-clamp-3">
             <span className="font-semibold">Your Brand</span>{" "}
             {reference.content.primaryText}
           </p>
-        )}
+        ) : null}
 
         {/* Headline & Description */}
-        {reference.content && (
-          <div className="bg-muted rounded-lg p-2.5 space-y-1">
-            <p className="text-xs font-bold line-clamp-1">{reference.content.headline}</p>
-            <p className="text-[10px] text-muted-foreground line-clamp-2">{reference.content.description}</p>
-            <Button 
-              size="sm" 
-              className="w-full mt-1.5 h-7 text-[10px] bg-[#4B73FF] hover:bg-[#3d5fd9]"
-              disabled
-            >
-              Learn More
-            </Button>
-          </div>
-        )}
+        <div className="bg-muted rounded-lg p-2.5 space-y-1">
+          {/* Headline */}
+          {showSkeleton ? (
+            <Skeleton className="h-3.5 w-4/5" />
+          ) : (
+            <p className="text-xs font-bold line-clamp-1">{reference.content?.headline || ''}</p>
+          )}
+          
+          {/* Description */}
+          {showSkeleton ? (
+            <div className="space-y-1">
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-3/4" />
+            </div>
+          ) : (
+            <p className="text-[10px] text-muted-foreground line-clamp-2">{reference.content?.description || ''}</p>
+          )}
+          
+          <Button 
+            size="sm" 
+            className="w-full mt-1.5 h-7 text-[10px] bg-[#4B73FF] hover:bg-[#3d5fd9]"
+            disabled
+          >
+            Learn More
+          </Button>
+        </div>
       </div>
     </div>
   )
@@ -142,26 +170,35 @@ export function AdReferenceCard({ reference, onDismiss }: AdReferenceCardProps) 
       </div>
 
       {/* Story Copy Content */}
-      {reference.content && (
-        <div className="absolute bottom-6 left-0 right-0 px-3 z-10 space-y-2">
-          {/* Primary Text */}
-          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
+      <div className="absolute bottom-6 left-0 right-0 px-3 z-10 space-y-2">
+        {/* Primary Text */}
+        <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
+          {showSkeleton ? (
+            <div className="space-y-1">
+              <Skeleton className="h-3 w-full bg-white/30" />
+              <Skeleton className="h-3 w-3/4 bg-white/30" />
+            </div>
+          ) : (
             <p className="text-white text-xs line-clamp-2 font-medium">
-              {reference.content.primaryText}
+              {reference.content?.primaryText || ''}
             </p>
-          </div>
-          
-          {/* Headline */}
-          <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
-            <p className="text-white font-bold text-xs line-clamp-1">{reference.content.headline}</p>
-          </div>
-
-          {/* CTA Button */}
-          <div className="bg-white/95 backdrop-blur-sm rounded-full py-2 px-4 text-center">
-            <p className="text-black font-semibold text-xs truncate">Learn More</p>
-          </div>
+          )}
         </div>
-      )}
+        
+        {/* Headline */}
+        <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
+          {showSkeleton ? (
+            <Skeleton className="h-3 w-4/5 bg-white/30" />
+          ) : (
+            <p className="text-white font-bold text-xs line-clamp-1">{reference.content?.headline || ''}</p>
+          )}
+        </div>
+
+        {/* CTA Button */}
+        <div className="bg-white/95 backdrop-blur-sm rounded-full py-2 px-4 text-center">
+          <p className="text-black font-semibold text-xs truncate">Learn More</p>
+        </div>
+      </div>
 
       {/* Center title for non-copy references */}
       {!reference.content && (
