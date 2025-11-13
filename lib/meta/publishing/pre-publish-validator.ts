@@ -182,7 +182,12 @@ export async function validatePrePublish(params: PrePublishValidationParams): Pr
   }
 
   // Check campaign goal
-  const campaignStates = campaign.campaign_states as { goal_data?: { selectedGoal?: string } } | null
+  const campaignStates = campaign.campaign_states as {
+    goal_data?: { selectedGoal?: string }
+    budget_data?: { dailyBudget?: number }
+    location_data?: { locations?: unknown[] }
+  } | null
+  
   const goalData = campaignStates?.goal_data
   const goal = goalData?.selectedGoal
 
@@ -201,7 +206,7 @@ export async function validatePrePublish(params: PrePublishValidationParams): Pr
   }
 
   // Check budget
-  const budgetData = campaignStates?.budget_data as { dailyBudget?: number } | undefined
+  const budgetData = campaignStates?.budget_data
   const dailyBudget = budgetData?.dailyBudget
 
   if (!dailyBudget || dailyBudget < 1) {
@@ -282,7 +287,7 @@ export async function validatePrePublish(params: PrePublishValidationParams): Pr
   }
 
   // Validate location targeting
-  const locationData = campaignStates?.location_data as { locations?: unknown[] } | undefined
+  const locationData = campaignStates?.location_data
   if (!locationData?.locations || locationData.locations.length === 0) {
     console.warn('[PrePublishValidator] ⚠️  No location targeting set (will default to US)')
   } else {
