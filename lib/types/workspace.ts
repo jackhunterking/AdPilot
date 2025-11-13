@@ -356,6 +356,50 @@ export interface WorkspaceError {
 }
 
 // ============================================================================
+// KPI Metrics & Leads Table Types
+// ============================================================================
+
+export interface KPIMetricsRow {
+  impressions: number
+  reach: number
+  clicks: number
+  ctr: number | null
+  cpc: number | null
+  cpm: number | null
+  spend: number
+  results: number
+  cost_per_result: number | null
+}
+
+export interface LeadTableRow {
+  id: string
+  meta_lead_id: string
+  meta_form_id: string
+  submitted_at: string
+  form_data: Record<string, unknown>
+}
+
+export type SortOrder = 'asc' | 'desc'
+
+export interface TableSortConfig {
+  column: string
+  order: SortOrder
+}
+
+export interface TableFilterConfig {
+  search: string
+  dateFrom: string | null
+  dateTo: string | null
+}
+
+export interface PaginationState {
+  currentPage: number
+  pageSize: number
+  totalItems: number
+  totalPages: number
+}
+
+// ============================================================================
 // Export utility types
 // ============================================================================
 

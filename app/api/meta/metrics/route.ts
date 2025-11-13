@@ -1,6 +1,6 @@
 /**
  * Feature: Cached Metrics Fetch
- * Purpose: Return the most recently cached Meta Insights metrics for a campaign.
+ * Purpose: Return the most recently cached Meta Insights metrics for a campaign with enhanced KPI data structure.
  * References:
  *  - Meta Insights API: https://developers.facebook.com/docs/marketing-api/insights
  *  - Supabase Auth (Server): https://supabase.com/docs/reference/javascript/auth-getuser
@@ -17,6 +17,25 @@ function parseRange(param: string | null): MetricsRangeKey {
   }
   return '7d'
 }
+
+interface ColumnDefinition {
+  key: string
+  label: string
+  type: 'number' | 'currency' | 'percentage'
+  format?: string
+}
+
+const KPI_COLUMNS: ColumnDefinition[] = [
+  { key: 'impressions', label: 'Impressions', type: 'number' },
+  { key: 'reach', label: 'Reach', type: 'number' },
+  { key: 'clicks', label: 'Clicks', type: 'number' },
+  { key: 'ctr', label: 'CTR', type: 'percentage' },
+  { key: 'cpc', label: 'CPC', type: 'currency' },
+  { key: 'cpm', label: 'CPM', type: 'currency' },
+  { key: 'spend', label: 'Spend', type: 'currency' },
+  { key: 'results', label: 'Results', type: 'number' },
+  { key: 'cost_per_result', label: 'Cost per Result', type: 'currency' },
+]
 
 export async function GET(req: NextRequest) {
   try {
@@ -54,6 +73,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       range,
       metrics,
+      columns: KPI_COLUMNS,
       publishedStatus: campaign.published_status,
       lastSyncAt: campaign.last_metrics_sync_at,
     })
