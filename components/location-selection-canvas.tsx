@@ -173,10 +173,11 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     }
   }, [isLeafletReady])
 
-  // Update map markers when locations change
-  useEffect(() => {
+  // Shared function to update map markers - extracted for reuse
+  const updateMapMarkers = useCallback(() => {
     const L = getLeaflet()
     if (!mapRef.current || !L) {
+      logger.debug('Map', 'Cannot update markers - map or Leaflet not ready')
       return
     }
 
@@ -189,7 +190,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     shapesRef.current = []
 
     const locations = locationState.locations
-    logger.debug('Map', 'Updating with locations', { count: locations.length })
+    logger.debug('Map', '🗺️ Updating map with locations', { count: locations.length })
 
     if (locations.length === 0) {
       map.setView([20, 0], 2)
@@ -287,12 +288,32 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 10 })
-      console.log("[Map] Fitted bounds successfully")
+      logger.debug('Map', '✅ Fitted bounds successfully')
     }
 
     // Immediate size recalculation after adding markers
     map.invalidateSize(true)
+    logger.debug('Map', '✅ Map updated and invalidated')
   }, [locationState.locations])
+
+  // Update map markers when locations change
+  useEffect(() => {
+    updateMapMarkers()
+  }, [updateMapMarkers])
+
+  // Listen for explicit location updates from AI chat (backup trigger)
+  useEffect(() => {
+    const handleLocationsUpdated = () => {
+      logger.debug('Map', '📡 Received locationsUpdated event - forcing map refresh')
+      // Small delay to ensure state has propagated
+      setTimeout(() => {
+        updateMapMarkers()
+      }, 100)
+    }
+
+    window.addEventListener('locationsUpdated', handleLocationsUpdated)
+    return () => window.removeEventListener('locationsUpdated', handleLocationsUpdated)
+  }, [updateMapMarkers])
 
   const handleAddMore = () => {
     window.dispatchEvent(new CustomEvent('triggerLocationSetup'))

@@ -53,11 +53,44 @@ export function LeadFormSetup({ onFormSelected }: LeadFormSetupProps) {
   const [hasSelectedDestination, setHasSelectedDestination] = useState(false)
 
   // Check if destination was already selected (restoring state)
+  // This handles page refresh - if instant forms was selected and saved to localStorage,
+  // automatically show the form builder instead of the destination selection screen
   useEffect(() => {
-    if (destinationState.data?.type === 'instant_form' || destinationState.status === 'in_progress' || destinationState.status === 'completed') {
+    const isInstantFormSelected = destinationState.data?.type === 'instant_form'
+    const hasProgressOrCompleted = destinationState.status === 'in_progress' || destinationState.status === 'completed'
+    
+    if (isInstantFormSelected || hasProgressOrCompleted) {
+      console.log('[LeadFormSetup] Restoring destination state from localStorage', {
+        type: destinationState.data?.type,
+        status: destinationState.status,
+      })
       setHasSelectedDestination(true)
     }
   }, [destinationState])
+  
+  // Auto-advance to form builder if Meta is connected and instant forms was selected
+  // This ensures that after refresh, if user has both Meta connected and instant forms selected,
+  // they stay on the form builder instead of reverting to destination selection
+  useEffect(() => {
+    if (!campaign?.id) return
+    
+    // Check Meta connection from localStorage
+    const metaStorage = require('@/lib/meta/storage').metaStorage
+    const summary = metaStorage.getConnectionSummary(campaign.id)
+    const isMetaConnected = Boolean(
+      summary?.adAccount?.id || 
+      summary?.business?.id ||
+      summary?.status === 'connected' ||
+      summary?.status === 'selected_assets' ||
+      summary?.status === 'payment_linked'
+    )
+    
+    // If Meta is connected and instant forms is selected, auto-advance
+    if (isMetaConnected && destinationState.data?.type === 'instant_form' && !hasSelectedDestination) {
+      console.log('[LeadFormSetup] Auto-advancing to form builder (Meta connected + instant forms selected)')
+      setHasSelectedDestination(true)
+    }
+  }, [campaign?.id, destinationState.data?.type, hasSelectedDestination])
 
   // Shared preview state for Create tab
   const [formName, setFormName] = useState<string>("Lead Form")

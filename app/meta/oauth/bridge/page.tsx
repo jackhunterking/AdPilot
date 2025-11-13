@@ -62,12 +62,12 @@ export default function MetaOAuthBridgePage() {
           origin
         )
 
-        console.log('[MetaOAuthBridge] Posted message to parent, closing in 400ms');
+        console.log('[MetaOAuthBridge] Posted message to parent, closing in 150ms');
 
         // Give the message a moment to deliver, then close.
         setTimeout(() => {
           try { window.close() } catch { /* noop */ }
-        }, 400)
+        }, 150)
       } else if (campaignId) {
         // Fallback: navigate the popup to the campaign page (opener will remain unchanged)
         console.warn('[MetaOAuthBridge] No opener found, navigating popup to campaign page');

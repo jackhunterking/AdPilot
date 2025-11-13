@@ -610,10 +610,19 @@ ${!isEditMode ? referenceContext : ''}
 **Tool Usage Rules by Step:**
 
 ${currentStep === 'location' ? `
-- ❌ **NEVER call generateImage** on the location step unless user EXPLICITLY says "generate new ads from scratch"
-- ✅ Use locationTargeting tool to help with location setup
-- ✅ Answer questions about targeting and locations
-- ✅ If user says general things like "help me" or "set this up", do NOT call generateImage
+- ❌ **ABSOLUTELY NEVER call generateImage** on the location step
+- ❌ **DO NOT call generateImage** even if user mentions their business or offer - they are just setting location
+- ✅ **ONLY use locationTargeting tool** when user provides location names
+- ✅ After calling locationTargeting, provide a brief confirmation message
+- ✅ The UI already has a confirmation card that shows the location was set
+- ✅ Answer questions about targeting and geographic areas
+- ✅ When user says location names like "Toronto", "Vancouver", etc., ONLY call locationTargeting tool
+- ✅ NO additional prompts or confirmations needed - just call the tool and confirm
+
+**Location Step Behavior:**
+1. User provides location name → Call locationTargeting tool
+2. Tool completes → Provide brief confirmation message like "Location set to [name]"
+3. That's it. NO image generation, NO additional prompts, NO other tools
 ` : ''}
 
 ${currentStep === 'copy' ? `

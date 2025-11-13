@@ -141,18 +141,21 @@ export async function GET(req: NextRequest) {
 
     // System app callback: fetch assets
     metaLogger.info('MetaCallback', 'Fetching Meta assets (system app)');
-    const fbUserId = await fetchUserId({ token: longToken! });
+    
+    // Parallelize user ID and asset fetches for better performance
+    const [fbUserId, businesses, pages, adAccounts] = await Promise.all([
+      fetchUserId({ token: longToken! }),
+      fetchBusinesses({ token: longToken! }),
+      fetchPagesWithTokens({ token: longToken! }),
+      fetchAdAccounts({ token: longToken! }),
+    ]);
 
     if (!fbUserId) {
       metaLogger.error('MetaCallback', 'Failed to fetch user ID', 'User ID fetch returned null');
       return NextResponse.redirect(`${origin}/${campaignId}?meta=user_id_failed`);
     }
 
-    const businesses = await fetchBusinesses({ token: longToken! });
-    const pages = await fetchPagesWithTokens({ token: longToken! });
-    const adAccounts = await fetchAdAccounts({ token: longToken! });
-
-    metaLogger.info('MetaCallback', 'Fetched assets', {
+    metaLogger.info('MetaCallback', 'Fetched assets (parallelized)', {
       businessesCount: businesses.length,
       pagesCount: pages.length,
       adAccountsCount: adAccounts.length,
@@ -167,26 +170,48 @@ export async function GET(req: NextRequest) {
       hasInstagram: !!assets.instagram?.id,
     });
 
-    // Compute admin snapshot (best-effort, non-blocking)
+    // Parallelize admin snapshot and payment check for better performance
     let adminSnapshot: Awaited<ReturnType<typeof computeAdminSnapshot>> | null = null;
+    let paymentConnected = false;
+
     if (assets.business?.id && assets.adAccount?.id) {
-      try {
-        adminSnapshot = await computeAdminSnapshot({
+      // Run both checks in parallel
+      const [adminResult, paymentResult] = await Promise.allSettled([
+        computeAdminSnapshot({
           token: longToken!,
           businessId: assets.business.id,
           adAccountId: assets.adAccount.id,
-        });
+        }),
+        validateAdAccount({
+          token: longToken!,
+          actId: assets.adAccount.id,
+        }),
+      ]);
+
+      // Handle admin snapshot result
+      if (adminResult.status === 'fulfilled') {
+        adminSnapshot = adminResult.value;
         metaLogger.info('MetaCallback', 'Admin snapshot computed', {
           admin_connected: adminSnapshot.admin_connected,
         });
-      } catch (e) {
-        metaLogger.error('MetaCallback', 'Admin snapshot failed (non-fatal)', e as Error);
+      } else {
+        metaLogger.error('MetaCallback', 'Admin snapshot failed (non-fatal)', adminResult.reason as Error);
       }
-    }
 
-    // Check payment status (funding) for the ad account
-    let paymentConnected = false;
-    if (assets.adAccount?.id) {
+      // Handle payment check result
+      if (paymentResult.status === 'fulfilled') {
+        paymentConnected = Boolean(paymentResult.value.hasFunding);
+        metaLogger.info('MetaCallback', 'Payment status checked', {
+          adAccountId: assets.adAccount.id,
+          hasFunding: paymentResult.value.hasFunding,
+          paymentConnected,
+        });
+      } else {
+        metaLogger.error('MetaCallback', 'Payment check failed (non-fatal)', paymentResult.reason as Error);
+        // Continue with false; client can re-check
+      }
+    } else if (assets.adAccount?.id) {
+      // Only ad account available, check payment status only
       try {
         const validation = await validateAdAccount({
           token: longToken!,

@@ -39,15 +39,18 @@ export function MetaConnectionCheckDialog({ open, onOpenChange, onSuccess }: Met
     // Refresh connection status from localStorage
     refreshStatus()
     
-    // Small delay to allow refresh to complete
-    setTimeout(() => {
+    // Check status synchronously after refresh
+    const checkStatus = () => {
       if (metaStatus === 'connected') {
         // Already connected - auto-close and proceed
         console.log('[MetaConnectionCheckDialog] Already connected, auto-closing')
         onSuccess()
         onOpenChange(false)
       }
-    }, 100)
+    }
+    
+    // Use requestAnimationFrame to check after state updates
+    requestAnimationFrame(checkStatus)
   }, [open, campaign?.id, metaStatus, refreshStatus, onSuccess, onOpenChange, hasChecked])
 
   // Reset hasChecked when dialog closes
@@ -70,36 +73,53 @@ export function MetaConnectionCheckDialog({ open, onOpenChange, onSuccess }: Met
           return
         }
         
-        console.log('[MetaConnectionCheckDialog] Connection event received, checking status')
+        console.log('[MetaConnectionCheckDialog] Connection event received, checking connection directly')
         
-        // Refresh status
-        refreshStatus()
+        // Check localStorage directly to avoid stale closure issues
+        const metaStorage = require('@/lib/meta/storage').metaStorage
+        const summary = metaStorage.getConnectionSummary(campaign.id)
+        const isConnected = Boolean(
+          summary?.adAccount?.id || 
+          summary?.business?.id ||
+          summary?.status === 'connected' ||
+          summary?.status === 'selected_assets' ||
+          summary?.status === 'payment_linked'
+        )
         
-        // Small delay to allow refresh to complete
-        setTimeout(() => {
-          if (metaStatus === 'connected') {
-            console.log('[MetaConnectionCheckDialog] Now connected, auto-closing')
-            onSuccess()
-            onOpenChange(false)
-          }
-        }, 100)
+        console.log('[MetaConnectionCheckDialog] Connection check result:', {
+          isConnected,
+          hasAdAccount: !!summary?.adAccount?.id,
+          hasBusiness: !!summary?.business?.id,
+          status: summary?.status,
+        })
+        
+        if (isConnected) {
+          console.log('[MetaConnectionCheckDialog] Connected! Auto-closing dialog immediately')
+          // Refresh the hook state
+          refreshStatus()
+          // Close dialog and trigger success callback immediately
+          onSuccess()
+          onOpenChange(false)
+        }
       } catch (error) {
         console.error('[MetaConnectionCheckDialog] Error handling event:', error)
       }
     }
     
-    // Listen for Meta connection events
+    // Listen for Meta connection events (CONNECTION_UPDATED is fired by metaStorage)
     window.addEventListener(META_EVENTS.CONNECTION_CHANGED, handleConnectionChange)
+    window.addEventListener(META_EVENTS.CONNECTION_UPDATED, handleConnectionChange)
     window.addEventListener(META_EVENTS.PAYMENT_UPDATED, handleConnectionChange)
     
-    console.log('[MetaConnectionCheckDialog] Event listeners registered')
+    console.log('[MetaConnectionCheckDialog] Event listeners registered for campaign:', campaign.id)
     
     return () => {
       window.removeEventListener(META_EVENTS.CONNECTION_CHANGED, handleConnectionChange)
+      window.removeEventListener(META_EVENTS.CONNECTION_UPDATED, handleConnectionChange)
       window.removeEventListener(META_EVENTS.PAYMENT_UPDATED, handleConnectionChange)
       console.log('[MetaConnectionCheckDialog] Event listeners cleaned up')
     }
-  }, [open, campaign?.id, metaStatus, refreshStatus, onSuccess, onOpenChange])
+  }, [open, campaign?.id, refreshStatus, onSuccess, onOpenChange])
 
   const handleConnect = () => {
     if (!campaign?.id || isConnecting) return
@@ -119,7 +139,7 @@ export function MetaConnectionCheckDialog({ open, onOpenChange, onSuccess }: Met
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md p-6">
+      <DialogContent className="sm:max-w-md p-6 mx-auto">
         <DialogHeader className="mb-4">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10">

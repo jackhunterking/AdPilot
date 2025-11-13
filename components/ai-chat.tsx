@@ -1108,6 +1108,13 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
                               const isGenerating = generatingImages.has(callId);
                               const input = part.input as { prompt: string; brandName?: string; caption?: string };
                               
+                              // 🚨 CRITICAL: Prevent showing generateImage tool UI on non-ads steps
+                              // Only show confirmation UI if we're on the 'ads' step OR if the tool is already generating
+                              // This prevents stale tool calls from previous steps from showing up
+                              if (part.state === 'input-available' && !isGenerating && currentStep !== 'ads') {
+                                console.log(`[AIChat] Skipping generateImage UI - current step is '${currentStep}', not 'ads'`);
+                                return null;
+                              }
                               
                               switch (part.state) {
                                 case 'input-streaming':
