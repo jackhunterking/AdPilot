@@ -32,7 +32,7 @@ export interface DestinationState {
 interface DestinationContextType {
   destinationState: DestinationState
   setDestination: (data: DestinationData) => void
-  setDestinationType: (type: 'instant_form' | 'other_form') => void
+  setDestinationType: (type: 'instant_form' | 'website_url' | 'phone_number') => void
   clearDestination: () => void
   resetDestination: () => void
 }
@@ -109,7 +109,7 @@ export function DestinationProvider({ children }: { children: ReactNode }) {
     logger.debug('DestinationContext', 'Destination set', data)
   }, [])
   
-  const setDestinationType = useCallback((type: 'instant_form' | 'other_form') => {
+  const setDestinationType = useCallback((type: 'instant_form' | 'website_url' | 'phone_number') => {
     setDestinationState({
       status: 'in_progress',
       data: {
