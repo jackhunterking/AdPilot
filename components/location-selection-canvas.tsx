@@ -8,6 +8,8 @@ import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { useEffect, useRef, useState } from "react"
 import { cn } from "@/lib/utils"
 import { logger } from "@/lib/utils/logger"
+import { useLeafletReady } from "@/lib/hooks/use-leaflet-ready"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface LeafletBounds {
   isValid(): boolean;
@@ -77,47 +79,93 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
   const markersRef = useRef<LeafletMarker[]>([])
   const shapesRef = useRef<LeafletShape[]>([])
   const isSummary = variant === "summary"
+  const [isMapLoading, setIsMapLoading] = useState(true)
+  const [mapError, setMapError] = useState<string | null>(null)
+  
+  // Use hook to detect when Leaflet is ready
+  const { isReady: isLeafletReady, error: leafletError } = useLeafletReady()
 
-  // Initialize map once when container is ready (persistent pattern)
+  // Initialize map once when Leaflet is ready and container is available
   useEffect(() => {
+    // Wait for Leaflet to be ready
+    if (!isLeafletReady) {
+      console.log("[Map] Waiting for Leaflet to load...")
+      return
+    }
+
     // Only initialize if we don't have a map yet
-    if (mapRef.current) return
-    if (!mapContainerRef.current) return
-    if (typeof window === "undefined" || !window.L) return
+    if (mapRef.current) {
+      setIsMapLoading(false)
+      return
+    }
+    
+    if (!mapContainerRef.current) {
+      console.log("[Map] Container not ready yet")
+      return
+    }
+    
+    if (typeof window === "undefined" || !window.L) {
+      console.error("[Map] Leaflet not available despite ready signal")
+      setMapError("Map library not available")
+      setIsMapLoading(false)
+      return
+    }
 
-    try {
-      console.log("[Map] Initializing persistent map instance")
+    // Defer map initialization to next frame for better perceived performance
+    const timeoutId = setTimeout(() => {
+      requestAnimationFrame(() => {
+        if (!mapContainerRef.current || mapRef.current) return
 
-        mapRef.current = window.L.map(mapContainerRef.current, {
-          center: [20, 0],
-          zoom: 2,
-          zoomControl: true,
-          minZoom: 1,
-          maxZoom: 19,
-          scrollWheelZoom: true,
-        })
+        try {
+          console.log("[Map] Initializing map instance with Leaflet ready")
+          setIsMapLoading(true)
 
-        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap contributors',
-          maxZoom: 19,
-        }).addTo(mapRef.current)
+          mapRef.current = window.L.map(mapContainerRef.current, {
+            center: [20, 0],
+            zoom: 2,
+            zoomControl: true,
+            minZoom: 1,
+            maxZoom: 19,
+            scrollWheelZoom: true,
+          })
 
-      // Immediate size calculation
-            mapRef.current.invalidateSize(true)
-            console.log("[Map] Initialized successfully")
-      } catch (error) {
-        console.error("[OpenStreetMap] Error initializing map:", error)
-      }
+          window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19,
+          }).addTo(mapRef.current)
+
+          // Initial size calculation
+          mapRef.current.invalidateSize(true)
+          
+          // Retry size calculation after a short delay to handle any layout shifts
+          setTimeout(() => {
+            if (mapRef.current) {
+              mapRef.current.invalidateSize(true)
+              console.log("[Map] Size recalculated after delay")
+            }
+          }, 100)
+
+          setIsMapLoading(false)
+          setMapError(null)
+          console.log("[Map] Initialized successfully")
+        } catch (error) {
+          console.error("[OpenStreetMap] Error initializing map:", error)
+          setMapError(error instanceof Error ? error.message : "Failed to initialize map")
+          setIsMapLoading(false)
+        }
+      })
+    }, 50) // Small delay to ensure container is fully rendered
 
     // Cleanup only on unmount
     return () => {
+      clearTimeout(timeoutId)
       if (mapRef.current) {
         console.log("[Map] Cleaning up map instance")
         mapRef.current.remove()
         mapRef.current = null
       }
     }
-  }, [])
+  }, [isLeafletReady])
 
   // Update map markers when locations change
   useEffect(() => {
@@ -243,6 +291,33 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     window.dispatchEvent(new CustomEvent('triggerLocationSetup'))
   }
 
+  // Show error if Leaflet failed to load
+  if (leafletError || mapError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8">
+        <div className="max-w-xl w-full space-y-6 text-center">
+          <div className="h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto">
+            <AlertCircle className="h-8 w-8 text-red-600" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold">Map Failed to Load</h2>
+            <p className="text-muted-foreground">
+              {mapError || leafletError?.message || "Couldn't load the map. Please refresh the page."}
+            </p>
+          </div>
+          
+          <Button
+            size="lg"
+            onClick={() => window.location.reload()}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            Refresh Page
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   // Initial state - no locations selected
   if (locationState.status === "idle" || locationState.locations.length === 0) {
     return (
@@ -254,9 +329,17 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       >
         <div className={cn("w-full space-y-6", "max-w-3xl mx-auto")}>
           {/* Map Display */}
-          <div className="rounded-lg border-2 border-blue-600 bg-card overflow-hidden">
-            <div ref={mapContainerRef} className="w-full h-[400px]" style={{ position: 'relative', isolation: 'isolate' }} />
+          <div className="rounded-lg border-2 border-blue-600 bg-card overflow-hidden relative">
+            {isMapLoading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-card">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                  <p className="text-sm text-muted-foreground">Loading map...</p>
+                </div>
               </div>
+            )}
+            <div ref={mapContainerRef} className="w-full h-[400px]" style={{ position: 'relative', isolation: 'isolate' }} />
+          </div>
 
           {/* Add Location Button */}
           {!isSummary && (
@@ -289,12 +372,22 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
         <div className={cn("w-full space-y-6", "max-w-3xl mx-auto")}>
           {/* Map Display with Loading Overlay */}
           <div className="rounded-lg border-2 border-blue-600 bg-card overflow-hidden relative">
+            {isMapLoading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-card">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                  <p className="text-sm text-muted-foreground">Loading map...</p>
+                </div>
+              </div>
+            )}
             <div ref={mapContainerRef} className="w-full h-[400px]" style={{ position: 'relative', isolation: 'isolate' }} />
-            {/* Loading Overlay Badge */}
-            <div className="absolute top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-[1000]">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm font-medium">Adding location...</span>
-            </div>
+            {/* Loading Overlay Badge - only show when map is ready */}
+            {!isMapLoading && (
+              <div className="absolute top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-[1000]">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm font-medium">Adding location...</span>
+              </div>
+            )}
           </div>
 
           {/* Show existing locations if any */}
@@ -380,7 +473,15 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
           )}
 
           {/* Map Display */}
-          <div className="rounded-lg border-2 border-blue-600 bg-card overflow-hidden">
+          <div className="rounded-lg border-2 border-blue-600 bg-card overflow-hidden relative">
+            {isMapLoading && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-card">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                  <p className="text-sm text-muted-foreground">Loading map...</p>
+                </div>
+              </div>
+            )}
             <div ref={mapContainerRef} className="w-full h-[400px]" style={{ position: 'relative', isolation: 'isolate' }} />
           </div>
 

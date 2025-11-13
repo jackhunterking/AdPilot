@@ -583,10 +583,13 @@ export function PreviewPanel() {
     return (
       <div 
         key={index} 
-        className={`rounded-lg border-2 bg-white overflow-hidden hover:shadow-lg transition-all relative group ${
-          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]'
-        } ${isProcessing ? 'opacity-75' : ''}`}
+        className={cn(
+          "rounded-lg border-2 bg-white overflow-hidden hover:shadow-lg transition-all relative group cursor-pointer",
+          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]',
+          isProcessing && 'opacity-75'
+        )}
         style={{ borderRadius: '8px' }}
+        onClick={() => handleSelectAd(index)}
       >
         {/* Processing Overlay */}
         {isProcessing && (
@@ -600,40 +603,29 @@ export function PreviewPanel() {
           </div>
         )}
 
-        {/* Selection Indicator */}
+        {/* Selection Indicator - Always visible when selected */}
         {isSelected && !isProcessing && (
-          <div className="absolute top-2 right-2 z-10 bg-blue-500 text-white rounded-full p-1">
+          <div className="absolute top-2 right-2 z-20 bg-blue-500 text-white rounded-full p-1">
             <Check className="h-4 w-4" />
           </div>
         )}
 
-        {/* Action Buttons Overlay */}
+        {/* Action Buttons Overlay - Only Edit button on hover */}
         {!isProcessing && (
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 flex items-center justify-center p-4">
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
-                variant={isSelected ? "default" : "secondary"}
-                onClick={() => handleSelectAd(index)}
-                className={cn(
-                  "text-xs h-8 px-3 font-medium backdrop-blur-sm",
-                  isSelected ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-400" : "bg-white/90 hover:bg-white text-black"
-                )}
-                
-              >
-                {isSelected ? 'Unselect' : 'Select'}
-              </Button>
-              <Button
-                size="sm"
                 variant="secondary"
-                onClick={() => handleEditAd(index)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleEditAd(index)
+                }}
                 className="text-xs h-8 px-3 font-medium bg-white/90 hover:bg-white text-black backdrop-blur-sm"
-                
               >
                 <Edit2 className="h-3 w-3 mr-1.5" />
                 Edit
               </Button>
-              
             </div>
           </div>
         )}
@@ -771,10 +763,13 @@ export function PreviewPanel() {
     return (
       <div 
         key={index} 
-        className={`aspect-[9/16] rounded-lg border-2 bg-white overflow-hidden relative hover:shadow-lg transition-all group ${
-          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]'
-        } ${isProcessing ? 'opacity-75' : ''}`}
+        className={cn(
+          "aspect-[9/16] rounded-lg border-2 bg-white overflow-hidden relative hover:shadow-lg transition-all group cursor-pointer",
+          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]',
+          isProcessing && 'opacity-75'
+        )}
         style={{ borderRadius: '8px' }}
+        onClick={() => handleSelectAd(index)}
       >
         {/* Processing Overlay */}
         {isProcessing && (
@@ -788,47 +783,29 @@ export function PreviewPanel() {
           </div>
         )}
 
-        {/* Selection Indicator */}
+        {/* Selection Indicator - Always visible when selected */}
         {isSelected && !isProcessing && (
-          <div className="absolute top-2 right-2 z-20 bg-blue-500 text-white rounded-full p-1">
+          <div className="absolute top-2 right-2 z-30 bg-blue-500 text-white rounded-full p-1">
             <Check className="h-4 w-4" />
           </div>
         )}
 
-        {/* Action Buttons Overlay */}
+        {/* Action Buttons Overlay - Only Edit button on hover */}
         {!isProcessing && (
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 flex items-center justify-center p-3">
             <div className="flex items-center gap-1.5 flex-wrap justify-center">
               <Button
                 size="sm"
-                variant={isSelected ? "default" : "secondary"}
-                onClick={() => handleSelectAd(index)}
-                className={cn(
-                  "text-xs h-8 px-2.5 font-medium backdrop-blur-sm",
-                  isSelected ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-400" : "bg-white/95 hover:bg-white text-black"
-                )}
-                
-              >
-                {isSelected ? (
-                  <>
-                    <Check className="h-3 w-3 mr-1" />
-                    Selected
-                  </>
-                ) : (
-                  'Select'
-                )}
-              </Button>
-              <Button
-                size="sm"
                 variant="secondary"
-                onClick={() => handleEditAd(index)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleEditAd(index)
+                }}
                 className="text-xs h-8 px-2.5 font-medium bg-white/95 hover:bg-white text-black backdrop-blur-sm"
-                
               >
                 <Edit2 className="h-3 w-3 mr-1" />
                 Edit
               </Button>
-              
             </div>
           </div>
         )}
@@ -1005,7 +982,7 @@ export function PreviewPanel() {
       {/* Info Section */}
       {!isWaitingForCreative && !adContent?.imageVariations && (
         <div className="text-center py-6">
-          <p className="text-sm text-muted-foreground">Hover over any ad to select or edit</p>
+          <p className="text-sm text-muted-foreground">Click any ad to select it, or hover to edit</p>
         </div>
       )}
     </div>

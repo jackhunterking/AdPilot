@@ -177,9 +177,10 @@ interface AIChatProps {
     initialGoal?: string | null;
   };
   context?: 'build' | 'edit' | 'all-ads' | 'ab-test-builder' | 'results';  // NEW: Context-aware mode
+  currentStep?: string;  // Current step ID from Campaign Stepper
 }
 
-const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], campaignMetadata, context }: AIChatProps = {}) => {
+const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], campaignMetadata, context, currentStep }: AIChatProps = {}) => {
   const searchParams = useSearchParams();
   const isNewAd = searchParams.get('newAd') === 'true';
   const [input, setInput] = useState("");
@@ -322,6 +323,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
             ...(existingMeta || {}),
             campaignId: campaignId, // Required for AI SDK-generated conversation IDs
             goalType: goalType,
+            currentStep: currentStep, // Current step ID for step-aware AI behavior
           },
         };
         
@@ -336,7 +338,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
         };
       },
     }),
-  [model, goalType]
+  [model, goalType, currentStep]
 );
   
 

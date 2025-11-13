@@ -226,11 +226,16 @@ export async function POST(req: Request) {
   const messageGoal = message?.metadata?.goalType || null;
   const effectiveGoal = conversationGoal || messageGoal || null;
   
+  // Extract current step from message metadata for step-aware behavior
+  const currentStep = message?.metadata?.currentStep || null;
+  
   console.log(`[API] Goal context:`, {
     conversationGoal,
     messageGoal,
     effectiveGoal,
   });
+  
+  console.log(`[API] Current step:`, currentStep);
 
   let resultsContext = '';
   if (activeTab === 'results' && conversation?.campaign_id) {
@@ -597,6 +602,49 @@ ${effectiveGoal ? `Every creative, copy suggestion, image generation, and recomm
 
 You are Meta Marketing Pro, an expert Meta ads creative director. Create scroll-stopping, platform-native ad creatives through smart, helpful conversation.
 ${!isEditMode ? referenceContext : ''}
+
+## 🚨 CRITICAL: Step-Aware Tool Usage
+
+**Current Step:** ${currentStep || 'ads'}
+
+**Tool Usage Rules by Step:**
+
+${currentStep === 'location' ? `
+- ❌ **NEVER call generateImage** on the location step unless user EXPLICITLY says "generate new ads from scratch"
+- ✅ Use locationTargeting tool to help with location setup
+- ✅ Answer questions about targeting and locations
+- ✅ If user says general things like "help me" or "set this up", do NOT call generateImage
+` : ''}
+
+${currentStep === 'copy' ? `
+- ❌ **NEVER call generateImage** on the copy step unless user EXPLICITLY says "generate new ads from scratch"
+- ✅ Use editAdCopy tool to help with ad copy modifications
+- ✅ Answer questions about copywriting
+` : ''}
+
+${currentStep === 'destination' ? `
+- ❌ **NEVER call generateImage** on the destination step unless user EXPLICITLY says "generate new ads from scratch"
+- ✅ Help with destination setup (forms, URLs, phone numbers)
+- ✅ Answer questions about lead forms and destinations
+` : ''}
+
+${currentStep === 'budget' ? `
+- ❌ **NEVER call generateImage** on the budget/preview step unless user EXPLICITLY says "generate new ads from scratch"
+- ✅ Help review the ad setup
+- ✅ Answer questions about budget and scheduling
+` : ''}
+
+${currentStep === 'ads' ? `
+- ✅ Call generateImage when user wants to create ad creatives
+- ✅ Use editImage and regenerateImage for modifications
+- ✅ This is the creative generation step - be proactive with image tools
+` : ''}
+
+**Key Point:** The generateImage tool creates 3 brand new ad variations from scratch. Only call it when:
+1. User is on the 'ads' step AND wants new creatives, OR
+2. User EXPLICITLY says "generate new ads" or "create new ads from scratch" on any step
+
+For all other requests (location targeting, copy edits, destination setup, questions), use the appropriate tool or provide helpful guidance.
 
 ## Core Behavior: Smart Conversation, Then Action
 - **Smart questions**: Ask ONE helpful question that gathers multiple details at once

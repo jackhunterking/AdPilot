@@ -23,12 +23,14 @@ interface AdCopyState {
   selectedCopyIndex: number | null
   status: "idle" | "completed"
   customCopyVariations: AdCopyVariation[] | null // Store custom/AI-generated variations
+  isGeneratingCopy: boolean
 }
 
 interface AdCopyContextType {
   adCopyState: AdCopyState
   setSelectedCopyIndex: (index: number | null) => void
   setCustomCopyVariations: (variations: AdCopyVariation[]) => void
+  setIsGeneratingCopy: (isGenerating: boolean) => void
   getActiveVariations: () => AdCopyVariation[] // Returns custom or default variations
   getSelectedCopy: () => AdCopyVariation // Returns the selected copy variation (or first if none selected)
   resetAdCopy: () => void
@@ -43,6 +45,7 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
     selectedCopyIndex: null,
     status: "idle",
     customCopyVariations: null, // Initialize with null (will use defaults)
+    isGeneratingCopy: false,
   })
   const [isInitialized, setIsInitialized] = useState(false)
 
@@ -74,6 +77,7 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
         selectedCopyIndex: validSelectedIndex,
         status: savedData.status || "idle",
         customCopyVariations: limitedVariations,
+        isGeneratingCopy: false,
       })
     }
     
@@ -110,6 +114,13 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
     }))
   }
 
+  const setIsGeneratingCopy = (isGenerating: boolean) => {
+    setAdCopyState(prev => ({
+      ...prev,
+      isGeneratingCopy: isGenerating,
+    }))
+  }
+
   const getActiveVariations = (): AdCopyVariation[] => {
     // Return custom variations if available, otherwise return defaults
     // Always limit to first 3 variations for consistency
@@ -143,16 +154,21 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
       selectedCopyIndex: null,
       status: "idle",
       customCopyVariations: null,
+      isGeneratingCopy: false,
     })
   }
 
-  const isComplete = () => adCopyState.status === "completed"
+  const isComplete = () => {
+    // Block completion if generation is in progress OR if no copy is selected
+    return adCopyState.status === "completed" && !adCopyState.isGeneratingCopy
+  }
 
   return (
     <AdCopyContext.Provider value={{ 
       adCopyState, 
       setSelectedCopyIndex, 
       setCustomCopyVariations,
+      setIsGeneratingCopy,
       getActiveVariations,
       getSelectedCopy,
       resetAdCopy,

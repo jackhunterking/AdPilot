@@ -26,6 +26,7 @@ interface AdMockupProps {
   ctaText?: string
   status?: AdStatus
   showEngagement?: boolean
+  isLoading?: boolean
 }
 
 export function AdMockup({
@@ -40,6 +41,7 @@ export function AdMockup({
   ctaText = 'Learn More',
   status,
   showEngagement = true,
+  isLoading = false,
 }: AdMockupProps) {
   // Use provided values or fallback to safe defaults only if undefined/null
   const safePrimaryText = primaryText || 'Discover our amazing services and see how we can help you achieve your goals today.'
@@ -114,13 +116,20 @@ export function AdMockup({
           <div className="px-3 pt-3 pb-2" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '12px', paddingBottom: '8px' }}>
             <div className="space-y-1">
               {/* Primary Text */}
-              {safePrimaryText && (
+              {isLoading ? (
+                <div className="space-y-1">
+                  <Skeleton className="h-3 w-[90%] bg-white/20" />
+                  <Skeleton className="h-3 w-[85%] bg-white/20" />
+                </div>
+              ) : safePrimaryText && (
                 <p className="text-white text-sm line-clamp-2" style={{ fontSize: '14px', lineHeight: '1.3' }}>
                   {safePrimaryText}
                 </p>
               )}
               {/* Headline */}
-              {safeHeadline && (
+              {isLoading ? (
+                <Skeleton className="h-3 w-[70%] bg-white/20" />
+              ) : safeHeadline && (
                 <p className="text-white/90 text-xs line-clamp-1" style={{ fontSize: '13px' }}>
                   {safeHeadline}
                 </p>
@@ -178,7 +187,14 @@ export function AdMockup({
       </div>
 
         {/* Primary Text Section - BEFORE Media */}
-        {safePrimaryText && (
+        {isLoading ? (
+          <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-[80%]" />
+              <Skeleton className="h-4 w-[90%]" />
+            </div>
+          </div>
+        ) : safePrimaryText && (
           <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
             <p className="text-[#050505] leading-[1.3333]" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '20px' }}>
               {safePrimaryText}
@@ -208,13 +224,24 @@ export function AdMockup({
             YOURWEBSITE.HELLO
             </p>
             {/* Headline */}
-            <p className="font-bold text-[#050505] line-clamp-1" style={{ fontSize: '17px', fontWeight: 700, lineHeight: '1.1765' }}>
-              {safeHeadline}
-            </p>
+            {isLoading ? (
+              <Skeleton className="h-5 w-[60%]" />
+            ) : (
+              <p className="font-bold text-[#050505] line-clamp-1" style={{ fontSize: '17px', fontWeight: 700, lineHeight: '1.1765' }}>
+                {safeHeadline}
+              </p>
+            )}
             {/* Description */}
-            <p className="text-[#050505] line-clamp-2" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '1.3333' }}>
-              {safeDescription}
-            </p>
+            {isLoading ? (
+              <div className="space-y-1">
+                <Skeleton className="h-3 w-[90%]" />
+                <Skeleton className="h-3 w-[85%]" />
+              </div>
+            ) : (
+              <p className="text-[#050505] line-clamp-2" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '1.3333' }}>
+                {safeDescription}
+              </p>
+            )}
         </div>
         
         {/* Right Side - Learn more Button */}

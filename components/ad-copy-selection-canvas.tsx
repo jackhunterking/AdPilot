@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Check, ImageIcon, Layers, Video, Sparkles, Edit2, Loader2, MoreVertical, Globe, ThumbsUp, MessageCircle, Share2, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { useAdCopy } from "@/lib/context/ad-copy-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
@@ -12,7 +13,7 @@ import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useGoal } from "@/lib/context/goal-context"
 
 export function AdCopySelectionCanvas() {
-  const { adCopyState, setSelectedCopyIndex, getActiveVariations, setCustomCopyVariations } = useAdCopy()
+  const { adCopyState, setSelectedCopyIndex, getActiveVariations, setCustomCopyVariations, setIsGeneratingCopy } = useAdCopy()
   const activeVariations = getActiveVariations()
   const { adContent, selectedCreativeVariation, loadingVariations, selectedImageIndex } = useAdPreview()
   const { isGenerating, setIsGenerating, setGenerationMessage } = useGeneration()
@@ -124,59 +125,72 @@ export function AdCopySelectionCanvas() {
     return () => window.removeEventListener('adCopyEdited', handler as EventListener);
   }, [getActiveVariations, setCustomCopyVariations]);
 
-  // Auto-generate ad copy variations when images are ready and no custom copy exists yet
+  // Trigger ad copy generation when entering the 'copy' step
   useEffect(() => {
-    const imageUrls = adContent?.imageVariations
-    const hasCustom = Boolean(adCopyState.customCopyVariations && adCopyState.customCopyVariations.length)
-    
-    // Enhanced validation: Check if imageUrls has valid, non-empty strings
-    const hasValidImages = imageUrls && imageUrls.length > 0 && imageUrls.every(url => url && typeof url === 'string' && url.trim().length > 0)
-    
-    if (!hasValidImages || hasCustom) {
-      console.log('[AdCopyCanvas] Skipping auto-generation:', { 
-        hasImages: !!imageUrls?.length, 
-        hasValidImages,
-        hasCustom,
-        imageUrlsSample: imageUrls?.[0]?.substring(0, 50)
-      })
-      return
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { stepId?: string } | undefined
+      if (detail?.stepId !== 'copy') return
+
+      // Check if we already have custom variations
+      const hasCustom = Boolean(adCopyState.customCopyVariations && adCopyState.customCopyVariations.length)
+      if (hasCustom) {
+        console.log('[AdCopyCanvas] Skipping generation: custom variations already exist')
+        return
+      }
+
+      // Check if we have valid images
+      const imageUrls = adContent?.imageVariations
+      const hasValidImages = imageUrls && imageUrls.length > 0 && imageUrls.every(url => url && typeof url === 'string' && url.trim().length > 0)
+      
+      if (!hasValidImages) {
+        console.log('[AdCopyCanvas] Skipping generation: no valid images')
+        return
+      }
+
+      console.log('[AdCopyCanvas] Starting ad copy generation on step entry')
+      
+      let cancelled = false
+      setIsGeneratingCopy(true)
+      setIsGenerating(true)
+      setGenerationMessage("Writing 3 ad copy variations…")
+      
+      ;(async () => {
+        try {
+          const selectedImg = (selectedImageIndex != null && adContent?.imageVariations)
+            ? [adContent.imageVariations[selectedImageIndex]]
+            : (adContent?.imageUrl ? [adContent.imageUrl] : imageUrls)
+          const res = await fetch('/api/ad-copy/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              campaignId: campaign?.id,
+              goalType: goalState?.selectedGoal || null,
+              imageUrls: selectedImg,
+              businessContext: campaign?.metadata?.initialPrompt,
+            }),
+          })
+          if (!res.ok) throw new Error(await res.text())
+          const data = await res.json()
+          if (!cancelled && data?.variations?.length) {
+            // Only take the first 3 variations to ensure consistency
+            setCustomCopyVariations(data.variations.slice(0, 3))
+          }
+        } catch (e) {
+          console.error('[AdCopy] generation failed', e)
+        } finally {
+          if (!cancelled) {
+            setIsGeneratingCopy(false)
+            setIsGenerating(false)
+          }
+        }
+      })()
+
+      return () => { cancelled = true }
     }
 
-    console.log('[AdCopyCanvas] Starting auto-generation with', imageUrls.length, 'valid images')
-    
-    let cancelled = false
-    setIsGenerating(true)
-    setGenerationMessage("Writing 3 ad copy variations…")
-    ;(async () => {
-      try {
-        const selectedImg = (selectedImageIndex != null && adContent?.imageVariations)
-          ? [adContent.imageVariations[selectedImageIndex]]
-          : (adContent?.imageUrl ? [adContent.imageUrl] : imageUrls)
-        const res = await fetch('/api/ad-copy/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            campaignId: campaign?.id,
-            goalType: goalState?.selectedGoal || null,
-            imageUrls: selectedImg,
-            businessContext: campaign?.metadata?.initialPrompt,
-          }),
-        })
-        if (!res.ok) throw new Error(await res.text())
-        const data = await res.json()
-        if (!cancelled && data?.variations?.length) {
-          // Only take the first 3 variations to ensure consistency
-          setCustomCopyVariations(data.variations.slice(0, 3))
-        }
-      } catch (e) {
-        console.error('[AdCopy] generation failed', e)
-      } finally {
-        if (!cancelled) setIsGenerating(false)
-      }
-    })()
-
-    return () => { cancelled = true }
-  }, [adContent?.imageVariations, adContent?.imageUrl, adCopyState.customCopyVariations, campaign?.id, campaign?.metadata?.initialPrompt, goalState?.selectedGoal, selectedImageIndex, setCustomCopyVariations, setGenerationMessage, setIsGenerating])
+    window.addEventListener('stepChanged', handler as EventListener)
+    return () => window.removeEventListener('stepChanged', handler as EventListener)
+  }, [adContent?.imageVariations, adContent?.imageUrl, adCopyState.customCopyVariations, campaign?.id, campaign?.metadata?.initialPrompt, goalState?.selectedGoal, selectedImageIndex, setCustomCopyVariations, setGenerationMessage, setIsGenerating, setIsGeneratingCopy])
 
   // (removed unused GeneratingOverlay)
 
@@ -186,6 +200,7 @@ export function AdCopySelectionCanvas() {
     
     const isSelected = adCopyState.selectedCopyIndex === copyIndex
     const isProcessing = false
+    const isLoadingCopy = adCopyState.isGeneratingCopy && !adCopyState.customCopyVariations
     const selectedImg = selectedImageIndex != null
       ? adContent?.imageVariations?.[selectedImageIndex]
       : (adContent?.imageUrl || adContent?.imageVariations?.[0])
@@ -273,11 +288,20 @@ export function AdCopySelectionCanvas() {
         </div>
 
         {/* Primary Text Section - BEFORE Media */}
-        <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
-          <p className="text-[#050505] leading-[1.3333]" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '20px' }}>
-            {copy.primaryText}
-          </p>
-        </div>
+        {isLoadingCopy ? (
+          <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-[80%]" />
+              <Skeleton className="h-4 w-[90%]" />
+            </div>
+          </div>
+        ) : (
+          <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
+            <p className="text-[#050505] leading-[1.3333]" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '20px' }}>
+              {copy.primaryText}
+            </p>
+          </div>
+        )}
 
         {/* Media Section - Square (1:1) aspect ratio - 1080x1080 */}
         {selectedImg ? (
@@ -313,13 +337,24 @@ export function AdCopySelectionCanvas() {
               YOURWEBSITE.HELLO
             </p>
             {/* Headline */}
-            <p className="font-bold text-[#050505] line-clamp-1" style={{ fontSize: '17px', fontWeight: 700, lineHeight: '1.1765' }}>
-              {copy.headline}
-            </p>
+            {isLoadingCopy ? (
+              <Skeleton className="h-5 w-[60%]" />
+            ) : (
+              <p className="font-bold text-[#050505] line-clamp-1" style={{ fontSize: '17px', fontWeight: 700, lineHeight: '1.1765' }}>
+                {copy.headline}
+              </p>
+            )}
             {/* Description */}
-            <p className="text-[#050505] line-clamp-2" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '1.3333' }}>
-              {copy.description}
-            </p>
+            {isLoadingCopy ? (
+              <div className="space-y-1">
+                <Skeleton className="h-3 w-[90%]" />
+                <Skeleton className="h-3 w-[85%]" />
+              </div>
+            ) : (
+              <p className="text-[#050505] line-clamp-2" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '1.3333' }}>
+                {copy.description}
+              </p>
+            )}
           </div>
           
           {/* Right Side - Learn more Button */}
@@ -397,6 +432,7 @@ export function AdCopySelectionCanvas() {
     
     const isSelected = adCopyState.selectedCopyIndex === copyIndex
     const isProcessing = false
+    const isLoadingCopy = adCopyState.isGeneratingCopy && !adCopyState.customCopyVariations
     const selectedImg = selectedImageIndex != null
       ? adContent?.imageVariations?.[selectedImageIndex]
       : (adContent?.imageUrl || adContent?.imageVariations?.[0])
@@ -531,13 +567,24 @@ export function AdCopySelectionCanvas() {
           <div className="px-3 pt-3 pb-2" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '12px', paddingBottom: '8px' }}>
             <div className="space-y-1">
               {/* Primary Text */}
-              <p className="text-white" style={{ fontSize: '14px', fontWeight: 400, lineHeight: '1.4' }}>
-                {copy.primaryText}
-              </p>
+              {isLoadingCopy ? (
+                <div className="space-y-1">
+                  <Skeleton className="h-3 w-[90%] bg-white/20" />
+                  <Skeleton className="h-3 w-[85%] bg-white/20" />
+                </div>
+              ) : (
+                <p className="text-white" style={{ fontSize: '14px', fontWeight: 400, lineHeight: '1.4' }}>
+                  {copy.primaryText}
+                </p>
+              )}
               {/* Description */}
-              <p className="text-white/80" style={{ fontSize: '14px', fontWeight: 400, lineHeight: '1.4' }}>
-                {copy.description}
-              </p>
+              {isLoadingCopy ? (
+                <Skeleton className="h-3 w-[70%] bg-white/20" />
+              ) : (
+                <p className="text-white/80" style={{ fontSize: '14px', fontWeight: 400, lineHeight: '1.4' }}>
+                  {copy.description}
+                </p>
+              )}
             </div>
           </div>
           

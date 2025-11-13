@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Image from 'next/image'
 import { Badge } from '@/components/ui/badge'
 import { Tables } from '@/lib/supabase/database.types'
@@ -18,7 +19,6 @@ export function CampaignGrid() {
   const router = useRouter()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
-  const [hasMore, setHasMore] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   
   // Delete dialog state
@@ -31,8 +31,8 @@ export function CampaignGrid() {
 
   const fetchCampaigns = useCallback(async () => {
     try {
-      // Fetch 7 campaigns to check if there are more than 6
-      const response = await fetch('/api/campaigns?limit=7', {
+      // Fetch up to 6 campaigns for homepage preview
+      const response = await fetch('/api/campaigns?limit=6', {
         cache: 'no-store',
       })
       
@@ -40,8 +40,7 @@ export function CampaignGrid() {
         const { campaigns: data } = await response.json()
         // Filter out any null/invalid campaigns
         const campaignList = (data || []).filter((c: Campaign | null) => c && c.id)
-        // Show only first 6, but check if there are more
-        setHasMore(campaignList.length > 6)
+        // Show only first 6 for homepage preview
         setCampaigns(campaignList.slice(0, 6))
       } else {
         console.error('Failed to fetch campaigns:', response.status)
@@ -194,14 +193,12 @@ export function CampaignGrid() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold">Your Campaigns</h2>
-          {hasMore && (
-            <button
-              onClick={() => router.push('/workspace')}
-              className="text-sm font-medium text-blue-500 hover:text-blue-600 transition-colors cursor-pointer"
-            >
-              View all →
-            </button>
-          )}
+          <Link
+            href="/workspace"
+            className="text-sm font-medium text-blue-500 hover:text-blue-600 transition-colors cursor-pointer"
+          >
+            View all →
+          </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {campaigns.map((campaign, index) => (

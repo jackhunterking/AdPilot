@@ -70,6 +70,21 @@ export function Dashboard({
   // Get workspace mode from URL to pass as context to AI Chat
   const viewMode = searchParams.get("view") as 'build' | 'edit' | 'all-ads' | 'results' | 'ab-test-builder' | null
 
+  // Track current step from Campaign Stepper
+  const [currentStepId, setCurrentStepId] = useState<string>('ads')
+  
+  useEffect(() => {
+    const handleStepChanged = (event: Event) => {
+      const customEvent = event as CustomEvent<{ stepId?: string }>
+      if (customEvent.detail?.stepId) {
+        setCurrentStepId(customEvent.detail.stepId)
+      }
+    }
+    
+    window.addEventListener('stepChanged', handleStepChanged)
+    return () => window.removeEventListener('stepChanged', handleStepChanged)
+  }, [])
+
   // Rename dialog state (lifted outside dropdown so it persists)
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameName, setRenameName] = useState<string>("")
@@ -267,6 +282,7 @@ export function Dashboard({
               messages={conversationIdOverride ? [] : messages}
               campaignMetadata={campaignMetadata ?? undefined}
               context={viewMode || 'build'}
+              currentStep={currentStepId}
             />
           )}
         </div>
