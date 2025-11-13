@@ -32,7 +32,7 @@ import {
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import { useState, useEffect, useMemo, Fragment, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import { Response } from "@/components/ai-elements/response";
 import { ThumbsUpIcon, ThumbsDownIcon, CopyIcon, Sparkles, ChevronRight, MapPin, CheckCircle2, XCircle, Reply, X, Check, Target } from "lucide-react";
@@ -182,6 +182,7 @@ interface AIChatProps {
 
 const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], campaignMetadata, context, currentStep }: AIChatProps = {}) => {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const isNewAd = searchParams.get('newAd') === 'true';
   const [input, setInput] = useState("");
   const [model] = useState<string>("openai/gpt-4o");
@@ -535,8 +536,21 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
         
         setAdContent(newContent);
         
-        // Auto-switch to ad copy canvas to show the variations
-        emitBrowserEvent('switchToTab', 'copy');
+        // Navigate to campaign builder to show generated ads
+        if (campaignId) {
+          setGenerationMessage("Creative generated! Opening builder...");
+          
+          // Small delay to show success message, then navigate
+          setTimeout(() => {
+            router.push(`/${campaignId}`);
+            setIsGenerating(false);
+          }, 800);
+        } else {
+          // Fallback: just switch tab if somehow no campaignId
+          console.warn('[AIChat] No campaignId available, cannot navigate to builder');
+          emitBrowserEvent('switchToTab', 'copy');
+          setIsGenerating(false);
+        }
         
         addToolResult({
           tool: 'generateImage',
@@ -555,6 +569,8 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
           output: undefined,
           errorText: 'Failed to generate images',
         } as ToolResult);
+        // Clear generating state on error
+        setIsGenerating(false);
       } finally {
         // Remove from loading state
         setGeneratingImages(prev => {
@@ -562,7 +578,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
           newSet.delete(toolCallId);
           return newSet;
         });
-        setIsGenerating(false);
+        // Don't call setIsGenerating(false) here - handled in navigation flow or error handler
       }
     } else {
       // User cancelled - send cancellation result
