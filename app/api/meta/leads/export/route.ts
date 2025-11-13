@@ -8,18 +8,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 
-import { formatLeadsAsCsv } from '@/lib/meta/leads'
+import { formatLeadsAsCsv, type LeadRecord } from '@/lib/meta/leads'
 import { createServerClient, supabaseServer } from '@/lib/supabase/server'
 import type { Json } from '@/lib/supabase/database.types'
-
-interface LeadRecord {
-  id: string
-  meta_lead_id: string
-  meta_form_id: string
-  submitted_at: string
-  form_data: Record<string, Json> | null
-  created_at: string
-}
 
 function buildFilename(format: 'csv' | 'json', campaignId: string) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
@@ -99,7 +90,15 @@ export async function GET(req: NextRequest) {
     }
 
     const leads: LeadRecord[] = (data ?? []).map((row) => ({
-      ...row,
+      id: row.id,
+      campaign_id: row.campaign_id,
+      meta_lead_id: row.meta_lead_id,
+      meta_form_id: row.meta_form_id,
+      submitted_at: row.submitted_at,
+      created_at: row.created_at,
+      exported_at: row.exported_at,
+      webhook_sent: row.webhook_sent,
+      webhook_sent_at: row.webhook_sent_at,
       form_data:
         row.form_data && typeof row.form_data === 'object' && !Array.isArray(row.form_data)
           ? (row.form_data as Record<string, Json>)
