@@ -21,7 +21,9 @@ import { useEffect, useState } from "react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Loader } from "@/components/ai-elements/loader"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2, Rocket } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { CheckCircle2, Rocket, Minus, Plus } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export type PublishPhase = "confirm" | "publishing" | "success"
 
@@ -37,6 +39,9 @@ interface PublishFlowDialogProps {
   locationCount?: number
   adAccountName?: string
   creativeSummary?: string
+  // Budget adjustment support
+  onBudgetChange?: (newBudget: number) => void
+  currency?: string
 }
 
 export function PublishFlowDialog({
@@ -50,23 +55,93 @@ export function PublishFlowDialog({
   locationCount,
   adAccountName,
   creativeSummary,
+  onBudgetChange,
+  currency = "USD",
 }: PublishFlowDialogProps) {
   const [phase, setPhase] = useState<PublishPhase>("confirm")
   const [error, setError] = useState<string | null>(null)
+  
+  // Budget editing state
+  const [localBudget, setLocalBudget] = useState<number>(() => {
+    if (dailyBudget) {
+      const parsed = Number.parseFloat(dailyBudget.replace(/[^0-9.]/g, ''))
+      return Number.isNaN(parsed) ? 20 : Math.round(parsed)
+    }
+    return 20
+  })
+  const [budgetError, setBudgetError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) {
       // Reset state when dialog closes
       setPhase("confirm")
       setError(null)
+      setBudgetError(null)
+    } else {
+      // Reset budget when dialog opens
+      if (dailyBudget) {
+        const parsed = Number.parseFloat(dailyBudget.replace(/[^0-9.]/g, ''))
+        setLocalBudget(Number.isNaN(parsed) ? 20 : Math.round(parsed))
+      } else {
+        setLocalBudget(20)
+      }
+      setBudgetError(null)
     }
-  }, [open])
+  }, [open, dailyBudget])
+
+  // Budget helper functions
+  const formatCurrency = (value: number) => {
+    try {
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: currency,
+        maximumFractionDigits: 0,
+      }).format(value)
+    } catch {
+      return `$${Math.round(value).toLocaleString()}`
+    }
+  }
+
+  const handleBudgetChange = (value: string) => {
+    const parsed = Number.parseFloat(value.replace(/[^\d.]/g, ''))
+    if (Number.isNaN(parsed) || value === '') {
+      setLocalBudget(0)
+      setBudgetError('Please enter a valid budget')
+    } else {
+      const normalized = Math.max(0, Math.round(parsed))
+      setLocalBudget(normalized)
+      if (normalized < 1) {
+        setBudgetError('Minimum budget is $1/day')
+      } else {
+        setBudgetError(null)
+      }
+    }
+  }
+
+  const adjustBudget = (delta: number) => {
+    setLocalBudget(prev => {
+      const next = Math.max(1, prev + delta)
+      setBudgetError(null)
+      return next
+    })
+  }
 
   const handleConfirm = async () => {
+    // Validate budget before publishing
+    if (localBudget < 1) {
+      setBudgetError('Minimum budget is $1/day')
+      return
+    }
+
     setPhase("publishing")
     setError(null)
     
     try {
+      // Update budget in context if changed
+      if (onBudgetChange && localBudget > 0) {
+        onBudgetChange(localBudget)
+      }
+      
       // Call the onComplete callback which handles API calls
       await onComplete?.()
       
@@ -114,41 +189,102 @@ export function PublishFlowDialog({
               
               {/* Comprehensive Summary */}
               {!isEditMode && (
-                <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3 text-sm">
-                  {goalType && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Goal:</span>
-                      <span className="font-medium">{goalType}</span>
+                <div className="space-y-4">
+                  {/* Read-only Summary Items */}
+                  <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3 text-sm">
+                    {goalType && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Goal:</span>
+                        <span className="font-medium">{goalType}</span>
+                      </div>
+                    )}
+                    {creativeSummary && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Creative:</span>
+                        <span className="font-medium truncate ml-4 text-right max-w-[200px]" title={creativeSummary}>
+                          {creativeSummary}
+                        </span>
+                      </div>
+                    )}
+                    {adAccountName && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Ad Account:</span>
+                        <span className="font-medium truncate ml-4 text-right max-w-[200px]" title={adAccountName}>
+                          {adAccountName}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Interactive Budget Adjustment */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Adjust Budget</span>
+                      <span className="text-xs text-muted-foreground">{currency} per day</span>
                     </div>
-                  )}
-                  {creativeSummary && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Creative:</span>
-                      <span className="font-medium truncate ml-4 text-right max-w-[200px]" title={creativeSummary}>
-                        {creativeSummary}
-                      </span>
+                    
+                    <div className="rounded-lg border border-border bg-muted/50 p-4">
+                      <div className="flex items-center justify-center gap-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => adjustBudget(-5)}
+                          disabled={localBudget <= 1 || phase !== "confirm"}
+                          className="h-12 w-12 rounded-xl border-2 hover:bg-background transition-colors"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        
+                        <div className="flex flex-col items-center gap-1 min-w-[140px]">
+                          <Input
+                            type="number"
+                            min={1}
+                            step={1}
+                            value={localBudget || ''}
+                            onChange={(e) => handleBudgetChange(e.target.value)}
+                            disabled={phase !== "confirm"}
+                            className={cn(
+                              "h-16 w-full text-center text-4xl font-bold border-2 bg-background/50 rounded-xl",
+                              "focus-visible:ring-2 focus-visible:ring-offset-2",
+                              budgetError ? "border-red-500 focus-visible:ring-red-500" : "border-border"
+                            )}
+                            placeholder="0"
+                          />
+                        </div>
+                        
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => adjustBudget(5)}
+                          disabled={phase !== "confirm"}
+                          className="h-12 w-12 rounded-xl border-2 hover:bg-background transition-colors"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  )}
-                  {dailyBudget && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Budget:</span>
-                      <span className="font-medium">{dailyBudget}/day</span>
+
+                    {/* Budget Error */}
+                    {budgetError && (
+                      <p className="text-sm text-red-600 dark:text-red-400 text-center">
+                        {budgetError}
+                      </p>
+                    )}
+
+                    {/* Monthly Estimate */}
+                    <div className="rounded-lg border border-border bg-muted/50 px-4 py-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">
+                          Estimated monthly spend
+                        </span>
+                        <span className="text-base font-bold">
+                          {formatCurrency(localBudget * 30)}
+                        </span>
+                      </div>
                     </div>
-                  )}
-                  {locationCount !== undefined && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Locations:</span>
-                      <span className="font-medium">{locationCount} {locationCount === 1 ? 'location' : 'locations'}</span>
-                    </div>
-                  )}
-                  {adAccountName && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Ad Account:</span>
-                      <span className="font-medium truncate ml-4 text-right max-w-[200px]" title={adAccountName}>
-                        {adAccountName}
-                      </span>
-                    </div>
-                  )}
+                  </div>
                 </div>
               )}
               

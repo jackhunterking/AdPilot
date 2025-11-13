@@ -52,7 +52,7 @@ export function PreviewPanel() {
   const [activeFormat, setActiveFormat] = useState("feed")
   // Removed regenerate feature: no regenerating state
   const { adContent, setAdContent, isPublished, setIsPublished, selectedImageIndex, selectedCreativeVariation, setSelectedCreativeVariation, setSelectedImageIndex } = useAdPreview()
-  const { budgetState, isComplete } = useBudget()
+  const { budgetState, isComplete, setDailyBudget } = useBudget()
   const { campaign } = useCampaignContext()
   const { locationState } = useLocation()
   const { goalState } = useGoal()
@@ -1273,7 +1273,7 @@ export function PreviewPanel() {
         number: 5,
         title: "Ad Preview",
         description: "Review details and publish your ad",
-        completed: isComplete(),
+        completed: allStepsComplete,
         content: launchContent,
         icon: Rocket,
       },
@@ -1319,6 +1319,10 @@ export function PreviewPanel() {
           const selectedCopy = getSelectedCopy()
           return selectedCopy?.headline || adContent?.headline
         })()}
+        currency={budgetState.currency}
+        onBudgetChange={(newBudget) => {
+          setDailyBudget(newBudget)
+        }}
       />
     </div>
   )
