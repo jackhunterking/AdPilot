@@ -33,11 +33,20 @@ export interface MetaDisconnectionPayload {
 }
 
 /**
+ * Event payload for Meta connection data updates in localStorage
+ */
+export interface MetaConnectionUpdatedPayload {
+  campaignId: string
+  timestamp: number
+}
+
+/**
  * Custom event types for Meta integration
  */
 export type MetaConnectionChangeEvent = CustomEvent<MetaConnectionChangePayload>
 export type MetaPaymentUpdateEvent = CustomEvent<MetaPaymentUpdatePayload>
 export type MetaDisconnectionEvent = CustomEvent<MetaDisconnectionPayload>
+export type MetaConnectionUpdatedEvent = CustomEvent<MetaConnectionUpdatedPayload>
 
 /**
  * Event names - centralized constants
@@ -46,6 +55,7 @@ export const META_EVENTS = {
   CONNECTION_CHANGED: 'meta-connection-changed',
   DISCONNECTION: 'meta-disconnection',
   PAYMENT_UPDATED: 'meta-payment-updated',
+  CONNECTION_UPDATED: 'meta-connection-updated', // Fired when localStorage connection data changes
 } as const
 
 /**
@@ -164,5 +174,42 @@ export function isMetaPaymentUpdateEvent(event: Event): event is MetaPaymentUpda
  */
 export function isMetaDisconnectionEvent(event: Event): event is MetaDisconnectionEvent {
   return event.type === META_EVENTS.DISCONNECTION
+}
+
+/**
+ * Emit a Meta connection updated event (for localStorage changes)
+ * @param campaignId - The campaign ID for this connection update
+ */
+export function emitMetaConnectionUpdated(campaignId: string): void {
+  if (typeof window === 'undefined') return
+  
+  try {
+    if (!campaignId) {
+      console.warn('[MetaEvents] Cannot emit connection updated without campaignId')
+      return
+    }
+
+    const event = new CustomEvent<MetaConnectionUpdatedPayload>(META_EVENTS.CONNECTION_UPDATED, {
+      detail: {
+        campaignId,
+        timestamp: Date.now(),
+      },
+      bubbles: false,
+      cancelable: false,
+    })
+
+    window.dispatchEvent(event)
+    
+    console.log('[MetaEvents] Emitted connection updated:', { campaignId })
+  } catch (error) {
+    console.error('[MetaEvents] Failed to emit connection updated:', error)
+  }
+}
+
+/**
+ * Type guard for Meta connection updated events
+ */
+export function isMetaConnectionUpdatedEvent(event: Event): event is MetaConnectionUpdatedEvent {
+  return event.type === META_EVENTS.CONNECTION_UPDATED
 }
 

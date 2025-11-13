@@ -23,6 +23,9 @@ import { SaveIndicator } from "./save-indicator"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { CampaignWorkspace } from "@/components/campaign-workspace"
 import { MetaConnectionModal } from "@/components/meta/meta-connection-modal"
+import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
+import { useMetaActions } from "@/lib/hooks/use-meta-actions"
+import { Building2, CreditCard } from "lucide-react"
 // Removed local heuristic name suggestion; naming is AI-driven on server
 
 interface DashboardProps {
@@ -50,6 +53,9 @@ export function Dashboard({
   const dailyCredits = 500
   const { setTheme, resolvedTheme } = useTheme()
   const { campaign, updateCampaign } = useCampaignContext()
+  const { metaStatus, paymentStatus } = useMetaConnection()
+  const metaActions = useMetaActions()
+  const [isConnecting, setIsConnecting] = useState(false)
   
   // Chat collapse state with localStorage persistence
   const [isChatCollapsed, setIsChatCollapsed] = useState(false)
@@ -229,11 +235,96 @@ export function Dashboard({
                         </DropdownMenuSubContent>
                       </DropdownMenuSub>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setMetaModalOpen(true)}>
-                        <Facebook className="mr-2 h-4 w-4" />
-                        <Instagram className="mr-2 h-4 w-4" />
-                        Connect Meta
-                      </DropdownMenuItem>
+                      
+                      {/* Meta Connection Section */}
+                      {metaStatus === 'connected' ? (
+                        <>
+                          <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+                            Meta Connection
+                          </DropdownMenuLabel>
+                          <div className="px-2 py-2">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Facebook className="h-4 w-4" />
+                                <Instagram className="h-4 w-4" />
+                                <span className="text-sm font-medium">Connected</span>
+                              </div>
+                              {paymentStatus === 'verified' ? (
+                                <Check className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <AlertCircle className="h-4 w-4 text-red-600" />
+                              )}
+                            </div>
+                            
+                            {(() => {
+                              const summary = metaActions.getSummary()
+                              return (
+                                <>
+                                  {summary?.business && (
+                                    <div className="ml-4 py-1 text-xs">
+                                      <div className="text-muted-foreground">Business</div>
+                                      <div className="font-medium">{summary.business.name || summary.business.id}</div>
+                                    </div>
+                                  )}
+                                  
+                                  {summary?.page && (
+                                    <div className="ml-4 py-1 text-xs">
+                                      <div className="text-muted-foreground">Facebook Page</div>
+                                      <div className="font-medium">{summary.page.name || summary.page.id}</div>
+                                    </div>
+                                  )}
+                                  
+                                  {summary?.instagram && (
+                                    <div className="ml-4 py-1 text-xs">
+                                      <div className="text-muted-foreground">Instagram</div>
+                                      <div className="font-medium">@{summary.instagram.username || summary.instagram.id}</div>
+                                    </div>
+                                  )}
+                                  
+                                  {summary?.adAccount && (
+                                    <div className="ml-4 py-1 text-xs">
+                                      <div className="text-muted-foreground">Ad Account</div>
+                                      <div className="font-medium">{summary.adAccount.name || summary.adAccount.id}</div>
+                                    </div>
+                                  )}
+                                  
+                                  {paymentStatus === 'missing' && summary?.adAccount?.id && (
+                                    <>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem onClick={() => metaActions.addPayment(summary.adAccount.id)}>
+                                        <CreditCard className="h-4 w-4 mr-2" />
+                                        Add Payment Method
+                                      </DropdownMenuItem>
+                                    </>
+                                  )}
+                                </>
+                              )
+                            })()}
+                          </div>
+                        </>
+                      ) : (
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setIsConnecting(true)
+                            metaActions.connect()
+                            setTimeout(() => setIsConnecting(false), 1000)
+                          }}
+                          disabled={isConnecting}
+                        >
+                          {isConnecting ? (
+                            <>
+                              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
+                              Connecting...
+                            </>
+                          ) : (
+                            <>
+                              <Facebook className="mr-2 h-4 w-4" />
+                              <Instagram className="mr-2 h-4 w-4" />
+                              Connect Meta
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

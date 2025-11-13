@@ -11,7 +11,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Rocket, Loader2, Save, Flag, ArrowRight } from "lucide-react"
+import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Rocket, Loader2, Save, Flag, ArrowRight, Settings, Instagram } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +33,7 @@ import { useBudget } from "@/lib/context/budget-context"
 import { metaStorage } from "@/lib/meta/storage"
 import { metaLogger } from "@/lib/meta/logger"
 import { toast } from "sonner"
+import { emitMetaConnectionUpdated } from "@/lib/utils/meta-events"
 
 // Meta Account Status Constants (from Graph API docs)
 const META_ACCOUNT_STATUS = {
@@ -83,6 +84,7 @@ export function WorkspaceHeader({
   const metaActions = useMetaActions()
   const { metaStatus: hookMetaStatus, paymentStatus: hookPaymentStatus, refreshStatus } = useMetaConnection()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isSettingsDropdownOpen, setIsSettingsDropdownOpen] = useState(false)
   const paymentVerifiedRef = useRef(false)
   const [accountRestriction, setAccountRestriction] = useState<{
     isRestricted: boolean
@@ -221,6 +223,10 @@ export function WorkspaceHeader({
             // Save to localStorage with CURRENT campaign ID
             metaStorage.setConnection(campaign.id, messageData.connectionData)
             
+            // Emit event to notify all listeners (already done by setConnection, but being explicit)
+            // This ensures immediate UI update across all components
+            emitMetaConnectionUpdated(campaign.id)
+            
             // If payment status wasn't checked or is false, verify it now
             const adAccountId = messageData.connectionData.selected_ad_account_id
             if (adAccountId && !messageData.connectionData.ad_account_payment_connected) {
@@ -242,6 +248,8 @@ export function WorkspaceHeader({
                       })
                       // Update localStorage with payment connected
                       metaStorage.markPaymentConnected(campaign.id)
+                      // Emit event to notify all listeners of payment status update
+                      emitMetaConnectionUpdated(campaign.id)
                       // Status will be read from localStorage on next mount
                     }
                   }
@@ -580,6 +588,128 @@ export function WorkspaceHeader({
 
   const statusBadge = getStatusBadge()
 
+  // Render Settings Dropdown with Meta Connection
+  const getSettingsDropdown = () => {
+    return (
+      <DropdownMenu open={isSettingsDropdownOpen} onOpenChange={setIsSettingsDropdownOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-72">
+          <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
+            Campaign Settings
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          
+          {/* Meta Connection Section */}
+          {isConnected ? (
+            <>
+              <div className="px-2 py-2">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Facebook className="h-4 w-4" />
+                    <Instagram className="h-4 w-4" />
+                    <span className="text-sm font-medium">Meta Connection</span>
+                  </div>
+                  {paymentStatus === 'verified' && !accountRestriction?.isRestricted ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-red-600" />
+                  )}
+                </div>
+                
+                {summary?.business && (
+                  <div className="ml-4 py-1 text-xs">
+                    <div className="text-muted-foreground">Business</div>
+                    <div className="font-medium">{summary.business.name || summary.business.id}</div>
+                  </div>
+                )}
+                
+                {summary?.page && (
+                  <div className="ml-4 py-1 text-xs">
+                    <div className="text-muted-foreground">Facebook Page</div>
+                    <div className="font-medium">{summary.page.name || summary.page.id}</div>
+                  </div>
+                )}
+                
+                {summary?.instagram && (
+                  <div className="ml-4 py-1 text-xs">
+                    <div className="text-muted-foreground">Instagram</div>
+                    <div className="font-medium">@{summary.instagram.username || summary.instagram.id}</div>
+                  </div>
+                )}
+                
+                {summary?.adAccount && (
+                  <div className="ml-4 py-1 text-xs">
+                    <div className="text-muted-foreground">Ad Account</div>
+                    <div className="font-medium">{summary.adAccount.name || summary.adAccount.id}</div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Show restriction notice if account is restricted */}
+              {accountRestriction?.isRestricted && (
+                <>
+                  <DropdownMenuSeparator />
+                  <div className="px-2 py-3 text-sm">
+                    <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                      <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-red-900 dark:text-red-100 text-xs mb-1">
+                          Account Restricted
+                        </p>
+                        <p className="text-xs text-red-700 dark:text-red-300 mb-2">
+                          {accountRestriction.disableReason || 'This account has been disabled by Meta'}
+                        </p>
+                        <p className="text-xs text-red-600 dark:text-red-400">
+                          Visit Facebook Business Manager to request a review
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+              
+              {/* Add Payment option if needed */}
+              {hasPaymentIssue && !accountRestriction?.isRestricted && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleAddPayment}>
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Add Payment Method
+                  </DropdownMenuItem>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <DropdownMenuItem onClick={handleConnectClick} disabled={isConnecting}>
+                {isConnecting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  <>
+                    <Facebook className="h-4 w-4 mr-2" />
+                    <Instagram className="h-4 w-4 mr-2" />
+                    Connect Meta
+                  </>
+                )}
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+  }
+
   return (
     <>
       <div className={cn(
@@ -600,19 +730,22 @@ export function WorkspaceHeader({
             </Button>
           )}
           
-          {/* Goal + Meta Connection + Budget Pills (visible in build, edit, results, and all-ads modes) */}
+          {/* Goal + Budget Pills (visible in build, edit, results, and all-ads modes) */}
+          {/* Note: Meta Connection is now only in the dropdown menu, not in header pills */}
           {(mode === 'build' || mode === 'edit' || mode === 'results' || mode === 'all-ads') && (
             <div className="flex items-center gap-2">
               {getGoalBadge()}
-              {getMetaConnectionBadge()}
               {getBudgetBadge()}
             </div>
           )}
         </div>
 
-        {/* Right: Status Badge, Action Buttons */}
+        {/* Right: Status Badge, Settings Dropdown, Action Buttons */}
         <div className="flex items-center gap-4">
           {statusBadge}
+          
+          {/* Settings Dropdown with Meta Connection */}
+          {(mode === 'build' || mode === 'edit' || mode === 'results' || mode === 'all-ads') && getSettingsDropdown()}
           
           {/* Build mode - Final step: Save Draft + Publish */}
           {mode === 'build' && isOnFinalStep && onSaveDraft && onPublish && (

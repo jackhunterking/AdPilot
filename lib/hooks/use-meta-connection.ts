@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useCampaignContext } from '@/lib/context/campaign-context'
 import { metaStorage } from '@/lib/meta/storage'
-import { META_EVENTS, type MetaConnectionChangeEvent, type MetaPaymentUpdateEvent, type MetaDisconnectionEvent } from '@/lib/utils/meta-events'
+import { META_EVENTS, type MetaConnectionChangeEvent, type MetaPaymentUpdateEvent, type MetaDisconnectionEvent, type MetaConnectionUpdatedEvent } from '@/lib/utils/meta-events'
 import type { MetaConnectionStatus, PaymentStatus } from '@/lib/types/meta-integration'
 import { logger } from '@/lib/utils/logger'
 
@@ -162,6 +162,41 @@ export function useMetaConnection() {
       logger.error('useMetaConnection', 'Refresh failed', error)
     }
   }, [campaign?.id])
+
+  // Listen for connection updated events (fired when localStorage changes)
+  useEffect(() => {
+    if (!campaign?.id) return
+    if (typeof window === 'undefined') return
+    
+    const handleConnectionUpdated = (event: Event) => {
+      const customEvent = event as MetaConnectionUpdatedEvent
+      const eventCampaignId = customEvent.detail?.campaignId
+      
+      // Only refresh if this event is for our campaign
+      if (eventCampaignId && eventCampaignId === campaign.id) {
+        logger.debug('useMetaConnection', 'Received CONNECTION_UPDATED event', {
+          campaignId: campaign.id,
+          eventTimestamp: customEvent.detail?.timestamp,
+        })
+        
+        // Refresh status from localStorage
+        refreshStatus()
+      }
+    }
+    
+    window.addEventListener(META_EVENTS.CONNECTION_UPDATED, handleConnectionUpdated)
+    
+    logger.debug('useMetaConnection', 'Event listener added for CONNECTION_UPDATED', {
+      campaignId: campaign.id,
+    })
+    
+    return () => {
+      window.removeEventListener(META_EVENTS.CONNECTION_UPDATED, handleConnectionUpdated)
+      logger.debug('useMetaConnection', 'Event listener removed for CONNECTION_UPDATED', {
+        campaignId: campaign.id,
+      })
+    }
+  }, [campaign?.id, refreshStatus])
 
   return {
     metaStatus,

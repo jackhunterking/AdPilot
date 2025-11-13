@@ -13,6 +13,7 @@ import type {
   SelectionSummaryDTO
 } from './types';
 import { metaLogger } from './logger';
+import { emitMetaConnectionUpdated } from '@/lib/utils/meta-events';
 
 const STORAGE_PREFIX = 'meta_connection_';
 const LOGS_KEY = 'meta_api_logs';
@@ -114,6 +115,9 @@ class MetaStorage {
         hasUserAppToken: !!updated.user_app_token,
         status: updated.status,
       });
+
+      // Emit connection updated event for real-time UI updates
+      emitMetaConnectionUpdated(campaignId);
     } catch (error) {
       metaLogger.error('MetaStorage', 'Failed to save connection', error as Error, {
         campaignId,
