@@ -44,7 +44,7 @@ export function AdStatusBadge({
   }
   
   // Determine if badge should pulse (pending status)
-  const shouldPulse = status === 'pending_approval'
+  const shouldPulse = status === 'pending_review'
   
   const badgeContent = (
     <Badge
@@ -95,7 +95,7 @@ export function AdStatusDot({
   className?: string
 }) {
   const config = getStatusConfig(status)
-  const shouldPulse = status === 'pending_approval'
+  const shouldPulse = status === 'pending_review'
   
   return (
     <div className={cn("flex items-center gap-2", className)}>

@@ -21,6 +21,8 @@ import { CheckCircle2, Rocket } from "lucide-react"
 import { getStatusConfig, sortByStatusPriority, filterByStatus } from "@/lib/utils/ad-status"
 import { cn } from "@/lib/utils"
 import { AdApprovalPanel } from "@/components/admin/ad-approval-panel"
+import { useMultipleAdsStatusSubscription } from "@/lib/hooks/use-ad-status-subscription"
+import { toast } from "sonner"
 
 export interface AllAdsGridProps {
   ads: AdVariant[]
@@ -52,6 +54,35 @@ export function AllAdsGrid({
   const [publishAdId, setPublishAdId] = useState<string | null>(null)
   const [showPublishDialog, setShowPublishDialog] = useState(false)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  
+  // Subscribe to real-time status updates
+  useMultipleAdsStatusSubscription({
+    campaignId,
+    onAnyStatusChange: (adId, newStatus) => {
+      console.log(`[AllAdsGrid] Ad ${adId} status changed to ${newStatus}`)
+      
+      // Show toast notification for important status changes
+      if (newStatus === 'active') {
+        toast.success('Ad approved!', {
+          description: 'Your ad is now live and running.'
+        })
+      } else if (newStatus === 'rejected') {
+        toast.error('Ad rejected', {
+          description: 'Your ad needs changes before it can be published.'
+        })
+      } else if (newStatus === 'failed') {
+        toast.error('Publishing failed', {
+          description: 'Click the ad to see error details.'
+        })
+      }
+      
+      // Refresh ads list
+      if (onRefreshAds) {
+        onRefreshAds()
+      }
+    },
+    enabled: !!campaignId
+  })
   
   const handlePublishClick = (adId: string) => {
     setPublishAdId(adId)
@@ -87,11 +118,12 @@ export function AllAdsGrid({
   const filterOptions: { value: StatusFilter; label: string }[] = [
     { value: 'all', label: 'All Ads' },
     { value: 'draft', label: 'Draft' },
-    { value: 'pending_approval', label: 'Under Review' },
+    { value: 'pending_review', label: 'Meta Reviewing' },
     { value: 'active', label: 'Live' },
     { value: 'learning', label: 'Learning' },
     { value: 'paused', label: 'Paused' },
     { value: 'rejected', label: 'Needs Changes' },
+    { value: 'failed', label: 'Failed' },
   ]
 
   return (

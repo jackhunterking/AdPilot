@@ -29,6 +29,8 @@ import { useGoal } from "@/lib/context/goal-context"
 import { useDestination } from "@/lib/context/destination-context"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 import { useDraftAutoSave } from "@/lib/hooks/use-draft-auto-save"
+import { usePublishAd } from "@/lib/hooks/use-publish-ad"
+import { useMultipleAdsStatusSubscription } from "@/lib/hooks/use-ad-status-subscription"
 import { metaStorage } from "@/lib/meta/storage"
 import { validateAdForPublish, formatValidationError } from "@/lib/utils/ad-validation"
 import { operationLocks } from "@/lib/utils/ad-operations"
@@ -53,6 +55,17 @@ export function CampaignWorkspace() {
   
   const campaignId = campaign?.id ?? ""
   const { ads, refreshAds, updateAdStatus, deleteAd } = useCampaignAds(campaignId)
+  const { publishAd, isPublishing: isPublishingHook } = usePublishAd()
+  
+  // Subscribe to real-time status updates for all ads in campaign
+  useMultipleAdsStatusSubscription({
+    campaignId,
+    onAnyStatusChange: (adId, newStatus) => {
+      console.log(`[CampaignWorkspace] Ad ${adId} status changed to ${newStatus}`)
+      void refreshAds()
+    },
+    enabled: !!campaignId
+  })
   
   // Removed saveSuccessState - now using toast notifications instead
   
@@ -867,10 +880,17 @@ export function CampaignWorkspace() {
   }, [ads, campaignId, convertedAds, getMetaToken, refreshAds, updateAdStatus])
 
   const handlePublishAd = useCallback(async (adId: string) => {
-    // Set publishing ad ID and show dialog
-    setPublishingAdId(adId)
-    setShowPublishDialog(true)
-  }, [])
+    // Use new publish hook
+    const result = await publishAd(campaignId, adId)
+    
+    if (result.success) {
+      // Refresh ads to show new status
+      await refreshAds()
+      
+      // Navigate to all-ads view
+      setWorkspaceMode('all-ads')
+    }
+  }, [campaignId, publishAd, refreshAds])
   
   // Handle publish complete (called by PublishFlowDialog)
   const handlePublishComplete = useCallback(async () => {

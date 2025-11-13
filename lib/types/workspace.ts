@@ -39,11 +39,12 @@ export type CampaignStatus =
 // Ad status values representing the publishing lifecycle
 export type AdStatus = 
   | 'draft'              // Being built, not published yet
-  | 'pending_approval'   // Submitted for Meta review
+  | 'pending_review'     // Submitted to Meta, awaiting approval
   | 'active'             // Approved and running
   | 'learning'           // Active but in learning phase
   | 'paused'             // Temporarily stopped
   | 'rejected'           // Rejected by Meta, needs changes
+  | 'failed'             // Publishing failed due to API error
   | 'archived'           // Historical/inactive
 
 // Meta review status tracking
@@ -397,6 +398,106 @@ export interface PaginationState {
   pageSize: number
   totalItems: number
   totalPages: number
+}
+
+// ============================================================================
+// Publishing Error Types
+// ============================================================================
+
+export type PublishErrorCode =
+  | 'validation_error'
+  | 'policy_violation'
+  | 'payment_required'
+  | 'token_expired'
+  | 'api_error'
+  | 'network_error'
+  | 'unknown_error'
+
+export interface PublishError {
+  code: PublishErrorCode
+  message: string
+  userMessage: string
+  details?: Record<string, unknown>
+  recoverable: boolean
+  suggestedAction?: string
+  timestamp: string
+}
+
+// ============================================================================
+// Ad Publishing Metadata Types
+// ============================================================================
+
+export interface AdPublishingMetadata {
+  id: string
+  ad_id: string
+  meta_ad_id?: string | null
+  
+  // Publishing timeline
+  submission_timestamp?: string | null
+  last_status_check?: string | null
+  status_history: Array<{
+    from: AdStatus
+    to: AdStatus
+    timestamp: string
+    triggered_by: string
+  }>
+  
+  // Error tracking
+  error_code?: string | null
+  error_message?: string | null
+  error_user_message?: string | null
+  error_details?: Record<string, unknown> | null
+  retry_count: number
+  max_retries: number
+  
+  // Meta review feedback
+  meta_review_feedback?: Record<string, unknown> | null
+  rejection_reasons?: string[] | null
+  
+  // Status metadata
+  current_status: AdStatus
+  previous_status?: AdStatus | null
+  status_changed_at: string
+  
+  // Timestamps
+  created_at: string
+  updated_at: string
+}
+
+// ============================================================================
+// Status Transition Types
+// ============================================================================
+
+export interface AdStatusTransition {
+  id: string
+  ad_id: string
+  from_status?: AdStatus | null
+  to_status: AdStatus
+  triggered_by: 'user' | 'meta_webhook' | 'system' | 'api'
+  trigger_details?: Record<string, unknown> | null
+  notes?: string | null
+  metadata?: Record<string, unknown> | null
+  transitioned_at: string
+}
+
+// ============================================================================
+// Webhook Event Types
+// ============================================================================
+
+export interface MetaWebhookEvent {
+  id: string
+  event_id?: string | null
+  event_type: string
+  meta_ad_id?: string | null
+  ad_id?: string | null
+  campaign_id?: string | null
+  payload: Record<string, unknown>
+  processed: boolean
+  processed_at?: string | null
+  processing_error?: string | null
+  retry_count: number
+  received_at: string
+  created_at: string
 }
 
 // ============================================================================

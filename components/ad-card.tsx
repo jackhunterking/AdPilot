@@ -16,8 +16,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { AlertTriangle, Trash2 } from "lucide-react"
-import type { AdVariant } from "@/lib/types/workspace"
+import type { AdVariant, PublishError } from "@/lib/types/workspace"
 import { AdStatusBadge } from "@/components/ui/ad-status-badge"
+import { PublishButton } from "@/components/publishing/publish-button"
+import { ErrorTooltip } from "@/components/publishing/error-tooltip"
+import { PublishErrorModal } from "@/components/publishing/publish-error-modal"
 
 export interface AdCardProps {
   ad: AdVariant
@@ -55,8 +58,15 @@ export function AdCard({
 }: AdCardProps) {
   const isPaused = ad.status === 'paused'
   const isDraft = ad.status === 'draft'
+  const isFailed = ad.status === 'failed'
+  const isRejected = ad.status === 'rejected'
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showPauseDialog, setShowPauseDialog] = useState(false)
+  const [showErrorModal, setShowErrorModal] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
+  
+  // Extract error from ad.last_error if it exists
+  const error: PublishError | undefined = ad.last_error as PublishError | undefined
   
   const handleDeleteClick = () => {
     setShowDeleteDialog(true)
@@ -74,6 +84,25 @@ export function AdCard({
   const handleConfirmPause = async () => {
     setShowPauseDialog(false)
     await onPause()
+  }
+  
+  const handlePublishClick = async () => {
+    setIsPublishing(true)
+    try {
+      await onPublish()
+    } finally {
+      setIsPublishing(false)
+    }
+  }
+  
+  const handleStatusAction = async () => {
+    if (ad.status === 'draft' || ad.status === 'failed' || ad.status === 'rejected') {
+      await handlePublishClick()
+    } else if (ad.status === 'active' || ad.status === 'learning') {
+      handlePauseClick()
+    } else if (ad.status === 'paused') {
+      await onResume()
+    }
   }
   
   return (
@@ -183,6 +212,12 @@ export function AdCard({
             </h3>
             <div className="flex items-center gap-2 mb-3">
               <AdStatusBadge status={ad.status} size="sm" showTooltip={true} />
+              {(isFailed || isRejected) && error && (
+                <ErrorTooltip 
+                  error={error} 
+                  onClick={() => setShowErrorModal(true)}
+                />
+              )}
             </div>
             
             {/* Metrics */}
@@ -223,35 +258,26 @@ export function AdCard({
           >
             Results
           </Button>
-          {isDraft ? (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={onPublish}
-              className="flex-1"
-            >
-              Publish
-            </Button>
-          ) : isPaused ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onResume}
-              className="flex-1"
-            >
-              Resume
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePauseClick}
-              className="flex-1"
-            >
-              Pause
-            </Button>
-          )}
+          <PublishButton
+            status={ad.status}
+            onClick={handleStatusAction}
+            loading={isPublishing}
+            size="sm"
+            className="flex-1"
+          />
         </div>
+        
+        {/* Error Modal */}
+        {error && (
+          <PublishErrorModal
+            open={showErrorModal}
+            onOpenChange={setShowErrorModal}
+            error={error}
+            adName={ad.name}
+            onRetry={handlePublishClick}
+            onEdit={onEdit}
+          />
+        )}
       </div>
     </>
   )

@@ -18,11 +18,23 @@ interface BusinessHoursDay {
 type DayOfWeek = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun'
 
 interface GoalFormData {
-  // Leads
+  // Leads - Basic Info
   id?: string
   name?: string
   type?: string
-  fields?: string[]
+  
+  // Leads - Form Builder Fields (for restoration)
+  introHeadline?: string
+  introDescription?: string
+  privacyUrl?: string
+  privacyLinkText?: string
+  fields?: Array<{ id: string; type: "full_name" | "email" | "phone"; label: string; required: boolean }>
+  
+  // Leads - Thank You Page
+  thankYouTitle?: string
+  thankYouMessage?: string
+  thankYouButtonText?: string
+  thankYouButtonUrl?: string
 
   // Calls (minimal per Meta Call Ads requirements)
   phoneNumber?: string

@@ -95,7 +95,7 @@ export function WorkspaceHeader({
       case 'results':
       case 'ab-test-builder':
       case 'edit':
-        return 'Back to All Ads'  // All navigate to grid
+        return 'See All Ads'  // All navigate to grid
       default:
         return 'Back'
     }
@@ -366,7 +366,7 @@ export function WorkspaceHeader({
                 className="gap-2"
               >
                 <Save className="h-4 w-4" />
-                Save Draft
+                Save as Draft
               </Button>
               <Button
                 variant="default"

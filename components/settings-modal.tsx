@@ -239,42 +239,36 @@ export function SettingsModal({
           <div className="border-t" />
 
           {/* Budget Section */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 text-sm">
-              <DollarSign className="h-4 w-4 text-green-600 flex-shrink-0" />
-              <span className="text-muted-foreground min-w-[80px]">Budget:</span>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleBudgetAdjust(-5)}
-                  disabled={currentBudget <= 1}
-                  className="h-8 w-8 p-0"
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <span className="font-semibold text-base min-w-[80px] text-center">
-                  {formatCurrency(currentBudget)}
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleBudgetAdjust(5)}
-                  className="h-8 w-8 p-0"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-                <span className="text-muted-foreground">/day</span>
-              </div>
-            </div>
-            
-            {/* Save Budget Button */}
-            <div className="flex items-center gap-2 pl-[120px]">
+          <div className="flex items-center gap-3 text-sm">
+            <DollarSign className="h-4 w-4 text-green-600 flex-shrink-0" />
+            <span className="text-muted-foreground min-w-[80px]">Budget:</span>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBudgetAdjust(-5)}
+                disabled={currentBudget <= 1}
+                className="h-8 w-8 p-0"
+              >
+                <Minus className="h-4 w-4" />
+              </Button>
+              <span className="font-semibold text-base min-w-[80px] text-center">
+                {formatCurrency(currentBudget)}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBudgetAdjust(5)}
+                className="h-8 w-8 p-0"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+              <span className="text-muted-foreground">/day</span>
               <Button
                 size="sm"
                 onClick={handleSaveBudget}
                 disabled={!hasChanges || isSavingBudget}
-                className="gap-2"
+                className="gap-2 ml-2"
               >
                 {isSavingBudget ? (
                   <>

@@ -49,9 +49,9 @@ export function getStatusConfig(status: AdStatus): StatusConfig {
       description: 'This ad is being built and hasn\'t been published yet',
       icon: '📝'
     },
-    pending_approval: {
-      label: 'Under Review',
-      shortLabel: 'Review',
+    pending_review: {
+      label: 'Meta is Reviewing',
+      shortLabel: 'Reviewing',
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-100',
       borderColor: 'border-yellow-300',
@@ -93,6 +93,15 @@ export function getStatusConfig(status: AdStatus): StatusConfig {
       borderColor: 'border-red-300',
       description: 'Meta couldn\'t approve this ad. You can edit and resubmit',
       icon: '❌'
+    },
+    failed: {
+      label: 'Publishing Failed',
+      shortLabel: 'Failed',
+      color: 'text-red-700',
+      bgColor: 'bg-red-50',
+      borderColor: 'border-red-400',
+      description: 'Publishing failed due to an error. Click for details',
+      icon: '⚠️'
     },
     archived: {
       label: 'Archived',
@@ -140,7 +149,7 @@ export function getStatusMessage(ad: AdVariant): string {
     message = `Your ad is live and running. Started on ${date}`
   }
   
-  if (ad.status === 'pending_approval' && ad.published_at) {
+  if (ad.status === 'pending_review' && ad.published_at) {
     const hoursAgo = Math.floor((Date.now() - new Date(ad.published_at).getTime()) / (1000 * 60 * 60))
     if (hoursAgo < 1) {
       message = 'Your ad was just submitted for review. Meta typically reviews ads within 24 hours'
@@ -151,6 +160,10 @@ export function getStatusMessage(ad: AdVariant): string {
     }
   }
   
+  if (ad.status === 'failed') {
+    message = 'Publishing failed. Click the info icon to see error details and retry'
+  }
+  
   return message
 }
 
@@ -158,8 +171,8 @@ export function getStatusMessage(ad: AdVariant): string {
  * Check if ad can be published
  */
 export function canPublish(ad: AdVariant): boolean {
-  // Only draft and rejected ads can be published
-  return ad.status === 'draft' || ad.status === 'rejected'
+  // Only draft, rejected, and failed ads can be published/republished
+  return ad.status === 'draft' || ad.status === 'rejected' || ad.status === 'failed'
 }
 
 /**
@@ -202,12 +215,13 @@ export function canDelete(ad: AdVariant): boolean {
 export function canTransitionTo(currentStatus: AdStatus, newStatus: AdStatus): boolean {
   // Define valid transitions
   const validTransitions: Record<AdStatus, AdStatus[]> = {
-    draft: ['pending_approval', 'archived'],
-    pending_approval: ['active', 'rejected', 'archived'],
+    draft: ['pending_review', 'archived'],
+    pending_review: ['active', 'rejected', 'failed', 'archived'],
     active: ['paused', 'learning', 'archived'],
     learning: ['active', 'paused', 'archived'],
     paused: ['active', 'archived'],
-    rejected: ['draft', 'pending_approval', 'archived'],
+    rejected: ['draft', 'pending_review', 'archived'],
+    failed: ['draft', 'pending_review', 'archived'],
     archived: [] // Cannot transition from archived
   }
   
@@ -219,12 +233,13 @@ export function canTransitionTo(currentStatus: AdStatus, newStatus: AdStatus): b
  */
 export function getNextStatuses(currentStatus: AdStatus): AdStatus[] {
   const validTransitions: Record<AdStatus, AdStatus[]> = {
-    draft: ['pending_approval'],
-    pending_approval: ['active', 'rejected'],
+    draft: ['pending_review'],
+    pending_review: ['active', 'rejected', 'failed'],
     active: ['paused'],
     learning: ['paused'],
     paused: ['active'],
-    rejected: ['pending_approval'],
+    rejected: ['pending_review'],
+    failed: ['pending_review'],
     archived: []
   }
   
@@ -236,14 +251,17 @@ export function getNextStatuses(currentStatus: AdStatus): AdStatus[] {
  */
 export function getActionLabel(currentStatus: AdStatus, targetStatus: AdStatus): string {
   const actionLabels: Record<string, string> = {
-    'draft->pending_approval': 'Publish Ad',
-    'pending_approval->active': 'Approve Ad',
-    'pending_approval->rejected': 'Reject Ad',
+    'draft->pending_review': 'Publish Ad',
+    'pending_review->active': 'Approve Ad',
+    'pending_review->rejected': 'Reject Ad',
+    'pending_review->failed': 'Mark Failed',
     'active->paused': 'Pause Ad',
     'learning->paused': 'Pause Ad',
     'paused->active': 'Resume Ad',
-    'rejected->pending_approval': 'Resubmit Ad',
-    'rejected->draft': 'Edit Draft'
+    'rejected->pending_review': 'Resubmit Ad',
+    'rejected->draft': 'Edit Draft',
+    'failed->pending_review': 'Retry Publishing',
+    'failed->draft': 'Edit Draft'
   }
   
   const key = `${currentStatus}->${targetStatus}`
@@ -268,13 +286,13 @@ export function isLive(status: AdStatus): boolean {
  * Check if ad needs attention
  */
 export function needsAttention(ad: AdVariant): boolean {
-  // Rejected ads need attention
-  if (ad.status === 'rejected') {
+  // Rejected and failed ads need attention
+  if (ad.status === 'rejected' || ad.status === 'failed') {
     return true
   }
   
   // Pending ads that have been waiting > 48 hours need attention
-  if (ad.status === 'pending_approval' && ad.published_at) {
+  if (ad.status === 'pending_review' && ad.published_at) {
     const hoursAgo = (Date.now() - new Date(ad.published_at).getTime()) / (1000 * 60 * 60)
     return hoursAgo > 48
   }
@@ -288,13 +306,14 @@ export function needsAttention(ad: AdVariant): boolean {
  */
 export function sortByStatusPriority(ads: AdVariant[]): AdVariant[] {
   const priorityOrder: Record<AdStatus, number> = {
-    rejected: 1,
-    pending_approval: 2,
-    active: 3,
-    learning: 4,
-    paused: 5,
-    draft: 6,
-    archived: 7
+    failed: 1,
+    rejected: 2,
+    pending_review: 3,
+    active: 4,
+    learning: 5,
+    paused: 6,
+    draft: 7,
+    archived: 8
   }
   
   return [...ads].sort((a, b) => {
@@ -315,11 +334,12 @@ export function filterByStatus(ads: AdVariant[], statuses: AdStatus[]): AdVarian
 export function getStatusSummary(ads: AdVariant[]): Record<AdStatus, number> {
   const summary: Record<AdStatus, number> = {
     draft: 0,
-    pending_approval: 0,
+    pending_review: 0,
     active: 0,
     learning: 0,
     paused: 0,
     rejected: 0,
+    failed: 0,
     archived: 0
   }
   
