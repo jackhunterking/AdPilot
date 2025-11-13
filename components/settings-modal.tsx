@@ -10,7 +10,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -26,6 +26,11 @@ import {
   Loader2,
   Plus,
   Minus,
+  Building2,
+  CreditCard,
+  Flag,
+  DollarSign,
+  X,
 } from "lucide-react"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
@@ -50,11 +55,6 @@ export function SettingsModal({
   const { metaStatus, paymentStatus } = useMetaConnection()
   const metaActions = useMetaActions()
   const [isConnecting, setIsConnecting] = useState(false)
-  const [isSavingBudget, setIsSavingBudget] = useState(false)
-
-  const isConnected = metaStatus === 'connected'
-  const hasPaymentIssue = paymentStatus === 'missing' || paymentStatus === 'flagged'
-  const summary = metaActions.getSummary()
 
   // Get campaign goal
   const campaignGoal = campaign?.initial_goal || 
@@ -70,7 +70,25 @@ export function SettingsModal({
 
   // Get campaign budget
   const campaignBudget = campaign?.campaign_budget
-  const dailyBudgetValue = campaignBudget && campaignBudget > 0 ? Math.round(campaignBudget / 30) : budgetState.dailyBudget
+  const initialDailyBudget = campaignBudget && campaignBudget > 0 ? Math.round(campaignBudget / 30) : budgetState.dailyBudget
+
+  // Budget state management
+  const [currentBudget, setCurrentBudget] = useState(initialDailyBudget)
+  const [savedBudget, setSavedBudget] = useState(initialDailyBudget)
+  const [isSavingBudget, setIsSavingBudget] = useState(false)
+
+  // Update budget when campaign data changes
+  useEffect(() => {
+    const newBudget = campaignBudget && campaignBudget > 0 ? Math.round(campaignBudget / 30) : budgetState.dailyBudget
+    setCurrentBudget(newBudget)
+    setSavedBudget(newBudget)
+  }, [campaignBudget, budgetState.dailyBudget])
+
+  const hasChanges = currentBudget !== savedBudget
+
+  const isConnected = metaStatus === 'connected'
+  const hasPaymentIssue = paymentStatus === 'missing' || paymentStatus === 'flagged'
+  const summary = metaActions.getSummary()
 
   const currencyCode = typeof budgetState.currency === 'string' && budgetState.currency.trim().length === 3
     ? budgetState.currency.trim().toUpperCase()
@@ -99,20 +117,24 @@ export function SettingsModal({
     setTimeout(() => setIsConnecting(false), 1000)
   }
 
-  const handleBudgetChange = async (increment: number) => {
+  const handleBudgetAdjust = (increment: number) => {
+    setCurrentBudget(prev => Math.max(1, prev + increment))
+  }
+
+  const handleSaveBudget = async () => {
     if (!onBudgetUpdate || isSavingBudget) return
 
-    const newDailyBudget = Math.max(1, dailyBudgetValue + increment)
-    const totalBudget = Math.max(10, Math.round(newDailyBudget * 30))
+    const totalBudget = Math.max(10, Math.round(currentBudget * 30))
 
     setIsSavingBudget(true)
 
     try {
       await Promise.resolve(onBudgetUpdate(totalBudget))
-      setDailyBudget(newDailyBudget)
-      toast.success(`Budget updated to ${formatCurrency(newDailyBudget)}/day`)
+      setDailyBudget(currentBudget)
+      setSavedBudget(currentBudget)
+      toast.success(`Budget saved at ${formatCurrency(currentBudget)}/day`)
     } catch (error) {
-      metaLogger.error('SettingsModal', 'Failed to update budget', error as Error)
+      metaLogger.error('SettingsModal', 'Failed to save budget', error as Error)
       toast.error("We couldn't save your budget. Please try again.")
     } finally {
       setIsSavingBudget(false)
@@ -123,7 +145,17 @@ export function SettingsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl p-0">
         <DialogHeader className="px-6 pt-6 pb-3">
-          <DialogTitle className="text-xl">Campaign Settings</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-xl">Campaign Settings</DialogTitle>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onOpenChange(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </DialogHeader>
 
         <div className="px-6 pb-6 space-y-6">
@@ -142,25 +174,29 @@ export function SettingsModal({
             {isConnected ? (
               <div className="space-y-1.5 text-sm">
                 {summary?.business && (
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span className="text-muted-foreground min-w-[80px]">Business:</span>
                     <span className="font-medium">{summary.business.name || summary.business.id}</span>
                   </div>
                 )}
                 {summary?.page && (
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
+                    <Facebook className="h-4 w-4 text-blue-600 flex-shrink-0" />
                     <span className="text-muted-foreground min-w-[80px]">Facebook:</span>
                     <span className="font-medium">{summary.page.name || summary.page.id}</span>
                   </div>
                 )}
                 {summary?.instagram && (
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
+                    <Instagram className="h-4 w-4 text-pink-600 flex-shrink-0" />
                     <span className="text-muted-foreground min-w-[80px]">Instagram:</span>
                     <span className="font-medium">@{summary.instagram.username || summary.instagram.id}</span>
                   </div>
                 )}
                 {summary?.adAccount && (
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                     <span className="text-muted-foreground min-w-[80px]">Ad Account:</span>
                     <span className="font-medium">{summary.adAccount.name || summary.adAccount.id}</span>
                   </div>
@@ -194,7 +230,8 @@ export function SettingsModal({
           <div className="border-t" />
 
           {/* Goal Section */}
-          <div className="flex gap-2 text-sm">
+          <div className="flex items-center gap-2 text-sm">
+            <Flag className="h-4 w-4 text-orange-600 flex-shrink-0" />
             <span className="text-muted-foreground min-w-[80px]">Goal:</span>
             <span className="font-medium">{goalLabel}</span>
           </div>
@@ -202,31 +239,52 @@ export function SettingsModal({
           <div className="border-t" />
 
           {/* Budget Section */}
-          <div className="flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground min-w-[80px]">Budget:</span>
-            <div className="flex items-center gap-2">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 text-sm">
+              <DollarSign className="h-4 w-4 text-green-600 flex-shrink-0" />
+              <span className="text-muted-foreground min-w-[80px]">Budget:</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleBudgetAdjust(-5)}
+                  disabled={currentBudget <= 1}
+                  className="h-8 w-8 p-0"
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <span className="font-semibold text-base min-w-[80px] text-center">
+                  {formatCurrency(currentBudget)}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleBudgetAdjust(5)}
+                  className="h-8 w-8 p-0"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+                <span className="text-muted-foreground">/day</span>
+              </div>
+            </div>
+            
+            {/* Save Budget Button */}
+            <div className="flex items-center gap-2 pl-[120px]">
               <Button
                 size="sm"
-                variant="outline"
-                onClick={() => handleBudgetChange(-5)}
-                disabled={isSavingBudget || dailyBudgetValue <= 1}
-                className="h-8 w-8 p-0"
+                onClick={handleSaveBudget}
+                disabled={!hasChanges || isSavingBudget}
+                className="gap-2"
               >
-                <Minus className="h-4 w-4" />
+                {isSavingBudget ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Budget'
+                )}
               </Button>
-              <span className="font-semibold text-base min-w-[80px] text-center">
-                {formatCurrency(dailyBudgetValue)}
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleBudgetChange(5)}
-                disabled={isSavingBudget}
-                className="h-8 w-8 p-0"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-              <span className="text-muted-foreground">/day</span>
             </div>
           </div>
         </div>
