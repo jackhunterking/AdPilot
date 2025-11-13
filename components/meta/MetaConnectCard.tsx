@@ -15,7 +15,6 @@ import { useCampaignContext } from "@/lib/context/campaign-context"
 import { metaStorage } from '@/lib/meta/storage'
 import { metaLogger } from '@/lib/meta/logger'
 import { useMetaActions } from '@/lib/hooks/use-meta-actions'
-import { emitMetaConnectionChange, emitMetaPaymentUpdate } from '@/lib/utils/meta-events'
 
 export function MetaConnectCard() {
   const enabled = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_ENABLE_META === 'true' : false
@@ -271,21 +270,8 @@ export function MetaConnectCard() {
     metaActions.connect()
   }, [enabled, metaActions])
 
-  const onDisconnect = useCallback(async () => {
-    if (!enabled) return
-    
-    const success = await metaActions.disconnect()
-    if (success) {
-      // Clear local state
-      setSummary(null)
-      setAdAccountId(null)
-      setAccountValidation(null)
-      metaActions.setPaymentStatus('idle')
-
-      // Refresh to confirm cleared state
-      await hydrate()
-    }
-  }, [enabled, metaActions, hydrate])
+  // Meta disconnection is disabled to maintain campaign integrity
+  // Once Meta is connected, users cannot disconnect as it breaks campaign logic
 
   const onAddPayment = useCallback(() => {
     if (!enabled || !summary?.adAccount?.id) return
@@ -312,16 +298,9 @@ export function MetaConnectCard() {
             </p>
           </div>
           {(summary?.status === 'connected' || summary?.status === 'selected_assets' || summary?.business?.id || summary?.page?.id || summary?.adAccount?.id) ? (
-            <Button 
-              size="sm" 
-              type="button" 
-              disabled={!enabled || loading} 
-              onClick={onDisconnect} 
-              variant="outline"
-              className="h-8 px-4"
-            >
-              Disconnect
-            </Button>
+            <div className="h-8 px-4 flex items-center text-xs font-medium text-green-700 dark:text-green-400">
+              Connected
+            </div>
           ) : (
             <Button 
               size="sm" 

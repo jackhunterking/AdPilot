@@ -14,7 +14,7 @@ import { metaStorage } from '@/lib/meta/storage'
 import { metaLogger } from '@/lib/meta/logger'
 import { buildBusinessLoginUrl, generateRandomState } from '@/lib/meta/login'
 import { getAdAccountBillingUrl } from '@/lib/meta/payment-urls'
-import { emitMetaConnectionChange, emitMetaDisconnection, emitMetaPaymentUpdate } from '@/lib/utils/meta-events'
+import { emitMetaPaymentUpdate } from '@/lib/utils/meta-events'
 import type { SelectionSummaryDTO } from '@/lib/meta/types'
 
 export type PaymentActionStatus = 'idle' | 'opening' | 'processing' | 'error' | 'success'
@@ -23,7 +23,6 @@ export function useMetaActions() {
   const { campaign } = useCampaignContext()
   const [paymentStatus, setPaymentStatus] = useState<PaymentActionStatus>('idle')
   const [isConnecting, setIsConnecting] = useState(false)
-  const [isDisconnecting, setIsDisconnecting] = useState(false)
 
   /**
    * Get current connection summary from localStorage
@@ -117,52 +116,9 @@ export function useMetaActions() {
   }, [campaign?.id])
 
   /**
-   * Disconnect Meta account
+   * Meta disconnection is disabled to maintain campaign integrity
+   * Once Meta is connected, it cannot be disconnected as it would break campaign logic
    */
-  const disconnect = useCallback(async () => {
-    if (!campaign?.id) {
-      metaLogger.error('useMetaActions', 'Cannot disconnect - no campaign ID', new Error('Missing campaign ID'))
-      return false
-    }
-
-    const confirmed = window.confirm(
-      'Are you sure you want to disconnect your Meta account?\n\n' +
-      'This will remove all connected business, page, and ad account information. ' +
-      'You will need to reconnect before publishing ads.'
-    )
-
-    if (!confirmed) {
-      return false
-    }
-
-    setIsDisconnecting(true)
-    try {
-      metaLogger.info('useMetaActions', 'Disconnecting Meta account', {
-        campaignId: campaign.id,
-      })
-
-      // Clear all Meta data from localStorage
-      metaStorage.clearAllData(campaign.id)
-
-      metaLogger.info('useMetaActions', 'Meta account disconnected successfully', {
-        campaignId: campaign.id,
-      })
-
-      // Emit disconnection event AFTER localStorage is cleared
-      emitMetaDisconnection(campaign.id)
-      emitMetaConnectionChange(campaign.id, 'disconnected')
-
-      return true
-    } catch (error) {
-      metaLogger.error('useMetaActions', 'Error disconnecting', error as Error, {
-        campaignId: campaign.id,
-      })
-      window.alert('Failed to disconnect Meta account. Please try again.')
-      return false
-    } finally {
-      setIsDisconnecting(false)
-    }
-  }, [campaign?.id])
 
   /**
    * Open Facebook billing page to add payment method
@@ -252,14 +208,12 @@ export function useMetaActions() {
 
   return {
     connect,
-    disconnect,
     addPayment,
     verifyPayment,
     getSummary,
     paymentStatus,
     setPaymentStatus,
     isConnecting,
-    isDisconnecting,
   }
 }
 

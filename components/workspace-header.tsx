@@ -146,16 +146,8 @@ export function WorkspaceHeader({
     }
   }
   
-  // Handle disconnect with refresh
-  const handleDisconnect = async () => {
-    const success = await metaActions.disconnect()
-    if (success) {
-      // Reset payment verification ref so it can re-verify on reconnect
-      paymentVerifiedRef.current = false
-      await refreshStatus()
-      onMetaConnect?.()
-    }
-  }
+  // Meta disconnection is disabled to maintain campaign integrity
+  // Once Meta is connected, users cannot disconnect as it breaks campaign logic
 
   // Handle add payment with refresh
   const handleAddPayment = () => {
@@ -408,10 +400,7 @@ export function WorkspaceHeader({
               </DropdownMenuItem>
             )}
             
-            <DropdownMenuItem onClick={handleDisconnect} variant="destructive">
-              <AlertCircle className="h-4 w-4 mr-2" />
-              Disconnect
-            </DropdownMenuItem>
+            {/* Meta disconnection disabled - once connected, cannot be disconnected to maintain campaign integrity */}
           </DropdownMenuContent>
         </DropdownMenu>
       )
