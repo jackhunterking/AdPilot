@@ -71,7 +71,6 @@ export function ResultsPanel({ isEnabled }: ResultsPanelProps) {
   const [range, setRange] = useState<MetricsRangeKey>("7d")
   const [metrics, setMetrics] = useState<CampaignMetricsSnapshot | null>(null)
   const [loading, setLoading] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null)
 
@@ -99,7 +98,6 @@ export function ResultsPanel({ isEnabled }: ResultsPanelProps) {
 
   const refreshMetrics = useCallback(async () => {
     if (!campaignId) return
-    setRefreshing(true)
     setError(null)
     try {
       const res = await fetch(`/api/meta/metrics/refresh`, {
@@ -116,8 +114,6 @@ export function ResultsPanel({ isEnabled }: ResultsPanelProps) {
     } catch (err) {
       console.error("[ResultsPanel] refresh error", err)
       setError(err instanceof Error ? err.message : "Failed to refresh metrics")
-    } finally {
-      setRefreshing(false)
     }
   }, [campaignId, range])
 
@@ -162,9 +158,6 @@ export function ResultsPanel({ isEnabled }: ResultsPanelProps) {
               ))}
             </SelectContent>
           </Select>
-          <Button size="sm" variant="outline" onClick={refreshMetrics} disabled={refreshing}>
-            {refreshing ? "Refreshing…" : "Refresh metrics"}
-          </Button>
         </div>
       </div>
       <div className="flex-1 overflow-auto p-6 space-y-6">
