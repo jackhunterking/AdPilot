@@ -184,7 +184,7 @@ export function MetaInstantFormPreview({
               <IntroPageVisual
                 logoUrl={form.pageProfilePicture}
                 businessName={pageName}
-                headline={form.introHeadline || 'Lead Form'}
+                headline={form.introHeadline}
                 description={form.introDescription}
                 initials={initials}
               />

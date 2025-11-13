@@ -21,7 +21,7 @@ interface IntroPageVisualProps {
 export function IntroPageVisual({
   logoUrl,
   businessName = 'RenoAssist',
-  headline = 'Welcome to Your Ad Setup',
+  headline,
   description,
   initials = 'RA',
 }: IntroPageVisualProps) {
@@ -29,15 +29,19 @@ export function IntroPageVisual({
     <div className="flex-1 flex flex-col items-center justify-center px-6">
       {/* Visual Identity Section */}
       <div className="relative mb-8">
-        {/* Rectangle Base */}
-        <div
-          className="relative w-[280px] h-[70px] rounded-xl"
-          style={{ backgroundColor: '#F0F2F5' }}
-        />
+        {/* Business Page Name - Above everything */}
+        <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-full">
+          <p
+            className="text-xs font-semibold uppercase tracking-wide text-center"
+            style={{ color: '#A1A1A1' }}
+          >
+            {businessName}
+          </p>
+        </div>
 
         {/* Overlapping Circle with Logo */}
         <div
-          className="absolute left-1/2 -translate-x-1/2 -top-[48px] w-24 h-24 rounded-full bg-white shadow-lg flex items-center justify-center overflow-hidden"
+          className="absolute left-1/2 -translate-x-1/2 -top-[40px] w-20 h-20 rounded-full bg-white shadow-lg flex items-center justify-center overflow-hidden z-10"
         >
           {logoUrl ? (
             <img
@@ -47,41 +51,33 @@ export function IntroPageVisual({
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400 to-blue-600">
-              <span className="text-white text-2xl font-bold">
+              <span className="text-white text-xl font-bold">
                 {initials}
               </span>
             </div>
           )}
         </div>
-      </div>
 
-      {/* Text Section */}
-      <div className="text-center space-y-2 max-w-[280px]">
-        {/* Business Page Name */}
-        <p
-          className="text-xs font-semibold uppercase tracking-wide"
-          style={{ color: '#A1A1A1' }}
+        {/* White Rectangle Box with Text Inside */}
+        <div
+          className="relative w-[280px] min-h-[140px] rounded-md bg-white shadow-sm flex flex-col items-center justify-center px-6 py-8 pt-12"
         >
-          {businessName}
-        </p>
-
-        {/* Intro Headline */}
-        <h3
-          className="text-2xl font-bold leading-tight"
-          style={{ color: '#050505' }}
-        >
-          {headline}
-        </h3>
-
-        {/* Intro Description */}
-        {description && (
-          <p
-            className="text-sm leading-relaxed pt-1"
-            style={{ color: '#65676B' }}
+          {/* Intro Headline */}
+          <h3
+            className="text-xl font-bold leading-tight text-center mb-2"
+            style={{ color: headline ? '#050505' : '#9CA3AF' }}
           >
-            {description}
+            {headline || 'Enter headline'}
+          </h3>
+
+          {/* Intro Description */}
+          <p
+            className="text-sm leading-relaxed text-center"
+            style={{ color: description ? '#65676B' : '#D1D5DB' }}
+          >
+            {description || 'Enter description'}
           </p>
-        )}
+        </div>
       </div>
     </div>
   )

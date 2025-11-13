@@ -256,6 +256,8 @@ export async function POST(req: NextRequest) {
           privacyPolicy?: { url?: string; link_text?: string }
           questions?: Array<{ type?: string }>
           thankYouPage?: { title?: string; body?: string; button_text?: string; button_type?: string; website_url?: string }
+          introHeadline?: string
+          introDescription?: string
           pageId?: string
           pageAccessToken?: string
         })
@@ -322,6 +324,8 @@ export async function POST(req: NextRequest) {
       }
       return t
     })()
+    const introHeadline = typeof b.introHeadline === 'string' ? b.introHeadline.trim() : ''
+    const introDescription = typeof b.introDescription === 'string' ? b.introDescription.trim() : ''
 
     if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 })
     const ppUrl = typeof privacyPolicy.url === 'string' ? privacyPolicy.url : ''
@@ -336,6 +340,16 @@ export async function POST(req: NextRequest) {
     payload.set('privacy_policy', JSON.stringify({ url: ppUrl, link_text: ppText }))
     if (questions.length > 0) payload.set('questions', JSON.stringify(questions))
     if (Object.keys(thankYouPage).length > 0) payload.set('thank_you_page', JSON.stringify(thankYouPage))
+    
+    // Add context_card (intro page) if headline or description provided
+    if (introHeadline || introDescription) {
+      const contextCard: Record<string, unknown> = {
+        style: 'PARAGRAPH_STYLE'
+      }
+      if (introHeadline) contextCard.title = introHeadline
+      if (introDescription) contextCard.content = [introDescription]
+      payload.set('context_card', JSON.stringify(contextCard))
+    }
 
     const res = await fetch(url, {
       method: 'POST',

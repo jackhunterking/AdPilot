@@ -12,6 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { useCampaignContext } from "@/lib/context/campaign-context"
@@ -24,6 +25,10 @@ interface FieldDef { id: string; type: "full_name" | "email" | "phone"; label: s
 interface LeadFormCreateProps {
   formName: string
   onFormNameChange: (v: string) => void
+  introHeadline: string
+  onIntroHeadlineChange: (v: string) => void
+  introDescription: string
+  onIntroDescriptionChange: (v: string) => void
   privacyUrl: string
   onPrivacyUrlChange: (v: string) => void
   privacyLinkText: string
@@ -45,6 +50,10 @@ interface LeadFormCreateProps {
 export function LeadFormCreate({
   formName,
   onFormNameChange,
+  introHeadline,
+  onIntroHeadlineChange,
+  introDescription,
+  onIntroDescriptionChange,
   privacyUrl,
   onPrivacyUrlChange,
   privacyLinkText,
@@ -75,6 +84,7 @@ export function LeadFormCreate({
 
   // Collapsible section states
   const [formNameOpen, setFormNameOpen] = useState<boolean>(true)
+  const [introOpen, setIntroOpen] = useState<boolean>(true)
   const [fieldsOpen, setFieldsOpen] = useState<boolean>(true)
   const [privacyOpen, setPrivacyOpen] = useState<boolean>(false)
   const [thankYouOpen, setThankYouOpen] = useState<boolean>(false)
@@ -90,6 +100,10 @@ export function LeadFormCreate({
   const errors = useMemo(() => {
     const e: Record<string, string> = {}
     if (!formName || formName.trim().length < 3) e.formName = "Form name must be at least 3 characters"
+    if (!introHeadline || introHeadline.trim().length < 3) e.introHeadline = "Intro headline is required (at least 3 characters)"
+    else if (introHeadline.length > 60) e.introHeadline = "Headline must be 60 characters or fewer"
+    if (!introDescription || introDescription.trim().length < 3) e.introDescription = "Intro description is required (at least 3 characters)"
+    else if (introDescription.length > 200) e.introDescription = "Description must be 200 characters or fewer"
     if (!privacyUrl) e.privacyUrl = "Privacy policy URL is required"
     else if (!privacyUrl.startsWith("https://")) e.privacyUrl = "Privacy policy URL must start with https://"
     if (!privacyLinkText || privacyLinkText.trim().length < 3) e.privacyLinkText = "Link text must be at least 3 characters"
@@ -98,7 +112,7 @@ export function LeadFormCreate({
     if (!thankYouButtonUrl) e.thankYouButtonUrl = "Website link URL is required"
     else if (!thankYouButtonUrl.startsWith("https://")) e.thankYouButtonUrl = "Website link URL must start with https://"
     return e
-  }, [formName, privacyUrl, privacyLinkText, thankYouButtonText, thankYouButtonUrl])
+  }, [formName, introHeadline, introDescription, privacyUrl, privacyLinkText, thankYouButtonText, thankYouButtonUrl])
 
   const toggleRequired = (id: string) => {
     // Prevent toggling required fields (full_name, email, phone)
@@ -157,6 +171,8 @@ export function LeadFormCreate({
       pageId: connection?.selected_page_id,
       pageAccessToken: connection?.selected_page_access_token,
       name: formName,
+      introHeadline,
+      introDescription,
       privacyPolicy: { url: privacyUrl, link_text: privacyLinkText },
       questions: [{ type: "FULL_NAME" }, { type: "EMAIL" }, { type: "PHONE" }],
       thankYouPage: {
@@ -234,6 +250,55 @@ export function LeadFormCreate({
                   <Input value={formName} onChange={(e) => onFormNameChange(e.target.value)} placeholder="Lead Form" className="h-10" />
                   {errors.formName && <p className="text-xs text-amber-600 mt-1">{errors.formName}</p>}
                 </div>
+              </div>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+
+        {/* Intro Section */}
+        <Collapsible open={introOpen} onOpenChange={setIntroOpen}>
+          <Card className="overflow-hidden">
+            <CollapsibleTrigger className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors">
+              <span className="font-semibold">Intro</span>
+              <ChevronDown className={cn("h-5 w-5 transition-transform", introOpen && "rotate-180")} />
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="p-4 pt-4 space-y-4 border-t">
+                <div>
+                  <Label className="mb-2 block">Headline <span className="text-destructive">*</span></Label>
+                  <Input 
+                    value={introHeadline} 
+                    onChange={(e) => onIntroHeadlineChange(e.target.value)} 
+                    placeholder="Enter headline" 
+                    maxLength={60}
+                    className="h-10" 
+                  />
+                  <div className="flex items-center justify-between mt-1">
+                    {errors.introHeadline && <p className="text-xs text-destructive">{errors.introHeadline}</p>}
+                    <p className="text-xs text-muted-foreground ml-auto">{introHeadline.length}/60</p>
+                  </div>
+                </div>
+                <div>
+                  <Label className="mb-2 block">Description <span className="text-destructive">*</span></Label>
+                  <Textarea 
+                    value={introDescription} 
+                    onChange={(e) => onIntroDescriptionChange(e.target.value)} 
+                    placeholder="Include additional details" 
+                    maxLength={200}
+                    rows={4}
+                    className="resize-none" 
+                  />
+                  <div className="flex items-center justify-between mt-1">
+                    {errors.introDescription && <p className="text-xs text-destructive">{errors.introDescription}</p>}
+                    <p className="text-xs text-muted-foreground ml-auto">{introDescription.length}/200</p>
+                  </div>
+                </div>
+                <Card className="p-3 bg-blue-50 border-blue-200">
+                  <div className="flex items-start gap-2">
+                    <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-blue-900">This will be shown on the first screen of your form</p>
+                  </div>
+                </Card>
               </div>
             </CollapsibleContent>
           </Card>

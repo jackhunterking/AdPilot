@@ -69,6 +69,10 @@ export function LeadFormSetup({ onFormSelected }: LeadFormSetupProps) {
     { id: "phone", type: "phone", label: "Phone Number", required: true },
   ])
 
+  // Intro page state
+  const [introHeadline, setIntroHeadline] = useState<string>("")
+  const [introDescription, setIntroDescription] = useState<string>("")
+
   // Thank you page state is lifted here so it persists when switching tabs
   const [thankYouTitle, setThankYouTitle] = useState<string>("Thanks for your interest!")
   const [thankYouMessage, setThankYouMessage] = useState<string>("We'll contact you within 24 hours")
@@ -132,6 +136,8 @@ export function LeadFormSetup({ onFormSelected }: LeadFormSetupProps) {
     const form = mapBuilderStateToMetaForm(
       {
         formName,
+        introHeadline,
+        introDescription,
         privacyUrl,
         privacyLinkText,
         fields,
@@ -153,6 +159,8 @@ export function LeadFormSetup({ onFormSelected }: LeadFormSetupProps) {
     return form
   }, [
     formName,
+    introHeadline,
+    introDescription,
     privacyUrl,
     privacyLinkText,
     fields,
@@ -255,6 +263,10 @@ export function LeadFormSetup({ onFormSelected }: LeadFormSetupProps) {
                 <LeadFormCreate
                   formName={formName}
                   onFormNameChange={setFormName}
+                  introHeadline={introHeadline}
+                  onIntroHeadlineChange={setIntroHeadline}
+                  introDescription={introDescription}
+                  onIntroDescriptionChange={setIntroDescription}
                   privacyUrl={privacyUrl}
                   onPrivacyUrlChange={setPrivacyUrl}
                   privacyLinkText={privacyLinkText}

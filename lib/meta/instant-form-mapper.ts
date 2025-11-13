@@ -100,6 +100,7 @@ export function mapGraphAPIFormToMetaForm(
     pageName: pageData?.pageName,
     pageProfilePicture: pageData?.pageProfilePicture,
     introHeadline: graphForm.name || 'Headline text',
+    introDescription: undefined,
   }
 }
 
@@ -116,6 +117,8 @@ export interface BuilderState {
     label: string
     required: boolean
   }>
+  introHeadline?: string
+  introDescription?: string
   thankYouTitle?: string
   thankYouMessage?: string
   thankYouButtonText?: string
@@ -166,7 +169,8 @@ export function mapBuilderStateToMetaForm(
     pageId: pageData?.pageId,
     pageName: pageData?.pageName,
     pageProfilePicture: pageData?.pageProfilePicture,
-    introHeadline: state.formName,
+    introHeadline: state.introHeadline,
+    introDescription: state.introDescription,
   }
 }
 

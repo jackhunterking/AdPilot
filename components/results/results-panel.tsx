@@ -17,6 +17,7 @@ import { useCampaignContext } from "@/lib/context/campaign-context"
 import { KPIMetricsTable } from "@/components/results/kpi-metrics-table"
 import { LeadsTable } from "@/components/results/leads-table"
 import { CampaignEditor } from "@/components/results/campaign-editor"
+import { UnpublishedWarningBanner } from "@/components/results/unpublished-warning-banner"
 import { type CampaignMetricsSnapshot, type MetricsRangeKey } from "@/lib/meta/insights"
 import type { KPIMetricsRow } from "@/lib/types/workspace"
 
@@ -122,25 +123,12 @@ export function ResultsPanel({ isEnabled }: ResultsPanelProps) {
   }, [campaignId, range])
 
   useEffect(() => {
-    if (!isEnabled || !campaignId) return
-    loadMetrics(range)
+    if (!campaignId) return
+    // Only fetch metrics if the campaign is published (isEnabled)
+    if (isEnabled) {
+      loadMetrics(range)
+    }
   }, [campaignId, isEnabled, loadMetrics, range])
-
-  if (!isEnabled) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 p-12 text-center">
-        <Badge variant="outline" className="px-3 py-1 text-xs uppercase tracking-wide">
-          Results locked
-        </Badge>
-        <div className="max-w-md space-y-2">
-          <h2 className="text-2xl font-semibold">Publish your campaign to see results</h2>
-          <p className="text-muted-foreground">
-            Once you launch your campaign, this space will show how many people you reach, how much you spend, and plain-language tips from your AI co-pilot.
-          </p>
-        </div>
-      </div>
-    )
-  }
 
   if (!campaignId) {
     return (
@@ -159,7 +147,7 @@ export function ResultsPanel({ isEnabled }: ResultsPanelProps) {
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">Results</h2>
           <p className="text-sm text-muted-foreground">
-            Comprehensive performance metrics for your campaign.
+            View performance metrics and manage your campaign results.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -181,6 +169,9 @@ export function ResultsPanel({ isEnabled }: ResultsPanelProps) {
         </div>
       </div>
       <div className="flex-1 overflow-auto p-6 space-y-6">
+        {/* Warning banner for unpublished campaigns */}
+        {!isEnabled && <UnpublishedWarningBanner />}
+
         {/* KPI Metrics Table */}
         <KPIMetricsTable
           metrics={kpiMetrics}
