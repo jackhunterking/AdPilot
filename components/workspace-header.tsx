@@ -11,7 +11,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Plus, Facebook, DollarSign, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Rocket, Loader2, Save, Flag, ArrowRight, Settings, Instagram } from "lucide-react"
+import { ArrowLeft, Plus, Facebook, AlertCircle, CheckCircle2, ChevronDown, Building2, CreditCard, Rocket, Loader2, Save, ArrowRight, Settings } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +20,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import type { WorkspaceHeaderProps } from "@/lib/types/workspace"
 import { useState, useEffect, useRef } from "react"
@@ -34,18 +33,8 @@ import { metaStorage } from "@/lib/meta/storage"
 import { metaLogger } from "@/lib/meta/logger"
 import { toast } from "sonner"
 import { emitMetaConnectionUpdated } from "@/lib/utils/meta-events"
+import { SettingsModal } from "@/components/settings-modal"
 
-// Meta Account Status Constants (from Graph API docs)
-const META_ACCOUNT_STATUS = {
-  ACTIVE: 1,
-  DISABLED: 2,
-  UNSETTLED: 3,
-  PENDING_RISK_REVIEW: 7,
-  PENDING_SETTLEMENT: 8,
-  IN_GRACE_PERIOD: 9,
-  PENDING_CLOSURE: 100,
-  CLOSED: 101,
-} as const
 
 export function WorkspaceHeader({
   mode,
@@ -55,7 +44,6 @@ export function WorkspaceHeader({
   showNewAdButton,
   campaignStatus,
   abTestInfo,
-  totalAds,
   metaConnectionStatus: propsMetaStatus = 'disconnected',
   paymentStatus: propsPaymentStatus = 'unknown',
   campaignBudget,
@@ -63,8 +51,6 @@ export function WorkspaceHeader({
   onBudgetUpdate,
   onSave,
   isSaveDisabled = false,
-  onCreateAd,
-  isCreateAdDisabled = false,
   // NEW PROPS
   currentStepId,
   isPublishReady = false,
@@ -82,15 +68,9 @@ export function WorkspaceHeader({
   const [showBudgetDialog, setShowBudgetDialog] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
   const metaActions = useMetaActions()
-  const { metaStatus: hookMetaStatus, paymentStatus: hookPaymentStatus, refreshStatus } = useMetaConnection()
+  const { metaStatus: hookMetaStatus, paymentStatus: hookPaymentStatus } = useMetaConnection()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [isSettingsDropdownOpen, setIsSettingsDropdownOpen] = useState(false)
-  const paymentVerifiedRef = useRef(false)
-  const [accountRestriction, setAccountRestriction] = useState<{
-    isRestricted: boolean
-    accountStatus?: number
-    disableReason?: string
-  } | null>(null)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
   
   // Use real-time hook status, fallback to props for SSR/initial render
   const metaConnectionStatus = hookMetaStatus || propsMetaStatus
@@ -282,263 +262,7 @@ export function WorkspaceHeader({
     }
   }, [metaConnectionStatus, onMetaConnect])
 
-  const getMetaConnectionBadge = () => {
-    // Connected state - show dropdown
-    if (isConnected) {
-      // Determine button text based on restriction and payment status
-      let buttonText = 'Meta Connected'
-      if (accountRestriction?.isRestricted) {
-        buttonText = 'Account Restricted'
-      } else if (paymentStatus === 'flagged') {
-        buttonText = 'Account Issue'
-      } else if (paymentStatus === 'missing') {
-        buttonText = 'Payment Required'
-      }
-      
-      return (
-        <DropdownMenu open={!badgesReadOnly && isDropdownOpen} onOpenChange={badgesReadOnly ? undefined : setIsDropdownOpen}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={badgesReadOnly ? (e) => e.preventDefault() : undefined}
-              className={cn(
-                "gap-2",
-                paymentStatus === 'verified' && !accountRestriction?.isRestricted
-                  ? badgesReadOnly
-                    ? "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400 cursor-default opacity-90"
-                    : "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400 hover:bg-green-500/20"
-                  : "bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400 hover:bg-red-500/20"
-              )}
-              title={badgesReadOnly ? "Meta account is locked for this campaign" : undefined}
-            >
-              {paymentStatus === 'verified' && !accountRestriction?.isRestricted ? (
-                <CheckCircle2 className="h-4 w-4" />
-              ) : (
-                <AlertCircle className="h-4 w-4" />
-              )}
-              {buttonText}
-              {!badgesReadOnly && <ChevronDown className="h-3 w-3 opacity-50" />}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-72">
-            <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
-              Connected Accounts
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            
-            {summary?.business && (
-              <div className="px-2 py-2 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Building2 className="h-3.5 w-3.5" />
-                  <span className="text-xs">Business</span>
-                </div>
-                <div className="font-medium text-xs ml-5">
-                  {summary.business.name || summary.business.id}
-                </div>
-              </div>
-            )}
-            
-            {summary?.page && (
-              <div className="px-2 py-2 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Facebook className="h-3.5 w-3.5" />
-                  <span className="text-xs">Facebook Page</span>
-                </div>
-                <div className="font-medium text-xs ml-5">
-                  {summary.page.name || summary.page.id}
-                </div>
-              </div>
-            )}
-            
-            {summary?.instagram && (
-              <div className="px-2 py-2 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <Facebook className="h-3.5 w-3.5" />
-                  <span className="text-xs">Instagram</span>
-                </div>
-                <div className="font-medium text-xs ml-5">
-                  @{summary.instagram.username || summary.instagram.id}
-                </div>
-              </div>
-            )}
-            
-            {summary?.adAccount && (
-              <div className="px-2 py-2 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                  <CreditCard className="h-3.5 w-3.5" />
-                  <span className="text-xs">Ad Account</span>
-                </div>
-                <div className="font-medium text-xs ml-5">
-                  {summary.adAccount.name || summary.adAccount.id}
-                </div>
-              </div>
-            )}
-            
-            <DropdownMenuSeparator />
-            
-            {/* Show restriction notice if account is restricted */}
-            {accountRestriction?.isRestricted && (
-              <>
-                <div className="px-2 py-3 text-sm">
-                  <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
-                    <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-red-900 dark:text-red-100 text-xs mb-1">
-                        Account Restricted
-                      </p>
-                      <p className="text-xs text-red-700 dark:text-red-300 mb-2">
-                        {accountRestriction.disableReason || 'This account has been disabled by Meta'}
-                      </p>
-                      <p className="text-xs text-red-600 dark:text-red-400">
-                        Visit Facebook Business Manager to request a review
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <DropdownMenuSeparator />
-              </>
-            )}
-            
-            {/* Only show Add Payment if NOT restricted (payment won't help with restriction) */}
-            {hasPaymentIssue && !accountRestriction?.isRestricted && (
-              <DropdownMenuItem onClick={handleAddPayment}>
-                <CreditCard className="h-4 w-4 mr-2" />
-                Add Payment
-              </DropdownMenuItem>
-            )}
-            
-            {/* Meta disconnection disabled - once connected, cannot be disconnected to maintain campaign integrity */}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
-    }
-    
-    // Error state
-    if (metaConnectionStatus === 'error' || hasPaymentIssue) {
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleConnectClick}
-          disabled={isConnecting}
-          className="gap-2 bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-400 hover:bg-red-500/20"
-        >
-          {isConnecting ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Connecting...
-            </>
-          ) : (
-            <>
-              <AlertCircle className="h-4 w-4" />
-              Meta Issue
-            </>
-          )}
-        </Button>
-      )
-    }
-    
-    // Disconnected state - show connect button
-    return (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleConnectClick}
-        disabled={isConnecting}
-        className="gap-2"
-      >
-        {isConnecting ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Connecting...
-          </>
-        ) : (
-          <>
-            <Facebook className="h-4 w-4" />
-            Connect Meta
-          </>
-        )}
-      </Button>
-    )
-  }
 
-  const hasConfirmedBudget = typeof campaignBudget === 'number' && campaignBudget > 0
-  const confirmedDailyBudget = hasConfirmedBudget
-    ? Math.max(0, Math.round((campaignBudget ?? 0) / 30))
-    : null
-
-  const getBudgetBadge = () => {
-    const hasBudget = hasConfirmedBudget && confirmedDailyBudget && confirmedDailyBudget > 0
-    const isDisabled = metaConnectionStatus !== 'connected' || paymentStatus !== 'verified'
-    
-    // Budget set state - green badge with checkmark and amount
-    if (hasBudget) {
-      const dailyAmount = formatCurrency(confirmedDailyBudget)
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={badgesReadOnly ? undefined : () => setShowBudgetDialog(true)}
-          disabled={isDisabled}
-          className={cn(
-            "gap-2",
-            isDisabled 
-              ? "opacity-60 cursor-not-allowed" 
-              : badgesReadOnly
-              ? "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400 cursor-default opacity-90"
-              : "bg-green-500/10 border-green-500/30 text-green-700 dark:text-green-400 hover:bg-green-500/20"
-          )}
-          title={badgesReadOnly ? "Budget is locked for this campaign" : "Click to change budget"}
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          Budget Set • {dailyAmount}/day
-        </Button>
-      )
-    }
-    
-    // Budget not set state - neutral button
-    return (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={badgesReadOnly ? undefined : () => setShowBudgetDialog(true)}
-        disabled={isDisabled}
-        className={cn(
-          "gap-2",
-          isDisabled && "opacity-60 cursor-not-allowed",
-          badgesReadOnly && "cursor-default opacity-80"
-        )}
-        title={badgesReadOnly ? "Budget is locked for this campaign" : undefined}
-      >
-        <DollarSign className="h-4 w-4" />
-        Set Budget
-      </Button>
-    )
-  }
-
-  const getGoalBadge = () => {
-    // Get goal from campaign's initial_goal or campaign_states.goal_data
-    const campaignGoal = campaign?.initial_goal || 
-      (campaign?.campaign_states as { goal_data?: { selectedGoal?: string } } | null | undefined)?.goal_data?.selectedGoal
-    
-    if (!campaignGoal) return null
-    
-    const goalLabels: Record<string, string> = {
-      'leads': 'Leads',
-      'website-visits': 'Website Visits',
-      'calls': 'Calls',
-    }
-    
-    const goalLabel = goalLabels[campaignGoal] || campaignGoal
-    
-    return (
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card text-sm font-medium">
-        <Flag className="h-4 w-4" />
-        Goal: {goalLabel}
-      </div>
-    )
-  }
 
   // Determine status badge
   const getStatusBadge = () => {
@@ -588,127 +312,6 @@ export function WorkspaceHeader({
 
   const statusBadge = getStatusBadge()
 
-  // Render Settings Dropdown with Meta Connection
-  const getSettingsDropdown = () => {
-    return (
-      <DropdownMenu open={isSettingsDropdownOpen} onOpenChange={setIsSettingsDropdownOpen}>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0"
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-72">
-          <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
-            Campaign Settings
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          
-          {/* Meta Connection Section */}
-          {isConnected ? (
-            <>
-              <div className="px-2 py-2">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Facebook className="h-4 w-4" />
-                    <Instagram className="h-4 w-4" />
-                    <span className="text-sm font-medium">Meta Connection</span>
-                  </div>
-                  {paymentStatus === 'verified' && !accountRestriction?.isRestricted ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <AlertCircle className="h-4 w-4 text-red-600" />
-                  )}
-                </div>
-                
-                {summary?.business && (
-                  <div className="ml-4 py-1 text-xs">
-                    <div className="text-muted-foreground">Business</div>
-                    <div className="font-medium">{summary.business.name || summary.business.id}</div>
-                  </div>
-                )}
-                
-                {summary?.page && (
-                  <div className="ml-4 py-1 text-xs">
-                    <div className="text-muted-foreground">Facebook Page</div>
-                    <div className="font-medium">{summary.page.name || summary.page.id}</div>
-                  </div>
-                )}
-                
-                {summary?.instagram && (
-                  <div className="ml-4 py-1 text-xs">
-                    <div className="text-muted-foreground">Instagram</div>
-                    <div className="font-medium">@{summary.instagram.username || summary.instagram.id}</div>
-                  </div>
-                )}
-                
-                {summary?.adAccount && (
-                  <div className="ml-4 py-1 text-xs">
-                    <div className="text-muted-foreground">Ad Account</div>
-                    <div className="font-medium">{summary.adAccount.name || summary.adAccount.id}</div>
-                  </div>
-                )}
-              </div>
-              
-              {/* Show restriction notice if account is restricted */}
-              {accountRestriction?.isRestricted && (
-                <>
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-3 text-sm">
-                    <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
-                      <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-semibold text-red-900 dark:text-red-100 text-xs mb-1">
-                          Account Restricted
-                        </p>
-                        <p className="text-xs text-red-700 dark:text-red-300 mb-2">
-                          {accountRestriction.disableReason || 'This account has been disabled by Meta'}
-                        </p>
-                        <p className="text-xs text-red-600 dark:text-red-400">
-                          Visit Facebook Business Manager to request a review
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-              
-              {/* Add Payment option if needed */}
-              {hasPaymentIssue && !accountRestriction?.isRestricted && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleAddPayment}>
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Add Payment Method
-                  </DropdownMenuItem>
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              <DropdownMenuItem onClick={handleConnectClick} disabled={isConnecting}>
-                {isConnecting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Connecting...
-                  </>
-                ) : (
-                  <>
-                    <Facebook className="h-4 w-4 mr-2" />
-                    <Instagram className="h-4 w-4 mr-2" />
-                    Connect Meta
-                  </>
-                )}
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    )
-  }
 
   return (
     <>
@@ -716,9 +319,13 @@ export function WorkspaceHeader({
         "flex items-center justify-between gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-3 flex-shrink-0",
         className
       )}>
-        {/* Left: Back Button + Meta/Budget Pills */}
+        {/* Left: Back Button or "All Ads" Tab */}
         <div className="flex items-center gap-4">
-          {shouldShowBack && onBack && (
+          {mode === 'all-ads' ? (
+            <div className="px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium text-sm">
+              All Ads
+            </div>
+          ) : shouldShowBack && onBack ? (
             <Button
               variant="outline"
               size="sm"
@@ -728,24 +335,25 @@ export function WorkspaceHeader({
               <ArrowLeft className="h-4 w-4" />
               {getBackButtonText()}
             </Button>
-          )}
-          
-          {/* Goal + Budget Pills (visible in build, edit, results, and all-ads modes) */}
-          {/* Note: Meta Connection is now only in the dropdown menu, not in header pills */}
-          {(mode === 'build' || mode === 'edit' || mode === 'results' || mode === 'all-ads') && (
-            <div className="flex items-center gap-2">
-              {getGoalBadge()}
-              {getBudgetBadge()}
-            </div>
-          )}
+          ) : null}
         </div>
 
-        {/* Right: Status Badge, Settings Dropdown, Action Buttons */}
+        {/* Right: Status Badge, Settings Button, Action Buttons */}
         <div className="flex items-center gap-4">
           {statusBadge}
           
-          {/* Settings Dropdown with Meta Connection */}
-          {(mode === 'build' || mode === 'edit' || mode === 'results' || mode === 'all-ads') && getSettingsDropdown()}
+          {/* Settings Button */}
+          {(mode === 'build' || mode === 'edit' || mode === 'results' || mode === 'all-ads') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSettingsModal(true)}
+              className="h-8 w-8 p-0"
+              title="Campaign Settings"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          )}
           
           {/* Build mode - Final step: Save Draft + Publish */}
           {mode === 'build' && isOnFinalStep && onSaveDraft && onPublish && (
@@ -924,6 +532,13 @@ export function WorkspaceHeader({
             throw error // Re-throw so dialog can show error state
           }
         }}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        open={showSettingsModal}
+        onOpenChange={setShowSettingsModal}
+        onBudgetUpdate={onBudgetUpdate}
       />
 
     </>

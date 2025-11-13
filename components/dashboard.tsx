@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import AiChat from "./ai-chat"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ArrowLeft, Edit, Moon, Sun, Check, PanelLeftClose, PanelLeftOpen, Facebook, Instagram, AlertCircle } from "lucide-react"
+import { ChevronDown, ArrowLeft, Edit, Moon, Sun, Check, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { COMPANY_NAME } from "@/lib/constants"
 import { useTheme } from "next-themes"
 import {
@@ -16,17 +16,13 @@ import {
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
-  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu"
 import { UIMessage } from "ai"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { SaveIndicator } from "./save-indicator"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CampaignWorkspace } from "@/components/campaign-workspace"
 import { MetaConnectionModal } from "@/components/meta/meta-connection-modal"
-import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
-import { useMetaActions } from "@/lib/hooks/use-meta-actions"
-import { Building2, CreditCard } from "lucide-react"
 // Removed local heuristic name suggestion; naming is AI-driven on server
 
 interface DashboardProps {
@@ -54,9 +50,6 @@ export function Dashboard({
   const dailyCredits = 500
   const { setTheme, resolvedTheme } = useTheme()
   const { campaign, updateCampaign } = useCampaignContext()
-  const { metaStatus, paymentStatus } = useMetaConnection()
-  const metaActions = useMetaActions()
-  const [isConnecting, setIsConnecting] = useState(false)
   
   // Chat collapse state with localStorage persistence
   const [isChatCollapsed, setIsChatCollapsed] = useState(false)
@@ -235,97 +228,6 @@ export function Dashboard({
                           </DropdownMenuItem>
                         </DropdownMenuSubContent>
                       </DropdownMenuSub>
-                      <DropdownMenuSeparator />
-                      
-                      {/* Meta Connection Section */}
-                      {metaStatus === 'connected' ? (
-                        <>
-                          <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
-                            Meta Connection
-                          </DropdownMenuLabel>
-                          <div className="px-2 py-2">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <Facebook className="h-4 w-4" />
-                                <Instagram className="h-4 w-4" />
-                                <span className="text-sm font-medium">Connected</span>
-                              </div>
-                              {paymentStatus === 'verified' ? (
-                                <Check className="h-4 w-4 text-green-600" />
-                              ) : (
-                                <AlertCircle className="h-4 w-4 text-red-600" />
-                              )}
-                            </div>
-                            
-                            {(() => {
-                              const summary = metaActions.getSummary()
-                              return (
-                                <>
-                                  {summary?.business && (
-                                    <div className="ml-4 py-1 text-xs">
-                                      <div className="text-muted-foreground">Business</div>
-                                      <div className="font-medium">{summary.business.name || summary.business.id}</div>
-                                    </div>
-                                  )}
-                                  
-                                  {summary?.page && (
-                                    <div className="ml-4 py-1 text-xs">
-                                      <div className="text-muted-foreground">Facebook Page</div>
-                                      <div className="font-medium">{summary.page.name || summary.page.id}</div>
-                                    </div>
-                                  )}
-                                  
-                                  {summary?.instagram && (
-                                    <div className="ml-4 py-1 text-xs">
-                                      <div className="text-muted-foreground">Instagram</div>
-                                      <div className="font-medium">@{summary.instagram.username || summary.instagram.id}</div>
-                                    </div>
-                                  )}
-                                  
-                                  {summary?.adAccount && (
-                                    <div className="ml-4 py-1 text-xs">
-                                      <div className="text-muted-foreground">Ad Account</div>
-                                      <div className="font-medium">{summary.adAccount.name || summary.adAccount.id}</div>
-                                    </div>
-                                  )}
-                                  
-                                  {paymentStatus === 'missing' && summary?.adAccount?.id && (
-                                    <>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem onClick={() => summary.adAccount?.id && metaActions.addPayment(summary.adAccount.id)}>
-                                        <CreditCard className="h-4 w-4 mr-2" />
-                                        Add Payment Method
-                                      </DropdownMenuItem>
-                                    </>
-                                  )}
-                                </>
-                              )
-                            })()}
-                          </div>
-                        </>
-                      ) : (
-                        <DropdownMenuItem 
-                          onClick={() => {
-                            setIsConnecting(true)
-                            metaActions.connect()
-                            setTimeout(() => setIsConnecting(false), 1000)
-                          }}
-                          disabled={isConnecting}
-                        >
-                          {isConnecting ? (
-                            <>
-                              <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-gray-600" />
-                              Connecting...
-                            </>
-                          ) : (
-                            <>
-                              <Facebook className="mr-2 h-4 w-4" />
-                              <Instagram className="mr-2 h-4 w-4" />
-                              Connect Meta
-                            </>
-                          )}
-                        </DropdownMenuItem>
-                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
