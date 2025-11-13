@@ -217,8 +217,29 @@ export function MetaConnectCard() {
               hasToken: !!(messageData.connectionData.long_lived_user_token || messageData.connectionData.user_app_token),
             })
 
-            // Store connection data in localStorage (single source of truth)
+            // Store connection data in localStorage (for client-side access)
             metaStorage.setConnection(campaign.id, messageData.connectionData)
+            
+            // CRITICAL: Persist to database for server-side publishing access
+            fetch('/api/meta/connection/persist', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                campaignId: campaign.id,
+                connectionData: messageData.connectionData
+              })
+            })
+              .then(async (res) => {
+                if (res.ok) {
+                  metaLogger.info('MetaConnectCard', '✅ Connection persisted to database')
+                } else {
+                  const errorData = await res.json().catch(() => ({}))
+                  metaLogger.error('MetaConnectCard', '❌ Failed to persist connection to database', errorData)
+                }
+              })
+              .catch((err) => {
+                metaLogger.error('MetaConnectCard', '❌ Error persisting connection to database', err as Error)
+              })
             
             // Refresh local state once
             void hydrate()

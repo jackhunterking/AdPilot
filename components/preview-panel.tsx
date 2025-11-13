@@ -456,7 +456,17 @@ export function PreviewPanel() {
       }
     } catch (error) {
       logger.error('PreviewPanel', 'Error in handlePublishComplete', error)
-      throw error // Re-throw so dialog can handle error state
+      
+      // Try to provide user-friendly error message
+      if (error instanceof Response) {
+        const errorData = await error.json().catch(() => ({}))
+        const userMessage = errorData?.error?.userMessage || errorData?.error?.message || errorData?.error || 'Failed to publish ad'
+        throw new Error(userMessage)
+      } else if (error instanceof Error) {
+        throw error
+      } else {
+        throw new Error('Failed to publish ad. Please try again.')
+      }
     } finally {
       setIsPublishing(false)
     }

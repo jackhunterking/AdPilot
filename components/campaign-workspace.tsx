@@ -906,7 +906,21 @@ export function CampaignWorkspace() {
       if (!response.ok) {
         const errorData = await response.json()
         console.error('[CampaignWorkspace] Failed to publish ad:', errorData)
-        toast.error(errorData.error || 'Failed to publish ad')
+        
+        // Extract user-friendly error message
+        const userMessage = errorData?.error?.userMessage || errorData?.error?.message || errorData?.error || 'Failed to publish ad'
+        const suggestedAction = errorData?.error?.suggestedAction
+        
+        // Show error with suggested action if available
+        if (suggestedAction) {
+          toast.error(userMessage, {
+            description: `Suggested action: ${suggestedAction}`,
+            duration: 8000
+          })
+        } else {
+          toast.error(userMessage)
+        }
+        
         setShowPublishDialog(false)
         setPublishingAdId(null)
         return

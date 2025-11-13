@@ -379,15 +379,43 @@ export async function getConnectionWithToken(args: { campaignId: string }): Prom
   user_app_token: string | null
   user_app_token_expires_at: string | null
 } & NonNullable<Awaited<ReturnType<typeof getConnectionPublic>>> | null> {
+  console.log(`[MetaService] 🔍 getConnectionWithToken: Querying for campaign ${args.campaignId}`)
+  
   const { data, error } = await supabaseServer
     .from('campaign_meta_connections')
     .select('selected_business_id,selected_business_name,selected_page_id,selected_page_name,selected_page_access_token,selected_ig_user_id,selected_ig_username,selected_ad_account_id,selected_ad_account_name,ad_account_payment_connected,admin_connected,admin_checked_at,admin_business_role,admin_ad_account_role,user_app_connected,long_lived_user_token,user_app_token,user_app_token_expires_at')
     .eq('campaign_id', args.campaignId)
     .maybeSingle()
+  
   if (error) {
-    console.error('[MetaService] getConnectionWithToken error:', error)
+    console.error('[MetaService] ❌ getConnectionWithToken error:', {
+      campaignId: args.campaignId,
+      error: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    })
     return null
   }
+  
+  if (!data) {
+    console.warn('[MetaService] ⚠️  No connection found for campaign:', args.campaignId)
+    return null
+  }
+  
+  // Log connection status (redact tokens for security)
+  console.log('[MetaService] ✅ Connection found:', {
+    campaignId: args.campaignId,
+    hasToken: !!data.long_lived_user_token,
+    tokenPreview: data.long_lived_user_token ? redactToken(data.long_lived_user_token) : 'none',
+    hasAdAccount: !!data.selected_ad_account_id,
+    adAccountId: data.selected_ad_account_id,
+    hasPage: !!data.selected_page_id,
+    pageId: data.selected_page_id,
+    paymentConnected: data.ad_account_payment_connected,
+    adminConnected: data.admin_connected
+  })
+  
   return data as unknown as ReturnType<typeof getConnectionWithToken> extends Promise<infer T> ? T : never
 }
 

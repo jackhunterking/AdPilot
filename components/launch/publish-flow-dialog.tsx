@@ -154,7 +154,18 @@ export function PublishFlowDialog({
       }, 2000)
     } catch (err) {
       console.error('[PublishFlowDialog] Publish failed:', err)
-      setError(err instanceof Error ? err.message : 'Failed to publish ad')
+      
+      // Try to extract user-friendly error message
+      let errorMessage = 'Failed to publish ad. Please try again.'
+      
+      if (err instanceof Error) {
+        errorMessage = err.message
+      } else if (typeof err === 'object' && err !== null) {
+        const errObj = err as { userMessage?: string; message?: string }
+        errorMessage = errObj.userMessage || errObj.message || errorMessage
+      }
+      
+      setError(errorMessage)
       setPhase("confirm")
     }
   }

@@ -35,12 +35,18 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
   const logger = createPublishLogger(params.campaignId, true)
   
   try {
-    console.log('[PublishSingleAd] Starting single ad publish', { adId: params.adId })
+    console.log('[PublishSingleAd] ========================================')
+    console.log('[PublishSingleAd] 🚀 Starting single ad publish')
+    console.log('[PublishSingleAd] Campaign:', params.campaignId)
+    console.log('[PublishSingleAd] Ad ID:', params.adId)
+    console.log('[PublishSingleAd] User ID:', params.userId)
+    console.log('[PublishSingleAd] ========================================')
 
     // ====================================================================
     // STEP 1: LOAD AD DATA
     // ====================================================================
-    const { data: ad } = await supabaseServer
+    console.log('[PublishSingleAd] 📦 STEP 1: Loading ad data...')
+    const { data: ad, error: adError } = await supabaseServer
       .from('ads')
       .select(`
         id,
@@ -54,41 +60,99 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
       .eq('id', params.adId)
       .single()
 
-    if (!ad) {
-      throw new Error('Ad not found')
+    if (adError || !ad) {
+      console.error('[PublishSingleAd] ❌ Failed to load ad:', {
+        adId: params.adId,
+        error: adError?.message,
+        code: adError?.code
+      })
+      throw new Error(adError?.message || 'Ad not found')
     }
+
+    console.log('[PublishSingleAd] ✅ Ad loaded:', {
+      id: ad.id,
+      name: ad.name,
+      status: ad.status,
+      hasSetupSnapshot: !!ad.setup_snapshot,
+      hasCopyData: !!ad.copy_data,
+      hasCreativeData: !!ad.creative_data
+    })
 
     // ====================================================================
     // STEP 2: LOAD CAMPAIGN DATA
     // ====================================================================
-    const { data: campaign } = await supabaseServer
+    console.log('[PublishSingleAd] 📦 STEP 2: Loading campaign data...')
+    const { data: campaign, error: campaignError } = await supabaseServer
       .from('campaigns')
       .select('*, campaign_states(*)')
       .eq('id', params.campaignId)
       .single()
 
-    if (!campaign) {
-      throw new Error('Campaign not found')
+    if (campaignError || !campaign) {
+      console.error('[PublishSingleAd] ❌ Failed to load campaign:', {
+        campaignId: params.campaignId,
+        error: campaignError?.message,
+        code: campaignError?.code
+      })
+      throw new Error(campaignError?.message || 'Campaign not found')
     }
+
+    console.log('[PublishSingleAd] ✅ Campaign loaded:', {
+      id: campaign.id,
+      name: campaign.name,
+      hasCampaignStates: !!campaign.campaign_states
+    })
 
     // ====================================================================
     // STEP 3: LOAD META CONNECTION
     // ====================================================================
+    console.log('[PublishSingleAd] 🔐 STEP 3: Loading Meta connection...')
     const connection = await getConnectionWithToken({ campaignId: params.campaignId })
 
-    if (!connection || !connection.long_lived_user_token) {
+    if (!connection) {
+      console.error('[PublishSingleAd] ❌ No Meta connection found for campaign:', params.campaignId)
       return {
         success: false,
         error: {
           code: 'token_expired',
-          message: 'Meta connection not found',
-          userMessage: 'Please reconnect your Facebook account',
+          message: 'Meta connection not found in database',
+          userMessage: 'Please reconnect your Facebook account to continue',
           recoverable: true,
-          suggestedAction: 'Reconnect Meta',
+          suggestedAction: 'Click "Connect Meta" to reconnect your account',
           timestamp: new Date().toISOString()
         }
       }
     }
+
+    if (!connection.long_lived_user_token) {
+      console.error('[PublishSingleAd] ❌ Meta connection found but token is missing:', {
+        campaignId: params.campaignId,
+        hasConnection: true,
+        hasToken: false,
+        adAccountId: connection.selected_ad_account_id,
+        pageId: connection.selected_page_id
+      })
+      return {
+        success: false,
+        error: {
+          code: 'token_expired',
+          message: 'Meta access token is missing or expired',
+          userMessage: 'Your Facebook connection has expired. Please reconnect your account',
+          recoverable: true,
+          suggestedAction: 'Click "Connect Meta" to refresh your connection',
+          timestamp: new Date().toISOString()
+        }
+      }
+    }
+
+    console.log('[PublishSingleAd] ✅ Meta connection validated:', {
+      hasToken: true,
+      hasAdAccount: !!connection.selected_ad_account_id,
+      adAccountId: connection.selected_ad_account_id,
+      hasPage: !!connection.selected_page_id,
+      pageId: connection.selected_page_id,
+      paymentConnected: connection.ad_account_payment_connected
+    })
 
     // ====================================================================
     // STEP 4: EXTRACT AD DATA
@@ -209,7 +273,7 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
     // ====================================================================
     // STEP 7: UPLOAD IMAGE
     // ====================================================================
-    console.log('[PublishSingleAd] Uploading image to Meta', { imageUrl })
+    console.log('[PublishSingleAd] 📤 STEP 7: Uploading image to Meta...', { imageUrl })
     
     const imageUploadResult = await imageUploader.uploadImagesWithRetry(
       [imageUrl],
@@ -219,11 +283,18 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
     )
 
     if (imageUploadResult.failed.size > 0) {
+      const failedImage = Array.from(imageUploadResult.failed.keys())[0]
+      const failureReason = imageUploadResult.failed.get(failedImage || '')
+      console.error('[PublishSingleAd] ❌ Image upload failed:', {
+        imageUrl,
+        failedImage,
+        reason: failureReason
+      })
       return {
         success: false,
         error: {
           code: 'api_error',
-          message: 'Image upload failed',
+          message: `Image upload failed: ${failureReason || 'Unknown error'}`,
           userMessage: 'Failed to upload image to Meta. Please try again.',
           recoverable: true,
           suggestedAction: 'Retry publishing',
@@ -233,11 +304,15 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
     }
 
     const imageHash = imageUploader.getImageHashMapping(imageUploadResult).get(imageUrl)
+    console.log('[PublishSingleAd] ✅ Image uploaded successfully:', {
+      imageUrl,
+      imageHash: imageHash ? imageHash.substring(0, 10) + '...' : 'none'
+    })
 
     // ====================================================================
     // STEP 8: CREATE CREATIVE
     // ====================================================================
-    console.log('[PublishSingleAd] Creating ad creative')
+    console.log('[PublishSingleAd] 🎨 STEP 8: Creating ad creative...')
     
     const creativeGenerator = new CreativePayloadGenerator()
     const creativeResult = creativeGenerator.generate({
@@ -255,12 +330,22 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
       variationIndex: 0
     })
 
+    console.log('[PublishSingleAd] Creative payload generated:', {
+      pageId: connection.selected_page_id,
+      hasInstagram: !!connection.selected_ig_user_id,
+      destinationType,
+      hasImageHash: !!imageHash,
+      hasLeadForm: !!leadFormId,
+      payloadKeys: Object.keys(creativeResult.payload)
+    })
+
     const creativeResponse = await apiClient.createAdCreative(
       connection.selected_ad_account_id!,
       creativeResult.payload as unknown as Record<string, unknown>
     )
 
     if (!creativeResponse.id) {
+      console.error('[PublishSingleAd] ❌ Creative creation failed:', creativeResponse)
       return {
         success: false,
         error: {
@@ -274,15 +359,26 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
       }
     }
 
+    console.log('[PublishSingleAd] ✅ Creative created:', {
+      creativeId: creativeResponse.id
+    })
+
     // ====================================================================
     // STEP 9: GET OR CREATE CAMPAIGN & ADSET
     // ====================================================================
+    console.log('[PublishSingleAd] 📋 STEP 9: Get or create Meta campaign and adset...')
+    
     // Check if campaign already has Meta campaign and adset
-    const { data: publishedCampaign } = await supabaseServer
+    const { data: publishedCampaign, error: publishedError } = await supabaseServer
       .from('meta_published_campaigns')
       .select('meta_campaign_id, meta_adset_id')
       .eq('campaign_id', params.campaignId)
       .single()
+
+    if (publishedError && publishedError.code !== 'PGRST116') {
+      // PGRST116 = no rows returned, which is fine (will create new)
+      console.error('[PublishSingleAd] ❌ Error checking for existing published campaign:', publishedError)
+    }
 
     let metaCampaignId: string
     let metaAdSetId: string
@@ -291,10 +387,13 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
       // Use existing campaign and adset
       metaCampaignId = publishedCampaign.meta_campaign_id
       metaAdSetId = publishedCampaign.meta_adset_id
-      console.log('[PublishSingleAd] Using existing Meta campaign and adset', { metaCampaignId, metaAdSetId })
+      console.log('[PublishSingleAd] ✅ Using existing Meta campaign and adset:', {
+        metaCampaignId,
+        metaAdSetId
+      })
     } else {
       // Create new campaign and adset
-      console.log('[PublishSingleAd] Creating new Meta campaign')
+      console.log('[PublishSingleAd] 🆕 Creating new Meta campaign and adset...')
       
       const campaignPayload = {
         name: campaign.name,
@@ -303,12 +402,19 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
         special_ad_categories: []
       }
 
+      console.log('[PublishSingleAd] Campaign payload:', {
+        name: campaignPayload.name,
+        objective: campaignPayload.objective,
+        adAccountId: connection.selected_ad_account_id
+      })
+
       const campaignResponse = await apiClient.createCampaign(
         connection.selected_ad_account_id!,
         campaignPayload
       )
 
       if (!campaignResponse.id) {
+        console.error('[PublishSingleAd] ❌ Campaign creation failed:', campaignResponse)
         return {
           success: false,
           error: {
@@ -323,9 +429,10 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
       }
 
       metaCampaignId = campaignResponse.id
+      console.log('[PublishSingleAd] ✅ Meta campaign created:', { metaCampaignId })
 
       // Create adset
-      console.log('[PublishSingleAd] Creating ad set')
+      console.log('[PublishSingleAd] 🎯 Creating ad set...')
       
       const adsetPayload = {
         name: `${campaign.name} - AdSet`,
@@ -346,12 +453,21 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
         }
       }
 
+      console.log('[PublishSingleAd] AdSet payload:', {
+        name: adsetPayload.name,
+        campaignId: metaCampaignId,
+        optimizationGoal: adsetPayload.optimization_goal,
+        dailyBudget: adsetPayload.daily_budget,
+        targeting: adsetPayload.targeting
+      })
+
       const adsetResponse = await apiClient.createAdSet(
         connection.selected_ad_account_id!,
         adsetPayload
       )
 
       if (!adsetResponse.id) {
+        console.error('[PublishSingleAd] ❌ AdSet creation failed:', adsetResponse)
         return {
           success: false,
           error: {
@@ -366,6 +482,7 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
       }
 
       metaAdSetId = adsetResponse.id
+      console.log('[PublishSingleAd] ✅ AdSet created:', { metaAdSetId })
 
       // Save to database
       await supabaseServer
@@ -383,7 +500,7 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
     // ====================================================================
     // STEP 10: CREATE AD
     // ====================================================================
-    console.log('[PublishSingleAd] Creating Meta ad')
+    console.log('[PublishSingleAd] 🎬 STEP 10: Creating Meta ad...')
     
     const adPayload = {
       name: ad.name,
@@ -392,12 +509,20 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
       status: 'PAUSED' // Start paused, let Meta review first
     }
 
+    console.log('[PublishSingleAd] Ad payload:', {
+      name: adPayload.name,
+      adsetId: metaAdSetId,
+      creativeId: creativeResponse.id,
+      status: adPayload.status
+    })
+
     const adResponse = await apiClient.createAd(
       connection.selected_ad_account_id!,
       adPayload
     )
 
     if (!adResponse.id) {
+      console.error('[PublishSingleAd] ❌ Ad creation failed:', adResponse)
       return {
         success: false,
         error: {
@@ -411,7 +536,11 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
       }
     }
 
-    console.log('[PublishSingleAd] Ad published successfully', { metaAdId: adResponse.id })
+    console.log('[PublishSingleAd] ========================================')
+    console.log('[PublishSingleAd] ✅ Ad published successfully!')
+    console.log('[PublishSingleAd] Meta Ad ID:', adResponse.id)
+    console.log('[PublishSingleAd] Status: pending_review')
+    console.log('[PublishSingleAd] ========================================')
 
     // Meta will review the ad, so status is pending_review
     return {
@@ -422,7 +551,13 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
 
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error')
-    console.error('[PublishSingleAd] Ad publishing failed', { error: err instanceof Error ? err.message : String(err), adId: params.adId })
+    console.error('[PublishSingleAd] ========================================')
+    console.error('[PublishSingleAd] ❌ Ad publishing failed')
+    console.error('[PublishSingleAd] Error:', err.message)
+    console.error('[PublishSingleAd] Stack:', err.stack)
+    console.error('[PublishSingleAd] Ad ID:', params.adId)
+    console.error('[PublishSingleAd] Campaign ID:', params.campaignId)
+    console.error('[PublishSingleAd] ========================================')
 
     return {
       success: false,
