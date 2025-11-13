@@ -323,7 +323,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
             ...(existingMeta || {}),
             campaignId: campaignId, // Required for AI SDK-generated conversation IDs
             goalType: goalType,
-            currentStep: currentStep, // Current step ID for step-aware AI behavior
+            currentStep: currentStep || 'ads', // Current step ID for step-aware AI behavior (defaults to 'ads' for creative generation)
           },
         };
         

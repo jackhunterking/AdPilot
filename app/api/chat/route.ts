@@ -295,7 +295,7 @@ export async function POST(req: Request) {
       }
       if (!offerText) {
         // Stricter ask-one-offer-question branch; plan will be created after user answers
-        offerAskContext = `\n[OFFER REQUIRED - INITIAL SETUP]\nAsk ONE concise question to capture the user's concrete offer/value (e.g., "Free quote", "% off", "Consultation", "Download").\n\n**When Asking:**\n- Ask ONLY this one question, no extra text.\n- Do NOT call any tools yet.\n- Wait for user's response.\n\n**CRITICAL - After User Answers:**\n- Provide brief acknowledgment (1 sentence): "Perfect! Creating your ${effectiveGoal || 'campaign'} ads with that offer..."\n- IMMEDIATELY call generateImage tool with the offer incorporated\n- Use appropriate format based on offer type:\n  * Discounts/percentages (e.g., "20% off") → Include text overlay in prompt\n  * "Free" offers → Text overlay or notes-style aesthetic\n  * Product/service names → Clean professional imagery\n- Do NOT ask any follow-up questions\n- Do NOT call setupGoal or any other tools\n- Generate creative immediately`;
+        offerAskContext = `\n[OFFER REQUIRED - INITIAL SETUP]\nAsk ONE concise question to capture the user's concrete offer/value (e.g., "Free quote", "% off", "Consultation", "Download").\n\n**When Asking:**\n- Ask ONLY this one question, no extra text.\n- Do NOT call any tools yet.\n- Do NOT ask about location, audience, or targeting.\n- Wait for user's response.\n\n**CRITICAL - After User Answers:**\n- Provide brief acknowledgment (1 sentence): "Perfect! Creating your ${effectiveGoal || 'campaign'} ads with that offer..."\n- IMMEDIATELY call generateImage tool ONLY with the offer incorporated\n- Use appropriate format based on offer type:\n  * Discounts/percentages (e.g., "20% off") → Include text overlay in prompt\n  * "Free" offers → Text overlay or notes-style aesthetic\n  * Product/service names → Clean professional imagery\n- Do NOT ask any follow-up questions\n- Do NOT call setupGoal tool (goal is already set)\n- Do NOT call locationTargeting tool (location comes later in build phase)\n- Do NOT call any other tools besides generateImage\n- Generate creative immediately with generateImage ONLY`;
       } else {
         // Create plan now that we have an offer
         try {
@@ -513,6 +513,22 @@ export async function POST(req: Request) {
     
     // Track each step for debugging (AI SDK best practice)
     onStepFinish: ({ toolCalls, toolResults }) => {
+      // Validate tool calls don't mix creative and build tools
+      const creativeTools = ['generateImage', 'editImage', 'regenerateImage', 'editAdCopy'];
+      const buildTools = ['locationTargeting', 'setupGoal'];
+      
+      const hasCreativeTool = toolCalls.some(tc => creativeTools.includes(tc.toolName));
+      const hasBuildTool = toolCalls.some(tc => buildTools.includes(tc.toolName));
+      
+      // Log validation error if mixed tools detected
+      if (hasCreativeTool && hasBuildTool) {
+        console.error('[VALIDATION] ❌ INVALID: Mixed creative and build tools in same step!');
+        console.error('[VALIDATION] Current step:', currentStep || 'ads');
+        console.error('[VALIDATION] Tool calls:', toolCalls.map(tc => tc.toolName));
+        console.error('[VALIDATION] This should NEVER happen. Check system prompt enforcement.');
+      }
+      
+      // Log for debugging
       console.log(`[STEP] Finished step with ${toolCalls.length} tool calls, ${toolResults.length} results`);
       if (toolCalls.length > 0) {
         console.log(`[STEP] Tool calls:`, toolCalls.map(tc => ({ 
@@ -607,11 +623,18 @@ ${!isEditMode ? referenceContext : ''}
 
 **Current Step:** ${currentStep || 'ads'}
 
+**🚨 UNIVERSAL RULE - NEVER MIX TOOL TYPES:**
+- ❌ **NEVER call creative tools (generateImage, editImage, regenerateImage) AND build tools (locationTargeting, setupGoal) in the same response**
+- ❌ **NEVER call multiple unrelated tools together** unless they're variants of the same operation
+- ✅ **ONE tool category per response** - either creative OR build, never both
+
 **Tool Usage Rules by Step:**
 
 ${currentStep === 'location' ? `
+**LOCATION STEP - TARGETING ONLY:**
 - ❌ **ABSOLUTELY NEVER call generateImage** on the location step
 - ❌ **DO NOT call generateImage** even if user mentions their business or offer - they are just setting location
+- ❌ **DO NOT call setupGoal** or any creative tools
 - ✅ **ONLY use locationTargeting tool** when user provides location names
 - ✅ After calling locationTargeting, provide a brief confirmation message
 - ✅ The UI already has a confirmation card that shows the location was set
@@ -620,33 +643,67 @@ ${currentStep === 'location' ? `
 - ✅ NO additional prompts or confirmations needed - just call the tool and confirm
 
 **Location Step Behavior:**
-1. User provides location name → Call locationTargeting tool
+1. User provides location name → Call locationTargeting tool ONLY
 2. Tool completes → Provide brief confirmation message like "Location set to [name]"
 3. That's it. NO image generation, NO additional prompts, NO other tools
+
+**WRONG Example:**
+User: "Target Toronto for my law firm"
+AI: ❌ Calls generateImage + locationTargeting (WRONG - mixed tools!)
+
+**RIGHT Example:**
+User: "Target Toronto for my law firm"
+AI: ✅ Calls ONLY locationTargeting, ignores "law firm" context for targeting
 ` : ''}
 
 ${currentStep === 'copy' ? `
+**COPY STEP - TEXT EDITING ONLY:**
 - ❌ **NEVER call generateImage** on the copy step unless user EXPLICITLY says "generate new ads from scratch"
+- ❌ **NEVER call locationTargeting** or setupGoal
 - ✅ Use editAdCopy tool to help with ad copy modifications
 - ✅ Answer questions about copywriting
+- ✅ Focus ONLY on text content modifications
 ` : ''}
 
 ${currentStep === 'destination' ? `
+**DESTINATION STEP - SETUP ONLY:**
 - ❌ **NEVER call generateImage** on the destination step unless user EXPLICITLY says "generate new ads from scratch"
+- ❌ **NEVER call locationTargeting**
 - ✅ Help with destination setup (forms, URLs, phone numbers)
 - ✅ Answer questions about lead forms and destinations
+- ✅ Focus ONLY on destination configuration
 ` : ''}
 
 ${currentStep === 'budget' ? `
+**BUDGET/PREVIEW STEP - REVIEW ONLY:**
 - ❌ **NEVER call generateImage** on the budget/preview step unless user EXPLICITLY says "generate new ads from scratch"
+- ❌ **NEVER call locationTargeting** or setupGoal
 - ✅ Help review the ad setup
 - ✅ Answer questions about budget and scheduling
+- ✅ Focus ONLY on budget and launch configuration
 ` : ''}
 
 ${currentStep === 'ads' ? `
+**ADS STEP - CREATIVE GENERATION ONLY:**
 - ✅ Call generateImage when user wants to create ad creatives
 - ✅ Use editImage and regenerateImage for modifications
+- ✅ Use editAdCopy for text modifications
 - ✅ This is the creative generation step - be proactive with image tools
+- ❌ **NEVER call locationTargeting** on this step
+- ❌ **NEVER call setupGoal** on this step
+- ❌ **NEVER mix creative tools with build tools**
+- ✅ Focus ONLY on visual creative generation and copy
+
+**CRITICAL**: If user mentions their business/offer/location in the context of creating an ad, use that context for the IMAGE GENERATION only. Do NOT call locationTargeting or other build tools.
+
+**WRONG Example:**
+User: "Create ad for my Toronto law firm"
+AI: ❌ Calls generateImage + locationTargeting (WRONG - mixed tools!)
+
+**RIGHT Example:**
+User: "Create ad for my Toronto law firm"
+AI: ✅ Calls ONLY generateImage with "Toronto law firm" as context in the prompt
+AI: ✅ Does NOT call locationTargeting (that happens later in location step)
 ` : ''}
 
 **Key Point:** The generateImage tool creates 3 brand new ad variations from scratch. Only call it when:
@@ -654,6 +711,8 @@ ${currentStep === 'ads' ? `
 2. User EXPLICITLY says "generate new ads" or "create new ads from scratch" on any step
 
 For all other requests (location targeting, copy edits, destination setup, questions), use the appropriate tool or provide helpful guidance.
+
+**Remember:** ONE tool category per response. Creative tools stay separate from build tools. NEVER mix them.
 
 ## Core Behavior: Smart Conversation, Then Action
 - **Smart questions**: Ask ONE helpful question that gathers multiple details at once
@@ -676,13 +735,15 @@ For all other requests (location targeting, copy edits, destination setup, quest
 - If user provides minimal context (e.g., "car detailing business"), ask ONE comprehensive question about their offer
 - Example: "What's the main offer you're promoting to generate leads? (For example: 'Free quote', '20% off', etc.)"
 - DO NOT ask about goal - it's already set
+- DO NOT ask about location - that comes later in build phase
+- DO NOT ask about targeting or audience - that comes later
 - DO NOT ask multiple questions
 
 **Step 2 - Generate Immediately After Offer:**
-- User provides offer → You provide 1-sentence acknowledgment → IMMEDIATELY call generateImage tool
+- User provides offer → You provide 1-sentence acknowledgment → IMMEDIATELY call generateImage tool ONLY
 - Example flow:
   * User: "20% off first cleaning"
-  * You: "Perfect! Creating your lead generation ads with that discount offer..." [CALLS generateImage]
+  * You: "Perfect! Creating your lead generation ads with that discount offer..." [CALLS generateImage ONLY]
 - Include the offer in image generation prompt using appropriate format:
   * Discounts → Text overlay: "bold text overlay displaying '20% OFF FIRST CLEANING'"
   * Free offers → Text overlay or notes-style
@@ -690,14 +751,17 @@ For all other requests (location targeting, copy edits, destination setup, quest
 
 **🚨 WHAT NOT TO DO:**
 - ❌ Do NOT call setupGoal tool (goal is already set from homepage)
+- ❌ Do NOT call locationTargeting tool (location comes later in separate build step)
+- ❌ Do NOT call any other tools besides generateImage
 - ❌ Do NOT ask follow-up questions after receiving the offer
 - ❌ Do NOT show "Goal Setup Complete" message
 - ❌ Do NOT wait for additional information
 - ❌ Do NOT explain the plan - just generate
+- ❌ NEVER mix generateImage with locationTargeting or other build tools
 
 **✅ CORRECT BEHAVIOR:**
   User: [Describes business with offer]
-  AI: Brief acknowledgment + CALL generateImage tool immediately
+  AI: Brief acknowledgment + CALL generateImage tool ONLY (not locationTargeting, not setupGoal, ONLY generateImage)
   Result: Creative generation starts (3 variations appear)
 
 ## Smart Questioning Framework
