@@ -16,6 +16,7 @@ import type { AdVariant, AdStatus } from "@/lib/types/workspace"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CheckCircle2, Rocket } from "lucide-react"
 import { getStatusConfig, sortByStatusPriority, filterByStatus } from "@/lib/utils/ad-status"
 import { cn } from "@/lib/utils"
@@ -128,37 +129,44 @@ export function AllAdsGrid({
         </DialogContent>
       </Dialog>
       
-      <div className="flex-1 overflow-auto">
-        <div className="p-6 space-y-4">
-          {/* Status Filter Bar */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {filterOptions.map((option) => {
-              const count = statusCounts[option.value] || 0
-              const isActive = statusFilter === option.value
-              
-              // Skip options with 0 ads (except 'all')
-              if (option.value !== 'all' && count === 0) return null
-              
-              return (
-                <Button
-                  key={option.value}
-                  variant={isActive ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter(option.value)}
-                  className="gap-2"
-                >
-                  {option.label}
-                  <Badge 
-                    variant={isActive ? "secondary" : "outline"}
-                    className="ml-1"
-                  >
-                    {count}
-                  </Badge>
-                </Button>
-              )
-            })}
+      <div className="flex h-full flex-col overflow-hidden">
+        {/* Header Section */}
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/60 bg-card/50 px-6 py-3">
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold">All Ads</h2>
+            <p className="text-sm text-muted-foreground">
+              View and manage all your ad variations
+            </p>
           </div>
-          
+          <div className="flex items-center gap-2">
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+              <SelectTrigger className="h-9 w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                {filterOptions.map((option) => {
+                  const count = statusCounts[option.value] || 0
+                  // Skip options with 0 ads (except 'all')
+                  if (option.value !== 'all' && count === 0) return null
+                  
+                  return (
+                    <SelectItem key={option.value} value={option.value}>
+                      <div className="flex items-center gap-2">
+                        <span>{option.label}</span>
+                        <Badge variant="outline" className="ml-auto">
+                          {count}
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
+        {/* Content Section */}
+        <div className="flex-1 overflow-auto p-6 space-y-6">
           {/* Admin Approval Panel (dev only) */}
           {onRefreshAds && (
             <AdApprovalPanel
