@@ -20,7 +20,7 @@ import {
 import { UIMessage } from "ai"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { SaveIndicator } from "./save-indicator"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { CampaignWorkspace } from "@/components/campaign-workspace"
 import { MetaConnectionModal } from "@/components/meta/meta-connection-modal"
 // Removed local heuristic name suggestion; naming is AI-driven on server
