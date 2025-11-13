@@ -24,7 +24,7 @@ import { AdApprovalPanel } from "@/components/admin/ad-approval-panel"
 export interface AllAdsGridProps {
   ads: AdVariant[]
   campaignId: string
-  onViewAd: (adId: string) => void
+  onViewAd: () => void
   onEditAd: (adId: string) => void
   onPublishAd: (adId: string) => void
   onPauseAd: (adId: string) => Promise<boolean>
@@ -189,7 +189,7 @@ export function AllAdsGrid({
               <AdCard
                 key={ad.id}
                 ad={ad}
-                onViewResults={() => onViewAd(ad.id)}
+                onViewResults={onViewAd}
                 onEdit={() => onEditAd(ad.id)}
                 onPublish={() => handlePublishClick(ad.id)}
                 onPause={() => onPauseAd(ad.id)}

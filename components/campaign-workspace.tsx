@@ -14,7 +14,7 @@ import { useCallback, useMemo, useState, useEffect } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { PreviewPanel } from "@/components/preview-panel"
-import { ResultsPanel } from "@/components/results-panel"
+import { ResultsPanel } from "@/components/results/results-panel"
 import { WorkspaceHeader } from "@/components/workspace-header"
 import { AllAdsGrid } from "@/components/all-ads-grid"
 import { ABTestBuilder } from "@/components/ab-test/ab-test-builder"
@@ -32,7 +32,7 @@ import { useDraftAutoSave } from "@/lib/hooks/use-draft-auto-save"
 import { metaStorage } from "@/lib/meta/storage"
 import { validateAdForPublish, formatValidationError } from "@/lib/utils/ad-validation"
 import { operationLocks } from "@/lib/utils/ad-operations"
-import type { WorkspaceMode, CampaignStatus, AdVariant, AdMetrics, LeadFormInfo } from "@/lib/types/workspace"
+import type { WorkspaceMode, CampaignStatus, AdVariant } from "@/lib/types/workspace"
 import { toast } from "sonner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -235,9 +235,6 @@ export function CampaignWorkspace() {
     ? 'build' 
     : viewParam || 'all-ads'
   
-  // If we're in results mode but don't have the specific ad yet, show all-ads instead
-  const shouldFallbackToAllAds = effectiveMode === 'results' && !currentAdId && ads.length > 0
-
   // Auto-save draft ads while building or editing
   const isBuilding = effectiveMode === 'build' || effectiveMode === 'edit'
   useDraftAutoSave(
@@ -480,60 +477,6 @@ export function CampaignWorkspace() {
     }
   }, [effectiveMode, currentAdId, hasPublishedAds, hasBuildProgress, searchParams])
 
-  // Simulated metrics for demonstration
-  // TODO: Fetch real metrics from API
-  const mockMetrics: AdMetrics = {
-    impressions: 1234,
-    reach: 987,
-    clicks: 45,
-    leads: goalState.selectedGoal === 'leads' ? 5 : undefined,
-    cpc: 0.78,
-    ctr: 3.64,
-    cpl: goalState.selectedGoal === 'leads' ? 7.80 : undefined,
-    spend: 35.10,
-    last_updated: new Date().toISOString(),
-  }
-
-  // Simulated variant for demonstration
-  const mockVariant: AdVariant = {
-    id: 'variant-1',
-    campaign_id: campaignId,
-    name: campaign?.name || 'Ad Variant',
-    status: 'active',
-    variant_type: 'original',
-    creative_data: {
-      headline: adContent?.headline || '',
-      body: adContent?.body || '',
-      cta: adContent?.cta || 'Learn More',
-      imageUrl: adContent?.imageUrl,
-      imageVariations: adContent?.imageVariations,
-    },
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    published_at: new Date().toISOString(),
-  }
-
-  // Simulated lead form info for leads campaigns
-  const mockLeadFormInfo: LeadFormInfo | undefined = goalState.selectedGoal === 'leads' ? {
-    form_id: 'form-1',
-    form_name: 'Get Free Quote',
-    is_connected: true,
-    lead_count: 5,
-    recent_leads: [
-      {
-        id: '1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        submitted_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-      },
-      {
-        id: '2',
-        name: 'Sarah Miller',
-        email: 'sarah@example.com',
-        submitted_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // 5 hours ago
-      },
-    ],
-  } : undefined
 
   // Navigation handlers
   const handleBack = useCallback(() => {
@@ -709,8 +652,8 @@ export function CampaignWorkspace() {
     }
   }, [])
 
-  const handleViewAd = useCallback((adId: string) => {
-    setWorkspaceMode('results', adId)
+  const handleViewAd = useCallback(() => {
+    setWorkspaceMode('results')
   }, [setWorkspaceMode])
 
   const handleEditAd = useCallback(async (adId: string) => {
@@ -1266,32 +1209,6 @@ export function CampaignWorkspace() {
     return true
   })()
 
-  // Get current variant for results/edit modes
-  const getCurrentVariant = (): AdVariant | null => {
-    if (!currentAdId) return null
-    
-    // Find the ad by ID from our converted ads
-    const ad = convertedAds.find(a => a.id === currentAdId)
-    if (ad) return ad
-    
-    // Fallback to mock if not found (shouldn't happen in normal flow)
-    console.warn(`Ad ${currentAdId} not found in converted ads, using mock`)
-    return mockVariant
-  }
-
-  // Get current metrics
-  const getCurrentMetrics = (): AdMetrics => {
-    if (!currentAdId) return mockMetrics
-    
-    // Find the ad by ID and return its metrics
-    const ad = convertedAds.find(a => a.id === currentAdId)
-    if (ad?.metrics_snapshot) {
-      return ad.metrics_snapshot
-    }
-    
-    // Fallback to mock metrics
-    return mockMetrics
-  }
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden h-full min-h-0 relative">
@@ -1330,45 +1247,13 @@ export function CampaignWorkspace() {
           <PreviewPanel />
         )}
 
-        {(effectiveMode === 'results' || shouldFallbackToAllAds) && !shouldFallbackToAllAds && currentAdId && (() => {
-          const currentVariant = getCurrentVariant()
-          if (!currentVariant) {
-            return (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-muted-foreground">Loading ad...</p>
-              </div>
-            )
-          }
-          return (
-            <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
-              <ResultsPanel
-                variant={currentVariant}
-                metrics={getCurrentMetrics()}
-                onEdit={() => handleEditAd(currentAdId!)}
-                onPause={async () => {
-                  const success = await handlePauseAd(currentAdId!)
-                  if (success) {
-                    // Navigate to all-ads view after successful pause
-                    handleViewAllAds()
-                  }
-                  return success
-                }}
-                onResume={async () => {
-                  const success = await handleResumeAd(currentAdId!)
-                  if (success) {
-                    // Navigate to all-ads view after successful resume
-                    handleViewAllAds()
-                  }
-                  return success
-                }}
-                onCreateABTest={() => handleCreateABTest(currentAdId!)}
-                leadFormInfo={mockLeadFormInfo}
-              />
-            </div>
-          )
-        })()}
+        {effectiveMode === 'results' && (
+          <div className="flex-1 h-full overflow-hidden min-h-0">
+            <ResultsPanel isEnabled={hasPublishedAds} />
+          </div>
+        )}
 
-        {(effectiveMode === 'all-ads' || shouldFallbackToAllAds) && (
+        {effectiveMode === 'all-ads' && (
           <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
             <AllAdsGrid
               ads={convertedAds}
@@ -1390,7 +1275,9 @@ export function CampaignWorkspace() {
         )}
 
         {effectiveMode === 'ab-test-builder' && (() => {
-          const currentVariant = getCurrentVariant()
+          // Find current variant for A/B test builder
+          const currentVariant = currentAdId ? convertedAds.find(a => a.id === currentAdId) : null
+          
           if (!currentVariant) {
             return (
               <div className="flex items-center justify-center h-full">
@@ -1403,10 +1290,10 @@ export function CampaignWorkspace() {
               <ABTestBuilder
                 campaign_id={campaignId}
                 current_variant={currentVariant}
-                onCancel={() => setWorkspaceMode('results', currentAdId || undefined)}
+                onCancel={() => setWorkspaceMode('all-ads')}
                 onComplete={() => {
                   // TODO: Handle test creation
-                  setWorkspaceMode('results', currentAdId || undefined)
+                  setWorkspaceMode('all-ads')
                 }}
               />
             </div>
