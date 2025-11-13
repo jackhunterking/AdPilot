@@ -52,6 +52,33 @@ export function LeadFormSetup({ onFormSelected }: LeadFormSetupProps) {
   const [showMetaConnectionDialog, setShowMetaConnectionDialog] = useState(false)
   const [hasSelectedDestination, setHasSelectedDestination] = useState(false)
 
+  // Shared preview state for Create tab (must be declared before useEffects that use them)
+  const [formName, setFormName] = useState<string>("Lead Form")
+  const [privacyUrl, setPrivacyUrl] = useState<string>("https://adpilot.studio/general-privacy-policy")
+  const [privacyLinkText, setPrivacyLinkText] = useState<string>("Privacy Policy")
+  const [fields, setFields] = useState<Array<{ id: string; type: "full_name" | "email" | "phone"; label: string; required: boolean }>>([
+    { id: "full", type: "full_name", label: "Full Name", required: true },
+    { id: "email", type: "email", label: "Email Address", required: true },
+    { id: "phone", type: "phone", label: "Phone Number", required: true },
+  ])
+
+  // Intro page state
+  const [introHeadline, setIntroHeadline] = useState<string>("")
+  const [introDescription, setIntroDescription] = useState<string>("")
+
+  // Thank you page state is lifted here so it persists when switching tabs
+  const [thankYouTitle, setThankYouTitle] = useState<string>("Thanks for your interest!")
+  const [thankYouMessage, setThankYouMessage] = useState<string>("We'll contact you within 24 hours")
+  const [thankYouButtonText, setThankYouButtonText] = useState<string>("View website")
+  const [thankYouButtonUrl, setThankYouButtonUrl] = useState<string>("")
+
+  // Page data for preview
+  const [pageProfilePicture, setPageProfilePicture] = useState<string | undefined>(undefined)
+  const [pageData, setPageData] = useState<{
+    pageId?: string
+    pageName?: string
+  }>({})
+
   // Check if destination was already selected (restoring state)
   // This handles page refresh - if instant forms was selected and saved to localStorage,
   // automatically show the form builder instead of the destination selection screen
@@ -167,33 +194,6 @@ export function LeadFormSetup({ onFormSelected }: LeadFormSetupProps) {
       setHasSelectedDestination(true)
     }
   }, [campaign?.id, destinationState.data?.type, hasSelectedDestination])
-
-  // Shared preview state for Create tab
-  const [formName, setFormName] = useState<string>("Lead Form")
-  const [privacyUrl, setPrivacyUrl] = useState<string>("https://adpilot.studio/general-privacy-policy")
-  const [privacyLinkText, setPrivacyLinkText] = useState<string>("Privacy Policy")
-  const [fields, setFields] = useState<Array<{ id: string; type: "full_name" | "email" | "phone"; label: string; required: boolean }>>([
-    { id: "full", type: "full_name", label: "Full Name", required: true },
-    { id: "email", type: "email", label: "Email Address", required: true },
-    { id: "phone", type: "phone", label: "Phone Number", required: true },
-  ])
-
-  // Intro page state
-  const [introHeadline, setIntroHeadline] = useState<string>("")
-  const [introDescription, setIntroDescription] = useState<string>("")
-
-  // Thank you page state is lifted here so it persists when switching tabs
-  const [thankYouTitle, setThankYouTitle] = useState<string>("Thanks for your interest!")
-  const [thankYouMessage, setThankYouMessage] = useState<string>("We'll contact you within 24 hours")
-  const [thankYouButtonText, setThankYouButtonText] = useState<string>("View website")
-  const [thankYouButtonUrl, setThankYouButtonUrl] = useState<string>("")
-
-  // Page data for preview
-  const [pageProfilePicture, setPageProfilePicture] = useState<string | undefined>(undefined)
-  const [pageData, setPageData] = useState<{
-    pageId?: string
-    pageName?: string
-  }>({})
 
   const mockFields = useMemo(() => fields.map(f => ({ ...f })), [fields])
 

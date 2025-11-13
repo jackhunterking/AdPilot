@@ -85,11 +85,11 @@ export async function POST(
       return NextResponse.json({ error: 'Ad not found' }, { status: 404 })
     }
 
-    // Validate that ad is in pending_approval status
-    if (ad.status !== 'pending_approval') {
+    // Validate that ad is in pending_review status
+    if (ad.status !== 'pending_review') {
       console.warn('[RejectAd] Ad is not pending approval:', { adId, status: ad.status })
       return NextResponse.json({ 
-        error: `Cannot reject ad with status '${ad.status}'. Only pending_approval ads can be rejected.` 
+        error: `Cannot reject ad with status '${ad.status}'. Only pending_review ads can be rejected.` 
       }, { status: 400 })
     }
 

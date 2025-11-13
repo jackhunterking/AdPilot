@@ -98,7 +98,7 @@ export function validatePublishPermission(ad: AdVariant): StatusValidationResult
   if (!canPublish(ad)) {
     let reason = 'This ad cannot be published'
     
-    if (ad.status === 'pending_approval') {
+    if (ad.status === 'pending_review') {
       reason = 'Ad is already under review by Meta'
     } else if (ad.status === 'active' || ad.status === 'learning') {
       reason = 'Ad is already live. Pause it first to make changes.'
@@ -123,7 +123,7 @@ export function validateEditPermission(ad: AdVariant): StatusValidationResult {
   if (!canEdit(ad)) {
     let reason = 'This ad cannot be edited'
     
-    if (ad.status === 'pending_approval') {
+    if (ad.status === 'pending_review') {
       reason = 'Cannot edit an ad under review. Wait for approval or rejection first.'
     } else if (ad.status === 'active' || ad.status === 'learning') {
       reason = 'Pause the ad first before editing'
@@ -148,7 +148,7 @@ export function validatePausePermission(ad: AdVariant): StatusValidationResult {
     
     if (ad.status === 'draft') {
       reason = 'Draft ads are not running and cannot be paused'
-    } else if (ad.status === 'pending_approval') {
+    } else if (ad.status === 'pending_review') {
       reason = 'Cannot pause an ad under review'
     } else if (ad.status === 'paused') {
       reason = 'Ad is already paused'
@@ -173,7 +173,7 @@ export function validateResumePermission(ad: AdVariant): StatusValidationResult 
     
     if (ad.status === 'draft') {
       reason = 'Publish the ad first before it can run'
-    } else if (ad.status === 'pending_approval') {
+    } else if (ad.status === 'pending_review') {
       reason = 'Wait for approval before resuming'
     } else if (ad.status === 'active' || ad.status === 'learning') {
       reason = 'Ad is already running'

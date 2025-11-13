@@ -85,7 +85,7 @@ export async function syncAdStatus(campaignId: string, adId: string): Promise<St
     // Get ad from database
     const { data: ad } = await supabaseServer
       .from('ads')
-      .select('id, meta_ad_id, publishing_status')
+      .select('id, meta_ad_id, status')
       .eq('id', adId)
       .single()
 
@@ -168,10 +168,10 @@ export async function syncAdStatus(campaignId: string, adId: string): Promise<St
     await supabaseServer
       .from('ads')
       .update({
-        publishing_status: newStatus,
+        status: newStatus,
         updated_at: nowIso,
         // Set approved_at when going active for first time
-        approved_at: (newStatus === 'active' && !ad.publishing_status?.includes('active'))
+        approved_at: (newStatus === 'active' && ad.status !== 'active')
           ? nowIso
           : undefined,
         // Set rejected_at when rejected
@@ -180,41 +180,6 @@ export async function syncAdStatus(campaignId: string, adId: string): Promise<St
           : undefined
       })
       .eq('id', adId)
-
-    // Update metadata
-    await supabaseServer
-      .from('ad_publishing_metadata')
-      .update({
-        current_status: newStatus,
-        previous_status: ad.publishing_status as AdStatus,
-        last_status_check: nowIso,
-        // Store rejection reasons if any
-        rejection_reasons: metaAd.issues_info?.map(issue => issue.error_message) || null,
-        meta_review_feedback: metaAd.issues_info ? {
-          issues: metaAd.issues_info,
-          recommendations: metaAd.recommendations || []
-        } : null,
-        updated_at: nowIso
-      })
-      .eq('ad_id', adId)
-
-    // Record status transition if status changed
-    if (ad.publishing_status !== newStatus) {
-      await supabaseServer
-        .from('ad_status_transitions')
-        .insert({
-          ad_id: adId,
-          from_status: ad.publishing_status as AdStatus,
-          to_status: newStatus,
-          triggered_by: 'meta_webhook',
-          notes: `Status synced from Meta: ${metaAd.effective_status}`,
-          metadata: {
-            meta_status: metaAd.status,
-            effective_status: metaAd.effective_status,
-            configured_status: metaAd.configured_status
-          }
-        })
-    }
 
     return {
       success: true,

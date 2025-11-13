@@ -43,9 +43,9 @@ export function AdStatusTimeline({ ad, className }: AdStatusTimelineProps) {
     events.push({
       label: "Submitted for Review",
       date: ad.published_at,
-      status: ad.status === 'pending_approval' ? 'current' : 'completed',
+      status: ad.status === 'pending_review' ? 'current' : 'completed',
       icon: <Clock className="h-4 w-4" />,
-      description: ad.status === 'pending_approval' 
+      description: ad.status === 'pending_review' 
         ? 'Meta is reviewing your ad. This typically takes up to 24 hours.'
         : undefined,
     })

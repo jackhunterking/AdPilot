@@ -65,8 +65,8 @@ export function AdCard({
   const [showErrorModal, setShowErrorModal] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
   
-  // Extract error from ad.last_error if it exists
-  const error: PublishError | undefined = ad.last_error as PublishError | undefined
+  // Extract error from ad.last_error if it exists (will be available after migration)
+  const error: PublishError | undefined = (ad as { last_error?: PublishError }).last_error
   
   const handleDeleteClick = () => {
     setShowDeleteDialog(true)

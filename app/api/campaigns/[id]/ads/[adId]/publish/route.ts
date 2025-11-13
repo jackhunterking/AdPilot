@@ -1,156 +1,211 @@
 /**
- * Feature: Publish Individual Ad
- * Purpose: Publish a specific ad from draft to active status with Meta integration
+ * Feature: Individual Ad Publishing API
+ * Purpose: Publish a single ad to Meta with proper status tracking and error handling
  * References:
- *  - Meta Ad Creation: https://developers.facebook.com/docs/marketing-api/reference/adgroup
- *  - Supabase: https://supabase.com/docs/reference/javascript/update
+ *  - Meta Marketing API: https://developers.facebook.com/docs/marketing-api/reference/ad/
+ *  - Supabase: https://supabase.com/docs/guides/auth/server-side
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, supabaseServer } from '@/lib/supabase/server'
-
-interface AdWithPublishData {
-  id: string
-  campaign_id: string
-  name: string
-  status: string
-  meta_ad_id: string | null
-  meta_review_status?: string
-  setup_snapshot?: unknown
-  creative_data: unknown
-  copy_data: unknown
-  metrics_snapshot: unknown
-  published_at?: string
-  approved_at?: string
-  rejected_at?: string | null
-  created_at: string
-  updated_at: string
-}
+import { publishSingleAd } from '@/lib/meta/publisher-single-ad'
+import type { AdStatus } from '@/lib/types/workspace'
 
 export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string; adId: string }> }
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string; adId: string }> }
 ) {
   try {
-    const { id: campaignId, adId } = await context.params
-
-    console.log('[PublishAd] POST request:', { campaignId, adId })
-
+    const { id: campaignId, adId } = await params
+    
+    // Authenticate user
     const supabase = await createServerClient()
-
-    // Verify user owns the campaign
-    const { data: user, error: authError } = await supabase.auth.getUser()
-    if (authError) {
-      console.error('[PublishAd] Auth getUser error:', authError)
-    }
-    if (!user?.user) {
-      console.warn('[PublishAd] Unauthorized request', { campaignId, adId })
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: campaign, error: campaignError } = await supabaseServer
+    // Verify campaign ownership
+    const { data: campaign } = await supabaseServer
       .from('campaigns')
-      .select('id, user_id, name')
+      .select('id, user_id')
       .eq('id', campaignId)
       .single()
 
-    if (campaignError) {
-      console.error('[PublishAd] Campaign lookup failed:', campaignError)
-      return NextResponse.json({ error: 'Failed to load campaign' }, { status: 500 })
-    }
-
-    if (!campaign || campaign.user_id !== user.user.id) {
-      console.warn('[PublishAd] Forbidden request', {
-        campaignId,
-        adId,
-        requesterId: user.user.id,
-        campaignOwner: campaign?.user_id,
-      })
+    if (!campaign || campaign.user_id !== user.id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Fetch the ad from database
-    const { data: ad, error: adError } = await supabaseServer
+    // Verify ad belongs to campaign
+    const { data: ad } = await supabaseServer
       .from('ads')
-      .select('*')
+      .select('id, campaign_id, status, meta_ad_id')
       .eq('id', adId)
       .eq('campaign_id', campaignId)
-      .single() as { data: AdWithPublishData | null; error: unknown }
+      .single()
 
-    if (adError || !ad) {
-      console.error('[PublishAd] Failed to fetch ad:', adError)
+    if (!ad) {
       return NextResponse.json({ error: 'Ad not found' }, { status: 404 })
     }
 
-    // Validate that ad is in draft or rejected status (can republish rejected ads)
-    if (ad.status !== 'draft' && ad.status !== 'rejected') {
-      console.warn('[PublishAd] Ad cannot be published:', { adId, status: ad.status })
-      return NextResponse.json({ 
-        error: ad.status === 'pending_approval' 
-          ? 'Ad is already under review' 
-          : 'Only draft or rejected ads can be published' 
-      }, { status: 400 })
+    // Check if already published
+    if (ad.meta_ad_id) {
+      return NextResponse.json(
+        { 
+          error: 'Ad already published',
+          meta_ad_id: ad.meta_ad_id,
+          current_status: ad.status
+        },
+        { status: 409 }
+      )
     }
 
-    // Validate ad has required data (setup_snapshot, creative_data, or copy_data)
-    const hasSnapshot = ad.setup_snapshot && typeof ad.setup_snapshot === 'object'
-    const hasCreativeData = ad.creative_data && typeof ad.creative_data === 'object'
-    const hasCopyData = ad.copy_data && typeof ad.copy_data === 'object'
-    
-    if (!hasSnapshot && (!hasCreativeData || !hasCopyData)) {
-      console.warn('[PublishAd] Ad is missing required data:', { 
-        adId, 
-        hasSnapshot, 
-        hasCreative: hasCreativeData, 
-        hasCopy: hasCopyData 
-      })
-      return NextResponse.json({ 
-        error: 'Ad setup is incomplete. Please ensure all ad details are saved.' 
-      }, { status: 400 })
-    }
-
-    // TODO: Integrate with Meta API to actually submit the ad
-    // For now, we'll update status to pending_approval
-    // When Meta integration is ready:
-    // 1. Submit ad to Meta API
-    // 2. Get Meta Ad ID
-    // 3. Set status to pending_approval
-    // 4. Meta webhook will update to 'active' when approved
-
-    // Update ad status to pending_approval (submitted for review)
-    const { data: updatedAd, error: updateError } = await supabaseServer
+    // Update status to pending_review immediately
+    await supabaseServer
       .from('ads')
-      .update({
-        status: 'pending_approval',
-        meta_review_status: 'pending',
-        published_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        // Clear rejection timestamp if resubmitting
-        rejected_at: null,
+      .update({ 
+        status: 'pending_review' as AdStatus,
+        updated_at: new Date().toISOString()
       })
       .eq('id', adId)
-      .eq('campaign_id', campaignId)
-      .select()
-      .single() as { data: AdWithPublishData | null; error: unknown }
 
-    if (updateError || !updatedAd) {
-      console.error('[PublishAd] Failed to update ad status:', updateError)
-      return NextResponse.json({ error: 'Failed to publish ad' }, { status: 500 })
+    // Publish to Meta (async operation)
+    try {
+      const result = await publishSingleAd({
+        campaignId,
+        adId,
+        userId: user.id
+      })
+
+      if (!result.success) {
+        // Update status to failed
+        await supabaseServer
+          .from('ads')
+          .update({ 
+            status: 'failed' as AdStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', adId)
+
+        return NextResponse.json({
+          success: false,
+          error: result.error,
+          status: 'failed'
+        }, { status: 500 })
+      }
+
+      // Success - update with Meta ad ID
+      await supabaseServer
+        .from('ads')
+        .update({
+          meta_ad_id: result.metaAdId,
+          status: result.status as AdStatus,
+          published_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', adId)
+
+      return NextResponse.json({
+        success: true,
+        meta_ad_id: result.metaAdId,
+        status: result.status,
+        message: 'Ad published successfully'
+      })
+
+    } catch (publishError) {
+      // Handle publishing errors
+      const error = publishError instanceof Error ? publishError : new Error('Unknown error')
+      
+      await supabaseServer
+        .from('ads')
+        .update({ 
+          status: 'failed' as AdStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', adId)
+
+      return NextResponse.json({
+        success: false,
+        error: {
+          code: 'api_error',
+          message: error.message,
+          userMessage: 'Failed to publish ad. Please try again.'
+        },
+        status: 'failed'
+      }, { status: 500 })
     }
 
-    console.log('[PublishAd] Ad submitted for review:', { adId, campaignId, status: 'pending_approval' })
+  } catch (error) {
+    console.error('[Publish API] Error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+// GET endpoint to check publish status
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string; adId: string }> }
+) {
+  try {
+    const { id: campaignId, adId } = await params
+    
+    // Authenticate user
+    const supabase = await createServerClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Verify campaign ownership
+    const { data: campaign } = await supabaseServer
+      .from('campaigns')
+      .select('id, user_id')
+      .eq('id', campaignId)
+      .single()
+
+    if (!campaign || campaign.user_id !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Get ad with metadata
+    const { data: ad } = await supabaseServer
+      .from('ads')
+      .select(`
+        id,
+        status,
+        meta_ad_id,
+        published_at,
+        approved_at,
+        rejected_at
+      `)
+      .eq('id', adId)
+      .eq('campaign_id', campaignId)
+      .single()
+
+    if (!ad) {
+      return NextResponse.json({ error: 'Ad not found' }, { status: 404 })
+    }
 
     return NextResponse.json({
-      success: true,
-      ad: updatedAd,
-      status: 'pending_approval',
-      publishedAt: updatedAd.published_at,
-      message: 'Ad submitted for review'
+      ad_id: ad.id,
+      status: ad.status,
+      meta_ad_id: ad.meta_ad_id,
+      published_at: ad.published_at,
+      approved_at: ad.approved_at,
+      rejected_at: ad.rejected_at
     })
+
   } catch (error) {
-    console.error('[PublishAd] POST error:', error)
-    const message = error instanceof Error ? error.message : 'Failed to publish ad'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('[Publish Status API] Error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
   }
 }
 

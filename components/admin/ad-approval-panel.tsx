@@ -43,7 +43,7 @@ export function AdApprovalPanel({
   }
   
   // Filter to pending ads
-  const pendingAds = ads.filter(ad => ad.status === 'pending_approval')
+  const pendingAds = ads.filter(ad => ad.status === 'pending_review')
   
   if (pendingAds.length === 0) {
     return null

@@ -62,7 +62,15 @@ export interface GoalSnapshot {
     id?: string
     name?: string
     type?: string
-    fields?: string[]
+    introHeadline?: string
+    introDescription?: string
+    privacyUrl?: string
+    privacyLinkText?: string
+    fields?: Array<{ id: string; type: "full_name" | "email" | "phone"; label: string; required: boolean }>
+    thankYouTitle?: string
+    thankYouMessage?: string
+    thankYouButtonText?: string
+    thankYouButtonUrl?: string
     phoneNumber?: string
     countryCode?: string
     websiteUrl?: string

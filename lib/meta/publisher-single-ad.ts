@@ -35,7 +35,7 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
   const logger = createPublishLogger(params.campaignId, true)
   
   try {
-    logger.logInfo('Starting single ad publish', { adId: params.adId })
+    console.log('[PublishSingleAd] Starting single ad publish', { adId: params.adId })
 
     // ====================================================================
     // STEP 1: LOAD AD DATA
@@ -209,7 +209,7 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
     // ====================================================================
     // STEP 7: UPLOAD IMAGE
     // ====================================================================
-    logger.logInfo('Uploading image to Meta', { imageUrl })
+    console.log('[PublishSingleAd] Uploading image to Meta', { imageUrl })
     
     const imageUploadResult = await imageUploader.uploadImagesWithRetry(
       [imageUrl],
@@ -237,7 +237,7 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
     // ====================================================================
     // STEP 8: CREATE CREATIVE
     // ====================================================================
-    logger.logInfo('Creating ad creative')
+    console.log('[PublishSingleAd] Creating ad creative')
     
     const creativeGenerator = new CreativePayloadGenerator()
     const creativeResult = creativeGenerator.generate({
@@ -291,10 +291,10 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
       // Use existing campaign and adset
       metaCampaignId = publishedCampaign.meta_campaign_id
       metaAdSetId = publishedCampaign.meta_adset_id
-      logger.logInfo('Using existing Meta campaign and adset', { metaCampaignId, metaAdSetId })
+      console.log('[PublishSingleAd] Using existing Meta campaign and adset', { metaCampaignId, metaAdSetId })
     } else {
       // Create new campaign and adset
-      logger.logInfo('Creating new Meta campaign')
+      console.log('[PublishSingleAd] Creating new Meta campaign')
       
       const campaignPayload = {
         name: campaign.name,
@@ -325,7 +325,7 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
       metaCampaignId = campaignResponse.id
 
       // Create adset
-      logger.logInfo('Creating ad set')
+      console.log('[PublishSingleAd] Creating ad set')
       
       const adsetPayload = {
         name: `${campaign.name} - AdSet`,
@@ -383,7 +383,7 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
     // ====================================================================
     // STEP 10: CREATE AD
     // ====================================================================
-    logger.logInfo('Creating Meta ad')
+    console.log('[PublishSingleAd] Creating Meta ad')
     
     const adPayload = {
       name: ad.name,
@@ -411,7 +411,7 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
       }
     }
 
-    logger.logInfo('Ad published successfully', { metaAdId: adResponse.id })
+    console.log('[PublishSingleAd] Ad published successfully', { metaAdId: adResponse.id })
 
     // Meta will review the ad, so status is pending_review
     return {
@@ -422,7 +422,7 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
 
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error')
-    logger.logError('Ad publishing failed', { error: err.message, adId: params.adId })
+    console.error('[PublishSingleAd] Ad publishing failed', { error: err instanceof Error ? err.message : String(err), adId: params.adId })
 
     return {
       success: false,

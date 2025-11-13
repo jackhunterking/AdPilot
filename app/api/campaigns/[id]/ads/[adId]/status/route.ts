@@ -11,10 +11,10 @@ import { syncAdStatus } from '@/lib/meta/status-sync/polling-service'
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ campaignId: string; adId: string }> }
+  { params }: { params: Promise<{ id: string; adId: string }> }
 ) {
   try {
-    const { campaignId, adId } = await params
+    const { id: campaignId, adId } = await params
     
     // Authenticate user
     const supabase = await createServerClient()
@@ -65,7 +65,7 @@ export async function GET(
 // POST endpoint to force status refresh
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ campaignId: string; adId: string }> }
+  { params }: { params: Promise<{ id: string; adId: string }> }
 ) {
   return GET(req, { params })
 }
