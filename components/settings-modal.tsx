@@ -23,6 +23,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
   Facebook,
@@ -42,6 +43,7 @@ import { BudgetDialog } from "@/components/launch/budget-dialog"
 import { useBudget } from "@/lib/context/budget-context"
 import { toast } from "sonner"
 import { metaLogger } from "@/lib/meta/logger"
+import { cn } from "@/lib/utils"
 
 interface SettingsModalProps {
   open: boolean
@@ -120,234 +122,258 @@ export function SettingsModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">Campaign Settings</DialogTitle>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b bg-muted/30">
+            <DialogTitle className="text-2xl font-semibold">Campaign Settings</DialogTitle>
           </DialogHeader>
 
-          <Accordion type="single" collapsible className="w-full" defaultValue="meta-connection">
-            {/* Meta Connection Section */}
-            <AccordionItem value="meta-connection">
-              <AccordionTrigger className="text-left hover:no-underline">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <Facebook className="h-5 w-5" />
-                    <Instagram className="h-5 w-5" />
-                  </div>
-                  <span className="font-semibold">Meta Connection</span>
-                  {isConnected && paymentStatus === 'verified' && (
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  )}
-                  {(hasPaymentIssue || !isConnected) && (
-                    <AlertCircle className="h-4 w-4 text-red-600" />
-                  )}
-                </div>
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4 pt-3">
-                  {isConnected ? (
-                    <>
-                      {/* Connected State */}
-                      <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-                        {summary?.business && (
-                          <div className="flex items-start gap-3">
-                            <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
-                            <div className="flex-1">
-                              <p className="text-xs text-muted-foreground">Business</p>
-                              <p className="font-medium">{summary.business.name || summary.business.id}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {summary?.page && (
-                          <div className="flex items-start gap-3">
-                            <Facebook className="h-5 w-5 text-muted-foreground mt-0.5" />
-                            <div className="flex-1">
-                              <p className="text-xs text-muted-foreground">Facebook Page</p>
-                              <p className="font-medium">{summary.page.name || summary.page.id}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {summary?.instagram && (
-                          <div className="flex items-start gap-3">
-                            <Instagram className="h-5 w-5 text-muted-foreground mt-0.5" />
-                            <div className="flex-1">
-                              <p className="text-xs text-muted-foreground">Instagram</p>
-                              <p className="font-medium">@{summary.instagram.username || summary.instagram.id}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {summary?.adAccount && (
-                          <div className="flex items-start gap-3">
-                            <CreditCard className="h-5 w-5 text-muted-foreground mt-0.5" />
-                            <div className="flex-1">
-                              <p className="text-xs text-muted-foreground">Ad Account</p>
-                              <p className="font-medium">{summary.adAccount.name || summary.adAccount.id}</p>
-                            </div>
-                          </div>
-                        )}
+          <div className="overflow-y-auto max-h-[calc(90vh-5rem)] px-6 pb-6">
+            <Accordion type="single" collapsible className="w-full" defaultValue="meta-connection">
+              {/* Meta Connection Section */}
+              <AccordionItem value="meta-connection" className="border-b">
+                <AccordionTrigger className="py-5 hover:no-underline group">
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                      <div className="flex items-center gap-1">
+                        <Facebook className="h-4 w-4 text-blue-600" />
+                        <Instagram className="h-4 w-4 text-blue-600" />
                       </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-1">
+                      <span className="font-semibold text-base">Meta Connection</span>
+                      {isConnected && paymentStatus === 'verified' && (
+                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      )}
+                      {(hasPaymentIssue || !isConnected) && (
+                        <AlertCircle className="h-5 w-5 text-red-600" />
+                      )}
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-6">
+                  <div className="space-y-4 pt-4">
+                    {isConnected ? (
+                      <>
+                        {/* Connected State - Grid Layout */}
+                        <Card className="border-border bg-muted/50 p-6">
+                          <div className="grid gap-5">
+                            {summary?.business && (
+                              <div className="flex items-start gap-4">
+                                <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                                  <Building2 className="h-5 w-5 text-blue-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Business</p>
+                                  <p className="font-semibold text-base truncate">{summary.business.name || summary.business.id}</p>
+                                </div>
+                              </div>
+                            )}
 
-                      {/* Payment Issue Warning */}
-                      {hasPaymentIssue && (
-                        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4">
-                          <div className="flex items-start gap-3">
-                            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                            <div className="flex-1">
-                              <p className="font-semibold text-red-900 dark:text-red-100 text-sm mb-2">
-                                Payment Method Required
-                              </p>
-                              <p className="text-sm text-red-700 dark:text-red-300 mb-3">
-                                Add a payment method to your ad account to publish ads.
-                              </p>
-                              <Button
-                                size="sm"
-                                onClick={handleAddPayment}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                <CreditCard className="h-4 w-4 mr-2" />
-                                Add Payment Method
-                              </Button>
+                            {summary?.page && (
+                              <div className="flex items-start gap-4">
+                                <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                                  <Facebook className="h-5 w-5 text-blue-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Facebook Page</p>
+                                  <p className="font-semibold text-base truncate">{summary.page.name || summary.page.id}</p>
+                                </div>
+                              </div>
+                            )}
+
+                            {summary?.instagram && (
+                              <div className="flex items-start gap-4">
+                                <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                                  <Instagram className="h-5 w-5 text-blue-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Instagram</p>
+                                  <p className="font-semibold text-base truncate">@{summary.instagram.username || summary.instagram.id}</p>
+                                </div>
+                              </div>
+                            )}
+
+                            {summary?.adAccount && (
+                              <div className="flex items-start gap-4">
+                                <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                                  <CreditCard className="h-5 w-5 text-blue-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Ad Account</p>
+                                  <p className="font-semibold text-base truncate">{summary.adAccount.name || summary.adAccount.id}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </Card>
+
+                        {/* Payment Issue Warning */}
+                        {hasPaymentIssue && (
+                          <Card className="border-red-500/30 bg-red-500/5 p-5">
+                            <div className="flex items-start gap-4">
+                              <div className="h-10 w-10 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                                <AlertCircle className="h-5 w-5 text-red-600" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-semibold text-red-900 dark:text-red-100 mb-2">
+                                  Payment Method Required
+                                </p>
+                                <p className="text-sm text-red-700 dark:text-red-300 mb-4">
+                                  Add a payment method to your ad account to publish ads.
+                                </p>
+                                <Button
+                                  size="sm"
+                                  onClick={handleAddPayment}
+                                  className="bg-red-600 hover:bg-red-700 text-white"
+                                >
+                                  <CreditCard className="h-4 w-4 mr-2" />
+                                  Add Payment Method
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      )}
+                          </Card>
+                        )}
 
-                      {/* Success State */}
-                      {!hasPaymentIssue && paymentStatus === 'verified' && (
-                        <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-4">
-                          <div className="flex items-center gap-3">
-                            <CheckCircle2 className="h-5 w-5 text-green-600" />
-                            <p className="text-sm text-green-700 dark:text-green-400 font-medium">
-                              Meta account connected and ready to publish ads
-                            </p>
+                        {/* Success State */}
+                        {!hasPaymentIssue && paymentStatus === 'verified' && (
+                          <Card className="border-green-500/30 bg-green-500/5 p-5">
+                            <div className="flex items-center gap-4">
+                              <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
+                                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                              </div>
+                              <p className="text-sm text-green-700 dark:text-green-400 font-medium">
+                                Meta account connected and ready to publish ads
+                              </p>
+                            </div>
+                          </Card>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {/* Disconnected State */}
+                        <Card className="border-border bg-muted/50 p-8 text-center">
+                          <div className="space-y-5">
+                            <div className="flex justify-center">
+                              <div className="h-20 w-20 rounded-full bg-blue-500/10 flex items-center justify-center">
+                                <Facebook className="h-10 w-10 text-blue-600" />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <h3 className="font-semibold text-lg">Connect Meta Account</h3>
+                              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                                Connect your Facebook and Instagram accounts to publish ads
+                              </p>
+                            </div>
+                            <Button
+                              size="lg"
+                              onClick={handleConnectClick}
+                              disabled={isConnecting}
+                              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                            >
+                              {isConnecting ? (
+                                <>
+                                  <Loader2 className="h-5 w-5 animate-spin" />
+                                  Connecting...
+                                </>
+                              ) : (
+                                <>
+                                  <Facebook className="h-5 w-5" />
+                                  <Instagram className="h-5 w-5" />
+                                  Connect Meta
+                                </>
+                              )}
+                            </Button>
                           </div>
+                        </Card>
+                      </>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Goal Section */}
+              <AccordionItem value="goal" className="border-b">
+                <AccordionTrigger className="py-5 hover:no-underline group">
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center group-hover:bg-orange-500/20 transition-colors">
+                      <Flag className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <span className="font-semibold text-base">Campaign Goal</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-6">
+                  <div className="space-y-4 pt-4">
+                    <Card className="border-border bg-muted/50 p-6">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                          <Flag className="h-6 w-6 text-orange-600" />
                         </div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {/* Disconnected State */}
-                      <div className="rounded-lg border border-border bg-muted/50 p-6 text-center space-y-4">
-                        <div className="flex justify-center">
-                          <div className="h-16 w-16 rounded-full bg-blue-500/10 flex items-center justify-center">
-                            <Facebook className="h-8 w-8 text-blue-600" />
+                        <div className="flex-1">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Selected Goal</p>
+                          <p className="font-semibold text-xl">{goalLabel}</p>
+                        </div>
+                      </div>
+                    </Card>
+
+                    <Card className="border-border bg-muted/30 p-5">
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Campaign goals are set during campaign creation and cannot be changed once ads are published.
+                      </p>
+                    </Card>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+
+              {/* Budget Section */}
+              <AccordionItem value="budget" className="border-b-0">
+                <AccordionTrigger className="py-5 hover:no-underline group">
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
+                      <DollarSign className="h-5 w-5 text-green-600" />
+                    </div>
+                    <span className="font-semibold text-base">Budget</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-6">
+                  <div className="space-y-4 pt-4">
+                    <Card className="border-border bg-muted/50 p-6">
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 rounded-xl bg-green-500/10 flex items-center justify-center flex-shrink-0">
+                            <DollarSign className="h-6 w-6 text-green-600" />
                           </div>
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-lg mb-2">Connect Meta Account</h3>
-                          <p className="text-sm text-muted-foreground mb-4">
-                            Connect your Facebook and Instagram accounts to publish ads
-                          </p>
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Daily Budget</p>
+                            <p className="font-bold text-3xl text-green-600">{formatCurrency(dailyBudgetValue)}</p>
+                          </div>
                         </div>
                         <Button
-                          size="lg"
-                          onClick={handleConnectClick}
-                          disabled={isConnecting}
-                          className="gap-2 bg-blue-600 hover:bg-blue-700"
+                          size="default"
+                          onClick={handleBudgetClick}
+                          variant="outline"
+                          className="gap-2 hover:bg-green-500/10 hover:text-green-700 hover:border-green-500/30 transition-colors"
                         >
-                          {isConnecting ? (
-                            <>
-                              <Loader2 className="h-5 w-5 animate-spin" />
-                              Connecting...
-                            </>
-                          ) : (
-                            <>
-                              <Facebook className="h-5 w-5" />
-                              <Instagram className="h-5 w-5" />
-                              Connect Meta
-                            </>
-                          )}
+                          Change Budget
                         </Button>
                       </div>
-                    </>
-                  )}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Goal Section */}
-            <AccordionItem value="goal">
-              <AccordionTrigger className="text-left hover:no-underline">
-                <div className="flex items-center gap-3">
-                  <Flag className="h-5 w-5" />
-                  <span className="font-semibold">Campaign Goal</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4 pt-3">
-                  <div className="rounded-lg border border-border bg-card p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                          <Flag className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Selected Goal</p>
-                          <p className="font-semibold text-lg">{goalLabel}</p>
+                      <div className="pt-4 border-t border-border">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground font-medium">Estimated monthly spend</span>
+                          <span className="text-lg font-bold">{formatCurrency(dailyBudgetValue * 30)}</span>
                         </div>
                       </div>
-                    </div>
-                  </div>
+                    </Card>
 
-                  <div className="rounded-lg border border-border bg-muted/50 p-4">
-                    <p className="text-sm text-muted-foreground">
-                      Campaign goals are set during campaign creation and cannot be changed once ads are published.
-                    </p>
+                    <Card className="border-border bg-muted/30 p-5">
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Your daily budget is automatically distributed across all active ads in this campaign.
+                      </p>
+                    </Card>
                   </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Budget Section */}
-            <AccordionItem value="budget">
-              <AccordionTrigger className="text-left hover:no-underline">
-                <div className="flex items-center gap-3">
-                  <DollarSign className="h-5 w-5" />
-                  <span className="font-semibold">Budget</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-4 pt-3">
-                  <div className="rounded-lg border border-border bg-card p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                          <DollarSign className="h-5 w-5 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Daily Budget</p>
-                          <p className="font-semibold text-2xl">{formatCurrency(dailyBudgetValue)}</p>
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={handleBudgetClick}
-                        variant="outline"
-                        className="gap-2"
-                      >
-                        Change Budget
-                      </Button>
-                    </div>
-                    <div className="pt-3 border-t border-border">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Estimated monthly spend</span>
-                        <span className="font-semibold">{formatCurrency(dailyBudgetValue * 30)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-border bg-muted/50 p-4">
-                    <p className="text-sm text-muted-foreground">
-                      Your daily budget is automatically distributed across all active ads in this campaign.
-                    </p>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -378,4 +404,3 @@ export function SettingsModal({
     </>
   )
 }
-
