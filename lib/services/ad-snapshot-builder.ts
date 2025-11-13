@@ -87,7 +87,7 @@ interface GoalState {
 }
 
 interface DestinationState {
-  status: 'idle' | 'in_progress' | 'completed'
+  status: 'idle' | 'selecting_type' | 'in_progress' | 'completed'
   data: {
     type: 'instant_form' | 'website_url' | 'phone_number' | null
     formId?: string
