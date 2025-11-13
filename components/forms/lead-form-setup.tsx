@@ -30,7 +30,6 @@ interface SelectedFormData {
 
 interface LeadFormSetupProps {
   onFormSelected: (form: SelectedFormData) => void
-  onChangeGoal: () => void
 }
 
 // Preview steps for navigation
@@ -41,7 +40,7 @@ const PREVIEW_STEPS = [
   { title: "Message for leads" },
 ]
 
-export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupProps) {
+export function LeadFormSetup({ onFormSelected }: LeadFormSetupProps) {
   const { goalState } = useGoal()
   const { campaign } = useCampaignContext()
   const { destinationState, setDestinationType } = useDestination()
@@ -193,7 +192,6 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
       <>
         <DestinationSelectionCanvas
           onInstantFormsSelected={handleInstantFormsSelected}
-          onChangeGoal={onChangeGoal}
           onMetaConnectionRequired={handleMetaConnectionRequired}
         />
         <MetaConnectionCheckDialog
@@ -336,13 +334,6 @@ export function LeadFormSetup({ onFormSelected, onChangeGoal }: LeadFormSetupPro
             </div>
           </div>
         </div>
-
-      {/* Change Goal Button */}
-      <div className="flex justify-center mt-8">
-        <Button variant="outline" size="lg" className="h-12 px-8" onClick={onChangeGoal}>
-          Change Goal
-        </Button>
-      </div>
     </div>
   )
 }

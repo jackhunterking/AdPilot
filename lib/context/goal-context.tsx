@@ -47,7 +47,6 @@ interface GoalContextType {
   updateStatus: (status: GoalStatus) => void
   setFormData: (data: GoalFormData) => void
   setError: (message: string) => void
-  resetGoal: () => void
 }
 
 const GoalContext = createContext<GoalContextType | undefined>(undefined)
@@ -160,19 +159,6 @@ export function GoalProvider({ children }: { children: ReactNode }) {
     setGoalState(prev => ({ ...prev, errorMessage: message, status: "error" }))
   }
 
-  const resetGoal = () => {
-    setGoalState({
-      selectedGoal: null,
-      status: "idle",
-      formData: null,
-      errorMessage: undefined,
-    })
-    // Navigate to goal step when resetting, allowing navigation even if step is incomplete
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'goal', force: true } }))
-    }
-  }
-
   return (
     <GoalContext.Provider 
       value={{ 
@@ -181,8 +167,7 @@ export function GoalProvider({ children }: { children: ReactNode }) {
         startSetup, 
         updateStatus, 
         setFormData, 
-        setError, 
-        resetGoal 
+        setError
       }}
     >
       {children}

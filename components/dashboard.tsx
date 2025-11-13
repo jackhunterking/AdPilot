@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import AiChat from "./ai-chat"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ArrowLeft, Edit, Moon, Sun, Check, PanelLeftClose, PanelLeftOpen } from "lucide-react"
+import { ChevronDown, ArrowLeft, Edit, Moon, Sun, Check, PanelLeftClose, PanelLeftOpen, Facebook, Instagram } from "lucide-react"
 import { COMPANY_NAME } from "@/lib/constants"
 import { useTheme } from "next-themes"
 import {
@@ -22,6 +22,7 @@ import { useCampaignContext } from "@/lib/context/campaign-context"
 import { SaveIndicator } from "./save-indicator"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { CampaignWorkspace } from "@/components/campaign-workspace"
+import { MetaConnectionModal } from "@/components/meta/meta-connection-modal"
 // Removed local heuristic name suggestion; naming is AI-driven on server
 
 interface DashboardProps {
@@ -45,6 +46,7 @@ export function Dashboard({
   const conversationIdOverride = searchParams.get('conversationId')
   const effectiveConversationId = conversationIdOverride || conversationId
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [metaModalOpen, setMetaModalOpen] = useState(false)
   const dailyCredits = 500
   const { setTheme, resolvedTheme } = useTheme()
   const { campaign, updateCampaign } = useCampaignContext()
@@ -176,7 +178,7 @@ export function Dashboard({
                         <ChevronDown className={`h-4 w-4 transition-colors ${isDropdownOpen ? 'text-foreground' : 'text-muted-foreground'}`} />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" alignOffset={-140} className="w-56">
+                    <DropdownMenuContent align="start" alignOffset={-140} className="w-72">
                       <DropdownMenuItem onClick={() => router.push('/')}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to Dashboard
@@ -226,6 +228,12 @@ export function Dashboard({
                           </DropdownMenuItem>
                         </DropdownMenuSubContent>
                       </DropdownMenuSub>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setMetaModalOpen(true)}>
+                        <Facebook className="mr-2 h-4 w-4" />
+                        <Instagram className="mr-2 h-4 w-4" />
+                        Connect Meta
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -272,6 +280,13 @@ export function Dashboard({
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
+            {/* Meta Connection Modal */}
+            <MetaConnectionModal 
+              open={metaModalOpen}
+              onOpenChange={setMetaModalOpen}
+              onSuccess={() => setMetaModalOpen(false)}
+            />
           </div>
           
           {/* AI Chat Content */}

@@ -128,7 +128,7 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
       if (targetIndex < 0) return
 
       // Rules: 
-      // - If force=true, allow navigation to any step (for explicit edits like "Change Goal")
+      // - If force=true, allow navigation to any step (for explicit navigation overrides)
       // - Otherwise: allow moving backward freely; allow moving forward only to
       //   completed steps, never beyond the first incomplete step.
       if (force) {

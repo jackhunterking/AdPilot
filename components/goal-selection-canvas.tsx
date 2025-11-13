@@ -20,7 +20,7 @@ interface GoalSelectionCanvasProps {
 }
 
 export function GoalSelectionCanvas({ variant = "step" }: GoalSelectionCanvasProps = {}) {
-  const { goalState, setSelectedGoal, resetGoal, setFormData } = useGoal()
+  const { goalState, setSelectedGoal, setFormData } = useGoal()
   const { isPublished } = useAdPreview()
   const { metaStatus, paymentStatus, refreshStatus, isReady } = useMetaConnection()
   const metaActions = useMetaActions()
@@ -180,7 +180,6 @@ export function GoalSelectionCanvas({ variant = "step" }: GoalSelectionCanvasPro
           onFormSelected={(data) => {
             setFormData({ id: data.id, name: data.name })
           }}
-          onChangeGoal={resetGoal}
         />
       </div>
     )
@@ -347,13 +346,7 @@ export function GoalSelectionCanvas({ variant = "step" }: GoalSelectionCanvasPro
             </div>
           )}
 
-          {!isSummary && (
-            <div className="flex justify-center gap-4 pt-6">
-              <Button variant="outline" size="lg" onClick={resetGoal}>
-                Change Goal
-              </Button>
-            </div>
-          )}
+          {/* Goal change removed - goal is now immutable during campaign setup */}
         </div>
       </div>
     )
@@ -405,13 +398,9 @@ export function GoalSelectionCanvas({ variant = "step" }: GoalSelectionCanvasPro
             </p>
           </div>
           
-          <Button
-            size="lg"
-            onClick={resetGoal}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            Try Again
-          </Button>
+          <p className="text-sm text-muted-foreground">
+            Please refresh the page to try again, or contact support if the issue persists.
+          </p>
         </div>
       </div>
     )

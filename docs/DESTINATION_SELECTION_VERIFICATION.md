@@ -93,7 +93,6 @@ All tasks have been completed successfully:
 - ✅ Instant Forms card: Active, clickable, recommended badge
 - ✅ Other Forms card: Disabled, coming soon badge
 - ✅ Handles click with lazy Meta check
-- ✅ "Change Goal" button included
 - ✅ Proper callbacks wired up
 
 ### MetaConnectionCheckDialog  
@@ -135,8 +134,8 @@ All tasks have been completed successfully:
    - Restores `hasSelectedDestination = true`
    - Shows form builder directly
 
-3. ✅ User changes goal after selecting destination
-   - "Change Goal" button clears destination state
+3. ✅ Goal is immutable once selected
+   - Goal cannot be changed after campaign setup begins
    - Can select different goal
 
 4. ✅ Meta connection fails or is cancelled

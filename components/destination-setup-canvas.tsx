@@ -40,10 +40,6 @@ export function DestinationSetupCanvas() {
                 formName: form.name,
               })
             }}
-            onChangeGoal={() => {
-              // No-op - goal cannot be changed at campaign level
-              console.warn('[DestinationSetupCanvas] onChangeGoal called but goal is immutable')
-            }}
           />
         )}
         

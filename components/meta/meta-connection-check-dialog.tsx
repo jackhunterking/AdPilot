@@ -8,9 +8,9 @@
  *  - AI Elements: https://ai-sdk.dev/elements/overview
  */
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Facebook, Loader2, CheckCircle2 } from "lucide-react"
+import { Facebook, CheckCircle2 } from "lucide-react"
 import { useState, useEffect, useCallback } from "react"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useMetaActions } from "@/lib/hooks/use-meta-actions"
@@ -119,82 +119,48 @@ export function MetaConnectionCheckDialog({ open, onOpenChange, onSuccess }: Met
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] p-0 gap-0 overflow-hidden">
-        {/* Gradient Header */}
-        <div className="relative bg-gradient-to-br from-blue-500 to-blue-600 p-8 text-white">
-          <div className="absolute top-4 right-4 opacity-20">
-            <Facebook className="h-12 w-12" />
+      <DialogContent className="sm:max-w-md p-6">
+        <DialogHeader className="mb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/10">
+              <Facebook className="h-6 w-6 text-blue-600" />
+            </div>
+            <DialogTitle className="text-xl">Connect Meta Account</DialogTitle>
           </div>
-          <DialogHeader className="space-y-3 relative">
-            <DialogTitle className="text-2xl font-bold text-white">
-              Connect Meta Account
-            </DialogTitle>
-            <DialogDescription className="text-blue-50 text-base">
-              To use Instant Forms, connect your Facebook and Instagram accounts
-            </DialogDescription>
-          </DialogHeader>
+        </DialogHeader>
+        <DialogDescription className="text-sm text-muted-foreground mb-4">
+          To use Instant Forms, connect your Facebook and Instagram accounts to collect leads directly on Meta platforms.
+        </DialogDescription>
+        
+        {/* Simple feature list */}
+        <div className="space-y-2 mb-6 text-sm text-muted-foreground">
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+            <span><strong>Quick Setup:</strong> Select your business, page, and ad account</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+            <span><strong>Secure Connection:</strong> Your credentials are handled by Meta</span>
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="p-6">
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground text-center">
-              Instant Forms require access to your Meta business account to collect leads directly on Facebook and Instagram.
-            </p>
-            
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
-                <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm flex-1">
-                  <p className="font-semibold mb-1 text-blue-900 dark:text-blue-100">Quick Setup</p>
-                  <p className="text-blue-700 dark:text-blue-300 text-xs">
-                    We'll guide you through selecting your business, page, and ad account
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
-                <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm flex-1">
-                  <p className="font-semibold mb-1 text-blue-900 dark:text-blue-100">Secure Connection</p>
-                  <p className="text-blue-700 dark:text-blue-300 text-xs">
-                    Your credentials are handled securely by Meta
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Footer */}
-        <div className="px-6 pb-6">
-          <DialogFooter className="flex gap-3">
-            <Button 
-              variant="outline" 
-              onClick={() => onOpenChange(false)} 
-              disabled={isConnecting}
-              className="flex-1 sm:flex-initial"
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleConnect} 
-              disabled={isConnecting}
-              className="flex-1 sm:flex-initial gap-2 bg-blue-600 hover:bg-blue-700"
-            >
-              {isConnecting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Connecting...
-                </>
-              ) : (
-                <>
-                  <Facebook className="h-4 w-4" />
-                  Connect Now
-                </>
-              )}
-            </Button>
-          </DialogFooter>
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => onOpenChange(false)}
+            disabled={isConnecting}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="lg"
+            onClick={handleConnect}
+            disabled={isConnecting}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {isConnecting ? "Connecting..." : "Connect Now"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

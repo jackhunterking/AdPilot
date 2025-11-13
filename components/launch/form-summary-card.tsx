@@ -15,7 +15,7 @@ interface FormSummaryCardProps {
 }
 
 export function FormSummaryCard({ mode = 'summary', onChange }: FormSummaryCardProps) {
-  const { goalState, resetGoal } = useGoal()
+  const { goalState } = useGoal()
   const form = goalState.formData
 
   return (
@@ -32,16 +32,15 @@ export function FormSummaryCard({ mode = 'summary', onChange }: FormSummaryCardP
           size="sm"
           className="h-7 px-3"
           onClick={() => {
-            if (mode === 'inline') {
-              if (onChange) onChange()
-              else resetGoal() // resetGoal now dispatches navigation event with force flag
+            if (mode === 'inline' && onChange) {
+              onChange()
             } else {
-              // Force navigation to allow editing goal even if it's incomplete
+              // Force navigation to allow viewing/editing goal
               window.dispatchEvent(new CustomEvent('gotoStep', { detail: { id: 'goal', force: true } }))
             }
           }}
         >
-          {goalState.selectedGoal ? 'Change goal' : 'Set a goal'}
+          {goalState.selectedGoal ? 'View goal' : 'Set a goal'}
         </Button>
       </div>
       {/* Leads summary */}

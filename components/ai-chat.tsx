@@ -187,7 +187,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
   const [model] = useState<string>("openai/gpt-4o");
   const { campaign } = useCampaignContext();
   const { adContent, setAdContent } = useAdPreview();
-  const { goalState, setFormData, setError, resetGoal } = useGoal();
+  const { goalState, setFormData, setError } = useGoal();
   const { locationState, addLocations, updateStatus: updateLocationStatus } = useLocation();
   const [generatingImages, setGeneratingImages] = useState<Set<string>>(new Set());
   // removed unused editingImages setter

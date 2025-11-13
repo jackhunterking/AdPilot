@@ -18,13 +18,11 @@ import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
 
 interface DestinationSelectionCanvasProps {
   onInstantFormsSelected: () => void
-  onChangeGoal: () => void
   onMetaConnectionRequired: () => void
 }
 
 export function DestinationSelectionCanvas({
   onInstantFormsSelected,
-  onChangeGoal,
   onMetaConnectionRequired,
 }: DestinationSelectionCanvasProps) {
   const { metaStatus, refreshStatus } = useMetaConnection()
@@ -139,18 +137,6 @@ export function DestinationSelectionCanvas({
               Coming Soon
             </Badge>
           </div>
-        </div>
-
-        {/* Change Goal Button */}
-        <div className="flex justify-center mt-12">
-          <Button
-            variant="outline"
-            size="lg"
-            className="h-12 px-8"
-            onClick={onChangeGoal}
-          >
-            Change Goal
-          </Button>
         </div>
       </div>
     </div>
