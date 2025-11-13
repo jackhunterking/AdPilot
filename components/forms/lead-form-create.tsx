@@ -361,16 +361,20 @@ export function LeadFormCreate({
                     }}
                   />
                 </div>
-                <div>
-                  <Label className="text-sm font-medium mb-2 block">Privacy link text</Label>
-                  <Input value={privacyLinkText} onChange={(e) => onPrivacyLinkTextChange(e.target.value)} placeholder="Privacy Policy" className="h-10" />
-                  {errors.privacyLinkText && <p className="text-xs text-amber-600 mt-1">{errors.privacyLinkText}</p>}
-                </div>
-                <div>
-                  <Label className="text-sm font-medium mb-2 block">Privacy URL</Label>
-                  <Input value={privacyUrl} onChange={(e) => onPrivacyUrlChange(e.target.value)} placeholder="https://..." disabled={useDefaultPrivacy} className="h-10" />
-                  {errors.privacyUrl && <p className="text-xs text-amber-600 mt-1">{errors.privacyUrl}</p>}
-                </div>
+                {!useDefaultPrivacy && (
+                  <>
+                    <div>
+                      <Label className="text-sm font-medium mb-2 block">Privacy link text <span className="text-destructive">*</span></Label>
+                      <Input value={privacyLinkText} onChange={(e) => onPrivacyLinkTextChange(e.target.value)} placeholder="Privacy Policy" className="h-10" />
+                      {errors.privacyLinkText && <p className="text-xs text-destructive mt-1">{errors.privacyLinkText}</p>}
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium mb-2 block">Privacy URL <span className="text-destructive">*</span></Label>
+                      <Input value={privacyUrl} onChange={(e) => onPrivacyUrlChange(e.target.value)} placeholder="https://..." className="h-10" />
+                      {errors.privacyUrl && <p className="text-xs text-destructive mt-1">{errors.privacyUrl}</p>}
+                    </div>
+                  </>
+                )}
               </div>
             </CollapsibleContent>
           </Card>
@@ -394,14 +398,14 @@ export function LeadFormCreate({
                   <Input value={thankYouMessage} onChange={(e) => onThankYouMessageChange(e.target.value)} className="h-10" />
                 </div>
                 <div>
-                  <Label className="text-sm font-medium mb-2 block">Button Text</Label>
+                  <Label className="text-sm font-medium mb-2 block">Button Text <span className="text-destructive">*</span></Label>
                   <Input value={thankYouButtonText} onChange={(e) => onThankYouButtonTextChange(e.target.value)} placeholder="View website" className="h-10" />
-                  {errors.thankYouButtonText && <p className="text-xs text-amber-600 mt-1">{errors.thankYouButtonText}</p>}
+                  {errors.thankYouButtonText && <p className="text-xs text-destructive mt-1">{errors.thankYouButtonText}</p>}
                 </div>
                 <div>
-                  <Label className="text-sm font-medium mb-2 block">Website Link URL</Label>
+                  <Label className="text-sm font-medium mb-2 block">Website Link URL <span className="text-destructive">*</span></Label>
                   <Input value={thankYouButtonUrl} onChange={(e) => onThankYouButtonUrlChange(e.target.value)} placeholder="https://yourdomain.com" className="h-10" />
-                  {errors.thankYouButtonUrl && <p className="text-xs text-amber-600 mt-1">{errors.thankYouButtonUrl}</p>}
+                  {errors.thankYouButtonUrl && <p className="text-xs text-destructive mt-1">{errors.thankYouButtonUrl}</p>}
                 </div>
               </div>
             </CollapsibleContent>

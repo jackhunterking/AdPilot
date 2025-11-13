@@ -29,28 +29,18 @@ export function IntroPageVisual({
     <div className="flex-1 flex flex-col items-center justify-center px-6">
       {/* Visual Identity Section */}
       <div className="relative mb-8">
-        {/* Business Page Name - Above everything */}
-        <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-full">
-          <p
-            className="text-xs font-semibold uppercase tracking-wide text-center"
-            style={{ color: '#A1A1A1' }}
-          >
-            {businessName}
-          </p>
-        </div>
-
         {/* Overlapping Circle with Logo */}
         <div
-          className="absolute left-1/2 -translate-x-1/2 -top-[40px] w-20 h-20 rounded-full bg-white shadow-lg flex items-center justify-center overflow-hidden z-10"
+          className="absolute left-1/2 -translate-x-1/2 -top-[40px] w-20 h-20 rounded-full bg-white shadow-lg flex items-center justify-center z-10"
         >
           {logoUrl ? (
             <img
               src={logoUrl}
               alt={businessName}
-              className="w-full h-full object-cover"
+              className="w-4/5 h-4/5 object-cover rounded-full"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400 to-blue-600">
+            <div className="w-4/5 h-4/5 flex items-center justify-center bg-gradient-to-br from-blue-400 to-blue-600 rounded-full">
               <span className="text-white text-xl font-bold">
                 {initials}
               </span>

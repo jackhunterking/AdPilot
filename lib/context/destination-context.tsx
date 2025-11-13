@@ -9,6 +9,7 @@
 "use client"
 
 import { logger } from '@/lib/utils/logger';
+import { toast } from 'sonner';
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
 import { useCampaignContext } from "./campaign-context"
@@ -39,6 +40,26 @@ interface DestinationContextType {
 
 const DestinationContext = createContext<DestinationContextType | null>(null)
 
+/**
+ * Validates destination data to ensure all required fields are present
+ * @param data - The destination data to validate
+ * @returns true if the destination data is complete and valid, false otherwise
+ */
+function validateDestinationData(data: DestinationData | null): boolean {
+  if (!data?.type) return false
+  
+  switch (data.type) {
+    case 'instant_form':
+      return Boolean(data.formId)
+    case 'website_url':
+      return Boolean(data.websiteUrl)
+    case 'phone_number':
+      return Boolean(data.phoneNumber)
+    default:
+      return false
+  }
+}
+
 export function DestinationProvider({ children }: { children: ReactNode }) {
   const { campaign } = useCampaignContext()
   const searchParams = useSearchParams()
@@ -62,8 +83,37 @@ export function DestinationProvider({ children }: { children: ReactNode }) {
       const saved = localStorage.getItem(storageKey)
       if (saved) {
         const parsed = JSON.parse(saved) as DestinationState
-        setDestinationState(parsed)
-        logger.debug('DestinationContext', 'Loaded destination from localStorage', { storageKey, parsed })
+        
+        // Validate the loaded data
+        const isValid = validateDestinationData(parsed.data)
+        
+        if (parsed.status === 'completed' && !isValid) {
+          // Data was marked complete but is invalid - downgrade to in_progress
+          logger.warn('DestinationContext', 'Invalid destination data detected, downgrading status', { 
+            storageKey, 
+            data: parsed.data 
+          })
+          
+          const correctedState: DestinationState = {
+            status: parsed.data ? 'in_progress' : 'idle',
+            data: parsed.data || null,
+          }
+          
+          setDestinationState(correctedState)
+          
+          // Show user-facing feedback
+          if (parsed.data?.type === 'instant_form') {
+            toast.warning('Form selection incomplete. Please select a form to continue.')
+          } else if (parsed.data?.type === 'website_url') {
+            toast.warning('Website URL incomplete. Please enter a website URL to continue.')
+          } else if (parsed.data?.type === 'phone_number') {
+            toast.warning('Phone number incomplete. Please enter a phone number to continue.')
+          }
+        } else {
+          // Data is valid or already has correct status
+          setDestinationState(parsed)
+          logger.debug('DestinationContext', 'Loaded destination from localStorage', { storageKey, parsed })
+        }
       } else {
         // No saved destination, reset to idle
         setDestinationState({
@@ -102,11 +152,14 @@ export function DestinationProvider({ children }: { children: ReactNode }) {
   }, [campaign?.id, currentAdId, destinationState])
   
   const setDestination = useCallback((data: DestinationData) => {
+    const isValid = validateDestinationData(data)
+    const status = isValid ? 'completed' : 'in_progress'
+    
     setDestinationState({
-      status: 'completed',
+      status,
       data,
     })
-    logger.debug('DestinationContext', 'Destination set', data)
+    logger.debug('DestinationContext', 'Destination set', { data, isValid, status })
   }, [])
   
   const setDestinationType = useCallback((type: 'instant_form' | 'website_url' | 'phone_number') => {
