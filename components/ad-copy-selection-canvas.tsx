@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Check, ImageIcon, Layers, Video, Sparkles, Edit2, Loader2, MoreVertical, Globe, ThumbsUp, MessageCircle, Share2, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -21,6 +21,8 @@ export function AdCopySelectionCanvas() {
   const { goalState } = useGoal()
   const [activeFormat, setActiveFormat] = useState("feed")
   const [showReelMessage, setShowReelMessage] = useState(false)
+  // Track if generation has been initiated to prevent infinite loop
+  const generationInitiatedRef = useRef(false)
   // Removed regenerate feature: no regenerating state
 
   const previewFormats = [
@@ -131,6 +133,12 @@ export function AdCopySelectionCanvas() {
       const detail = (e as CustomEvent).detail as { stepId?: string } | undefined
       if (detail?.stepId !== 'copy') return
 
+      // Check if generation has already been initiated
+      if (generationInitiatedRef.current) {
+        console.log('[AdCopyCanvas] Skipping generation: already initiated')
+        return
+      }
+
       // Check if we already have custom variations
       const hasCustom = Boolean(adCopyState.customCopyVariations && adCopyState.customCopyVariations.length)
       if (hasCustom) {
@@ -148,6 +156,9 @@ export function AdCopySelectionCanvas() {
       }
 
       console.log('[AdCopyCanvas] Starting ad copy generation on step entry')
+      
+      // Mark generation as initiated
+      generationInitiatedRef.current = true
       
       let cancelled = false
       setIsGeneratingCopy(true)
@@ -190,7 +201,7 @@ export function AdCopySelectionCanvas() {
 
     window.addEventListener('stepChanged', handler as EventListener)
     return () => window.removeEventListener('stepChanged', handler as EventListener)
-  }, [adContent?.imageVariations, adContent?.imageUrl, adCopyState.customCopyVariations, campaign?.id, campaign?.metadata?.initialPrompt, goalState?.selectedGoal, selectedImageIndex, setCustomCopyVariations, setGenerationMessage, setIsGenerating, setIsGeneratingCopy])
+  }, [campaign?.id, campaign?.metadata?.initialPrompt, goalState?.selectedGoal, selectedImageIndex, setCustomCopyVariations, setGenerationMessage, setIsGenerating, setIsGeneratingCopy])
 
   // (removed unused GeneratingOverlay)
 
@@ -200,76 +211,39 @@ export function AdCopySelectionCanvas() {
     
     const isSelected = adCopyState.selectedCopyIndex === copyIndex
     const isProcessing = false
-    const isLoadingCopy = adCopyState.isGeneratingCopy && !adCopyState.customCopyVariations
+    const isLoadingCopy = adCopyState.isGeneratingCopy
     const selectedImg = selectedImageIndex != null
       ? adContent?.imageVariations?.[selectedImageIndex]
       : (adContent?.imageUrl || adContent?.imageVariations?.[0])
     
     return (
-      <div
-        key={copy.id}
-        className={cn(
-          "rounded-lg border-2 bg-white overflow-hidden hover:shadow-lg transition-all relative group cursor-pointer",
-          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]'
-        )}
-        style={{ borderRadius: '8px' }}
-        onClick={() => handleSelectCopy(copyIndex)}
-      >
-        {/* Processing Overlay */}
-        {isProcessing && (
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] z-20 flex items-center justify-center">
-            <div className="bg-card/95 rounded-xl px-4 py-3 shadow-2xl border border-border/50 flex items-center gap-2.5">
-              <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-              <span className="text-sm font-medium">Regenerating...</span>
+      <div key={`copy-${copyIndex}`} className="space-y-2">
+        <div
+          className={cn(
+            "rounded-lg border-2 bg-white overflow-hidden hover:shadow-lg transition-all relative cursor-pointer",
+            isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]'
+          )}
+          style={{ borderRadius: '8px' }}
+          onClick={() => !isLoadingCopy && handleSelectCopy(copyIndex)}
+        >
+          {/* Processing Overlay */}
+          {isProcessing && (
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] z-20 flex items-center justify-center">
+              <div className="bg-card/95 rounded-xl px-4 py-3 shadow-2xl border border-border/50 flex items-center gap-2.5">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                <span className="text-sm font-medium">Regenerating...</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Selection Indicator */}
-        {isSelected && !isProcessing && (
-          <div className="absolute top-2 right-2 z-10 bg-blue-500 text-white rounded-full p-1">
-            <Check className="h-4 w-4" />
-          </div>
-        )}
-
-        {/* Action Buttons Overlay (matches creative) */}
-        {!isProcessing && (
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 flex items-center justify-center p-4">
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant={isSelected ? "default" : "secondary"}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleSelectCopy(copyIndex)
-                }}
-                className={cn(
-                  "text-xs h-8 px-3 font-medium backdrop-blur-sm",
-                  isSelected ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-400" : "bg-white/90 hover:bg-white text-black"
-                )}
-                
-              >
-                {isSelected ? 'Unselect' : 'Select'}
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleEditCopy(copyIndex)
-                }}
-                className="text-xs h-8 px-3 font-medium bg-white/90 hover:bg-white text-black backdrop-blur-sm"
-                
-              >
-                <Edit2 className="h-3 w-3 mr-1.5" />
-                Edit
-              </Button>
-              
+          {/* Selection Indicator */}
+          {isSelected && !isProcessing && !isLoadingCopy && (
+            <div className="absolute top-2 right-2 z-10 bg-blue-500 text-white rounded-full p-1">
+              <Check className="h-4 w-4" />
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Header Section - Facebook Style */}
+          {/* Header Section - Facebook Style */}
         <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[#CED0D4]" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px' }}>
           {/* Profile Picture - 40px circle, solid blue */}
           <div className="h-10 w-10 rounded-full bg-[#1877F2] flex-shrink-0" style={{ width: '40px', height: '40px' }} />
@@ -422,6 +396,43 @@ export function AdCopySelectionCanvas() {
             </button>
           </div>
         </div>
+        </div>
+        
+        {/* Edit and Select Buttons - Below Card */}
+        {!isLoadingCopy && (
+          <div className="flex items-center gap-2 justify-center">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleEditCopy(copyIndex)
+              }}
+              className="text-xs h-8 px-3 font-medium"
+            >
+              <Edit2 className="h-3 w-3 mr-1.5" />
+              Edit
+            </Button>
+            <Button
+              size="sm"
+              variant={isSelected ? "default" : "outline"}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleSelectCopy(copyIndex)
+              }}
+              className="text-xs h-8 px-3 font-medium"
+            >
+              {isSelected ? (
+                <>
+                  <Check className="h-3 w-3 mr-1.5" />
+                  Selected
+                </>
+              ) : (
+                'Select'
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     )
   }
@@ -432,83 +443,39 @@ export function AdCopySelectionCanvas() {
     
     const isSelected = adCopyState.selectedCopyIndex === copyIndex
     const isProcessing = false
-    const isLoadingCopy = adCopyState.isGeneratingCopy && !adCopyState.customCopyVariations
+    const isLoadingCopy = adCopyState.isGeneratingCopy
     const selectedImg = selectedImageIndex != null
       ? adContent?.imageVariations?.[selectedImageIndex]
       : (adContent?.imageUrl || adContent?.imageVariations?.[0])
     
     return (
-      <div
-        key={copy.id}
-        className={cn(
-          "aspect-[9/16] rounded-lg border-2 bg-white overflow-hidden relative hover:shadow-lg transition-all group cursor-pointer",
-          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]'
-        )}
-        style={{ borderRadius: '8px' }}
-        onClick={() => handleSelectCopy(copyIndex)}
-      >
-        {/* Processing Overlay */}
-        {isProcessing && (
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] z-30 flex items-center justify-center">
-            <div className="bg-card/95 rounded-xl px-4 py-3 shadow-2xl border border-border/50 flex items-center gap-2.5">
-              <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-              <span className="text-sm font-medium">Regenerating...</span>
+      <div key={`story-copy-${copyIndex}`} className="space-y-2">
+        <div
+          className={cn(
+            "aspect-[9/16] rounded-lg border-2 bg-white overflow-hidden hover:shadow-lg transition-all relative cursor-pointer",
+            isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]'
+          )}
+          style={{ borderRadius: '8px' }}
+          onClick={() => !isLoadingCopy && handleSelectCopy(copyIndex)}
+        >
+          {/* Processing Overlay */}
+          {isProcessing && (
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] z-30 flex items-center justify-center">
+              <div className="bg-card/95 rounded-xl px-4 py-3 shadow-2xl border border-border/50 flex items-center gap-2.5">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                <span className="text-sm font-medium">Regenerating...</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Selection Indicator */}
-        {isSelected && !isProcessing && (
-          <div className="absolute top-2 right-2 z-20 bg-blue-500 text-white rounded-full p-1">
-            <Check className="h-4 w-4" />
-          </div>
-        )}
-
-        {/* Action Button Overlay (matches creative) */}
-        {!isProcessing && (
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 flex items-center justify-center p-3">
-            <div className="flex items-center gap-1.5 flex-wrap justify-center">
-              <Button
-                size="sm"
-                variant={isSelected ? "default" : "secondary"}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleSelectCopy(copyIndex)
-                }}
-                className={cn(
-                  "text-xs h-8 px-2.5 font-medium backdrop-blur-sm",
-                  isSelected ? "bg-blue-500 hover:bg-blue-600 text-white border-blue-400" : "bg-white/95 hover:bg-white text-black"
-                )}
-                
-              >
-                {isSelected ? (
-                  <>
-                    <Check className="h-3 w-3 mr-1" />
-                    Selected
-                  </>
-                ) : (
-                  'Select'
-                )}
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleEditCopy(copyIndex)
-                }}
-                className="text-xs h-8 px-2.5 font-medium bg-white/95 hover:bg-white text-black backdrop-blur-sm"
-                
-              >
-                <Edit2 className="h-3 w-3 mr-1" />
-                Edit
-              </Button>
-              
+          {/* Selection Indicator */}
+          {isSelected && !isProcessing && !isLoadingCopy && (
+            <div className="absolute top-2 right-2 z-20 bg-blue-500 text-white rounded-full p-1">
+              <Check className="h-4 w-4" />
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Progress Bar - Top Edge */}
+          {/* Progress Bar - Top Edge */}
         <div className="absolute top-0 left-0 right-0 z-30" style={{ height: '2px' }}>
           <div className="h-full bg-[#CED0D4]">
             <div className="h-full bg-white" style={{ width: '33%' }} />
@@ -612,6 +579,43 @@ export function AdCopySelectionCanvas() {
             </button>
           </div>
         </div>
+        </div>
+        
+        {/* Edit and Select Buttons - Below Card */}
+        {!isLoadingCopy && (
+          <div className="flex items-center gap-2 justify-center">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleEditCopy(copyIndex)
+              }}
+              className="text-xs h-8 px-3 font-medium"
+            >
+              <Edit2 className="h-3 w-3 mr-1.5" />
+              Edit
+            </Button>
+            <Button
+              size="sm"
+              variant={isSelected ? "default" : "outline"}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleSelectCopy(copyIndex)
+              }}
+              className="text-xs h-8 px-3 font-medium"
+            >
+              {isSelected ? (
+                <>
+                  <Check className="h-3 w-3 mr-1.5" />
+                  Selected
+                </>
+              ) : (
+                'Select'
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     )
   }

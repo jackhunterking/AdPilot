@@ -579,58 +579,40 @@ export function PreviewPanel() {
     const isProcessing = false
     // Use canonical copy source - single source of truth
     const copyForCard = getSelectedCopy()
+    // Determine if we should show skeleton (creative step) or actual text (copy step)
+    const showSkeleton = currentStepId === 'ads'
     
     return (
-      <div 
-        key={index} 
-        className={cn(
-          "rounded-lg border-2 bg-white overflow-hidden hover:shadow-lg transition-all relative group cursor-pointer",
-          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]',
-          isProcessing && 'opacity-75'
-        )}
-        style={{ borderRadius: '8px' }}
-        onClick={() => handleSelectAd(index)}
-      >
-        {/* Processing Overlay */}
-        {isProcessing && (
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] z-20 flex items-center justify-center">
-            <div className="bg-card/95 rounded-xl px-4 py-3 shadow-2xl border border-border/50 flex items-center gap-2.5">
-              <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-              <span className="text-sm font-medium">
-                Regenerating...
-              </span>
+      <div key={index} className="space-y-2">
+        <div 
+          className={cn(
+            "rounded-lg border-2 bg-white overflow-hidden hover:shadow-lg transition-all relative cursor-pointer",
+            isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]',
+            isProcessing && 'opacity-75'
+          )}
+          style={{ borderRadius: '8px' }}
+          onClick={() => handleSelectAd(index)}
+        >
+          {/* Processing Overlay */}
+          {isProcessing && (
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] z-20 flex items-center justify-center">
+              <div className="bg-card/95 rounded-xl px-4 py-3 shadow-2xl border border-border/50 flex items-center gap-2.5">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                <span className="text-sm font-medium">
+                  Regenerating...
+                </span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Selection Indicator - Always visible when selected */}
-        {isSelected && !isProcessing && (
-          <div className="absolute top-2 right-2 z-20 bg-blue-500 text-white rounded-full p-1">
-            <Check className="h-4 w-4" />
-          </div>
-        )}
-
-        {/* Action Buttons Overlay - Only Edit button on hover */}
-        {!isProcessing && (
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 flex items-center justify-center p-4">
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleEditAd(index)
-                }}
-                className="text-xs h-8 px-3 font-medium bg-white/90 hover:bg-white text-black backdrop-blur-sm"
-              >
-                <Edit2 className="h-3 w-3 mr-1.5" />
-                Edit
-              </Button>
+          {/* Selection Indicator - Always visible when selected */}
+          {isSelected && !isProcessing && (
+            <div className="absolute top-2 right-2 z-20 bg-blue-500 text-white rounded-full p-1">
+              <Check className="h-4 w-4" />
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Header Section - Facebook Style */}
+          {/* Header Section - Facebook Style */}
         <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[#CED0D4]" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px' }}>
           {/* Profile Picture - 40px circle, solid blue */}
           <div className="h-10 w-10 rounded-full bg-[#1877F2] flex-shrink-0" style={{ width: '40px', height: '40px' }} />
@@ -650,9 +632,17 @@ export function PreviewPanel() {
 
         {/* Primary Text Section - BEFORE Media */}
         <div className="px-3 pt-2 pb-3" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '8px', paddingBottom: '12px' }}>
-          <p className="text-[#050505] leading-[1.3333]" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '20px' }}>
-            {copyForCard.primaryText}
-          </p>
+          {showSkeleton ? (
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          ) : (
+            <p className="text-[#050505] leading-[1.3333]" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '20px' }}>
+              {copyForCard.primaryText}
+            </p>
+          )}
         </div>
 
         {/* Media Section - Square (1:1) aspect ratio - 1080x1080 */}
@@ -677,13 +667,24 @@ export function PreviewPanel() {
               YOURWEBSITE.HELLO
             </p>
             {/* Headline */}
-            <p className="font-bold text-[#050505] line-clamp-1" style={{ fontSize: '17px', fontWeight: 700, lineHeight: '1.1765' }}>
-              {copyForCard.headline}
-            </p>
+            {showSkeleton ? (
+              <Skeleton className="h-5 w-4/5" />
+            ) : (
+              <p className="font-bold text-[#050505] line-clamp-1" style={{ fontSize: '17px', fontWeight: 700, lineHeight: '1.1765' }}>
+                {copyForCard.headline}
+              </p>
+            )}
             {/* Description */}
-            <p className="text-[#050505] line-clamp-2" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '1.3333' }}>
-              {copyForCard.description}
-            </p>
+            {showSkeleton ? (
+              <div className="space-y-1">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            ) : (
+              <p className="text-[#050505] line-clamp-2" style={{ fontSize: '15px', fontWeight: 400, lineHeight: '1.3333' }}>
+                {copyForCard.description}
+              </p>
+            )}
           </div>
           
           {/* Right Side - Learn more Button */}
@@ -751,6 +752,41 @@ export function PreviewPanel() {
             </button>
           </div>
         </div>
+        </div>
+        
+        {/* Edit and Select Buttons - Below Card */}
+        <div className="flex items-center gap-2 justify-center">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleEditAd(index)
+            }}
+            className="text-xs h-8 px-3 font-medium"
+          >
+            <Edit2 className="h-3 w-3 mr-1.5" />
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant={isSelected ? "default" : "outline"}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleSelectAd(index)
+            }}
+            className="text-xs h-8 px-3 font-medium"
+          >
+            {isSelected ? (
+              <>
+                <Check className="h-3 w-3 mr-1.5" />
+                Selected
+              </>
+            ) : (
+              'Select'
+            )}
+          </Button>
+        </div>
       </div>
     )
   }
@@ -759,58 +795,42 @@ export function PreviewPanel() {
   const renderStoryAd = (variation: typeof adVariations[0], index: number) => {
     const isSelected = selectedImageIndex === index
     const isProcessing = false
+    // Use canonical copy source - single source of truth
+    const copyForCard = getSelectedCopy()
+    // Determine if we should show skeleton (creative step) or actual text (copy step)
+    const showSkeleton = currentStepId === 'ads'
     
     return (
-      <div 
-        key={index} 
-        className={cn(
-          "aspect-[9/16] rounded-lg border-2 bg-white overflow-hidden relative hover:shadow-lg transition-all group cursor-pointer",
-          isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]',
-          isProcessing && 'opacity-75'
-        )}
-        style={{ borderRadius: '8px' }}
-        onClick={() => handleSelectAd(index)}
-      >
-        {/* Processing Overlay */}
-        {isProcessing && (
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] z-30 flex items-center justify-center">
-            <div className="bg-card/95 rounded-xl px-4 py-3 shadow-2xl border border-border/50 flex flex-col items-center gap-2">
-              <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
-              <span className="text-xs font-medium text-center">
-                Regenerating...
-              </span>
+      <div key={index} className="space-y-2">
+        <div 
+          className={cn(
+            "aspect-[9/16] rounded-lg border-2 bg-white overflow-hidden hover:shadow-lg transition-all relative cursor-pointer",
+            isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-[#CED0D4]',
+            isProcessing && 'opacity-75'
+          )}
+          style={{ borderRadius: '8px' }}
+          onClick={() => handleSelectAd(index)}
+        >
+          {/* Processing Overlay */}
+          {isProcessing && (
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px] z-30 flex items-center justify-center">
+              <div className="bg-card/95 rounded-xl px-4 py-3 shadow-2xl border border-border/50 flex flex-col items-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+                <span className="text-xs font-medium text-center">
+                  Regenerating...
+                </span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Selection Indicator - Always visible when selected */}
-        {isSelected && !isProcessing && (
-          <div className="absolute top-2 right-2 z-30 bg-blue-500 text-white rounded-full p-1">
-            <Check className="h-4 w-4" />
-          </div>
-        )}
-
-        {/* Action Buttons Overlay - Only Edit button on hover */}
-        {!isProcessing && (
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 z-10 flex items-center justify-center p-3">
-            <div className="flex items-center gap-1.5 flex-wrap justify-center">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleEditAd(index)
-                }}
-                className="text-xs h-8 px-2.5 font-medium bg-white/95 hover:bg-white text-black backdrop-blur-sm"
-              >
-                <Edit2 className="h-3 w-3 mr-1" />
-                Edit
-              </Button>
+          {/* Selection Indicator - Always visible when selected */}
+          {isSelected && !isProcessing && (
+            <div className="absolute top-2 right-2 z-30 bg-blue-500 text-white rounded-full p-1">
+              <Check className="h-4 w-4" />
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Progress Bar - Top Edge */}
+          {/* Progress Bar - Top Edge */}
         <div className="absolute top-0 left-0 right-0 z-30" style={{ height: '2px' }}>
           <div className="h-full bg-[#CED0D4]">
             <div className="h-full bg-white" style={{ width: '33%' }} />
@@ -853,14 +873,22 @@ export function PreviewPanel() {
 
         {/* Bottom Ad Copy/Engagement Section - Dark Background */}
         <div className="absolute bottom-0 left-0 right-0 z-20 bg-[#242526]">
-          {/* Information Text - Skeleton Loaders */}
+          {/* Information Text - Conditional Skeleton or Actual Copy */}
           <div className="px-3 pt-3 pb-2" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '12px', paddingBottom: '8px' }}>
-            <div className="space-y-1">
-              {/* Primary Text Skeleton */}
-              <Skeleton className="h-3.5 w-full bg-white/30" style={{ height: '14px' }} />
-              {/* Description Skeleton */}
-              <Skeleton className="h-3.5 w-3/4 bg-white/30" style={{ height: '14px' }} />
-            </div>
+            {showSkeleton ? (
+              <div className="space-y-1">
+                {/* Primary Text Skeleton */}
+                <Skeleton className="h-3.5 w-full bg-white/30" style={{ height: '14px' }} />
+                {/* Description Skeleton */}
+                <Skeleton className="h-3.5 w-3/4 bg-white/30" style={{ height: '14px' }} />
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <p className="text-white text-sm" style={{ fontSize: '14px', fontWeight: 400 }}>
+                  {copyForCard.primaryText}
+                </p>
+              </div>
+            )}
           </div>
           
           {/* Expand Icon - ChevronUp */}
@@ -886,6 +914,41 @@ export function PreviewPanel() {
               Learn more
             </button>
           </div>
+        </div>
+        </div>
+        
+        {/* Edit and Select Buttons - Below Card */}
+        <div className="flex items-center gap-2 justify-center">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleEditAd(index)
+            }}
+            className="text-xs h-8 px-3 font-medium"
+          >
+            <Edit2 className="h-3 w-3 mr-1.5" />
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant={isSelected ? "default" : "outline"}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleSelectAd(index)
+            }}
+            className="text-xs h-8 px-3 font-medium"
+          >
+            {isSelected ? (
+              <>
+                <Check className="h-3 w-3 mr-1.5" />
+                Selected
+              </>
+            ) : (
+              'Select'
+            )}
+          </Button>
         </div>
       </div>
     )
