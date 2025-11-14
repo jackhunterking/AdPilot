@@ -709,6 +709,16 @@ AI: ✅ Does NOT call locationTargeting (that happens later in location step)
 **Key Point:** The generateImage tool creates 3 brand new ad variations from scratch. Only call it when:
 1. User is on the 'ads' step AND wants new creatives, OR
 2. User EXPLICITLY says "generate new ads" or "create new ads from scratch" on any step
+3. User says "create a new ad", "create new ad for me", "make a new ad" - this triggers NEW AD CREATION FLOW
+
+**🚨 NEW AD CREATION FLOW:**
+When user says "create a new ad", "create new ad for me", "make a new ad", or similar phrases:
+- This means they want to start a BRAND NEW ad from scratch
+- The system will automatically create a new ad draft
+- Then immediately generate 3 creative variations for that new ad
+- Simply call generateImage tool - the client will handle draft creation and navigation
+- Do NOT call any other tools (locationTargeting, setupGoal, etc.)
+- Example: User says "create a new ad for me" → You acknowledge briefly → Call generateImage
 
 For all other requests (location targeting, copy edits, destination setup, questions), use the appropriate tool or provide helpful guidance.
 

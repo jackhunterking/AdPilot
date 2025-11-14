@@ -521,7 +521,57 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       setGenerationMessage("Generating 3 AI-powered creative variations...");
       
       try {
+        // Check if we need to create a new ad draft first
+        // This happens when:
+        // 1. We're in 'all-ads' context (viewing all ads list)
+        // 2. No adId is present in URL (not editing an existing ad)
+        const currentAdId = searchParams.get('adId');
+        const isCreatingNewAd = context === 'all-ads' || !currentAdId;
+        let targetAdId = currentAdId;
+        
+        // Create new ad draft if needed
+        if (isCreatingNewAd && campaignId) {
+          setGenerationMessage("Creating new ad draft...");
+          
+          try {
+            const response = await fetch(`/api/campaigns/${campaignId}/ads`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: `Ad Draft ${new Date().toISOString()}`,
+                status: 'draft',
+                creative_data: null,
+                copy_data: null,
+              }),
+            });
+            
+            if (!response.ok) {
+              throw new Error('Failed to create ad draft');
+            }
+            
+            const { ad } = await response.json();
+            targetAdId = ad.id;
+            console.log('[AIChat] Created new ad draft:', targetAdId);
+          } catch (draftError) {
+            console.error('[AIChat] Failed to create ad draft:', draftError);
+            addToolResult({
+              tool: 'generateImage',
+              toolCallId,
+              output: undefined,
+              errorText: 'Failed to create ad draft',
+            } as ToolResult);
+            setIsGenerating(false);
+            setGeneratingImages(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(toolCallId);
+              return newSet;
+            });
+            return;
+          }
+        }
+        
         // Generate 3 unique AI variations in one call
+        setGenerationMessage("Generating 3 AI-powered creative variations...");
         const imageUrls = await generateImage(prompt, campaignId, 3);
         
         
@@ -542,7 +592,12 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
           
           // Small delay to show success message, then navigate
           setTimeout(() => {
-            router.push(`/${campaignId}`);
+            // Navigate with adId parameter to load ad builder instead of All Ads view
+            if (targetAdId) {
+              router.push(`/${campaignId}?adId=${targetAdId}&newAd=true`);
+            } else {
+              router.push(`/${campaignId}`);
+            }
             setIsGenerating(false);
           }, 800);
         } else {
