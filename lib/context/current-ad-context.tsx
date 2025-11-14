@@ -90,6 +90,9 @@ interface CurrentAdContextType {
   currentAd: Ad | null
   isLoading: boolean
   error: string | null
+  hasUnsavedChanges: boolean
+  markAsModified: () => void
+  markAsSaved: () => void
   reloadAd: () => Promise<void>
   updateAdSnapshot: (snapshot: Partial<SetupSnapshot>) => Promise<void>
 }
@@ -103,6 +106,7 @@ export function CurrentAdProvider({ children }: { children: ReactNode }) {
   const [currentAd, setCurrentAd] = useState<Ad | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
 
   // Extract adId from URL
   useEffect(() => {
@@ -190,6 +194,9 @@ export function CurrentAdProvider({ children }: { children: ReactNode }) {
       // Update local state with new snapshot
       setCurrentAd(prev => prev ? { ...prev, setup_snapshot: data.setup_snapshot } : null)
       
+      // Clear unsaved changes flag after successful save
+      setHasUnsavedChanges(false)
+      
       logger.debug('CurrentAdContext', 'Snapshot updated successfully')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update snapshot'
@@ -198,11 +205,31 @@ export function CurrentAdProvider({ children }: { children: ReactNode }) {
     }
   }, [currentAdId, campaign?.id])
 
+  // Mark ad as modified (unsaved changes exist)
+  const markAsModified = useCallback(() => {
+    setHasUnsavedChanges(true)
+    logger.debug('CurrentAdContext', 'Ad marked as modified', { currentAdId })
+  }, [currentAdId])
+
+  // Mark ad as saved (no unsaved changes)
+  const markAsSaved = useCallback(() => {
+    setHasUnsavedChanges(false)
+    logger.debug('CurrentAdContext', 'Ad marked as saved', { currentAdId })
+  }, [currentAdId])
+
+  // Reset unsaved changes flag when ad changes
+  useEffect(() => {
+    setHasUnsavedChanges(false)
+  }, [currentAdId])
+
   const value: CurrentAdContextType = {
     currentAdId,
     currentAd,
     isLoading,
     error,
+    hasUnsavedChanges,
+    markAsModified,
+    markAsSaved,
     reloadAd,
     updateAdSnapshot
   }

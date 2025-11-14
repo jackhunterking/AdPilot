@@ -28,6 +28,7 @@ interface Campaign {
   published_status?: string | null
   last_metrics_sync_at?: string | null
   conversationId?: string // Link to AI SDK conversation
+  ai_conversation_id?: string | null // Campaign-level conversation ID (persists across ads)
   campaign_budget?: number | null // Total campaign budget
   budget_strategy?: string | null
   budget_status?: string | null
@@ -43,6 +44,8 @@ interface CampaignContextType {
   updateBudget: (budget: number) => Promise<void>
   saveCampaignState: (field: string, value: Record<string, unknown> | null, options?: { retries?: number; silent?: boolean }) => Promise<boolean>
   clearCampaign: () => void
+  getOrCreateConversationId: () => Promise<string | null>
+  updateConversationId: (conversationId: string) => Promise<void>
 }
 
 const CampaignContext = createContext<CampaignContextType | undefined>(undefined)
@@ -274,6 +277,91 @@ export function CampaignProvider({
   }, [initialCampaignId, user])
 
   // Clear campaign when user logs out
+  // Get or create campaign-level conversation ID
+  const getOrCreateConversationId = async (): Promise<string | null> => {
+    if (!campaign?.id) {
+      logger.error('CampaignContext', 'Cannot get conversation ID - no campaign loaded')
+      return null
+    }
+
+    // Check if campaign already has a conversation ID
+    if (campaign.ai_conversation_id) {
+      logger.debug('CampaignContext', 'Using existing conversation ID', {
+        campaignId: campaign.id,
+        conversationId: campaign.ai_conversation_id,
+      })
+      return campaign.ai_conversation_id
+    }
+
+    // Create new conversation ID for campaign
+    try {
+      logger.info('CampaignContext', 'Creating new conversation ID for campaign', {
+        campaignId: campaign.id,
+      })
+
+      const response = await fetch(`/api/campaigns/${campaign.id}/conversation`, {
+        method: 'POST',
+      })
+
+      if (!response.ok) {
+        logger.error('CampaignContext', 'Failed to create conversation')
+        return null
+      }
+
+      const data = await response.json()
+      const conversationId = data.conversation.id
+
+      // Update local state
+      setCampaign(prev => prev ? { ...prev, ai_conversation_id: conversationId } : null)
+
+      logger.info('CampaignContext', '✅ Created conversation ID', {
+        campaignId: campaign.id,
+        conversationId,
+      })
+
+      return conversationId
+    } catch (err) {
+      logger.error('CampaignContext', 'Exception creating conversation ID', err as Error)
+      return null
+    }
+  }
+
+  // Update campaign conversation ID
+  const updateConversationId = async (conversationId: string): Promise<void> => {
+    if (!campaign?.id) {
+      logger.error('CampaignContext', 'Cannot update conversation ID - no campaign loaded')
+      return
+    }
+
+    try {
+      logger.info('CampaignContext', 'Updating conversation ID', {
+        campaignId: campaign.id,
+        conversationId,
+      })
+
+      const response = await fetch(`/api/campaigns/${campaign.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ai_conversation_id: conversationId }),
+      })
+
+      if (!response.ok) {
+        logger.error('CampaignContext', 'Failed to update conversation ID')
+        return
+      }
+
+      // Update local state
+      setCampaign(prev => prev ? { ...prev, ai_conversation_id: conversationId } : null)
+
+      logger.info('CampaignContext', '✅ Updated conversation ID', {
+        campaignId: campaign.id,
+        conversationId,
+      })
+    } catch (err) {
+      logger.error('CampaignContext', 'Exception updating conversation ID', err as Error)
+    }
+  }
+
   useEffect(() => {
     if (!user) {
       clearCampaign()
@@ -291,6 +379,8 @@ export function CampaignProvider({
       updateBudget,
       saveCampaignState,
       clearCampaign,
+      getOrCreateConversationId,
+      updateConversationId,
     }}>
       {children}
     </CampaignContext.Provider>

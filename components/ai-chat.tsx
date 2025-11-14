@@ -171,7 +171,8 @@ interface ToolResult {
 
 interface AIChatProps {
   campaignId?: string;
-  conversationId?: string | null;  // Stable conversation ID from server (AI SDK native pattern)
+  conversationId?: string | null;  // Campaign-level conversation ID (persists across ads)
+  currentAdId?: string;  // Current ad being worked on
   messages?: UIMessage[];  // AI SDK v5 prop name
   campaignMetadata?: {
     initialPrompt?: string;
@@ -181,7 +182,7 @@ interface AIChatProps {
   currentStep?: string;  // Current step ID from Campaign Stepper
 }
 
-const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], campaignMetadata, context, currentStep }: AIChatProps = {}) => {
+const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMessages = [], campaignMetadata, context, currentStep }: AIChatProps = {}) => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const isNewAd = searchParams.get('newAd') === 'true';
@@ -324,6 +325,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
           metadata: {
             ...(existingMeta || {}),
             campaignId: campaignId, // Required for AI SDK-generated conversation IDs
+            currentAdId: currentAdId, // Current ad being worked on (campaign-level chat context)
             goalType: goalType,
             currentStep: currentStep || 'ads', // Current step ID for step-aware AI behavior (defaults to 'ads' for creative generation)
           },

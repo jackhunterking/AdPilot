@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ChevronDown, ArrowLeft, Edit, Moon, Sun, Check, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { COMPANY_NAME } from "@/lib/constants"
 import { useTheme } from "next-themes"
+import { migrateLegacyMetaConnection } from "@/lib/utils/migration-helper"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,17 +43,43 @@ export function Dashboard({
   const searchParams = useSearchParams()
   const [credits] = useState(205.5)
   
-  // Check for conversationId override in URL (used when resetting for new ad)
-  const conversationIdOverride = searchParams.get('conversationId')
-  const effectiveConversationId = conversationIdOverride || conversationId
+  // Campaign-level conversation ID (persists across ads)
+  // Remove URL override - conversation ID is always campaign-level
+  const { campaign, updateCampaign, getOrCreateConversationId } = useCampaignContext()
+  const [campaignConversationId, setCampaignConversationId] = useState<string | null>(conversationId || null)
+  
+  // Get current ad ID from URL
+  const currentAdId = searchParams.get('adId')
+  
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [metaModalOpen, setMetaModalOpen] = useState(false)
   const dailyCredits = 500
   const { setTheme, resolvedTheme } = useTheme()
-  const { campaign, updateCampaign } = useCampaignContext()
   
   // Chat collapse state with localStorage persistence
   const [isChatCollapsed, setIsChatCollapsed] = useState(false)
+  
+  // Migrate legacy localStorage Meta connection to database (one-time)
+  useEffect(() => {
+    if (campaignId) {
+      void migrateLegacyMetaConnection(campaignId)
+    }
+  }, [campaignId])
+  
+  // Get or create campaign-level conversation ID (persists across ads)
+  useEffect(() => {
+    const initConversationId = async () => {
+      if (campaign?.id && !campaignConversationId) {
+        const id = await getOrCreateConversationId()
+        if (id) {
+          setCampaignConversationId(id)
+        }
+      } else if (campaign?.ai_conversation_id && !campaignConversationId) {
+        setCampaignConversationId(campaign.ai_conversation_id)
+      }
+    }
+    void initConversationId()
+  }, [campaign?.id, campaign?.ai_conversation_id, campaignConversationId, getOrCreateConversationId])
   
   // Load collapse preference from localStorage on mount
   useEffect(() => {
@@ -283,12 +310,13 @@ export function Dashboard({
             />
           </div>
           
-          {/* AI Chat Content */}
+          {/* AI Chat Content - Campaign-scoped (persists across ads) */}
           {!isChatCollapsed && (
             <AiChat 
               campaignId={campaignId}
-              conversationId={effectiveConversationId}
-              messages={conversationIdOverride ? [] : messages}
+              conversationId={campaignConversationId}
+              currentAdId={currentAdId || undefined}
+              messages={messages}
               campaignMetadata={campaignMetadata ?? undefined}
               context={viewMode || 'build'}
               currentStep={currentStepId}

@@ -1,7 +1,22 @@
 /**
- * Meta Connection Storage
- * localStorage-based storage for Meta connection data
- * Replaces Supabase for temporary storage
+ * Meta Connection Storage (DEPRECATED)
+ * 
+ * ⚠️ DEPRECATION NOTICE ⚠️
+ * This localStorage-based storage is DEPRECATED and will be removed in a future version.
+ * 
+ * NEW CODE SHOULD USE:
+ * - lib/services/meta-connection-manager.ts for database-backed Meta connections
+ * - lib/utils/migration-helper.ts to migrate existing localStorage data
+ * 
+ * Why deprecated:
+ * - localStorage persists across campaigns/ads causing data mixing
+ * - Database provides campaign-level data hierarchy (shared across ads)
+ * - Better sync, reliability, and cross-device support with database
+ * 
+ * Migration path:
+ * 1. Use migrateLegacyMetaConnection() from migration-helper.ts on campaign load
+ * 2. Replace metaStorage calls with meta-connection-manager functions
+ * 3. Test thoroughly before removing this file
  */
 
 import type {
@@ -14,6 +29,25 @@ import type {
 } from './types';
 import { metaLogger } from './logger';
 import { emitMetaConnectionUpdated } from '@/lib/utils/meta-events';
+
+// Log deprecation warning once per session
+let deprecationWarningShown = false;
+function showDeprecationWarning(functionName: string): void {
+  if (!deprecationWarningShown) {
+    console.warn(
+      `%c⚠️ DEPRECATED: metaStorage.${functionName}()`,
+      'color: orange; font-weight: bold; font-size: 14px;',
+      '\n\nThis localStorage-based Meta storage is deprecated.',
+      '\n\n✅ Use instead: lib/services/meta-connection-manager.ts',
+      '\n📖 Migration guide: lib/utils/migration-helper.ts',
+      '\n\nReasons:',
+      '\n- Database provides better data hierarchy (campaign vs ad level)',
+      '\n- Eliminates localStorage persistence issues',
+      '\n- Better sync and cross-device support'
+    );
+    deprecationWarningShown = true;
+  }
+}
 
 const STORAGE_PREFIX = 'meta_connection_';
 const LOGS_KEY = 'meta_api_logs';
@@ -84,8 +118,11 @@ class MetaStorage {
 
   /**
    * Store connection data
+   * @deprecated Use saveCampaignMetaConnection() from lib/services/meta-connection-manager.ts instead
    */
   setConnection(campaignId: string, data: Partial<StoredConnection>): void {
+    showDeprecationWarning('setConnection');
+    
     if (!this.isClient) {
       metaLogger.warn('MetaStorage', 'Cannot use localStorage on server');
       return;
@@ -127,8 +164,11 @@ class MetaStorage {
 
   /**
    * Get connection data
+   * @deprecated Use getCampaignMetaConnection() from lib/services/meta-connection-manager.ts instead
    */
   getConnection(campaignId: string): StoredConnection | null {
+    showDeprecationWarning('getConnection');
+    
     if (!this.isClient) {
       return null;
     }
