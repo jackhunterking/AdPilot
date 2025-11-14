@@ -130,7 +130,7 @@ export async function PUT(
     const creativeData: Json = {
       imageVariations: body.creative.imageVariations,
       selectedImageIndex: body.creative.selectedImageIndex,
-      selectedCreativeVariation: body.creative.selectedCreativeVariation,
+      selectedCreativeVariation: body.creative.selectedCreativeVariation as Json,
       baseImageUrl: body.creative.baseImageUrl || null,
       format: body.creative.format
     }
