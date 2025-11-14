@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from "react"
 import { useCampaignContext } from "@/lib/context/campaign-context"
+import { useCurrentAd } from "@/lib/context/current-ad-context"
 import { useAutoSave } from "@/lib/hooks/use-auto-save"
 import { AUTO_SAVE_CONFIGS } from "@/lib/types/auto-save"
 import { logger } from "@/lib/utils/logger"
@@ -41,6 +42,7 @@ const AdCopyContext = createContext<AdCopyContextType | undefined>(undefined)
 
 export function AdCopyProvider({ children }: { children: ReactNode }) {
   const { campaign, saveCampaignState } = useCampaignContext()
+  const { currentAd, updateAdSnapshot } = useCurrentAd()
   const [adCopyState, setAdCopyState] = useState<AdCopyState>({
     selectedCopyIndex: null,
     status: "idle",
@@ -52,43 +54,94 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
   // Memoize state to prevent unnecessary recreations
   const memoizedAdCopyState = useMemo(() => adCopyState, [adCopyState])
 
-  // Load initial state from campaign ONCE (even if empty)
+  // Load initial state from current ad's setup_snapshot
   useEffect(() => {
-    if (!campaign?.id || isInitialized) return
-    
-    // campaign_states is 1-to-1 object, not array
-    const savedData = campaign.campaign_states?.ad_copy_data as unknown as AdCopyState | null
-    if (savedData) {
-      // Limit to first 3 variations if restoring old data with more than 3
-      const limitedVariations = savedData.customCopyVariations 
-        ? savedData.customCopyVariations.slice(0, 3)
-        : null
-      logger.debug('AdCopyContext', '✅ Restoring ad copy state', {
-        selectedIndex: savedData.selectedCopyIndex,
-        hasCustomVariations: !!limitedVariations,
-        customVariationsCount: limitedVariations?.length || 0,
+    if (!currentAd) {
+      // No ad selected - reset to empty state
+      logger.debug('AdCopyContext', 'No current ad - resetting to empty state')
+      setAdCopyState({
+        selectedCopyIndex: null,
+        status: "idle",
+        customCopyVariations: null,
+        isGeneratingCopy: false,
       })
-      // Reset selected index if it's out of range (greater than 2 for 3 variations)
-      const validSelectedIndex = savedData.selectedCopyIndex != null && savedData.selectedCopyIndex < 3
-        ? savedData.selectedCopyIndex
+      setIsInitialized(true)
+      return
+    }
+    
+    logger.debug('AdCopyContext', `Loading state from ad ${currentAd.id}`)
+    
+    // Load from ad's setup_snapshot first (new architecture)
+    const copySnapshot = currentAd.setup_snapshot?.copy
+    
+    if (copySnapshot) {
+      logger.debug('AdCopyContext', '✅ Loading from ad snapshot', {
+        hasVariations: !!copySnapshot.variations,
+        variationsCount: copySnapshot.variations?.length || 0
+      })
+      
+      const variations = copySnapshot.variations ? copySnapshot.variations.slice(0, 3) : null
+      const validIndex = copySnapshot.selectedCopyIndex != null && copySnapshot.selectedCopyIndex < 3
+        ? copySnapshot.selectedCopyIndex
         : null
       
       setAdCopyState({
-        selectedCopyIndex: validSelectedIndex,
-        status: savedData.status || "idle",
-        customCopyVariations: limitedVariations,
+        selectedCopyIndex: validIndex,
+        status: validIndex !== null ? "completed" : "idle",
+        customCopyVariations: variations,
         isGeneratingCopy: false,
       })
+    } else if (campaign?.campaign_states) {
+      // Fallback to campaign_states for backward compatibility
+      logger.debug('AdCopyContext', '⚠️ Falling back to campaign_states (legacy)')
+      
+      const savedData = campaign.campaign_states?.ad_copy_data as unknown as AdCopyState | null
+      if (savedData) {
+        const limitedVariations = savedData.customCopyVariations?.slice(0, 3) || null
+        const validSelectedIndex = savedData.selectedCopyIndex != null && savedData.selectedCopyIndex < 3
+          ? savedData.selectedCopyIndex
+          : null
+        
+        setAdCopyState({
+          selectedCopyIndex: validSelectedIndex,
+          status: savedData.status || "idle",
+          customCopyVariations: limitedVariations,
+          isGeneratingCopy: false,
+        })
+      }
     }
     
-    setIsInitialized(true) // Mark initialized regardless of saved data
-  }, [campaign, isInitialized])
+    setIsInitialized(true)
+  }, [currentAd?.id, campaign?.id])
 
   // Save function
   const saveFn = useCallback(async (state: AdCopyState) => {
-    if (!campaign?.id || !isInitialized) return
-    await saveCampaignState('ad_copy_data', state as unknown as Record<string, unknown>)
-  }, [campaign?.id, saveCampaignState, isInitialized])
+    if (!isInitialized) return
+    
+    // Save to current ad's snapshot (new architecture)
+    if (currentAd) {
+      logger.debug('AdCopyContext', '💾 Saving to ad snapshot', {
+        adId: currentAd.id,
+        hasVariations: !!state.customCopyVariations
+      })
+      
+      try {
+        await updateAdSnapshot({
+          copy: {
+            variations: state.customCopyVariations || undefined,
+            selectedCopyIndex: state.selectedCopyIndex || undefined
+          }
+        })
+      } catch (error) {
+        logger.error('AdCopyContext', 'Failed to save to ad snapshot', error)
+        throw error
+      }
+    } else if (campaign?.id) {
+      // Fallback to campaign_states for backward compatibility
+      logger.debug('AdCopyContext', '⚠️ Saving to campaign_states (legacy fallback)')
+      await saveCampaignState('ad_copy_data', state as unknown as Record<string, unknown>)
+    }
+  }, [currentAd, campaign?.id, updateAdSnapshot, saveCampaignState, isInitialized])
 
   // Auto-save with NORMAL config (300ms debounce)
   useAutoSave(memoizedAdCopyState, saveFn, AUTO_SAVE_CONFIGS.NORMAL)

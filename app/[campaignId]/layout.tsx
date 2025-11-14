@@ -7,6 +7,7 @@
  */
 
 import { CampaignProvider } from "@/lib/context/campaign-context";
+import { CurrentAdProvider } from "@/lib/context/current-ad-context";
 import { AdPreviewProvider } from "@/lib/context/ad-preview-context";
 import { GoalProvider } from "@/lib/context/goal-context";
 import { DestinationProvider } from "@/lib/context/destination-context";
@@ -26,21 +27,23 @@ export default async function CampaignLayout({
   
   return (
     <CampaignProvider initialCampaignId={campaignId}>
-      <AdPreviewProvider>
-        <GoalProvider>
-          <DestinationProvider>
-            <LocationProvider>
-              <BudgetProvider>
-                <AdCopyProvider>
-                  <GenerationProvider>
-                    {children}
-                  </GenerationProvider>
-                </AdCopyProvider>
-              </BudgetProvider>
-            </LocationProvider>
-          </DestinationProvider>
-        </GoalProvider>
-      </AdPreviewProvider>
+      <CurrentAdProvider>
+        <AdPreviewProvider>
+          <GoalProvider>
+            <DestinationProvider>
+              <LocationProvider>
+                <BudgetProvider>
+                  <AdCopyProvider>
+                    <GenerationProvider>
+                      {children}
+                    </GenerationProvider>
+                  </AdCopyProvider>
+                </BudgetProvider>
+              </LocationProvider>
+            </DestinationProvider>
+          </GoalProvider>
+        </AdPreviewProvider>
+      </CurrentAdProvider>
     </CampaignProvider>
   );
 }

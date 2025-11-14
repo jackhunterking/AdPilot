@@ -586,6 +586,32 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
         
         setAdContent(newContent);
         
+        // Save to ad's snapshot if we have a targetAdId
+        if (targetAdId && campaignId) {
+          setGenerationMessage("Saving creative to ad...");
+          
+          try {
+            await fetch(`/api/campaigns/${campaignId}/ads/${targetAdId}/snapshot`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                creative: {
+                  imageUrl: imageUrls[0],
+                  imageVariations: imageUrls,
+                  baseImageUrl: imageUrls[0],
+                  selectedImageIndex: null, // Start with no selection
+                  selectedCreativeVariation: null
+                }
+              })
+            });
+            
+            console.log('[AIChat] Saved creative to ad snapshot:', targetAdId);
+          } catch (saveError) {
+            console.error('[AIChat] Failed to save to ad snapshot:', saveError);
+            // Continue anyway - user can still see the images in memory
+          }
+        }
+        
         // Navigate to campaign builder to show generated ads
         if (campaignId) {
           setGenerationMessage("Creative generated! Opening builder...");
@@ -594,7 +620,7 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
           setTimeout(() => {
             // Navigate with adId parameter to load ad builder instead of All Ads view
             if (targetAdId) {
-              router.push(`/${campaignId}?adId=${targetAdId}&newAd=true`);
+              router.push(`/${campaignId}?adId=${targetAdId}`);
             } else {
               router.push(`/${campaignId}`);
             }

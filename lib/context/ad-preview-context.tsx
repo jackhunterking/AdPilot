@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, type ReactNode } from "react"
 import { useCampaignContext } from "@/lib/context/campaign-context"
+import { useCurrentAd } from "@/lib/context/current-ad-context"
 import { useAutoSave } from "@/lib/hooks/use-auto-save"
 import { AUTO_SAVE_CONFIGS } from "@/lib/types/auto-save"
 import { logger } from "@/lib/utils/logger"
@@ -41,6 +42,7 @@ const AdPreviewContext = createContext<AdPreviewContextType | undefined>(undefin
 
 export function AdPreviewProvider({ children }: { children: ReactNode }) {
   const { campaign, saveCampaignState } = useCampaignContext()
+  const { currentAd, updateAdSnapshot } = useCurrentAd()
   const [adContent, setAdContent] = useState<AdContent | null>(null)
   const [isPublished, setIsPublished] = useState(false)
   const [selectedCreativeVariation, setSelectedCreativeVariation] = useState<CreativeVariation | null>(null)
@@ -59,53 +61,105 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
     selectedImageIndex,
   }), [adContent, isPublished, selectedCreativeVariation, selectedImageIndex])
 
-  // Load initial state from campaign ONCE (even if empty)
+  // Load initial state from current ad's setup_snapshot
   useEffect(() => {
-    if (!campaign?.id || isInitialized) return
-    
-    logger.debug('AdPreviewContext', `Attempting to restore state for campaign ${campaign.id}`)
-    logger.debug('AdPreviewContext', 'campaign_states available', { 
-      available: !!campaign.campaign_states,
-      isObject: typeof campaign.campaign_states === 'object'
-    })
-    
-    // campaign_states is 1-to-1 object, not array
-    const savedData = campaign.campaign_states?.ad_preview_data as unknown as {
-      adContent?: AdContent | null;
-      isPublished?: boolean;
-      selectedCreativeVariation?: CreativeVariation | null;
-      selectedImageIndex?: number | null;
-    } | null
-    
-    if (savedData) {
-      logger.debug('AdPreviewContext', '✅ Restoring ad preview state', {
-        hasAdContent: !!savedData.adContent,
-        imageVariationsCount: savedData.adContent?.imageVariations?.length || 0
-      })
-      
-      if (savedData.adContent) {
-        setAdContent(savedData.adContent);
-      }
-      if (savedData.isPublished !== undefined) setIsPublished(savedData.isPublished)
-      if (savedData.selectedCreativeVariation) setSelectedCreativeVariation(savedData.selectedCreativeVariation)
-      if (savedData.selectedImageIndex !== undefined) setSelectedImageIndex(savedData.selectedImageIndex ?? null)
-    } else {
-      logger.debug('AdPreviewContext', 'No saved ad_preview_data found')
+    if (!currentAd) {
+      // No ad selected - reset to empty state
+      logger.debug('AdPreviewContext', 'No current ad - resetting to empty state')
+      setAdContent(null)
+      setIsPublished(false)
+      setSelectedCreativeVariation(null)
+      setSelectedImageIndex(null)
+      setIsInitialized(true)
+      return
     }
     
-    setIsInitialized(true) // Mark initialized regardless of saved data
-  }, [campaign, isInitialized])
+    logger.debug('AdPreviewContext', `Loading state from ad ${currentAd.id}`)
+    
+    // Load from ad's setup_snapshot first (new architecture)
+    const creativeSnapshot = currentAd.setup_snapshot?.creative
+    
+    if (creativeSnapshot) {
+      logger.debug('AdPreviewContext', '✅ Loading from ad snapshot', {
+        hasImageUrl: !!creativeSnapshot.imageUrl,
+        imageVariationsCount: creativeSnapshot.imageVariations?.length || 0
+      })
+      
+      // Construct AdContent from snapshot
+      if (creativeSnapshot.imageUrl || creativeSnapshot.imageVariations) {
+        setAdContent({
+          imageUrl: creativeSnapshot.imageUrl,
+          imageVariations: creativeSnapshot.imageVariations,
+          baseImageUrl: creativeSnapshot.baseImageUrl,
+          headline: '', // Will be populated from copy context
+          body: '',
+          cta: 'Learn More'
+        })
+      }
+      
+      if (creativeSnapshot.selectedImageIndex !== undefined) {
+        setSelectedImageIndex(creativeSnapshot.selectedImageIndex ?? null)
+      }
+      
+      if (creativeSnapshot.selectedCreativeVariation) {
+        setSelectedCreativeVariation(creativeSnapshot.selectedCreativeVariation)
+      }
+    } else if (campaign?.campaign_states) {
+      // Fallback to campaign_states for backward compatibility
+      logger.debug('AdPreviewContext', '⚠️ Falling back to campaign_states (legacy)')
+      
+      const savedData = campaign.campaign_states?.ad_preview_data as unknown as {
+        adContent?: AdContent | null;
+        isPublished?: boolean;
+        selectedCreativeVariation?: CreativeVariation | null;
+        selectedImageIndex?: number | null;
+      } | null
+      
+      if (savedData) {
+        if (savedData.adContent) setAdContent(savedData.adContent)
+        if (savedData.isPublished !== undefined) setIsPublished(savedData.isPublished)
+        if (savedData.selectedCreativeVariation) setSelectedCreativeVariation(savedData.selectedCreativeVariation)
+        if (savedData.selectedImageIndex !== undefined) setSelectedImageIndex(savedData.selectedImageIndex ?? null)
+      }
+    } else {
+      logger.debug('AdPreviewContext', 'No snapshot or campaign_states - starting fresh')
+    }
+    
+    setIsInitialized(true)
+  }, [currentAd?.id, campaign?.id])
 
   // Save function with proper return type
   const saveFn = useCallback(async (state: typeof adPreviewState) => {
-    if (!campaign?.id || !isInitialized) return
-    logger.debug('AdPreviewContext', '💾 Saving ad_preview_data', {
-      hasImageVariations: !!state.adContent?.imageVariations?.length,
-      imageCount: state.adContent?.imageVariations?.length || 0,
-      hasBaseImage: !!state.adContent?.baseImageUrl,
-    })
-    await saveCampaignState('ad_preview_data', state)
-  }, [campaign?.id, saveCampaignState, isInitialized])
+    if (!isInitialized) return
+    
+    // Save to current ad's snapshot (new architecture)
+    if (currentAd) {
+      logger.debug('AdPreviewContext', '💾 Saving to ad snapshot', {
+        adId: currentAd.id,
+        hasImageVariations: !!state.adContent?.imageVariations?.length,
+        imageCount: state.adContent?.imageVariations?.length || 0,
+      })
+      
+      try {
+        await updateAdSnapshot({
+          creative: {
+            imageUrl: state.adContent?.imageUrl,
+            imageVariations: state.adContent?.imageVariations,
+            baseImageUrl: state.adContent?.baseImageUrl,
+            selectedImageIndex: state.selectedImageIndex,
+            selectedCreativeVariation: state.selectedCreativeVariation
+          }
+        })
+      } catch (error) {
+        logger.error('AdPreviewContext', 'Failed to save to ad snapshot', error)
+        throw error
+      }
+    } else if (campaign?.id) {
+      // Fallback to campaign_states for backward compatibility
+      logger.debug('AdPreviewContext', '⚠️ Saving to campaign_states (legacy fallback)')
+      await saveCampaignState('ad_preview_data', state)
+    }
+  }, [currentAd, campaign?.id, updateAdSnapshot, saveCampaignState, isInitialized])
 
   // Memoize save config to force CRITICAL mode when images present
   // This ensures images save immediately (0ms) instead of 300ms debounce
