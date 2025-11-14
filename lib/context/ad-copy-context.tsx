@@ -80,7 +80,17 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
         variationsCount: copySnapshot.variations?.length || 0
       })
       
-      const variations = copySnapshot.variations ? copySnapshot.variations.slice(0, 3) : null
+      // Map variations and ensure each has an id field
+      const variations = copySnapshot.variations 
+        ? copySnapshot.variations.slice(0, 3).map((v, index) => ({
+            id: (v as { id?: string }).id || `variation-${index}`,
+            primaryText: v.primaryText || '',
+            description: v.description || '',
+            headline: v.headline || '',
+            overlay: (v as { overlay?: AdCopyVariation['overlay'] }).overlay
+          }))
+        : null
+      
       const validIndex = copySnapshot.selectedCopyIndex != null && copySnapshot.selectedCopyIndex < 3
         ? copySnapshot.selectedCopyIndex
         : null
@@ -97,7 +107,17 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
       
       const savedData = campaign.campaign_states?.ad_copy_data as unknown as AdCopyState | null
       if (savedData) {
-        const limitedVariations = savedData.customCopyVariations?.slice(0, 3) || null
+        // Ensure variations have IDs
+        const limitedVariations = savedData.customCopyVariations 
+          ? savedData.customCopyVariations.slice(0, 3).map((v, index) => ({
+              id: v.id || `variation-${index}`,
+              primaryText: v.primaryText || '',
+              description: v.description || '',
+              headline: v.headline || '',
+              overlay: v.overlay
+            }))
+          : null
+        
         const validSelectedIndex = savedData.selectedCopyIndex != null && savedData.selectedCopyIndex < 3
           ? savedData.selectedCopyIndex
           : null
@@ -126,9 +146,21 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
       })
       
       try {
+        // Map variations to remove id field for snapshot storage
+        const variationsForSnapshot = state.customCopyVariations
+          ? state.customCopyVariations.map(v => ({
+              headline: v.headline,
+              body: v.primaryText, // Map primaryText to body for consistency
+              primaryText: v.primaryText,
+              description: v.description,
+              cta: v.headline, // Use headline as cta fallback
+              overlay: v.overlay
+            }))
+          : undefined
+        
         await updateAdSnapshot({
           copy: {
-            variations: state.customCopyVariations || undefined,
+            variations: variationsForSnapshot,
             selectedCopyIndex: state.selectedCopyIndex || undefined
           }
         })
