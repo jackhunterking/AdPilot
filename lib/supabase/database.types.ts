@@ -14,6 +14,124 @@ export type Database = {
   }
   public: {
     Tables: {
+      ad_publishing_metadata: {
+        Row: {
+          ad_id: string
+          created_at: string | null
+          current_status: Database["public"]["Enums"]["ad_status_enum"] | null
+          error_code: string | null
+          error_details: Json | null
+          error_message: string | null
+          error_user_message: string | null
+          id: string
+          last_status_check: string | null
+          max_retries: number | null
+          meta_ad_id: string | null
+          meta_review_feedback: Json | null
+          previous_status: Database["public"]["Enums"]["ad_status_enum"] | null
+          rejection_reasons: string[] | null
+          retry_count: number | null
+          status_changed_at: string | null
+          status_history: Json | null
+          submission_timestamp: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ad_id: string
+          created_at?: string | null
+          current_status?: Database["public"]["Enums"]["ad_status_enum"] | null
+          error_code?: string | null
+          error_details?: Json | null
+          error_message?: string | null
+          error_user_message?: string | null
+          id?: string
+          last_status_check?: string | null
+          max_retries?: number | null
+          meta_ad_id?: string | null
+          meta_review_feedback?: Json | null
+          previous_status?: Database["public"]["Enums"]["ad_status_enum"] | null
+          rejection_reasons?: string[] | null
+          retry_count?: number | null
+          status_changed_at?: string | null
+          status_history?: Json | null
+          submission_timestamp?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ad_id?: string
+          created_at?: string | null
+          current_status?: Database["public"]["Enums"]["ad_status_enum"] | null
+          error_code?: string | null
+          error_details?: Json | null
+          error_message?: string | null
+          error_user_message?: string | null
+          id?: string
+          last_status_check?: string | null
+          max_retries?: number | null
+          meta_ad_id?: string | null
+          meta_review_feedback?: Json | null
+          previous_status?: Database["public"]["Enums"]["ad_status_enum"] | null
+          rejection_reasons?: string[] | null
+          retry_count?: number | null
+          status_changed_at?: string | null
+          status_history?: Json | null
+          submission_timestamp?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_publishing_metadata_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: true
+            referencedRelation: "ads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_status_transitions: {
+        Row: {
+          ad_id: string
+          from_status: Database["public"]["Enums"]["ad_status_enum"] | null
+          id: string
+          metadata: Json | null
+          notes: string | null
+          to_status: Database["public"]["Enums"]["ad_status_enum"]
+          transitioned_at: string | null
+          trigger_details: Json | null
+          triggered_by: string | null
+        }
+        Insert: {
+          ad_id: string
+          from_status?: Database["public"]["Enums"]["ad_status_enum"] | null
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          to_status: Database["public"]["Enums"]["ad_status_enum"]
+          transitioned_at?: string | null
+          trigger_details?: Json | null
+          triggered_by?: string | null
+        }
+        Update: {
+          ad_id?: string
+          from_status?: Database["public"]["Enums"]["ad_status_enum"] | null
+          id?: string
+          metadata?: Json | null
+          notes?: string | null
+          to_status?: Database["public"]["Enums"]["ad_status_enum"]
+          transitioned_at?: string | null
+          trigger_details?: Json | null
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_status_transitions_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ads: {
         Row: {
           approved_at: string | null
@@ -24,6 +142,7 @@ export type Database = {
           destination_data: Json | null
           destination_type: string | null
           id: string
+          last_error: Json | null
           meta_ad_id: string | null
           meta_review_status: string
           metrics_snapshot: Json | null
@@ -31,7 +150,7 @@ export type Database = {
           published_at: string | null
           rejected_at: string | null
           setup_snapshot: Json | null
-          status: string
+          status: Database["public"]["Enums"]["ad_status_enum"]
           updated_at: string
         }
         Insert: {
@@ -43,6 +162,7 @@ export type Database = {
           destination_data?: Json | null
           destination_type?: string | null
           id?: string
+          last_error?: Json | null
           meta_ad_id?: string | null
           meta_review_status?: string
           metrics_snapshot?: Json | null
@@ -50,7 +170,7 @@ export type Database = {
           published_at?: string | null
           rejected_at?: string | null
           setup_snapshot?: Json | null
-          status?: string
+          status?: Database["public"]["Enums"]["ad_status_enum"]
           updated_at?: string
         }
         Update: {
@@ -62,6 +182,7 @@ export type Database = {
           destination_data?: Json | null
           destination_type?: string | null
           id?: string
+          last_error?: Json | null
           meta_ad_id?: string | null
           meta_review_status?: string
           metrics_snapshot?: Json | null
@@ -69,7 +190,7 @@ export type Database = {
           published_at?: string | null
           rejected_at?: string | null
           setup_snapshot?: Json | null
-          status?: string
+          status?: Database["public"]["Enums"]["ad_status_enum"]
           updated_at?: string
         }
         Relationships: [
@@ -438,6 +559,7 @@ export type Database = {
           id: string
           location_data: Json | null
           meta_connect_data: Json | null
+          meta_connection_data: Json | null
           publish_data: Json | null
           updated_at: string | null
         }
@@ -451,6 +573,7 @@ export type Database = {
           id?: string
           location_data?: Json | null
           meta_connect_data?: Json | null
+          meta_connection_data?: Json | null
           publish_data?: Json | null
           updated_at?: string | null
         }
@@ -464,6 +587,7 @@ export type Database = {
           id?: string
           location_data?: Json | null
           meta_connect_data?: Json | null
+          meta_connection_data?: Json | null
           publish_data?: Json | null
           updated_at?: string | null
         }
@@ -479,6 +603,7 @@ export type Database = {
       }
       campaigns: {
         Row: {
+          ai_conversation_id: string | null
           budget_status: string | null
           budget_strategy: string | null
           campaign_budget: number | null
@@ -496,6 +621,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          ai_conversation_id?: string | null
           budget_status?: string | null
           budget_strategy?: string | null
           campaign_budget?: number | null
@@ -513,6 +639,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          ai_conversation_id?: string | null
           budget_status?: string | null
           budget_strategy?: string | null
           campaign_budget?: number | null
@@ -1337,6 +1464,69 @@ export type Database = {
           },
         ]
       }
+      meta_webhook_events: {
+        Row: {
+          ad_id: string | null
+          campaign_id: string | null
+          created_at: string | null
+          event_id: string | null
+          event_type: string
+          id: string
+          meta_ad_id: string | null
+          payload: Json
+          processed: boolean | null
+          processed_at: string | null
+          processing_error: string | null
+          received_at: string | null
+          retry_count: number | null
+        }
+        Insert: {
+          ad_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          event_id?: string | null
+          event_type: string
+          id?: string
+          meta_ad_id?: string | null
+          payload: Json
+          processed?: boolean | null
+          processed_at?: string | null
+          processing_error?: string | null
+          received_at?: string | null
+          retry_count?: number | null
+        }
+        Update: {
+          ad_id?: string | null
+          campaign_id?: string | null
+          created_at?: string | null
+          event_id?: string | null
+          event_type?: string
+          id?: string
+          meta_ad_id?: string | null
+          payload?: Json
+          processed?: boolean | null
+          processed_at?: string | null
+          processing_error?: string | null
+          received_at?: string | null
+          retry_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meta_webhook_events_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: false
+            referencedRelation: "ads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meta_webhook_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -1449,12 +1639,41 @@ export type Database = {
     }
     Functions: {
       delete_expired_temp_prompts: { Args: never; Returns: undefined }
+      record_ad_status_transition: {
+        Args: {
+          p_ad_id: string
+          p_from_status: string
+          p_metadata?: Json
+          p_notes?: string
+          p_to_status: string
+          p_triggered_by: string
+        }
+        Returns: string
+      }
       set_funding_status: {
         Args: { p_has_funding: boolean; p_status: string }
         Returns: undefined
       }
+      update_ad_status: {
+        Args: {
+          p_ad_id: string
+          p_new_status: string
+          p_notes?: string
+          p_triggered_by?: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      ad_status_enum:
+        | "draft"
+        | "pending_review"
+        | "active"
+        | "paused"
+        | "rejected"
+        | "failed"
+        | "learning"
+        | "archived"
       meta_token_type: "system" | "user"
     }
     CompositeTypes: {
@@ -1583,8 +1802,17 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      ad_status_enum: [
+        "draft",
+        "pending_review",
+        "active",
+        "paused",
+        "rejected",
+        "failed",
+        "learning",
+        "archived",
+      ],
       meta_token_type: ["system", "user"],
     },
   },
 } as const
-
