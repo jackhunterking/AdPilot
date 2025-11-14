@@ -6,7 +6,7 @@
  *  - Data Architecture: Campaign vs Ad data hierarchy
  */
 
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { getCampaignMetaConnection, type MetaConnectionData } from './meta-connection-manager'
 import type { SetupSnapshot } from '@/lib/context/current-ad-context'
 
@@ -93,8 +93,6 @@ export interface AdSpecificData {
 export async function getCampaignSharedData(
   campaignId: string
 ): Promise<CampaignSharedData | null> {
-  const supabase = createClient()
-
   try {
     console.log(`[${CONTEXT}] Fetching campaign shared data`, { campaignId })
 
@@ -170,8 +168,6 @@ export async function getCampaignSharedData(
  * Get ad-specific data from database
  */
 export async function getAdSpecificData(adId: string): Promise<AdSpecificData | null> {
-  const supabase = createClient()
-
   try {
     console.log(`[${CONTEXT}] Fetching ad-specific data`, { adId })
 
@@ -300,8 +296,6 @@ export async function updateCampaignSharedData(
     aiConversationId?: string
   }
 ): Promise<boolean> {
-  const supabase = createClient()
-
   try {
     console.log(`[${CONTEXT}] Updating campaign shared data`, {
       campaignId,
@@ -375,8 +369,6 @@ export async function updateAdSpecificData(
   adId: string,
   updates: Partial<SetupSnapshot>
 ): Promise<boolean> {
-  const supabase = createClient()
-
   try {
     console.log(`[${CONTEXT}] Updating ad-specific data`, {
       adId,

@@ -6,7 +6,7 @@
  *  - AI SDK Core: https://ai-sdk.dev/docs/introduction
  */
 
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { metaLogger } from '@/lib/meta/logger'
 
 const CONTEXT = 'MetaConnectionManager'
@@ -60,8 +60,6 @@ export interface MetaConnectionSummary {
 export async function getCampaignMetaConnection(
   campaignId: string
 ): Promise<MetaConnectionData | null> {
-  const supabase = createClient()
-
   try {
     metaLogger.info(CONTEXT, 'Fetching Meta connection from database', { campaignId })
 
@@ -105,8 +103,6 @@ export async function saveCampaignMetaConnection(
   campaignId: string,
   connectionData: MetaConnectionData
 ): Promise<boolean> {
-  const supabase = createClient()
-
   try {
     metaLogger.info(CONTEXT, 'Saving Meta connection to database', {
       campaignId,
@@ -155,8 +151,6 @@ export async function updateCampaignMetaConnection(
   campaignId: string,
   updates: Partial<MetaConnectionData>
 ): Promise<boolean> {
-  const supabase = createClient()
-
   try {
     metaLogger.info(CONTEXT, 'Updating Meta connection fields', {
       campaignId,
@@ -270,8 +264,6 @@ export async function disconnectMeta(campaignId: string): Promise<boolean> {
  * Clear Meta connection data (hard delete)
  */
 export async function clearMetaConnection(campaignId: string): Promise<boolean> {
-  const supabase = createClient()
-
   try {
     metaLogger.info(CONTEXT, 'Clearing Meta connection from database', { campaignId })
 

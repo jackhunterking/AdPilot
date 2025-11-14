@@ -6,7 +6,7 @@
  *  - AI SDK Core: https://ai-sdk.dev/docs/ai-sdk-core/conversation-history
  */
 
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 
 const CONTEXT = 'AdCreationService'
 
@@ -39,8 +39,6 @@ export async function createNewAd(params: CreateAdParams): Promise<CreateAdResul
   })
 
   try {
-    const supabase = createClient()
-
     // Step 1: Create draft ad in database
     const adName = name || `Draft Ad - ${new Date().toLocaleDateString()}`
 
@@ -116,8 +114,6 @@ export async function getOrCreateCampaignConversation(
   campaignId: string,
   userId: string
 ): Promise<string | null> {
-  const supabase = createClient()
-
   try {
     console.log(`[${CONTEXT}] Getting/creating campaign conversation`, { campaignId })
 
@@ -172,8 +168,6 @@ export async function validateAdCreation(
   campaignId: string,
   userId: string
 ): Promise<{ valid: boolean; error?: string }> {
-  const supabase = createClient()
-
   try {
     // Check campaign exists and user owns it
     const { data: campaign, error } = await supabase
