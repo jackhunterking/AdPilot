@@ -144,7 +144,7 @@ export async function POST(
       .insert({
         campaign_id: campaignId,
         name,
-        status,
+        status: 'draft' as const,
         creative_data,
         copy_data: {
           headline: creative_data.headline,

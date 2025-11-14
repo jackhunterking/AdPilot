@@ -7,6 +7,7 @@
  */
 
 import { supabase } from '@/lib/supabase/client'
+import type { Json } from '@/lib/supabase/database.types'
 import { getCampaignMetaConnection, type MetaConnectionData } from './meta-connection-manager'
 import type { SetupSnapshot } from '@/lib/context/current-ad-context'
 
@@ -392,7 +393,7 @@ export async function updateAdSpecificData(
 
     const { error } = await supabase
       .from('ads')
-      .update({ setup_snapshot: mergedSnapshot as unknown as Record<string, unknown> })
+      .update({ setup_snapshot: mergedSnapshot as unknown as Json })
       .eq('id', adId)
 
     if (error) {

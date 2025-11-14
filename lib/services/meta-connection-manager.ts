@@ -7,6 +7,7 @@
  */
 
 import { supabase } from '@/lib/supabase/client'
+import type { Json } from '@/lib/supabase/database.types'
 import { metaLogger } from '@/lib/meta/logger'
 
 const CONTEXT = 'MetaConnectionManager'
@@ -79,7 +80,7 @@ export async function getCampaignMetaConnection(
       return null
     }
 
-    const connectionData = data.meta_connection_data as MetaConnectionData
+    const connectionData = data.meta_connection_data as unknown as MetaConnectionData
 
     metaLogger.info(CONTEXT, 'Meta connection loaded from database', {
       campaignId,
@@ -117,7 +118,7 @@ export async function saveCampaignMetaConnection(
     const { error } = await supabase
       .from('campaign_states')
       .update({
-        meta_connection_data: connectionData as unknown as Record<string, unknown>,
+        meta_connection_data: connectionData as unknown as Json,
       })
       .eq('campaign_id', campaignId)
 
@@ -161,7 +162,7 @@ export async function updateCampaignMetaConnection(
     const existing = await getCampaignMetaConnection(campaignId)
 
     if (!existing) {
-      metaLogger.error(CONTEXT, 'Cannot update - no existing connection found')
+      metaLogger.error(CONTEXT, 'Cannot update - no existing connection found', new Error('No existing connection'))
       return false
     }
 
