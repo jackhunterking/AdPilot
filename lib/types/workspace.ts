@@ -501,6 +501,75 @@ export interface MetaWebhookEvent {
 }
 
 // ============================================================================
+// Save Ad Changes API Types
+// ============================================================================
+
+export interface SaveAdCopyData {
+  primaryText: string
+  headline: string
+  description: string
+  selectedCopyIndex: number
+  variations: Array<{
+    primaryText: string
+    headline: string
+    description: string
+  }>
+}
+
+export interface SaveAdCreativeData {
+  imageVariations: string[]
+  selectedImageIndex: number
+  selectedCreativeVariation: {
+    gradient: string
+    imageUrl?: string
+    [key: string]: unknown
+  }
+  baseImageUrl?: string
+  format: 'feed' | 'story'
+}
+
+export interface SaveAdDestinationData {
+  type: 'website' | 'form' | 'call'
+  url?: string
+  phoneNumber?: string
+  normalizedPhone?: string
+  formFields?: Array<{
+    id: string
+    type: string
+    label: string
+    required: boolean
+    options?: string[]
+  }>
+  cta: string
+}
+
+export interface SaveAdPayload {
+  copy: SaveAdCopyData
+  creative: SaveAdCreativeData
+  destination: SaveAdDestinationData
+  metadata?: {
+    editContext?: string
+    savedFrom?: string
+  }
+}
+
+export interface SaveAdResponse {
+  success: boolean
+  ad: {
+    id: string
+    campaign_id: string
+    name: string
+    status: string
+    copy_data: unknown
+    creative_data: unknown
+    destination_data: unknown
+    setup_snapshot: unknown
+    updated_at: string
+  }
+  error?: string
+}
+
+// ============================================================================
 // Export utility types
 // ============================================================================
 

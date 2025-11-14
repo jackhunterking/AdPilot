@@ -36,6 +36,11 @@ interface AdPreviewContextType {
   isSaving: boolean
   lastSaved: Date | null
   saveError: Error | null
+  saveAdChanges: (payload: {
+    copy: unknown
+    destination: unknown
+    format?: string
+  }) => Promise<void>
 }
 
 const AdPreviewContext = createContext<AdPreviewContextType | undefined>(undefined)
@@ -212,6 +217,64 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
     prevSaveConfigModeRef.current = null; // Reset mode tracking
   }, []);
 
+  // Manual save function for "Save Changes" button
+  const saveAdChanges = useCallback(async (payload: {
+    copy: unknown
+    destination: unknown
+    format?: string
+  }) => {
+    if (!currentAd || !campaign?.id) {
+      throw new Error('No ad or campaign selected')
+    }
+
+    logger.debug('AdPreviewContext', 'Saving ad changes', {
+      adId: currentAd.id,
+      campaignId: campaign.id
+    })
+
+    // Build the complete save payload
+    const savePayload = {
+      copy: payload.copy,
+      creative: {
+        imageVariations: adContent?.imageVariations || [],
+        selectedImageIndex: selectedImageIndex ?? 0,
+        selectedCreativeVariation: selectedCreativeVariation || {
+          gradient: 'from-blue-600 via-blue-500 to-cyan-500',
+          title: 'Variation 1'
+        },
+        baseImageUrl: adContent?.baseImageUrl,
+        format: payload.format || 'feed'
+      },
+      destination: payload.destination,
+      metadata: {
+        editContext: 'manual_save',
+        savedFrom: 'edit_mode'
+      }
+    }
+
+    // Call the save API
+    const response = await fetch(
+      `/api/campaigns/${campaign.id}/ads/${currentAd.id}/save`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(savePayload)
+      }
+    )
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || 'Failed to save ad changes')
+    }
+
+    const result = await response.json()
+    logger.debug('AdPreviewContext', 'Ad changes saved successfully', {
+      adId: result.ad?.id
+    })
+
+    return result
+  }, [currentAd, campaign?.id, adContent, selectedImageIndex, selectedCreativeVariation]);
+
   return (
     <AdPreviewContext.Provider value={{ 
       adContent, 
@@ -227,7 +290,8 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
       resetAdPreview,
       isSaving,
       lastSaved,
-      saveError: error
+      saveError: error,
+      saveAdChanges
     }}>
       {children}
     </AdPreviewContext.Provider>
