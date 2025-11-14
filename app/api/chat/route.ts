@@ -32,6 +32,7 @@ import { regenerateImageTool } from '@/lib/ai/tools/regenerate-image';
 import { locationTargetingTool } from '@/lib/ai/tools/location-targeting-tool';
 import { setupGoalTool } from '@/lib/ai/tools/setup-goal-tool';
 import { editAdCopyTool } from '@/lib/ai/tools/edit-ad-copy';
+import { createAdTool } from '@/lib/ai/tools/create-ad';
 import { getCachedMetrics } from '@/lib/meta/insights';
 import { getModel } from '@/lib/ai/gateway-provider';
 import { messageStore } from '@/lib/services/message-store';
@@ -149,6 +150,7 @@ export async function POST(req: Request) {
   }
   
   const tools = {
+    createAd: createAdTool,
     generateImage: generateImageTool,
     editImage: editImageTool,
     regenerateImage: regenerateImageTool,
@@ -713,12 +715,18 @@ AI: ✅ Does NOT call locationTargeting (that happens later in location step)
 
 **🚨 NEW AD CREATION FLOW:**
 When user says "create a new ad", "create new ad for me", "make a new ad", or similar phrases:
-- This means they want to start a BRAND NEW ad from scratch
-- The system will automatically create a new ad draft
-- Then immediately generate 3 creative variations for that new ad
-- Simply call generateImage tool - the client will handle draft creation and navigation
-- Do NOT call any other tools (locationTargeting, setupGoal, etc.)
-- Example: User says "create a new ad for me" → You acknowledge briefly → Call generateImage
+- ✅ **FIRST: Call createAd tool** - This shows confirmation dialog and handles draft creation
+- ✅ **THEN: After confirmation, AI will ask** - "Would you like me to generate images for your ad?"
+- ✅ **FINALLY: User confirms** - Call generateImage to create 3 creative variations
+- ❌ **DO NOT call generateImage immediately** - Must go through createAd confirmation first
+- ❌ **DO NOT call any other tools** (locationTargeting, setupGoal, etc.) during ad creation
+- Example flow:
+  * User: "create a new ad for me"
+  * AI: [Calls createAd tool → confirmation shows]
+  * User: [Confirms in UI]
+  * AI: "Great! Would you like me to generate images for your ad?"
+  * User: "yes"
+  * AI: [Calls generateImage tool]
 
 For all other requests (location targeting, copy edits, destination setup, questions), use the appropriate tool or provide helpful guidance.
 

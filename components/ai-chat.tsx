@@ -55,6 +55,7 @@ import { DefaultChatTransport, ChatStatus } from "ai";
 import { supabase } from "@/lib/supabase/client";
 import { generateImage } from "@/server/images";
 import { ImageGenerationConfirmation } from "@/components/ai-elements/image-generation-confirmation";
+import { ConfirmationCard, SuccessCard } from "@/components/ai-elements/confirmation-card";
 // Removed legacy FormSelectionUI in favor of unified canvas in Goal step
 import { ImageEditProgressLoader } from "@/components/ai-elements/image-edit-progress-loader";
 import { renderEditImageResult, renderRegenerateImageResult, renderEditAdCopyResult } from "@/components/ai-elements/tool-renderers";
@@ -521,54 +522,28 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
       setGenerationMessage("Generating 3 AI-powered creative variations...");
       
       try {
-        // Check if we need to create a new ad draft first
-        // This happens when:
-        // 1. We're in 'all-ads' context (viewing all ads list)
-        // 2. No adId is present in URL (not editing an existing ad)
+        // Get current ad ID from URL
+        // generateImage should ONLY be called when an ad already exists (created by createAd tool)
         const currentAdId = searchParams.get('adId');
-        const isCreatingNewAd = context === 'all-ads' || !currentAdId;
-        let targetAdId = currentAdId;
         
-        // Create new ad draft if needed
-        if (isCreatingNewAd && campaignId) {
-          setGenerationMessage("Creating new ad draft...");
-          
-          try {
-            const response = await fetch(`/api/campaigns/${campaignId}/ads`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                name: `Ad Draft ${new Date().toISOString()}`,
-                status: 'draft',
-                creative_data: null,
-                copy_data: null,
-              }),
-            });
-            
-            if (!response.ok) {
-              throw new Error('Failed to create ad draft');
-            }
-            
-            const { ad } = await response.json();
-            targetAdId = ad.id;
-            console.log('[AIChat] Created new ad draft:', targetAdId);
-          } catch (draftError) {
-            console.error('[AIChat] Failed to create ad draft:', draftError);
-            addToolResult({
-              tool: 'generateImage',
-              toolCallId,
-              output: undefined,
-              errorText: 'Failed to create ad draft',
-            } as ToolResult);
-            setIsGenerating(false);
-            setGeneratingImages(prev => {
-              const newSet = new Set(prev);
-              newSet.delete(toolCallId);
-              return newSet;
-            });
-            return;
-          }
+        if (!currentAdId) {
+          console.error('[AIChat] No adId found - generateImage requires existing ad');
+          addToolResult({
+            tool: 'generateImage',
+            toolCallId,
+            output: undefined,
+            errorText: 'No ad draft found. Please create an ad first.',
+          } as ToolResult);
+          setIsGenerating(false);
+          setGeneratingImages(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(toolCallId);
+            return newSet;
+          });
+          return;
         }
+        
+        const targetAdId = currentAdId;
         
         // Generate 3 unique AI variations in one call
         setGenerationMessage("Generating 3 AI-powered creative variations...");
@@ -612,26 +587,10 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
           }
         }
         
-        // Navigate to campaign builder to show generated ads
-        if (campaignId) {
-          setGenerationMessage("Creative generated! Opening builder...");
-          
-          // Small delay to show success message, then navigate
-          setTimeout(() => {
-            // Navigate with adId parameter to load ad builder instead of All Ads view
-            if (targetAdId) {
-              router.push(`/${campaignId}?adId=${targetAdId}`);
-            } else {
-              router.push(`/${campaignId}`);
-            }
-            setIsGenerating(false);
-          }, 800);
-        } else {
-          // Fallback: just switch tab if somehow no campaignId
-          console.warn('[AIChat] No campaignId available, cannot navigate to builder');
-          emitBrowserEvent('switchToTab', 'copy');
-          setIsGenerating(false);
-        }
+        // Clear generating state - no navigation needed (already in builder)
+        setIsGenerating(false);
+        
+        console.log('[AIChat] ✅ Generated 3 creative variations for ad:', targetAdId);
         
         addToolResult({
           tool: 'generateImage',
@@ -1103,6 +1062,17 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
                                                (part as unknown as { args?: unknown }).args ??
                                                (part as unknown as { arguments?: unknown }).arguments;
 
+                              // Handle createAd client-side execution
+                              if (toolName === 'createAd') {
+                                // Show loading state while being processed
+                                return (
+                                  <div key={callId} className="flex items-center gap-3 p-4 border rounded-lg bg-card">
+                                    <Loader size={16} />
+                                    <span className="text-sm text-muted-foreground">Preparing to create ad...</span>
+                                  </div>
+                                );
+                              }
+
                               // Handle locationTargeting client-side execution
                               if (toolName === 'locationTargeting') {
                                 // Try to coerce rawInput into LocationToolInput
@@ -1200,6 +1170,106 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
                               // Unknown tool result → let specific handlers (below) or default handle it
                               return null;
                             }
+                            case "tool-createAd": {
+                              const callId = part.toolCallId;
+                              const input = part.input as { confirmationMessage?: string };
+                              
+                              switch (part.state) {
+                                case 'input-streaming':
+                                  return <div key={callId} className="text-sm text-muted-foreground">Preparing...</div>;
+                                
+                                case 'input-available':
+                                  return (
+                                    <ConfirmationCard
+                                      key={callId}
+                                      title="Create New Ad?"
+                                      message={input.confirmationMessage || "This will open Ad Builder and create a new ad draft. Any unsaved changes will be lost."}
+                                      variant={context === 'build' ? 'warning' : 'default'}
+                                      onConfirm={async () => {
+                                        try {
+                                          // Create draft ad
+                                          const response = await fetch(`/api/campaigns/${campaignId}/ads/draft`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                          });
+                                          
+                                          if (!response.ok) {
+                                            throw new Error('Failed to create draft ad');
+                                          }
+                                          
+                                          const data = await response.json();
+                                          const newAdId = data.ad.id;
+                                          
+                                          // Navigate to Ad Builder
+                                          router.push(`/${campaignId}?view=build&adId=${newAdId}&step=creative`);
+                                          
+                                          // Send success result
+                                          addToolResult({
+                                            tool: 'createAd',
+                                            toolCallId: callId,
+                                            output: {
+                                              success: true,
+                                              adId: newAdId,
+                                              message: 'Ad Builder opened - start with Step 1: Creative'
+                                            },
+                                          });
+                                        } catch (error) {
+                                          console.error('Failed to create ad:', error);
+                                          addToolResult({
+                                            tool: 'createAd',
+                                            toolCallId: callId,
+                                            output: undefined,
+                                            errorText: 'Failed to create ad draft',
+                                          } as ToolResult);
+                                        }
+                                      }}
+                                      onCancel={() => {
+                                        // Send cancellation result
+                                        addToolResult({
+                                          tool: 'createAd',
+                                          toolCallId: callId,
+                                          output: {
+                                            cancelled: true,
+                                            message: 'User cancelled ad creation'
+                                          },
+                                        });
+                                      }}
+                                    />
+                                  );
+                                
+                                case 'output-available': {
+                                  const output = part.output as { success?: boolean; cancelled?: boolean; message?: string };
+                                  
+                                  // Don't show anything if cancelled
+                                  if (output?.cancelled) {
+                                    return null;
+                                  }
+                                  
+                                  // Show success message
+                                  if (output?.success) {
+                                    return (
+                                      <SuccessCard
+                                        key={callId}
+                                        message={output.message || "Ad Builder opened - start with Step 1: Creative"}
+                                      />
+                                    );
+                                  }
+                                  
+                                  return null;
+                                }
+                                
+                                case 'output-error':
+                                  return (
+                                    <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4 my-2">
+                                      <p className="font-medium mb-1">Failed to Create Ad</p>
+                                      <p className="text-xs">{part.errorText}</p>
+                                    </div>
+                                  );
+                                
+                                default:
+                                  return null;
+                              }
+                            }
                             case "tool-generateImage": {
                               const callId = part.toolCallId;
                               const isGenerating = generatingImages.has(callId);
@@ -1261,10 +1331,10 @@ const AIChat = ({ campaignId, conversationId, messages: initialMessages = [], ca
                                       <div key={callId} className="border rounded-lg p-4 my-2 bg-green-500/5 border-green-500/30 max-w-md mx-auto">
                                         <div className="flex items-center gap-2 mb-2">
                                           <CheckCircle2 className="h-5 w-5 text-green-600" />
-                                          <p className="font-medium text-green-600">{output.count} Variations Created!</p>
+                                          <p className="font-medium text-green-600">✨ 3 creative variations generated!</p>
                                         </div>
                                         <p className="text-sm text-muted-foreground">
-                                          Check them out on the canvas →
+                                          Pick your favorite on the canvas →
                                         </p>
                                       </div>
                                     );

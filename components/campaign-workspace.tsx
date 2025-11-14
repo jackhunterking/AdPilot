@@ -241,12 +241,12 @@ export function CampaignWorkspace() {
   const isFirstVisit = searchParams.get('firstVisit') === 'true'
   
   // Default view logic:
-  // - First visit with view=build → Builder mode (with draft ad)
   // - Has explicit view param → Use that view
+  // - Has adId but no view param → Default to build mode (from createAd tool navigation)
   // - Otherwise → All Ads view
-  const effectiveMode: WorkspaceMode = isFirstVisit && viewParam === 'build' 
-    ? 'build' 
-    : viewParam || 'all-ads'
+  const effectiveMode: WorkspaceMode = 
+    viewParam ||
+    (currentAdId ? 'build' : 'all-ads')
   
   // Auto-save draft ads while building or editing
   const isBuilding = effectiveMode === 'build' || effectiveMode === 'edit'
