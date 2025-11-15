@@ -63,9 +63,13 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
   // SINGLE SOURCE: Load from ad snapshot only
   useEffect(() => {
+    console.log('[DEBUG] ========== LocationContext LOADING ==========');
+    console.log('[DEBUG] Current ad:', currentAd?.id);
+    
     if (!currentAd) {
       // No ad selected - reset to empty state
       logger.debug('LocationContext', 'No current ad - resetting to empty state')
+      console.log('[DEBUG] No ad - resetting to empty state');
       setLocationState({
         locations: [],
         status: "idle",
@@ -76,11 +80,26 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     }
     
     logger.debug('LocationContext', `Loading location state for ad ${currentAd.id}`)
+    console.log('[DEBUG] Loading location state for ad:', currentAd.id);
     
     // Load from ad-scoped location only
     const locationSnapshot = currentAd.setup_snapshot?.location as LocationState | null | undefined
+    console.log('[DEBUG] Raw snapshot from DB:', locationSnapshot);
+    console.log('[DEBUG] Snapshot type:', typeof locationSnapshot);
     
     if (locationSnapshot && typeof locationSnapshot === 'object') {
+      const locationsArray = locationSnapshot.locations || [];
+      console.log('[DEBUG] Locations array:', {
+        count: locationsArray.length,
+        locations: locationsArray.map((l: Location) => ({
+          name: l.name,
+          hasGeometry: !!l.geometry,
+          geometryType: l.geometry?.type,
+          hasBbox: !!l.bbox,
+          hasCoordinates: !!l.coordinates
+        }))
+      });
+      
       logger.debug('LocationContext', '✅ Loading from ad snapshot', {
         locationsCount: locationSnapshot.locations?.length || 0,
         status: locationSnapshot.status
@@ -92,10 +111,17 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         errorMessage: locationSnapshot.errorMessage,
       }
       
+      console.log('[DEBUG] Normalized state:', {
+        locationCount: normalized.locations.length,
+        status: normalized.status,
+        hasError: !!normalized.errorMessage
+      });
+      
       setLocationState(normalized)
     } else {
       // No location data - initialize empty
       logger.debug('LocationContext', 'No location data found - initializing empty state')
+      console.log('[DEBUG] No location snapshot - initializing empty');
       setLocationState({
         locations: [],
         status: "idle",
@@ -104,12 +130,18 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     }
     
     setIsInitialized(true)
+    console.log('[DEBUG] ========== LocationContext LOAD COMPLETE ==========');
   }, [currentAd?.id])
 
   // SINGLE SAVE PATH: Ad snapshot only
   const saveFn = useCallback(async (state: LocationState) => {
+    console.log('[DEBUG] ========== LocationContext SAVING ==========');
+    console.log('[DEBUG] Save triggered for ad:', currentAd?.id);
+    console.log('[DEBUG] Is initialized:', isInitialized);
+    
     if (!currentAd?.id || !isInitialized) {
       logger.debug('LocationContext', 'Skipping save - no ad or not initialized')
+      console.log('[DEBUG] Skipping save - no ad or not initialized');
       return
     }
     
@@ -118,6 +150,19 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       locationsCount: state.locations.length
     })
     
+    console.log('[DEBUG] Saving state:', {
+      locationCount: state.locations.length,
+      status: state.status,
+      locations: state.locations.map(l => ({
+        name: l.name,
+        hasGeometry: !!l.geometry,
+        geometryType: l.geometry?.type,
+        hasBbox: !!l.bbox,
+        hasCoordinates: !!l.coordinates,
+        hasMetaKey: !!l.key
+      }))
+    });
+    
     // Save to ad snapshot only
     await updateAdSnapshot({
       location: {
@@ -125,6 +170,9 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         status: state.status,
       }
     })
+    
+    console.log('[DEBUG] ✅ Save complete');
+    console.log('[DEBUG] ========== LocationContext SAVE COMPLETE ==========');
   }, [currentAd?.id, updateAdSnapshot, isInitialized])
 
   // Auto-save with NORMAL config (300ms debounce)

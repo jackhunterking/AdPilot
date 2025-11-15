@@ -176,9 +176,16 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
 
   // Update map markers when locations change (purely reactive - no events)
   useEffect(() => {
+    console.log('[DEBUG] ========== MAP UPDATE TRIGGERED ==========');
+    console.log('[DEBUG] locationState.locations:', locationState.locations);
+    
     const L = getLeaflet();
     if (!mapRef.current || !L) {
       logger.debug('Map', 'Cannot update markers - map or Leaflet not ready');
+      console.log('[DEBUG] ⚠️ Map or Leaflet not ready', {
+        hasMap: !!mapRef.current,
+        hasLeaflet: !!L
+      });
       return;
     }
 
@@ -186,14 +193,33 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     const locations = locationState.locations;
 
     logger.debug('Map', '🗺️ Updating map with locations', { count: locations.length });
+    console.log('[DEBUG] Map update details:', {
+      locationCount: locations.length,
+      locations: locations.map(l => ({
+        name: l.name,
+        type: l.type,
+        mode: l.mode,
+        hasCoordinates: !!l.coordinates,
+        coordinates: l.coordinates,
+        hasBbox: !!l.bbox,
+        bbox: l.bbox,
+        hasGeometry: !!l.geometry,
+        geometryType: l.geometry?.type
+      }))
+    });
 
     // Clear existing markers and shapes
+    console.log('[DEBUG] Clearing existing markers/shapes:', {
+      markerCount: markersRef.current.length,
+      shapeCount: shapesRef.current.length
+    });
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
     shapesRef.current.forEach(shape => shape.remove());
     shapesRef.current = [];
 
     if (locations.length === 0) {
+      console.log('[DEBUG] No locations - setting world view');
       map.setView([20, 0], 2);
       return;
     }
@@ -209,16 +235,32 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       !isNaN(loc.coordinates[1])
     );
 
+    console.log('[DEBUG] Valid locations:', {
+      total: locations.length,
+      valid: validLocations.length,
+      invalid: locations.length - validLocations.length
+    });
+
     if (validLocations.length === 0) {
+      console.log('[DEBUG] No valid locations - setting world view');
       map.setView([20, 0], 2);
       return;
     }
 
     // Add markers and shapes
-    validLocations.forEach((location) => {
+    validLocations.forEach((location, index) => {
+      console.log(`[DEBUG] ========== Rendering Location ${index + 1}/${validLocations.length} ==========`);
+      console.log('[DEBUG] Location:', {
+        name: location.name,
+        type: location.type,
+        mode: location.mode,
+        coordinates: location.coordinates
+      });
+      
       const color = location.mode === "include" ? "#16A34A" : "#DC2626";
 
       // Add marker
+      console.log('[DEBUG] Adding marker at:', [location.coordinates[1], location.coordinates[0]]);
       const marker = L.circleMarker(
         [location.coordinates[1], location.coordinates[0]],
         {
@@ -233,9 +275,11 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
 
       marker.bindPopup(`<strong>${location.name}</strong>`);
       markersRef.current.push(marker);
+      console.log('[DEBUG] ✅ Marker added');
 
       // Add radius circle or boundaries
       if (location.type === "radius" && location.radius) {
+        console.log('[DEBUG] Adding radius circle:', location.radius, 'miles');
         const radiusInMeters = location.radius * 1609.34;
         const circle = L.circle(
           [location.coordinates[1], location.coordinates[0]],
@@ -249,7 +293,12 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
           }
         ).addTo(map);
         shapesRef.current.push(circle);
+        console.log('[DEBUG] ✅ Radius circle added');
       } else if (location.geometry) {
+        console.log('[DEBUG] Adding geometry boundary:', {
+          type: location.geometry.type,
+          hasCoordinates: !!location.geometry.coordinates
+        });
         try {
           const geoJsonLayer = L.geoJSON(location.geometry, {
             style: {
@@ -261,19 +310,25 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
             }
           }).addTo(map);
           shapesRef.current.push(geoJsonLayer);
+          console.log('[DEBUG] ✅ Geometry boundary added successfully');
         } catch (error) {
-          console.error("Error adding boundary:", error);
+          console.error("[DEBUG] ❌ Error adding boundary:", error);
         }
+      } else {
+        console.log('[DEBUG] ⚠️ No geometry or radius - only marker shown');
       }
     });
 
     // Fit bounds
+    console.log('[DEBUG] Fitting bounds to show all locations');
     const bounds = L.latLngBounds() as LeafletBounds & { extend: (coords: [number, number]) => void };
     validLocations.forEach(loc => {
       if (loc.bbox) {
+        console.log('[DEBUG] Extending bounds with bbox:', loc.bbox);
         bounds.extend([loc.bbox[1], loc.bbox[0]]);
         bounds.extend([loc.bbox[3], loc.bbox[2]]);
       } else {
+        console.log('[DEBUG] Extending bounds with center point:', loc.coordinates);
         bounds.extend([loc.coordinates[1], loc.coordinates[0]]);
       }
     });
@@ -281,10 +336,14 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 10 });
       logger.debug('Map', '✅ Fitted bounds successfully');
+      console.log('[DEBUG] ✅ Bounds fitted successfully');
+    } else {
+      console.log('[DEBUG] ⚠️ Invalid bounds - cannot fit');
     }
 
     map.invalidateSize(true);
     logger.debug('Map', '✅ Map updated');
+    console.log('[DEBUG] ========== MAP UPDATE COMPLETE ==========');
   }, [locationState.locations])
 
   const handleAddMore = () => {
@@ -454,8 +513,24 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
 
   // Setup completed - show locations with map
   if (locationState.status === "completed") {
+    console.log('[DEBUG] ========== LocationCanvas COMPLETED STATE ==========');
+    console.log('[DEBUG] Rendering completed state');
+    
     const includedLocations = locationState.locations.filter(loc => loc.mode === "include")
     const excludedLocations = locationState.locations.filter(loc => loc.mode === "exclude")
+    
+    console.log('[DEBUG] Canvas render data:', {
+      status: locationState.status,
+      totalLocations: locationState.locations.length,
+      includedCount: includedLocations.length,
+      excludedCount: excludedLocations.length,
+      isSummary,
+      locations: locationState.locations.map(l => ({
+        name: l.name,
+        mode: l.mode,
+        type: l.type
+      }))
+    });
 
     return (
       <div

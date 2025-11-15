@@ -380,27 +380,45 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
     toolCallId: string,
     input: LocationToolInput
   ) => {
+    console.log('[DEBUG] ========== LOCATION PROCESSING START ==========');
+    console.log('[DEBUG] Tool Call ID:', toolCallId);
+    console.log('[DEBUG] Input:', {
+      locations: input.locations,
+      timestamp: Date.now()
+    });
+    
     // Skip if already processed
     if (processedLocationCalls.current.has(toolCallId)) {
-      console.log('[LocationProcessor] Already processed:', toolCallId);
+      console.log('[LocationProcessor] ⏭️ Already processed:', toolCallId);
       return;
     }
     
     // Mark as processing immediately
     processedLocationCalls.current.add(toolCallId);
-    console.log('[LocationProcessor] Processing tool call:', toolCallId);
+    console.log('[LocationProcessor] 🎯 Processing tool call:', toolCallId);
     
     try {
       updateLocationStatus('setup-in-progress');
+      console.log('[DEBUG] Status updated to: setup-in-progress');
       
       // Geocode all locations
       const processed = await Promise.all(
-        input.locations.map(async (loc) => {
-          console.log(`[LocationProcessor] Geocoding: ${loc.name}`);
+        input.locations.map(async (loc, index) => {
+          console.log(`[DEBUG] ========== Processing Location ${index + 1}/${input.locations.length} ==========`);
+          console.log(`[DEBUG] Location input:`, {
+            name: loc.name,
+            type: loc.type,
+            mode: loc.mode,
+            radius: loc.radius
+          });
+          
+          // Step 1: Geocoding
+          console.log(`[LocationProcessor] 🔍 Geocoding: ${loc.name}`);
           const geoResult = await searchLocations(loc.name);
+          console.log('[DEBUG] Geocoding result:', geoResult);
           
           if (!geoResult.success || !geoResult.data) {
-            console.warn(`[LocationProcessor] Failed to geocode: ${loc.name}`, geoResult.error);
+            console.warn(`[LocationProcessor] ❌ Failed to geocode: ${loc.name}`, geoResult.error);
             return null;
           }
           
@@ -409,28 +427,49 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
             center: [number, number];
             bbox?: [number, number, number, number];
           };
-          console.log(`[LocationProcessor] Geocoded: ${place_name}`);
+          console.log(`[LocationProcessor] ✅ Geocoded successfully:`, {
+            place_name,
+            center,
+            hasBbox: !!bbox,
+            bbox
+          });
           
-          // Get boundary for map display
+          // Step 2: Boundary fetching
           let geometry = undefined;
           if (loc.type !== 'radius') {
-            const boundaryData = await getLocationBoundary(center, place_name);
-            if (boundaryData) {
-              geometry = boundaryData.geometry;
-              console.log(`[LocationProcessor] Boundary fetched for: ${place_name}`);
+            console.log(`[DEBUG] 🗺️ Attempting to fetch boundary for: ${place_name} (type: ${loc.type})`);
+            try {
+              const boundaryData = await getLocationBoundary(center, place_name);
+              console.log('[DEBUG] Boundary result:', boundaryData);
+              
+              if (boundaryData && boundaryData.geometry) {
+                geometry = boundaryData.geometry;
+                console.log(`[LocationProcessor] ✅ Boundary fetched for: ${place_name}`, {
+                  geometryType: boundaryData.geometry.type,
+                  hasBbox: !!boundaryData.bbox
+                });
+              } else {
+                console.warn(`[LocationProcessor] ⚠️ No boundary data returned for: ${place_name}`);
+              }
+            } catch (error) {
+              console.error(`[LocationProcessor] ❌ Error fetching boundary for: ${place_name}`, error);
             }
+          } else {
+            console.log(`[DEBUG] ⏭️ Skipping boundary fetch for radius type: ${place_name}`);
           }
           
-          // Get Meta key (required for publishing)
+          // Step 3: Meta key lookup
           const metaType = loc.type === 'radius' ? 'city' : loc.type;
+          console.log(`[DEBUG] 🔑 Fetching Meta key for: ${place_name} (type: ${metaType})`);
           const metaResult = await searchMetaLocation(place_name, center, metaType);
           if (metaResult) {
-            console.log(`[LocationProcessor] Meta key found for: ${place_name}`);
+            console.log(`[LocationProcessor] ✅ Meta key found:`, metaResult);
           } else {
-            console.warn(`[LocationProcessor] No Meta key for: ${place_name} (will need for publishing)`);
+            console.warn(`[LocationProcessor] ⚠️ No Meta key for: ${place_name} (will need for publishing)`);
           }
           
-          return {
+          // Step 4: Build final location object
+          const finalLocation = {
             id: `loc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             name: place_name,
             coordinates: center,
@@ -442,23 +481,55 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
             key: metaResult?.key,
             country_code: metaResult?.country_code,
           };
+          
+          console.log('[DEBUG] 📦 Final location object:', {
+            id: finalLocation.id,
+            name: finalLocation.name,
+            type: finalLocation.type,
+            mode: finalLocation.mode,
+            hasCoordinates: !!finalLocation.coordinates,
+            hasBbox: !!finalLocation.bbox,
+            hasGeometry: !!finalLocation.geometry,
+            geometryType: finalLocation.geometry?.type,
+            hasMetaKey: !!finalLocation.key
+          });
+          
+          return finalLocation;
         })
       );
       
       const validLocations = processed.filter((loc): loc is NonNullable<typeof loc> => loc !== null);
       
+      console.log('[DEBUG] ========== PROCESSING COMPLETE ==========');
+      console.log('[DEBUG] Valid locations:', validLocations.length);
+      console.log('[DEBUG] Failed locations:', input.locations.length - validLocations.length);
+      
       if (validLocations.length === 0) {
+        console.error('[DEBUG] ❌ No valid locations processed');
         throw new Error('Failed to geocode locations');
       }
       
-      console.log(`[LocationProcessor] Successfully processed ${validLocations.length}/${input.locations.length} locations`);
+      console.log(`[LocationProcessor] ✅ Successfully processed ${validLocations.length}/${input.locations.length} locations`);
+      console.log('[DEBUG] Valid locations summary:', validLocations.map(l => ({
+        name: l.name,
+        hasGeometry: !!l.geometry,
+        hasBbox: !!l.bbox,
+        hasMetaKey: !!l.key
+      })));
       
       // Update context (triggers map update via React state flow)
+      console.log('[DEBUG] 💾 Calling addLocations() with:', {
+        count: validLocations.length,
+        shouldMerge: false
+      });
       addLocations(validLocations, false); // false = replace, not merge
+      
+      console.log('[DEBUG] 📊 Updating status to: completed');
       updateLocationStatus('completed');
       
       // Show success toast
       const locationNames = validLocations.map(l => l.name).join(', ');
+      console.log('[DEBUG] 🎉 Showing success toast');
       toast.success(
         validLocations.length === 1 
           ? `Location set to ${locationNames}` 
@@ -466,6 +537,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
       );
       
       // Report success to AI
+      console.log('[DEBUG] 🤖 Reporting success to AI');
       addToolResult({
         tool: 'locationTargeting',
         toolCallId,
@@ -480,8 +552,16 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
         },
       });
       
+      console.log('[DEBUG] ========== LOCATION PROCESSING END ==========');
+      
     } catch (error) {
-      console.error('[LocationProcessor] Error:', error);
+      console.error('[DEBUG] ========== PROCESSING ERROR ==========');
+      console.error('[LocationProcessor] ❌ Error:', error);
+      console.error('[DEBUG] Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
       updateLocationStatus('error');
       
       const errorMessage = error instanceof Error ? error.message : 'Failed to set location';
@@ -493,6 +573,8 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
         output: undefined,
         errorText: errorMessage,
       } as ToolResult);
+      
+      console.log('[DEBUG] ========== ERROR HANDLING END ==========');
     }
   }, [addLocations, updateLocationStatus, addToolResult]);
 
