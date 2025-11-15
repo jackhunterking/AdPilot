@@ -223,7 +223,7 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
     
     // Load location data from ad's setup_snapshot (ad-specific targeting)
     // Fallback to campaign_states for backward compatibility during transition
-    const locationSnapshot = ad.setup_snapshot?.location as {
+    const setupSnapshotTyped = ad.setup_snapshot as { location?: {
       locations?: Array<{
         id?: string
         name: string
@@ -234,9 +234,18 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
         key?: string
       }>
       status?: string
-    } | null | undefined
+    } } | null | undefined
     
-    const locationData = locationSnapshot || (stateRow as { location_data?: unknown } | null)?.location_data || {}
+    const locationSnapshot = setupSnapshotTyped?.location
+    const locationData = (locationSnapshot || (stateRow as { location_data?: unknown } | null)?.location_data || {}) as {
+      locations?: Array<{
+        id?: string
+        name: string
+        type: string
+        mode: string
+        key?: string
+      }>
+    }
 
     const goal = goalData.selectedGoal
     if (!goal) {
@@ -462,8 +471,9 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
           geo_locations: locationData.locations && locationData.locations.length > 0
             ? {
                 countries: locationData.locations
-                  .filter(l => l.type === 'country')
-                  .map(l => l.key)
+                  .filter((l: { type: string }) => l.type === 'country')
+                  .map((l: { key?: string }) => l.key)
+                  .filter((key): key is string => typeof key === 'string')
               }
             : { countries: ['US'] }
         }

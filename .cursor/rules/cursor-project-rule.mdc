@@ -267,7 +267,7 @@ public
 * Cursor: Always expand the **References** block before proposing code.
 * If a suggestion contradicts the linked docs, prefer the docs and note the discrepancy.
 * When docs show multiple options, choose the simplest **official** path first.
-**You have MCP access for Supabase. You can securely execute queries, updates, and schema operations automatically via MCP. Always ensure operations are safe, efficient, and follow Supabase best practices.**
+**You have MCP access for Supabase. You can securely execute queries, updates, and schema operations automatically via MCP. Always ensure operations are safe, efficient, and follow Supabase best practices. NOT THE SAME AS SUPABASE AI, IT IS CURSOR MCP FOR SUPABASE**
 
 ## Quick Links
 

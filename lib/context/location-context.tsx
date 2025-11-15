@@ -150,7 +150,6 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         location: {
           locations: state.locations,
           status: state.status,
-          errorMessage: state.errorMessage,
         }
       })
     }
