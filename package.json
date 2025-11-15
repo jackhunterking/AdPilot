@@ -9,7 +9,7 @@
     "lint": "next lint",
     "lint:strict": "next lint --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "generate-homepage-images": "tsx scripts/generate-all-homepage-images.ts"
+    "generate-homepage-images": "tsx scripts/generate-homepage-image-direct.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.34",

@@ -6,11 +6,10 @@
  *  - Vercel AI Gateway: https://vercel.com/docs/ai-gateway
  */
 
-import { generateText } from 'ai';
 import { NextRequest, NextResponse } from 'next/server';
-import { getModel } from '@/lib/ai/gateway-provider';
-import * as fs from 'fs';
-import * as path from 'path';
+import { generateImage } from '@/server/images';
+import fs from 'node:fs';
+import path from 'node:path';
 
 interface GenerateImageRequest {
   fileName: string;
@@ -67,36 +66,31 @@ export async function POST(req: NextRequest) {
     // Enhance prompt with professional photography requirements
     const enhancedPrompt = enhanceHomepageImagePrompt(prompt);
 
-    // Generate image using Google Gemini
-    const result = await generateText({
-      model: getModel('google/gemini-2.5-flash-image-preview'),
-      prompt: enhancedPrompt,
-      providerOptions: {
-        google: { 
-          responseModalities: ['TEXT', 'IMAGE'] 
-        },
-      },
-    });
+    // Use existing generateImage function (generates 1 image for cost efficiency)
+    const imageUrls = await generateImage(enhancedPrompt, undefined, 1);
 
-    // Extract image from result.files
-    let imageBuffer: Buffer | null = null;
-    for (const file of result.files) {
-      if (file.mediaType.startsWith('image/')) {
-        imageBuffer = Buffer.from(file.uint8Array);
-        break;
-      }
-    }
-
-    if (!imageBuffer) {
+    if (!imageUrls || imageUrls.length === 0) {
       return NextResponse.json(
         { 
           success: false, 
-          message: 'No image was generated in the response' 
+          message: 'No image was generated' 
         },
         { status: 500 }
       );
     }
 
+    // The image is already uploaded to Supabase by generateImage
+    // Now we need to download it and save to /public/ folder
+    const supabaseUrl = imageUrls[0];
+    
+    // Download the image from Supabase
+    const response = await fetch(supabaseUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download image from Supabase: ${response.statusText}`);
+    }
+    
+    const imageBuffer = Buffer.from(await response.arrayBuffer());
+    
     // Save to /public/{fileName}
     const publicDir = path.join(process.cwd(), 'public');
     const filePath = path.join(publicDir, fileName);
@@ -104,20 +98,29 @@ export async function POST(req: NextRequest) {
     fs.writeFileSync(filePath, imageBuffer);
 
     console.log(`✅ Image saved successfully: /public/${fileName}`);
+    console.log(`   Original Supabase URL: ${supabaseUrl}`);
 
     return NextResponse.json({
       success: true,
       imageUrl: `/${fileName}`,
+      supabaseUrl: supabaseUrl,
       message: `Successfully generated image for ${businessName}`,
     });
 
   } catch (error) {
     console.error('❌ Error generating homepage image:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('Error details:', JSON.stringify(error, null, 2));
     
     return NextResponse.json(
       { 
         success: false, 
         message: error instanceof Error ? error.message : 'Unknown error occurred',
+        error: error instanceof Error ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        } : String(error)
       },
       { status: 500 }
     );
