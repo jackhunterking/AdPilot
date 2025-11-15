@@ -163,11 +163,11 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       }))
     });
     
-    // Save to ad snapshot only
+    // Save to ad snapshot only (ensure status is never null)
     await updateAdSnapshot({
       location: {
         locations: state.locations,
-        status: state.status,
+        status: state.status || 'completed',  // Default to 'completed' if somehow null
       }
     })
     

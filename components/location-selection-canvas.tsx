@@ -277,8 +277,9 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       markersRef.current.push(marker);
       console.log('[DEBUG] ✅ Marker added');
 
-      // Add radius circle or boundaries
+      // Add radius circle or boundaries (THREE-TIER FALLBACK STRATEGY)
       if (location.type === "radius" && location.radius) {
+        // Tier 3: Explicit radius
         console.log('[DEBUG] Adding radius circle:', location.radius, 'miles');
         const radiusInMeters = location.radius * 1609.34;
         const circle = L.circle(
@@ -294,7 +295,9 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
         ).addTo(map);
         shapesRef.current.push(circle);
         console.log('[DEBUG] ✅ Radius circle added');
+        
       } else if (location.geometry) {
+        // Tier 1: Full geometry (BEST)
         console.log('[DEBUG] Adding geometry boundary:', {
           type: location.geometry.type,
           hasCoordinates: !!location.geometry.coordinates
@@ -312,10 +315,70 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
           shapesRef.current.push(geoJsonLayer);
           console.log('[DEBUG] ✅ Geometry boundary added successfully');
         } catch (error) {
-          console.error("[DEBUG] ❌ Error adding boundary:", error);
+          console.error("[DEBUG] ❌ Error adding geometry, trying bbox fallback:", error);
+          // Fall through to bbox fallback
+          if (location.bbox) {
+            try {
+              const bounds: [[number, number], [number, number]] = [
+                [location.bbox[1], location.bbox[0]],  // SW corner
+                [location.bbox[3], location.bbox[2]]   // NE corner
+              ];
+              const rectangle = L.rectangle(bounds, {
+                fillColor: color,
+                fillOpacity: 0.15,
+                color: color,
+                weight: 2,
+                opacity: 0.6,
+              }).addTo(map);
+              shapesRef.current.push(rectangle);
+              console.log('[DEBUG] ✅ BBox rectangle added as fallback');
+            } catch (bboxError) {
+              console.error("[DEBUG] ❌ BBox fallback also failed:", bboxError);
+            }
+          }
         }
+        
+      } else if (location.bbox) {
+        // Tier 2: BBox rectangle (GOOD)
+        console.log('[DEBUG] No geometry, using bbox rectangle');
+        try {
+          const bounds: [[number, number], [number, number]] = [
+            [location.bbox[1], location.bbox[0]],  // SW corner
+            [location.bbox[3], location.bbox[2]]   // NE corner
+          ];
+          const rectangle = L.rectangle(bounds, {
+            fillColor: color,
+            fillOpacity: 0.15,
+            color: color,
+            weight: 2,
+            opacity: 0.6,
+          }).addTo(map);
+          shapesRef.current.push(rectangle);
+          console.log('[DEBUG] ✅ BBox rectangle added');
+        } catch (error) {
+          console.error("[DEBUG] ❌ Error adding bbox rectangle:", error);
+        }
+        
       } else {
-        console.log('[DEBUG] ⚠️ No geometry or radius - only marker shown');
+        // Tier 3: Default radius fallback (MINIMUM)
+        console.log('[DEBUG] ⚠️ No geometry or bbox - using default radius fallback');
+        const defaultRadius = location.type === 'country' ? 500000 :  // 500km
+                             location.type === 'region' ? 100000 :    // 100km
+                             50000;  // 50km default for cities
+        const circle = L.circle(
+          [location.coordinates[1], location.coordinates[0]],
+          {
+            radius: defaultRadius,
+            fillColor: color,
+            fillOpacity: 0.1,
+            color: color,
+            weight: 2,
+            opacity: 0.4,
+            dashArray: '5, 10',  // Dashed line to indicate approximation
+          }
+        ).addTo(map);
+        shapesRef.current.push(circle);
+        console.log('[DEBUG] ✅ Default radius circle added (approximate)');
       }
     });
 

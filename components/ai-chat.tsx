@@ -909,10 +909,16 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
 
   // Process location tool calls (one-time processing with idempotency)
   useEffect(() => {
-    messages.forEach(msg => {
+    console.log('[DEBUG] ========== TOOL CALL DETECTION ==========');
+    console.log('[DEBUG] Messages count:', messages.length);
+    
+    messages.forEach((msg, msgIdx) => {
       const parts = (msg as { parts?: MessagePart[] }).parts || [];
-      
-      parts.forEach(part => {
+      console.log(`[DEBUG] Message ${msgIdx}: ${parts.length} parts`);
+
+      parts.forEach((part, partIdx) => {
+        console.log(`[DEBUG] Part ${partIdx}: type=${part.type}`);
+        
         if (
           part.type === 'tool-call' &&
           (part as { toolName?: string }).toolName === 'locationTargeting'
@@ -920,24 +926,36 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
           const callId = (part as { toolCallId?: string }).toolCallId;
           const state = (part as { state?: string }).state;
           const input = (part as { input?: LocationToolInput }).input;
-          
-          // Only process if:
-          // 1. Has valid data
-          // 2. State is 'input-available' (not already completed)
-          // 3. Not already processed
+
+          console.log('[DEBUG] Found locationTargeting tool call:', {
+            callId,
+            state,
+            hasInput: !!input,
+            alreadyProcessed: processedLocationCalls.current.has(callId || '')
+          });
+
+          // RELAXED DETECTION: Process if has callId and input, regardless of state
+          // Only check idempotency via processedLocationCalls ref
           if (
             callId &&
-            state === 'input-available' &&
             input &&
             !processedLocationCalls.current.has(callId)
           ) {
             // Process asynchronously (don't block render)
-            console.log('[LocationProcessor] Found unprocessed tool call:', callId);
+            console.log('[LocationProcessor] ✅ Found unprocessed tool call:', callId, '(state:', state, ')');
             processLocationToolCall(callId, input);
+          } else {
+            console.log('[LocationProcessor] ⏭️ Skipping tool call:', {
+              reason: !callId ? 'no callId' : 
+                      !input ? 'no input' : 
+                      'already processed'
+            });
           }
         }
       });
     });
+    
+    console.log('[DEBUG] ========== TOOL CALL DETECTION END ==========');
   }, [messages, processLocationToolCall]);
 
   // Listen for ad edit events from preview panel
