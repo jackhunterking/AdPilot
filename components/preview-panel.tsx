@@ -402,7 +402,7 @@ export function PreviewPanel() {
           cta: snapshot.copy.cta,
         },
         locations: snapshot.location.locations.length,
-        goal: snapshot.goal.type,
+        goal: snapshot.goal?.type,
       })
       
       console.log('📦 Step 1: Saving ad snapshot to database...')

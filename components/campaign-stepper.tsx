@@ -226,13 +226,15 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
     const handler = () => {
       // Ignore auto-advance signals during hydration/init to prevent spurious jumps
       if (!hasInitializedRef.current) return
+      // Don't auto-advance from the "ads" step - let user manually click Next
+      if (currentStep?.id === 'ads') return
       if (currentStepCompleted && !isLastStep) {
         handleNext()
       }
     }
     window.addEventListener('autoAdvanceStep', handler)
     return () => window.removeEventListener('autoAdvanceStep', handler)
-  }, [currentStepCompleted, isLastStep])
+  }, [currentStepCompleted, isLastStep, currentStep])
 
   const handleBack = () => {
     if (!isFirstStep) {

@@ -15,6 +15,7 @@ import type {
   BudgetSnapshot,
   DestinationSnapshot,
   SnapshotValidation,
+  BuildSnapshotOptions,
 } from '@/lib/types/ad-snapshot'
 
 // ============================================================================
@@ -133,9 +134,17 @@ export interface BuildAdSnapshotInput {
 /**
  * Build complete ad snapshot from wizard context states
  * This is the single source of truth builder
+ * 
+ * @param input - Context states from wizard
+ * @param options - Build options including validation mode
+ * @returns AdSetupSnapshot with fields populated based on validation mode
  */
-export function buildAdSnapshot(input: BuildAdSnapshotInput): AdSetupSnapshot {
+export function buildAdSnapshot(
+  input: BuildAdSnapshotInput,
+  options: BuildSnapshotOptions = { mode: 'publish' }
+): AdSetupSnapshot {
   const { adPreview, adCopy, destination, location, goal, budget } = input
+  const mode = options.mode || 'publish'
 
   // Build creative snapshot
   const creative: AdCreativeSnapshot = {
@@ -169,24 +178,50 @@ export function buildAdSnapshot(input: BuildAdSnapshotInput): AdSetupSnapshot {
     locations: location.locations || [],
   }
 
-  // Build destination snapshot
-  if (!destination.data || !destination.data.type) {
-    throw new Error('Destination must be configured before building snapshot')
+  // Build destination snapshot - Conditional based on validation mode
+  let destinationSnapshot: DestinationSnapshot | undefined
+
+  if (mode === 'publish') {
+    // STRICT: Require destination for publish
+    if (!destination.data || !destination.data.type) {
+      throw new Error('Destination must be configured before building snapshot')
+    }
+    destinationSnapshot = {
+      type: destination.data.type,
+      data: destination.data,
+    }
+  } else {
+    // DRAFT: Optional destination for autosave
+    if (destination.data?.type) {
+      destinationSnapshot = {
+        type: destination.data.type,
+        data: destination.data,
+      }
+    }
+    // destinationSnapshot stays undefined if not configured
   }
 
-  const destinationSnapshot: DestinationSnapshot = {
-    type: destination.data.type,
-    data: destination.data,
-  }
+  // Build goal snapshot (campaign-level, immutable) - Conditional based on validation mode
+  let goalSnapshot: GoalSnapshot | undefined
 
-  // Build goal snapshot (campaign-level, immutable)
-  if (!goal.selectedGoal) {
-    throw new Error('Goal must be selected before building snapshot')
-  }
-
-  const goalSnapshot: GoalSnapshot = {
-    type: goal.selectedGoal,
-    formData: goal.formData || {}, // formData now optional since destination handles this
+  if (mode === 'publish') {
+    // STRICT: Require goal for publish
+    if (!goal.selectedGoal) {
+      throw new Error('Goal must be selected before building snapshot')
+    }
+    goalSnapshot = {
+      type: goal.selectedGoal,
+      formData: goal.formData || {}, // formData now optional since destination handles this
+    }
+  } else {
+    // DRAFT: Optional goal for autosave
+    if (goal.selectedGoal) {
+      goalSnapshot = {
+        type: goal.selectedGoal,
+        formData: goal.formData || {},
+      }
+    }
+    // goalSnapshot stays undefined if not selected
   }
 
   // Build budget snapshot
@@ -199,12 +234,13 @@ export function buildAdSnapshot(input: BuildAdSnapshotInput): AdSetupSnapshot {
   }
 
   // Assemble complete snapshot
+  // In draft mode, destination and goal may be undefined
   const snapshot: AdSetupSnapshot = {
     creative,
     copy,
-    destination: destinationSnapshot,
+    destination: destinationSnapshot, // May be undefined in draft mode
     location: locationSnapshot,
-    goal: goalSnapshot,
+    goal: goalSnapshot, // May be undefined in draft mode
     budget: budgetSnapshot,
     createdAt: new Date().toISOString(),
     wizardVersion: '1.0',
@@ -215,12 +251,13 @@ export function buildAdSnapshot(input: BuildAdSnapshotInput): AdSetupSnapshot {
 
 /**
  * Validate ad snapshot for completeness
+ * Handles both draft (partial) and publish (complete) snapshots
  */
 export function validateAdSnapshot(snapshot: AdSetupSnapshot): SnapshotValidation {
   const errors: string[] = []
   const warnings: string[] = []
 
-  // Validate creative
+  // Validate creative (always required)
   if (snapshot.creative.selectedImageIndex === null) {
     errors.push('No image selected')
   }
@@ -229,27 +266,26 @@ export function validateAdSnapshot(snapshot: AdSetupSnapshot): SnapshotValidatio
     errors.push('No creative images available')
   }
 
-  // Validate copy
+  // Validate copy (always required)
   if (!snapshot.copy.headline || !snapshot.copy.primaryText) {
     errors.push('Ad copy is incomplete')
   }
 
-  // Validate location
+  // Validate location (always required)
   if (!snapshot.location.locations.length) {
     errors.push('No target locations selected')
   }
 
-  // Validate goal (campaign-level)
-  if (!snapshot.goal.type) {
+  // Validate goal (required for publish, optional for draft)
+  if (!snapshot.goal?.type) {
     errors.push('Goal type not selected')
   }
 
-  // Validate destination (ad-level)
+  // Validate destination (required for publish, optional for draft)
   if (!snapshot.destination?.type) {
     errors.push('Destination type not configured')
-  }
-
-  if (snapshot.destination) {
+  } else {
+    // Validate destination data if present
     switch (snapshot.destination.type) {
       case 'instant_form':
         if (!snapshot.destination.data.formId && !snapshot.destination.data.formName) {
@@ -269,7 +305,7 @@ export function validateAdSnapshot(snapshot: AdSetupSnapshot): SnapshotValidatio
     }
   }
 
-  // Validate budget
+  // Validate budget (always required)
   if (snapshot.budget.dailyBudget <= 0) {
     errors.push('Daily budget must be greater than 0')
   }

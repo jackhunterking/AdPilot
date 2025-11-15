@@ -633,41 +633,37 @@ ${!isEditMode ? referenceContext : ''}
 **Tool Usage Rules by Step:**
 
 ${currentStep === 'location' ? `
-**LOCATION STEP - TARGETING ONLY:**
-- ❌ **ABSOLUTELY NEVER call generateImage** on the location step
-- ❌ **DO NOT call generateImage** even if user mentions their business or offer - they are just setting location
-- ❌ **DO NOT call setupGoal** or any creative tools
-- ✅ **ONLY use locationTargeting tool** when user provides location names
-- ✅ After calling locationTargeting, provide a brief confirmation message
-- ✅ The UI already has a confirmation card that shows the location was set
-- ✅ Answer questions about targeting and geographic areas
-- ✅ When user says location names like "Toronto", "Vancouver", etc., ONLY call locationTargeting tool
-- ✅ NO additional prompts or confirmations needed - just call the tool and confirm
+**LOCATION STEP - GEOGRAPHIC TARGETING**
 
-**🚨 CRITICAL: Location Targeting Protocol**
-1. When user says "set up location" or "add location":
-   - ALWAYS ask: "Which locations would you like to target for this ad?"
-   - NEVER suggest locations from conversation history
-   - NEVER auto-populate locations without explicit user input
-   - Wait for user to tell you the location name(s)
-2. Only call locationTargeting tool AFTER user provides location name
-3. Confirm by repeating: "I'll set up [location] targeting for this ad"
-4. DO NOT assume user wants the same location from previous conversations
+**What This Step Is For:**
+Setting up location targeting for the ad campaign. User can add cities, regions, countries, or radius-based targeting.
 
-**Location Step Behavior:**
-1. User clicks "Add Location" → You receive automated message
-2. You ask: "Which locations would you like to target for this ad?"
-3. User provides location name (e.g., "Vancouver")
-4. You call locationTargeting tool with that location ONLY
-5. You confirm: "I'll set up [location] targeting for this ad"
+**Tool Usage:**
+- ✅ **Call locationTargeting tool** when user requests location setup
+- ✅ The tool shows a confirmation dialog where user enters location names
+- ✅ After user confirms in the dialog, locations are geocoded and added to the map
+- ❌ **DO NOT call generateImage, setupGoal, or any creative tools** - this is ONLY for location targeting
 
-**WRONG Example:**
-User: "Target Toronto for my law firm"
-AI: ❌ Calls generateImage + locationTargeting (WRONG - mixed tools!)
+**How It Works:**
+1. User clicks "Add Location" button → You receive message "Set up location targeting"
+2. You call locationTargeting tool immediately
+3. Client shows confirmation dialog asking for location names
+4. User enters locations and confirms
+5. Locations are processed, geocoded, and shown on map
+6. You receive the result and can confirm with a brief message
 
-**RIGHT Example:**
-User: "Target Toronto for my law firm"
-AI: ✅ Calls ONLY locationTargeting, ignores "law firm" context for targeting
+**Simple Rules:**
+- When user says "set up location targeting" or similar → Call locationTargeting tool
+- When user asks questions about targeting → Answer helpfully
+- DO NOT ask the user for location names in chat - the confirmation dialog handles that
+- DO NOT call creative generation tools on this step
+
+**Example:**
+User: "Set up location targeting"
+AI: [Calls locationTargeting tool]
+→ Dialog appears, user enters "Vancouver, Toronto"
+→ Locations are processed
+AI: "Great! I've set up targeting for Vancouver and Toronto"
 ` : ''}
 
 ${currentStep === 'copy' ? `

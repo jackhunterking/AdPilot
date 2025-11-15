@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { generateObject } from 'ai'
-import { editAdCopyTool } from '@/tools/edit-ad-copy-tool'
+import { editAdCopyTool } from '@/lib/ai/tools/edit-ad-copy'
 
 // Mock the AI SDK generateObject
 vi.mock('ai', async () => {

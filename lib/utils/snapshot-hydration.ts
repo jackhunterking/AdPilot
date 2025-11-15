@@ -78,18 +78,18 @@ export function hydrateDestinationFromSnapshot(snapshot: AdSetupSnapshot) {
 
 /**
  * Check if a snapshot is valid and complete
+ * Note: goal and destination are optional in draft mode
  */
 export function isValidSnapshot(snapshot: unknown): snapshot is AdSetupSnapshot {
   if (!snapshot || typeof snapshot !== 'object') return false
   
   const s = snapshot as Record<string, unknown>
   
-  // Check required top-level keys
+  // Check required top-level keys (destination and goal are optional for drafts)
   const hasRequiredKeys = Boolean(
     s.creative && typeof s.creative === 'object' &&
     s.copy && typeof s.copy === 'object' &&
-    s.location && typeof s.location === 'object' &&
-    s.goal && typeof s.goal === 'object'
+    s.location && typeof s.location === 'object'
   )
   
   return hasRequiredKeys

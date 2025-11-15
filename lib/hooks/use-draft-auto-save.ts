@@ -85,7 +85,7 @@ export function useDraftAutoSave(
     const contexts = contextsRef.current
     
     try {
-      // Build snapshot from ref values
+      // Build snapshot from ref values in DRAFT mode (lenient validation)
       const { buildAdSnapshot } = await import('@/lib/services/ad-snapshot-builder')
       const snapshot = buildAdSnapshot({
         adPreview: { 
@@ -98,6 +98,16 @@ export function useDraftAutoSave(
         location: contexts.locationState,
         goal: contexts.goalState,
         budget: contexts.budgetState,
+      }, { mode: 'draft' }) // Use draft mode for autosave - allows missing destination/goal
+      
+      // Debug logging: Track what fields are being saved
+      console.log('[DraftAutoSave] Snapshot fields:', {
+        hasCreative: !!snapshot.creative,
+        hasCopy: !!snapshot.copy,
+        hasDestination: !!snapshot.destination,
+        hasGoal: !!snapshot.goal,
+        hasLocation: snapshot.location.locations.length > 0,
+        hasBudget: !!snapshot.budget,
       })
       
       // Create stable snapshot signature by omitting volatile fields
@@ -147,11 +157,23 @@ export function useDraftAutoSave(
       if (response.ok) {
         // ONLY update lastSaveRef on successful save to prevent re-save on failure
         lastSaveRef.current = currentSignature
+        console.log('[DraftAutoSave] ✅ Draft saved successfully')
       } else {
         console.error('[DraftAutoSave] Failed to save draft:', await response.text())
       }
     } catch (error) {
-      console.error('[DraftAutoSave] Error saving draft:', error)
+      // Since we're using draft mode, errors should be rare
+      // Log them prominently for debugging
+      console.error('[DraftAutoSave] ⚠️ Unexpected error saving draft:', {
+        error: error instanceof Error ? error.message : String(error),
+        campaignId,
+        adId,
+        contextStates: {
+          hasAdContent: !!contexts.adContent,
+          hasDestination: !!contexts.destinationState.data,
+          hasGoal: !!contexts.goalState.selectedGoal,
+        }
+      })
     }
   }, [campaignId, adId]) // ONLY campaignId and adId - stable dependencies!
   

@@ -55,6 +55,7 @@ import { DefaultChatTransport, ChatStatus } from "ai";
 import { supabase } from "@/lib/supabase/client";
 import { generateImage } from "@/server/images";
 import { ImageGenerationConfirmation } from "@/components/ai-elements/image-generation-confirmation";
+import { LocationTargetingConfirmation } from "@/components/ai-elements/location-targeting-confirmation";
 import { ConfirmationCard, SuccessCard } from "@/components/ai-elements/confirmation-card";
 // Removed legacy FormSelectionUI in favor of unified canvas in Goal step
 import { ImageEditProgressLoader } from "@/components/ai-elements/image-edit-progress-loader";
@@ -712,11 +713,25 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
           updateLocationStatus("setup-in-progress");
           addLocations(validLocations);
           
+          // Show success notification
+          const locationNames = validLocations.map(loc => loc.name).join(', ');
+          toast.success(
+            validLocations.length === 1 
+              ? `Location set to ${locationNames}` 
+              : `Locations set to ${locationNames}`
+          );
+          
           // Send FULL data (with geometry) to the map
           emitBrowserEvent('locationsUpdated', validLocations);
 
           // Switch to location tab
           emitBrowserEvent('switchToTab', 'location');
+          
+          // Ensure status is set to completed after processing
+          // Small delay to ensure map has time to render
+          setTimeout(() => {
+            updateLocationStatus("completed");
+          }, 100);
 
           // Send MINIMAL data to AI conversation (no geometry - it's too large!)
           addToolResult({
@@ -813,8 +828,8 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
       
       sendMessageRef.current({
         text: hasExistingLocations 
-          ? `I want to add MORE locations to this ad. Currently targeting: ${locationList}. Ask me which additional locations to add.`
-          : `I need to set up location targeting for this ad. Ask me which specific locations I want to target. Important: Ask me for location names, do not suggest any.`,
+          ? `I want to add more locations. Currently targeting: ${locationList}`
+          : `I need to set up location targeting for this ad`,
       });
     };
 
@@ -1737,6 +1752,97 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                       {part.errorText}
                                     </div>
                                   );
+                              }
+                              break;
+                            }
+                            case "tool-locationTargeting": {
+                              const callId = part.toolCallId;
+                              const input = part.input as LocationToolInput;
+                              
+                              // Only show confirmation dialog on location step
+                              if (currentStep !== 'location') {
+                                console.log(`[AIChat] Skipping locationTargeting UI - current step is '${currentStep}', not 'location'`);
+                                return null;
+                              }
+
+                              switch (part.state) {
+                                case 'input-streaming':
+                                  return <div key={callId} className="text-sm text-muted-foreground">Preparing location targeting...</div>;
+                                
+                                case 'input-available':
+                                  // Show confirmation dialog to get location names from user
+                                  return (
+                                    <div key={callId} className="border rounded-lg p-4 my-2 bg-blue-500/5 border-blue-500/30 max-w-md mx-auto">
+                                      <LocationTargetingConfirmation
+                                        onConfirm={(locationNames) => {
+                                          // Convert location names to the format expected by the tool
+                                          const locations = locationNames.map(name => ({
+                                            name,
+                                            type: 'city' as const,
+                                            mode: 'include' as const,
+                                          }));
+                                          
+                                          // Add to pending location calls for processing
+                                          setPendingLocationCalls(prev => [...prev, { 
+                                            toolCallId: callId, 
+                                            input: { 
+                                              locations, 
+                                              explanation: `Targeting ${locationNames.join(', ')}`
+                                            } 
+                                          }]);
+                                        }}
+                                        onCancel={() => {
+                                          // Send cancellation result
+                                          addToolResult({
+                                            tool: 'locationTargeting',
+                                            toolCallId: callId,
+                                            output: {
+                                              cancelled: true,
+                                              message: 'User cancelled location setup'
+                                            },
+                                          });
+                                        }}
+                                        existingLocations={locationState.locations}
+                                      />
+                                    </div>
+                                  );
+                                
+                                case 'output-available': {
+                                  const output = part.output as { locations?: Array<{ name: string }>; cancelled?: boolean } | undefined;
+                                  
+                                  // Don't show anything if cancelled
+                                  if (output?.cancelled) {
+                                    return null;
+                                  }
+                                  
+                                  // Show success message
+                                  if (output?.locations && output.locations.length > 0) {
+                                    return (
+                                      <div key={callId} className="border rounded-lg p-4 my-2 bg-green-500/5 border-green-500/30 max-w-md mx-auto">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                                          <p className="font-medium text-green-600">Location targeting set!</p>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">
+                                          {output.locations.map(l => l.name).join(', ')}
+                                        </p>
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  return null;
+                                }
+                                
+                                case 'output-error':
+                                  return (
+                                    <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4 my-2">
+                                      <p className="font-medium mb-1">Location Setup Failed</p>
+                                      <p className="text-xs">{part.errorText}</p>
+                                    </div>
+                                  );
+                                
+                                default:
+                                  return null;
                               }
                               break;
                             }

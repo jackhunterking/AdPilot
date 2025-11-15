@@ -286,6 +286,56 @@ export async function validatePrePublish(params: PrePublishValidationParams): Pr
     console.log('[PrePublishValidator] ✅ Ad copy found')
   }
 
+  // Validate destination (required for publish)
+  const destination = setupSnapshot.destination as { type?: string; data?: { formId?: string; websiteUrl?: string; phoneNumber?: string } } | undefined
+  
+  if (!destination?.type) {
+    console.error('[PrePublishValidator] ❌ No destination configured')
+    errors.push({
+      code: 'validation_error',
+      message: 'No destination configured',
+      userMessage: 'You need to configure an ad destination (form, URL, or phone) before publishing.',
+      recoverable: true,
+      suggestedAction: 'Complete the Destination step in ad setup',
+      timestamp: new Date().toISOString()
+    })
+  } else {
+    console.log('[PrePublishValidator] ✅ Destination configured:', destination.type)
+    
+    // Validate destination data based on type
+    if (destination.type === 'instant_form' && !destination.data?.formId) {
+      console.error('[PrePublishValidator] ❌ Lead form not selected')
+      errors.push({
+        code: 'validation_error',
+        message: 'Lead form not configured',
+        userMessage: 'You need to select or create a lead form before publishing.',
+        recoverable: true,
+        suggestedAction: 'Select a lead form in the Destination step',
+        timestamp: new Date().toISOString()
+      })
+    } else if (destination.type === 'website_url' && !destination.data?.websiteUrl) {
+      console.error('[PrePublishValidator] ❌ Website URL not configured')
+      errors.push({
+        code: 'validation_error',
+        message: 'Website URL not configured',
+        userMessage: 'You need to enter a website URL before publishing.',
+        recoverable: true,
+        suggestedAction: 'Enter your website URL in the Destination step',
+        timestamp: new Date().toISOString()
+      })
+    } else if (destination.type === 'phone_number' && !destination.data?.phoneNumber) {
+      console.error('[PrePublishValidator] ❌ Phone number not configured')
+      errors.push({
+        code: 'validation_error',
+        message: 'Phone number not configured',
+        userMessage: 'You need to enter a phone number before publishing.',
+        recoverable: true,
+        suggestedAction: 'Enter your phone number in the Destination step',
+        timestamp: new Date().toISOString()
+      })
+    }
+  }
+
   // Validate location targeting
   const locationData = campaignStates?.location_data
   if (!locationData?.locations || locationData.locations.length === 0) {

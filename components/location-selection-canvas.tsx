@@ -316,7 +316,12 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
   }, [updateMapMarkers])
 
   const handleAddMore = () => {
-    window.dispatchEvent(new CustomEvent('triggerLocationSetup'))
+    // Trigger a simple message that the AI will interpret as a request to call the locationTargeting tool
+    window.dispatchEvent(new CustomEvent('sendMessageToAI', { 
+      detail: { 
+        message: 'Set up location targeting' 
+      } 
+    }))
   }
 
   // Show error if Leaflet failed to load

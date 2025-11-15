@@ -123,6 +123,10 @@ export interface BudgetSnapshot {
 /**
  * Complete ad setup snapshot
  * This is the single source of truth for all ad configuration
+ * 
+ * NOTE: destination and goal are optional to support draft autosave before wizard completion.
+ * - In DRAFT mode: These fields may be undefined as user progresses through wizard
+ * - In PUBLISH mode: These fields are required for ad to go live
  */
 export interface AdSetupSnapshot {
   // Creative
@@ -131,14 +135,14 @@ export interface AdSetupSnapshot {
   // Copy
   copy: AdCopySnapshot
   
-  // Destination (ad-level: form/URL/phone)
-  destination: DestinationSnapshot
+  // Destination (ad-level: form/URL/phone) - Optional for drafts
+  destination?: DestinationSnapshot
   
   // Targeting
   location: LocationSnapshot
   
-  // Goal (campaign-level: immutable)
-  goal: GoalSnapshot
+  // Goal (campaign-level: immutable) - Optional for drafts
+  goal?: GoalSnapshot
   
   // Meta Connection (optional - may not be needed in snapshot)
   metaConnection?: MetaConnectionSnapshot
@@ -156,6 +160,20 @@ export interface AdSetupSnapshot {
 // ============================================================================
 
 export type PartialAdSetupSnapshot = Partial<AdSetupSnapshot>
+
+/**
+ * Validation mode for snapshot building
+ * - draft: Lenient validation, allows missing destination/goal (for autosave)
+ * - publish: Strict validation, requires all fields (for ad launch)
+ */
+export type ValidationMode = 'draft' | 'publish'
+
+/**
+ * Options for building ad snapshot
+ */
+export interface BuildSnapshotOptions {
+  mode?: ValidationMode // Default: 'publish' for backward compatibility
+}
 
 /**
  * Validation result for ad snapshot
