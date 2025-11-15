@@ -14,7 +14,7 @@ export function AdCarousel() {
       primaryText: 'Brighten your smile with gentle, modern dental care.',
       headline: 'Premium Dental Care',
       description: 'New-patient cleaning packages available.',
-      ctaText: 'Book Consultation',
+      ctaText: 'Learn More',
     },
     // 2. PrimeFit Personal Training - Story
     {
@@ -25,7 +25,7 @@ export function AdCarousel() {
       primaryText: 'Transform your body with customized workout plans built for busy professionals.',
       headline: '1-on-1 Personal Training',
       description: 'First session free.',
-      ctaText: 'Get Started',
+      ctaText: 'Learn More',
     },
     // 3. FreshNest Cleaning Co. - Feed
     {
@@ -36,7 +36,7 @@ export function AdCarousel() {
       primaryText: 'Enjoy a spotless home without the stress—trusted cleaners you can count on.',
       headline: 'Home Cleaning Services',
       description: 'Weekly & bi-weekly plans.',
-      ctaText: 'Book Now',
+      ctaText: 'Learn More',
     },
     // 4. SparkRide Auto Detailing - Feed
     {
@@ -47,7 +47,7 @@ export function AdCarousel() {
       primaryText: 'Restore the shine of your car with our premium detailing treatments.',
       headline: 'Full Car Detailing',
       description: 'Mobile service available.',
-      ctaText: 'Shop Now',
+      ctaText: 'Learn More',
     },
     // 5. Bloomfield Landscaping - Feed
     {
@@ -102,7 +102,7 @@ export function AdCarousel() {
       primaryText: 'Reveal glowing skin with our customized facial and skincare treatments.',
       headline: 'Advanced Facial Treatments',
       description: 'New client promos.',
-      ctaText: 'Book Now',
+      ctaText: 'Learn More',
     },
     // 10. Paw Haven Grooming - Feed
     {
@@ -190,7 +190,7 @@ export function AdCarousel() {
       primaryText: 'Fuel your day with protein-packed smoothies made from real ingredients.',
       headline: 'Healthy Smoothies',
       description: 'New seasonal flavours.',
-      ctaText: 'Order Now',
+      ctaText: 'Learn More',
     },
     // 18. AquaPure Pool Services - Feed
     {
@@ -223,7 +223,7 @@ export function AdCarousel() {
       primaryText: 'Relieve back pain and improve mobility with gentle chiropractic care.',
       headline: 'Chiropractic Treatments',
       description: 'New patient exam.',
-      ctaText: 'Book Now',
+      ctaText: 'Learn More',
     },
     // 21. AutoGuard Mechanics - Feed
     {
@@ -245,7 +245,7 @@ export function AdCarousel() {
       primaryText: 'Give your child a head start with a nurturing Montessori education.',
       headline: 'Montessori Enrolment',
       description: 'Limited spots available.',
-      ctaText: 'Apply Now',
+      ctaText: 'Learn More',
     },
     // 23. BoldBrew Coffee Co. - Story
     {
@@ -256,7 +256,7 @@ export function AdCarousel() {
       primaryText: 'Enjoy barista-quality coffee at home with our fresh roasted beans.',
       headline: 'Fresh Coffee Delivered',
       description: 'Monthly subscriptions.',
-      ctaText: 'Subscribe',
+      ctaText: 'Learn More',
     },
     // 24. ShinePro Window Cleaning - Feed
     {
@@ -311,7 +311,7 @@ export function AdCarousel() {
       primaryText: 'Stunning floral designs crafted for every moment and occasion.',
       headline: 'Luxury Floral Arrangements',
       description: 'Fresh daily delivery.',
-      ctaText: 'Order Now',
+      ctaText: 'Learn More',
     },
     // 29. Summit Tax Advisors - Feed
     {
@@ -322,7 +322,7 @@ export function AdCarousel() {
       primaryText: 'Get stress-free tax preparation with experienced advisors.',
       headline: 'Tax Filing Help',
       description: 'Simple, affordable service.',
-      ctaText: 'Book Now',
+      ctaText: 'Learn More',
     },
     // 30. LevelUp Barbershop - Story
     {
@@ -333,7 +333,7 @@ export function AdCarousel() {
       primaryText: 'Look sharp with premium barber services designed for modern men.',
       headline: 'Fresh Cuts & Styling',
       description: 'Book online.',
-      ctaText: 'Book Now',
+      ctaText: 'Learn More',
     },
     // 31. AquaClean Carpet Care - Feed
     {
@@ -355,7 +355,7 @@ export function AdCarousel() {
       primaryText: 'Discover durable bikes and accessories built for daily commuting.',
       headline: 'Bikes for Every Rider',
       description: 'Shop local.',
-      ctaText: 'Shop Now',
+      ctaText: 'Learn More',
     },
     // 33. SweetCrate Bakery - Story
     {
@@ -366,7 +366,7 @@ export function AdCarousel() {
       primaryText: 'Treat yourself to handcrafted cakes and pastries made fresh daily.',
       headline: 'Custom Cakes',
       description: 'Pickup & delivery.',
-      ctaText: 'Order Now',
+      ctaText: 'Learn More',
     },
     // 34. BrightSteps Orthotics - Feed
     {
@@ -377,7 +377,7 @@ export function AdCarousel() {
       primaryText: 'Experience pain-free walking with custom orthotics designed for comfort.',
       headline: 'Foot Pain Relief',
       description: 'Book a fitting.',
-      ctaText: 'Book Now',
+      ctaText: 'Learn More',
     },
     // 35. EaglePeak Security Systems - Feed
     {
@@ -410,7 +410,7 @@ export function AdCarousel() {
       primaryText: 'Learn real coding skills and build projects from day one.',
       headline: 'Beginner-Friendly Coding',
       description: 'Evening classes available.',
-      ctaText: 'Enrol Now',
+      ctaText: 'Learn More',
     },
     // 38. CleanSpark Laundry - Feed
     {
@@ -432,7 +432,7 @@ export function AdCarousel() {
       primaryText: 'Discover rare teas sourced from artisans around the world.',
       headline: 'Premium Loose-Leaf Tea',
       description: 'Shop blends & sets.',
-      ctaText: 'Shop Now',
+      ctaText: 'Learn More',
     },
     // 40. SteelCore Fitness Studio - Story
     {
@@ -443,7 +443,7 @@ export function AdCarousel() {
       primaryText: 'Join a results-driven fitness community with real accountability.',
       headline: 'Strength Training Classes',
       description: 'Try your first class.',
-      ctaText: 'Join Now',
+      ctaText: 'Learn More',
     },
   ]
 

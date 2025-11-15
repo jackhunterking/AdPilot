@@ -222,7 +222,7 @@ export function AdMockup({
           />
         </div>
       ) : (
-        <div className="relative overflow-hidden bg-[#1C1E21]" style={{ aspectRatio: '1/1' }} />
+        <div className={`relative overflow-hidden bg-gradient-to-br ${gradient}`} style={{ aspectRatio: '1/1' }} />
       )}
 
       {/* Link Preview Section - Horizontal Layout */}
