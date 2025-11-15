@@ -151,7 +151,12 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   // Auto-save with NORMAL config (300ms debounce)
   useAutoSave(memoizedLocationState, saveFn, AUTO_SAVE_CONFIGS.NORMAL)
 
-  const addLocations = (newLocations: Location[], shouldMerge: boolean = true) => {
+  const addLocations = useCallback((newLocations: Location[], shouldMerge: boolean = true) => {
+    if (!newLocations || newLocations.length === 0) {
+      console.error('[LocationContext] addLocations: empty array provided');
+      return;
+    }
+    
     setLocationState(prev => {
       let finalLocations: Location[];
       
@@ -169,25 +174,57 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         finalLocations = newLocations
       }
       
-      return {
+      const updated = {
         ...prev,
         locations: finalLocations,
-        status: finalLocations.length > 0 ? "completed" : "idle",
+        status: 'completed' as const,
         errorMessage: undefined
+      };
+      
+      // CRITICAL FIX: Immediate save - bypass useAutoSave to avoid cleanup cancellation
+      if (currentAd?.id && isInitialized) {
+        console.log('[LocationContext] Immediate save triggered for', finalLocations.length, 'locations');
+        updateAdSnapshot({
+          location: {
+            locations: updated.locations,
+            status: updated.status || 'completed'
+          }
+        }).then(() => {
+          console.log('[LocationContext] ✅ Location data saved successfully');
+        }).catch(error => {
+          console.error('[LocationContext] ❌ Failed to save locations:', error);
+        });
       }
-    })
-  }
+      
+      return updated;
+    });
+  }, [currentAd?.id, isInitialized, updateAdSnapshot]);
 
-  const removeLocation = (id: string) => {
+  const removeLocation = useCallback((id: string) => {
     setLocationState(prev => {
-      const updatedLocations = prev.locations.filter(loc => loc.id !== id)
-      return {
+      const updatedLocations = prev.locations.filter(loc => loc.id !== id);
+      const updated = {
         ...prev,
         locations: updatedLocations,
-        status: updatedLocations.length > 0 ? "completed" : "idle"
+        status: updatedLocations.length > 0 ? 'completed' as const : 'idle' as const
+      };
+      
+      // Immediate save after removal
+      if (currentAd?.id && isInitialized) {
+        console.log('[LocationContext] Immediate save after removing location');
+        updateAdSnapshot({
+          location: {
+            locations: updated.locations,
+            status: updated.status || 'completed'
+          }
+        }).catch(error => {
+          console.error('[LocationContext] ❌ Failed to save after removal:', error);
+        });
       }
-    })
-  }
+      
+      return updated;
+    });
+  }, [currentAd?.id, isInitialized, updateAdSnapshot]);
 
   const updateStatus = (status: LocationStatus) => {
     setLocationState(prev => ({ ...prev, status }))
