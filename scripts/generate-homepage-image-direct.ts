@@ -3,9 +3,13 @@
  * Usage: npx tsx scripts/generate-homepage-image-direct.ts
  */
 
+// Load environment variables from .env.local
+import { config } from 'dotenv';
+import path from 'node:path';
+config({ path: path.join(process.cwd(), '.env.local') });
+
 import { generateImage } from '../server/images';
 import fs from 'node:fs';
-import path from 'node:path';
 import * as readline from 'readline';
 
 const rl = readline.createInterface({
