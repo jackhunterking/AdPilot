@@ -174,31 +174,31 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     }
   }, [isLeafletReady])
 
-  // Shared function to update map markers - extracted for reuse
-  const updateMapMarkers = useCallback(() => {
-    const L = getLeaflet()
+  // Update map markers when locations change (purely reactive - no events)
+  useEffect(() => {
+    const L = getLeaflet();
     if (!mapRef.current || !L) {
-      logger.debug('Map', 'Cannot update markers - map or Leaflet not ready')
-      return
+      logger.debug('Map', 'Cannot update markers - map or Leaflet not ready');
+      return;
     }
 
-    const map = mapRef.current
+    const map = mapRef.current;
+    const locations = locationState.locations;
+
+    logger.debug('Map', '🗺️ Updating map with locations', { count: locations.length });
 
     // Clear existing markers and shapes
-    markersRef.current.forEach(marker => marker.remove())
-    markersRef.current = []
-    shapesRef.current.forEach(shape => shape.remove())
-    shapesRef.current = []
-
-    const locations = locationState.locations
-    logger.debug('Map', '🗺️ Updating map with locations', { count: locations.length })
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
+    shapesRef.current.forEach(shape => shape.remove());
+    shapesRef.current = [];
 
     if (locations.length === 0) {
-      map.setView([20, 0], 2)
-      return
+      map.setView([20, 0], 2);
+      return;
     }
 
-    // Filter out any locations with invalid coordinates (safety check)
+    // Filter valid locations
     const validLocations = locations.filter(loc => 
       loc.coordinates && 
       Array.isArray(loc.coordinates) && 
@@ -209,23 +209,14 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       !isNaN(loc.coordinates[1])
     );
 
-    logger.debug('Map', 'Valid locations after filtering', { 
-      validCount: validLocations.length,
-      locations: validLocations.map(loc => ({
-        name: loc.name,
-        coords: loc.coordinates,
-        mode: loc.mode
-      }))
-    })
-
     if (validLocations.length === 0) {
-      map.setView([20, 0], 2)
-      return
+      map.setView([20, 0], 2);
+      return;
     }
 
-    // Add markers and shapes for each location
+    // Add markers and shapes
     validLocations.forEach((location) => {
-      const color = location.mode === "include" ? "#16A34A" : "#DC2626"
+      const color = location.mode === "include" ? "#16A34A" : "#DC2626";
 
       // Add marker
       const marker = L.circleMarker(
@@ -238,14 +229,14 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
           opacity: 1,
           fillOpacity: 0.9,
         }
-      ).addTo(map) as LeafletMarker & { bindPopup: (content: string) => void }
+      ).addTo(map) as LeafletMarker & { bindPopup: (content: string) => void };
 
-      marker.bindPopup(`<strong>${location.name}</strong>`)
-      markersRef.current.push(marker)
+      marker.bindPopup(`<strong>${location.name}</strong>`);
+      markersRef.current.push(marker);
 
-      // Add radius circle or boundaries based on type
+      // Add radius circle or boundaries
       if (location.type === "radius" && location.radius) {
-        const radiusInMeters = location.radius * 1609.34
+        const radiusInMeters = location.radius * 1609.34;
         const circle = L.circle(
           [location.coordinates[1], location.coordinates[0]],
           {
@@ -256,8 +247,8 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
             weight: 2,
             opacity: 0.6,
           }
-        ).addTo(map)
-        shapesRef.current.push(circle)
+        ).addTo(map);
+        shapesRef.current.push(circle);
       } else if (location.geometry) {
         try {
           const geoJsonLayer = L.geoJSON(location.geometry, {
@@ -268,53 +259,33 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
               weight: 3,
               opacity: 0.9,
             }
-          }).addTo(map)
-          shapesRef.current.push(geoJsonLayer)
+          }).addTo(map);
+          shapesRef.current.push(geoJsonLayer);
         } catch (error) {
-          console.error("Error adding boundary:", error)
+          console.error("Error adding boundary:", error);
         }
       }
-    })
+    });
 
-    // Fit map to show all locations
-    const bounds = L.latLngBounds() as LeafletBounds & { extend: (coords: [number, number]) => void }
+    // Fit bounds
+    const bounds = L.latLngBounds() as LeafletBounds & { extend: (coords: [number, number]) => void };
     validLocations.forEach(loc => {
       if (loc.bbox) {
-        bounds.extend([loc.bbox[1], loc.bbox[0]])
-        bounds.extend([loc.bbox[3], loc.bbox[2]])
+        bounds.extend([loc.bbox[1], loc.bbox[0]]);
+        bounds.extend([loc.bbox[3], loc.bbox[2]]);
       } else {
-        bounds.extend([loc.coordinates[1], loc.coordinates[0]])
+        bounds.extend([loc.coordinates[1], loc.coordinates[0]]);
       }
-    })
+    });
     
     if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 10 })
-      logger.debug('Map', '✅ Fitted bounds successfully')
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 10 });
+      logger.debug('Map', '✅ Fitted bounds successfully');
     }
 
-    // Immediate size recalculation after adding markers
-    map.invalidateSize(true)
-    logger.debug('Map', '✅ Map updated and invalidated')
+    map.invalidateSize(true);
+    logger.debug('Map', '✅ Map updated');
   }, [locationState.locations])
-
-  // Update map markers when locations change
-  useEffect(() => {
-    updateMapMarkers()
-  }, [updateMapMarkers])
-
-  // Listen for explicit location updates from AI chat (backup trigger)
-  useEffect(() => {
-    const handleLocationsUpdated = () => {
-      logger.debug('Map', '📡 Received locationsUpdated event - forcing map refresh')
-      // Small delay to ensure state has propagated
-      setTimeout(() => {
-        updateMapMarkers()
-      }, 100)
-    }
-
-    window.addEventListener('locationsUpdated', handleLocationsUpdated)
-    return () => window.removeEventListener('locationsUpdated', handleLocationsUpdated)
-  }, [updateMapMarkers])
 
   const handleAddMore = () => {
     try {

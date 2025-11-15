@@ -35,7 +35,7 @@ import { useState, useEffect, useMemo, Fragment, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import { Response } from "@/components/ai-elements/response";
-import { ThumbsUpIcon, ThumbsDownIcon, CopyIcon, Sparkles, ChevronRight, MapPin, CheckCircle2, XCircle, Reply, X, Check, Target } from "lucide-react";
+import { ThumbsUpIcon, ThumbsDownIcon, CopyIcon, Sparkles, ChevronRight, MapPin, CheckCircle2, XCircle, Reply, X, Check, Target, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -55,13 +55,13 @@ import { DefaultChatTransport, ChatStatus } from "ai";
 import { supabase } from "@/lib/supabase/client";
 import { generateImage } from "@/server/images";
 import { ImageGenerationConfirmation } from "@/components/ai-elements/image-generation-confirmation";
-import { LocationTargetingProcessor } from "@/components/ai-elements/location-targeting-processor";
 import { ConfirmationCard, SuccessCard } from "@/components/ai-elements/confirmation-card";
 // Removed legacy FormSelectionUI in favor of unified canvas in Goal step
 import { ImageEditProgressLoader } from "@/components/ai-elements/image-edit-progress-loader";
 import { renderEditImageResult, renderRegenerateImageResult, renderEditAdCopyResult } from "@/components/ai-elements/tool-renderers";
 import { useAdPreview } from "@/lib/context/ad-preview-context";
 import { searchLocations, getLocationBoundary } from "@/app/actions/geocoding";
+import { searchMetaLocation } from "@/app/actions/meta-location-search";
 import { useGoal } from "@/lib/context/goal-context";
 import { useLocation } from "@/lib/context/location-context";
 import { AdReferenceCard } from "@/components/ad-reference-card-example";
@@ -205,6 +205,9 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
   
   // NEW: Location setup mode flag for enforcing AI tool calling
   const [locationSetupMode, setLocationSetupMode] = useState(false);
+  
+  // Track processed location tool calls to prevent re-processing
+  const processedLocationCalls = useRef<Set<string>>(new Set());
   
   // Helper to check if a tool call already has a result in messages
   const hasToolResult = (toolCallId: string): boolean => {
@@ -371,6 +374,127 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
   useEffect(() => {
     sendMessageRef.current = sendMessage;
   }, [sendMessage]);
+
+  // Process location tool call (stable function with proper dependencies)
+  const processLocationToolCall = useCallback(async (
+    toolCallId: string,
+    input: LocationToolInput
+  ) => {
+    // Skip if already processed
+    if (processedLocationCalls.current.has(toolCallId)) {
+      console.log('[LocationProcessor] Already processed:', toolCallId);
+      return;
+    }
+    
+    // Mark as processing immediately
+    processedLocationCalls.current.add(toolCallId);
+    console.log('[LocationProcessor] Processing tool call:', toolCallId);
+    
+    try {
+      updateLocationStatus('setup-in-progress');
+      
+      // Geocode all locations
+      const processed = await Promise.all(
+        input.locations.map(async (loc) => {
+          console.log(`[LocationProcessor] Geocoding: ${loc.name}`);
+          const geoResult = await searchLocations(loc.name);
+          
+          if (!geoResult.success || !geoResult.data) {
+            console.warn(`[LocationProcessor] Failed to geocode: ${loc.name}`, geoResult.error);
+            return null;
+          }
+          
+          const { place_name, center, bbox } = geoResult.data as {
+            place_name: string;
+            center: [number, number];
+            bbox?: [number, number, number, number];
+          };
+          console.log(`[LocationProcessor] Geocoded: ${place_name}`);
+          
+          // Get boundary for map display
+          let geometry = undefined;
+          if (loc.type !== 'radius') {
+            const boundaryData = await getLocationBoundary(center, place_name);
+            if (boundaryData) {
+              geometry = boundaryData.geometry;
+              console.log(`[LocationProcessor] Boundary fetched for: ${place_name}`);
+            }
+          }
+          
+          // Get Meta key (required for publishing)
+          const metaType = loc.type === 'radius' ? 'city' : loc.type;
+          const metaResult = await searchMetaLocation(place_name, center, metaType);
+          if (metaResult) {
+            console.log(`[LocationProcessor] Meta key found for: ${place_name}`);
+          } else {
+            console.warn(`[LocationProcessor] No Meta key for: ${place_name} (will need for publishing)`);
+          }
+          
+          return {
+            id: `loc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: place_name,
+            coordinates: center,
+            radius: loc.radius || 30,
+            type: loc.type,
+            mode: loc.mode,
+            bbox: bbox || undefined,
+            geometry,
+            key: metaResult?.key,
+            country_code: metaResult?.country_code,
+          };
+        })
+      );
+      
+      const validLocations = processed.filter((loc): loc is NonNullable<typeof loc> => loc !== null);
+      
+      if (validLocations.length === 0) {
+        throw new Error('Failed to geocode locations');
+      }
+      
+      console.log(`[LocationProcessor] Successfully processed ${validLocations.length}/${input.locations.length} locations`);
+      
+      // Update context (triggers map update via React state flow)
+      addLocations(validLocations, false); // false = replace, not merge
+      updateLocationStatus('completed');
+      
+      // Show success toast
+      const locationNames = validLocations.map(l => l.name).join(', ');
+      toast.success(
+        validLocations.length === 1 
+          ? `Location set to ${locationNames}` 
+          : `Locations set to ${locationNames}`
+      );
+      
+      // Report success to AI
+      addToolResult({
+        tool: 'locationTargeting',
+        toolCallId,
+        output: {
+          locations: validLocations.map(l => ({
+            id: l.id,
+            name: l.name,
+            type: l.type,
+            mode: l.mode,
+          })),
+          failedCount: input.locations.length - validLocations.length,
+        },
+      });
+      
+    } catch (error) {
+      console.error('[LocationProcessor] Error:', error);
+      updateLocationStatus('error');
+      
+      const errorMessage = error instanceof Error ? error.message : 'Failed to set location';
+      toast.error(errorMessage);
+      
+      addToolResult({
+        tool: 'locationTargeting',
+        toolCallId,
+        output: undefined,
+        errorText: errorMessage,
+      } as ToolResult);
+    }
+  }, [addLocations, updateLocationStatus, addToolResult]);
 
   // AUTO-SUBMIT INITIAL PROMPT (AI SDK Native Pattern)
   useEffect(() => {
@@ -700,6 +824,39 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
     window.addEventListener('requestLocationSetup', handleLocationSetupRequest);
     return () => window.removeEventListener('requestLocationSetup', handleLocationSetupRequest);
   }, [status, startLocationSetup, stop, setMessages]);
+
+  // Process location tool calls (one-time processing with idempotency)
+  useEffect(() => {
+    messages.forEach(msg => {
+      const parts = (msg as { parts?: MessagePart[] }).parts || [];
+      
+      parts.forEach(part => {
+        if (
+          part.type === 'tool-call' &&
+          (part as { toolName?: string }).toolName === 'locationTargeting'
+        ) {
+          const callId = (part as { toolCallId?: string }).toolCallId;
+          const state = (part as { state?: string }).state;
+          const input = (part as { input?: LocationToolInput }).input;
+          
+          // Only process if:
+          // 1. Has valid data
+          // 2. State is 'input-available' (not already completed)
+          // 3. Not already processed
+          if (
+            callId &&
+            state === 'input-available' &&
+            input &&
+            !processedLocationCalls.current.has(callId)
+          ) {
+            // Process asynchronously (don't block render)
+            console.log('[LocationProcessor] Found unprocessed tool call:', callId);
+            processLocationToolCall(callId, input);
+          }
+        }
+      });
+    });
+  }, [messages, processLocationToolCall]);
 
   // Listen for ad edit events from preview panel
   useEffect(() => {
@@ -1496,38 +1653,23 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                             }
                           }
                             case "tool-locationTargeting": {
-                              // NEW: Unified location targeting processor (no dual paths, no step guard)
+                              // Pure rendering - processing happens in useEffect
                               const callId = part.toolCallId;
                               const input = part.input as LocationToolInput;
+                              const isProcessing = !processedLocationCalls.current.has(callId) && part.state === 'input-available';
                               
                               switch (part.state) {
                                 case 'input-streaming':
                                   return <div key={callId} className="text-sm text-muted-foreground">Preparing location targeting...</div>;
                                 
                                 case 'input-available':
-                                  // Process immediately with LocationTargetingProcessor component
-                                  return (
-                                    <LocationTargetingProcessor
-                                      key={callId}
-                                      toolCallId={callId}
-                                      input={input}
-                                      onComplete={(output) => {
-                                        addToolResult({
-                                          tool: 'locationTargeting',
-                                          toolCallId: callId,
-                                          output,
-                                        });
-                                      }}
-                                      onError={(errorMessage) => {
-                                        addToolResult({
-                                          tool: 'locationTargeting',
-                                          toolCallId: callId,
-                                          output: undefined,
-                                          errorText: errorMessage,
-                                        } as ToolResult);
-                                      }}
-                                    />
-                                  );
+                                  // Show processing indicator (actual work happens in useEffect)
+                                  return isProcessing ? (
+                                    <div key={callId} className="flex items-center gap-2 text-sm text-muted-foreground my-2">
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                      <span>Setting up location targeting...</span>
+                                    </div>
+                                  ) : null;
                                 
                                 case 'output-available': {
                                   const output = part.output as { 
