@@ -83,6 +83,16 @@ export async function POST(req: NextRequest) {
     // Now we need to download it and save to /public/ folder
     const supabaseUrl = imageUrls[0];
     
+    if (!supabaseUrl) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Generated image URL is invalid' 
+        },
+        { status: 500 }
+      );
+    }
+    
     // Download the image from Supabase
     const response = await fetch(supabaseUrl);
     if (!response.ok) {

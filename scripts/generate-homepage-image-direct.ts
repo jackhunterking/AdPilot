@@ -3,11 +3,16 @@
  * Usage: npx tsx scripts/generate-homepage-image-direct.ts
  */
 
-// Load environment variables from .env.local
-import { config } from 'dotenv';
+// CRITICAL: Load environment variables FIRST before any other imports
+import dotenv from 'dotenv';
 import path from 'node:path';
-config({ path: path.join(process.cwd(), '.env.local') });
+import { fileURLToPath } from 'node:url';
 
+// Load .env.local
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '..', '.env.local') });
+
+// Now import modules that depend on environment variables
 import { generateImage } from '../server/images';
 import fs from 'node:fs';
 import * as readline from 'readline';
@@ -262,6 +267,12 @@ async function generateOne(business: BusinessImage): Promise<boolean> {
     }
     
     const supabaseUrl = imageUrls[0];
+    
+    if (!supabaseUrl) {
+      console.log('❌ No valid image URL returned');
+      return false;
+    }
+    
     console.log(`✅ Image generated: ${supabaseUrl}`);
     
     // Download from Supabase
@@ -305,6 +316,12 @@ async function main() {
   
   for (let i = 0; i < businessImages.length; i++) {
     const business = businessImages[i];
+    
+    if (!business) {
+      console.log(`\n⚠️ Skipping undefined business at index ${i}`);
+      continue;
+    }
+    
     console.log(`\n${'='.repeat(60)}`);
     console.log(`${i + 1}/${businessImages.length}: ${business.businessName}`);
     console.log(`${'='.repeat(60)}`);

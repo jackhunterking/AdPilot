@@ -270,6 +270,13 @@ async function main() {
 
   for (let i = 0; i < businessImages.length; i++) {
     const business = businessImages[i];
+    
+    if (!business) {
+      console.log(`\n⚠️ Skipping undefined business at index ${i}`);
+      skipCount++;
+      continue;
+    }
+    
     console.log(`\n${'='.repeat(60)}`);
     console.log(`Generating ${i + 1}/${businessImages.length}: ${business.fileName}`);
     console.log(`Business: ${business.businessName}`);

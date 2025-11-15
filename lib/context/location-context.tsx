@@ -159,7 +159,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         geometryType: l.geometry?.type,
         hasBbox: !!l.bbox,
         hasCoordinates: !!l.coordinates,
-        hasMetaKey: !!l.key
+        hasId: !!l.id
       }))
     });
     
