@@ -644,10 +644,22 @@ ${currentStep === 'location' ? `
 - ✅ When user says location names like "Toronto", "Vancouver", etc., ONLY call locationTargeting tool
 - ✅ NO additional prompts or confirmations needed - just call the tool and confirm
 
+**🚨 CRITICAL: Location Targeting Protocol**
+1. When user says "set up location" or "add location":
+   - ALWAYS ask: "Which locations would you like to target for this ad?"
+   - NEVER suggest locations from conversation history
+   - NEVER auto-populate locations without explicit user input
+   - Wait for user to tell you the location name(s)
+2. Only call locationTargeting tool AFTER user provides location name
+3. Confirm by repeating: "I'll set up [location] targeting for this ad"
+4. DO NOT assume user wants the same location from previous conversations
+
 **Location Step Behavior:**
-1. User provides location name → Call locationTargeting tool ONLY
-2. Tool completes → Provide brief confirmation message like "Location set to [name]"
-3. That's it. NO image generation, NO additional prompts, NO other tools
+1. User clicks "Add Location" → You receive automated message
+2. You ask: "Which locations would you like to target for this ad?"
+3. User provides location name (e.g., "Vancouver")
+4. You call locationTargeting tool with that location ONLY
+5. You confirm: "I'll set up [location] targeting for this ad"
 
 **WRONG Example:**
 User: "Target Toronto for my law firm"

@@ -220,7 +220,23 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
 
     const goalData = stateRow?.goal_data || {}
     const budgetData = stateRow?.budget_data || {}
-    const locationData = stateRow?.location_data || {}
+    
+    // Load location data from ad's setup_snapshot (ad-specific targeting)
+    // Fallback to campaign_states for backward compatibility during transition
+    const locationSnapshot = ad.setup_snapshot?.location as {
+      locations?: Array<{
+        id?: string
+        name: string
+        coordinates?: [number, number]
+        radius?: number
+        type: string
+        mode: string
+        key?: string
+      }>
+      status?: string
+    } | null | undefined
+    
+    const locationData = locationSnapshot || (stateRow as { location_data?: unknown } | null)?.location_data || {}
 
     const goal = goalData.selectedGoal
     if (!goal) {

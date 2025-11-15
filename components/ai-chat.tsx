@@ -809,17 +809,18 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
   useEffect(() => {
     const handleLocationSetup = () => {
       const hasExistingLocations = locationState.locations.length > 0;
+      const locationList = locationState.locations.map(l => l.name).join(', ');
       
       sendMessageRef.current({
         text: hasExistingLocations 
-          ? `Add more locations to my current targeting setup`
-          : `Help me set up location targeting for my ad`,
+          ? `I want to add MORE locations to this ad. Currently targeting: ${locationList}. Ask me which additional locations to add.`
+          : `I need to set up location targeting for this ad. Ask me which specific locations I want to target. Important: Ask me for location names, do not suggest any.`,
       });
     };
 
     window.addEventListener('triggerLocationSetup', handleLocationSetup);
     return () => window.removeEventListener('triggerLocationSetup', handleLocationSetup);
-  }, [locationState.locations.length]);
+  }, [locationState.locations]);
 
   // Listen for ad edit events from preview panel
   useEffect(() => {
