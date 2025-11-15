@@ -31,7 +31,7 @@ import {
   PromptInputFooter,
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
-import { useState, useEffect, useMemo, Fragment, useRef } from "react";
+import { useState, useEffect, useMemo, Fragment, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useChat, type UIMessage } from "@ai-sdk/react";
 import { Response } from "@/components/ai-elements/response";
