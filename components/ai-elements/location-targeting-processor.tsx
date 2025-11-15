@@ -23,7 +23,7 @@ interface LocationTargetingProcessorProps {
       mode: 'include' | 'exclude'
       radius?: number
     }>
-    explanation: string
+    explanation?: string
   }
   onComplete: (output: {
     locations: Array<{
@@ -81,7 +81,9 @@ export function LocationTargetingProcessor({
             }
             
             // Get Meta location key (required for publishing)
-            const metaResult = await searchMetaLocation(place_name, center, loc.type)
+            // For radius types, use 'city' since radius targeting is centered on a city
+            const metaLocationType = loc.type === 'radius' ? 'city' : loc.type
+            const metaResult = await searchMetaLocation(place_name, center, metaLocationType)
             if (metaResult) {
               console.log(`[LocationProcessor] Meta key found for: ${place_name}`)
             } else {

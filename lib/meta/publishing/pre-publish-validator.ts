@@ -7,6 +7,7 @@
 
 import { supabaseServer } from '@/lib/supabase/server'
 import type { PublishError } from '@/lib/types/workspace'
+import { TargetingTransformer } from '@/lib/meta/payload-transformation/targeting-transformer'
 
 interface ValidationResult {
   valid: boolean
@@ -337,18 +338,12 @@ export async function validatePrePublish(params: PrePublishValidationParams): Pr
   }
 
   // Validate location targeting (ad-level)
-  const locationData = ad.setup_snapshot?.location as { locations?: unknown[] } | undefined
+  const adSnapshot = ad.setup_snapshot as Record<string, unknown> | null | undefined
+  const locationData = adSnapshot?.location as { locations?: unknown[] } | undefined
   
   if (!locationData?.locations || locationData.locations.length === 0) {
     console.warn('[PrePublishValidator] ⚠️ No location targeting set (will default to US)')
-    errors.push({
-      code: 'validation_warning',
-      message: 'No location targeting set',
-      userMessage: 'You should set location targeting for better ad performance.',
-      recoverable: true,
-      suggestedAction: 'Add location targeting in the Location step',
-      timestamp: new Date().toISOString()
-    })
+    // Note: This is a warning, not blocking - ad can still publish with default targeting
   } else {
     console.log('[PrePublishValidator] ✅ Location targeting set:', locationData.locations.length, 'locations')
     

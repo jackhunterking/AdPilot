@@ -87,6 +87,8 @@ interface MessageMetadata {
   timestamp: string;
   source: 'chat_input' | 'auto_submit' | 'tool_response';
   editMode?: boolean;
+  locationSetupMode?: boolean;
+  locationInput?: string;
   editingReference?: {
     type?: string;
     variationTitle?: string;
@@ -109,8 +111,8 @@ interface LocationInput {
   name: string;
   coordinates?: [number, number];
   radius?: number;
-  type?: string;
-  mode?: string;
+  type: 'city' | 'region' | 'country' | 'radius';
+  mode: 'include' | 'exclude';
 }
 
 interface LocationToolInput {
@@ -271,10 +273,6 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
       // Clear edit sessions and contexts
       setActiveEditSession(null)
       setAdEditReference(null)
-      
-      // Clear processing states
-      setProcessingLocations(new Set())
-      setPendingLocationCalls([])
       
       // Reset placeholder to build mode default
       setCustomPlaceholder('Describe your ad creative or ask for suggestions…')
@@ -776,25 +774,21 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
       const isGeneratingImage = generatingImages.size > 0;
       
       // Or if processing locations
-      const isProcessingLocations = processingLocations.size > 0;
-      
       // Only show global generating overlay during active work; do not block UI when merely awaiting user input
-      const shouldShowGenerating = isActivelyGenerating || isGeneratingImage || isProcessingLocations;
+      const shouldShowGenerating = isActivelyGenerating || isGeneratingImage;
       
       setIsGenerating(shouldShowGenerating);
       
       // Set appropriate message
       if (isGeneratingImage) {
         setGenerationMessage("Generating creative...");
-      } else if (isProcessingLocations) {
-        setGenerationMessage("Setting up locations...");
       } else if (isActivelyGenerating) {
         setGenerationMessage("AI is thinking...");
       }
     } else {
       setIsGenerating(false);
     }
-  }, [messages, status, generatingImages, processingLocations, setIsGenerating, setGenerationMessage]);
+  }, [messages, status, generatingImages, setIsGenerating, setGenerationMessage]);
 
   // Deduplicate messages to prevent showing duplicate content
   const deduplicatedMessages = useMemo(() => {
@@ -957,39 +951,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                 );
                               }
 
-                              // Handle locationTargeting client-side execution
-                              if (toolName === 'locationTargeting') {
-                                // Try to coerce rawInput into LocationToolInput
-                                const input = (() => {
-                                  if (rawInput && typeof rawInput === 'object') {
-                                    const obj = rawInput as Record<string, unknown>;
-                                    const maybeLocations = (obj.locations ?? (Array.isArray(obj.location) ? obj.location : undefined)) as unknown;
-                                    if (Array.isArray(maybeLocations)) {
-                                      return {
-                                        locations: maybeLocations as unknown as LocationToolInput['locations'],
-                                        explanation: typeof obj.explanation === 'string' ? obj.explanation : undefined,
-                                      } satisfies LocationToolInput;
-                                    }
-                                  }
-                                  return null;
-                                })();
-
-                                const alreadyPending = pendingLocationCalls.some(c => c.toolCallId === callId) || processingLocations.has(callId);
-                                if (!alreadyPending && input) {
-                                  setTimeout(() => {
-                                    setPendingLocationCalls(prev => [...prev, { toolCallId: callId, input }]);
-                                  }, 0);
-                                }
-
-                                return (
-                                  <div key={callId} className="flex items-center gap-3 p-4 border rounded-lg bg-card">
-                                    <Loader size={16} />
-                                    <span className="text-sm text-muted-foreground">Geocoding locations...</span>
-                                  </div>
-                                );
-                              }
-
-                              // Unknown tool-call → render nothing (other specific cases handled below)
+                              // Unknown tool-call → render nothing (handled by specific tool cases below)
                               return null;
                             }
                             case "tool-result": {
