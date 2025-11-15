@@ -355,12 +355,13 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
     transport,
   });
   
-  const { messages, sendMessage, addToolResult, status, stop } = chatHelpers as {
+  const { messages, sendMessage, addToolResult, status, stop, append } = chatHelpers as {
     messages: UIMessage[];
     sendMessage: (input: { text?: string; files?: File[]; metadata?: Record<string, unknown> }) => void;
     addToolResult: (r: { tool: string; toolCallId: string; output?: unknown; errorText?: string }) => void;
     status: 'idle' | 'streaming' | 'submitted';
     stop: () => void;
+    append: (message: { role: 'user' | 'assistant'; content: string }) => void;
   };
 
 
@@ -823,19 +824,22 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
   // Listen for location setup trigger from canvas
   useEffect(() => {
     const handleLocationSetup = () => {
-      const hasExistingLocations = locationState.locations.length > 0;
-      const locationList = locationState.locations.map(l => l.name).join(', ');
+      // Prevent duplicate questions if AI is already streaming or waiting for response
+      if (status === 'streaming' || status === 'submitted') {
+        return;
+      }
       
-      sendMessageRef.current({
-        text: hasExistingLocations 
-          ? `I want to add more locations. Currently targeting: ${locationList}`
-          : `I need to set up location targeting for this ad`,
+      // Directly append an assistant message asking for location
+      // This creates a clean UX where AI proactively asks without showing user trigger message
+      append({
+        role: 'assistant',
+        content: 'What location would you like to target?'
       });
     };
 
     window.addEventListener('triggerLocationSetup', handleLocationSetup);
     return () => window.removeEventListener('triggerLocationSetup', handleLocationSetup);
-  }, [locationState.locations]);
+  }, [status, append]);
 
   // Listen for ad edit events from preview panel
   useEffect(() => {

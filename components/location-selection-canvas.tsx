@@ -83,6 +83,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
   const isSummary = variant === "summary"
   const [isMapLoading, setIsMapLoading] = useState(true)
   const [mapError, setMapError] = useState<string | null>(null)
+  const lastClickTimeRef = useRef<number>(0)
   
   // Use hook to detect when Leaflet is ready
   const { isReady: isLeafletReady, error: leafletError } = useLeafletReady()
@@ -316,12 +317,20 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
   }, [updateMapMarkers])
 
   const handleAddMore = () => {
-    // Trigger a simple message that the AI will interpret as a request to call the locationTargeting tool
-    window.dispatchEvent(new CustomEvent('sendMessageToAI', { 
-      detail: { 
-        message: 'Set up location targeting' 
-      } 
-    }))
+    // Debounce rapid clicks - prevent multiple AI questions
+    const now = Date.now()
+    const timeSinceLastClick = now - lastClickTimeRef.current
+    
+    if (timeSinceLastClick < 1000) {
+      // Ignore clicks within 1 second of previous click
+      logger.debug('LocationCanvas', 'Ignoring rapid click on Add Location button')
+      return
+    }
+    
+    lastClickTimeRef.current = now
+    
+    // Trigger location setup - AI will proactively ask "What location would you like to target?"
+    window.dispatchEvent(new Event('triggerLocationSetup'))
   }
 
   // Show error if Leaflet failed to load
