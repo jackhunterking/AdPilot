@@ -380,45 +380,25 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
     toolCallId: string,
     input: LocationToolInput
   ) => {
-    console.log('[DEBUG] ========== LOCATION PROCESSING START ==========');
-    console.log('[DEBUG] Tool Call ID:', toolCallId);
-    console.log('[DEBUG] Input:', {
-      locations: input.locations,
-      timestamp: Date.now()
-    });
-    
     // Skip if already processed
     if (processedLocationCalls.current.has(toolCallId)) {
-      console.log('[LocationProcessor] ⏭️ Already processed:', toolCallId);
       return;
     }
     
     // Mark as processing immediately
     processedLocationCalls.current.add(toolCallId);
-    console.log('[LocationProcessor] 🎯 Processing tool call:', toolCallId);
     
     try {
       updateLocationStatus('setup-in-progress');
-      console.log('[DEBUG] Status updated to: setup-in-progress');
       
       // Geocode all locations
       const processed = await Promise.all(
-        input.locations.map(async (loc, index) => {
-          console.log(`[DEBUG] ========== Processing Location ${index + 1}/${input.locations.length} ==========`);
-          console.log(`[DEBUG] Location input:`, {
-            name: loc.name,
-            type: loc.type,
-            mode: loc.mode,
-            radius: loc.radius
-          });
-          
+        input.locations.map(async (loc) => {
           // Step 1: Geocoding
-          console.log(`[LocationProcessor] 🔍 Geocoding: ${loc.name}`);
           const geoResult = await searchLocations(loc.name);
-          console.log('[DEBUG] Geocoding result:', geoResult);
           
           if (!geoResult.success || !geoResult.data) {
-            console.warn(`[LocationProcessor] ❌ Failed to geocode: ${loc.name}`, geoResult.error);
+            console.error(`Failed to geocode: ${loc.name}`, geoResult.error);
             return null;
           }
           
@@ -427,49 +407,27 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
             center: [number, number];
             bbox?: [number, number, number, number];
           };
-          console.log(`[LocationProcessor] ✅ Geocoded successfully:`, {
-            place_name,
-            center,
-            hasBbox: !!bbox,
-            bbox
-          });
           
           // Step 2: Boundary fetching
           let geometry = undefined;
           if (loc.type !== 'radius') {
-            console.log(`[DEBUG] 🗺️ Attempting to fetch boundary for: ${place_name} (type: ${loc.type})`);
             try {
               const boundaryData = await getLocationBoundary(center, place_name);
-              console.log('[DEBUG] Boundary result:', boundaryData);
               
               if (boundaryData && boundaryData.geometry) {
                 geometry = boundaryData.geometry;
-                console.log(`[LocationProcessor] ✅ Boundary fetched for: ${place_name}`, {
-                  geometryType: boundaryData.geometry.type,
-                  hasBbox: !!boundaryData.bbox
-                });
-              } else {
-                console.warn(`[LocationProcessor] ⚠️ No boundary data returned for: ${place_name}`);
               }
             } catch (error) {
-              console.error(`[LocationProcessor] ❌ Error fetching boundary for: ${place_name}`, error);
+              console.error(`Error fetching boundary for: ${place_name}`, error);
             }
-          } else {
-            console.log(`[DEBUG] ⏭️ Skipping boundary fetch for radius type: ${place_name}`);
           }
           
           // Step 3: Meta key lookup
           const metaType = loc.type === 'radius' ? 'city' : loc.type;
-          console.log(`[DEBUG] 🔑 Fetching Meta key for: ${place_name} (type: ${metaType})`);
           const metaResult = await searchMetaLocation(place_name, center, metaType);
-          if (metaResult) {
-            console.log(`[LocationProcessor] ✅ Meta key found:`, metaResult);
-          } else {
-            console.warn(`[LocationProcessor] ⚠️ No Meta key for: ${place_name} (will need for publishing)`);
-          }
           
           // Step 4: Build final location object
-          const finalLocation = {
+          return {
             id: `loc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             name: place_name,
             coordinates: center,
@@ -481,86 +439,51 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
             key: metaResult?.key,
             country_code: metaResult?.country_code,
           };
-          
-          console.log('[DEBUG] 📦 Final location object:', {
-            id: finalLocation.id,
-            name: finalLocation.name,
-            type: finalLocation.type,
-            mode: finalLocation.mode,
-            hasCoordinates: !!finalLocation.coordinates,
-            hasBbox: !!finalLocation.bbox,
-            hasGeometry: !!finalLocation.geometry,
-            geometryType: finalLocation.geometry?.type,
-            hasMetaKey: !!finalLocation.key
-          });
-          
-          return finalLocation;
         })
       );
       
       const validLocations = processed.filter((loc): loc is NonNullable<typeof loc> => loc !== null);
       
-      console.log('[DEBUG] ========== PROCESSING COMPLETE ==========');
-      console.log('[DEBUG] Valid locations:', validLocations.length);
-      console.log('[DEBUG] Failed locations:', input.locations.length - validLocations.length);
-      
       if (validLocations.length === 0) {
-        console.error('[DEBUG] ❌ No valid locations processed');
         throw new Error('Failed to geocode locations');
       }
       
-      console.log(`[LocationProcessor] ✅ Successfully processed ${validLocations.length}/${input.locations.length} locations`);
-      console.log('[DEBUG] Valid locations summary:', validLocations.map(l => ({
-        name: l.name,
-        hasGeometry: !!l.geometry,
-        hasBbox: !!l.bbox,
-        hasMetaKey: !!l.key
-      })));
-      
-      // Update context (triggers map update via React state flow)
-      console.log('[DEBUG] 💾 Calling addLocations() with:', {
-        count: validLocations.length,
-        shouldMerge: false
-      });
-      addLocations(validLocations, false); // false = replace, not merge
-      
-      console.log('[DEBUG] 📊 Updating status to: completed');
-      updateLocationStatus('completed');
-      
-      // Show success toast
-      const locationNames = validLocations.map(l => l.name).join(', ');
-      console.log('[DEBUG] 🎉 Showing success toast');
-      toast.success(
-        validLocations.length === 1 
-          ? `Location set to ${locationNames}` 
-          : `Locations set to ${locationNames}`
-      );
-      
-      // Report success to AI
-      console.log('[DEBUG] 🤖 Reporting success to AI');
-      addToolResult({
-        tool: 'locationTargeting',
-        toolCallId,
-        output: {
-          locations: validLocations.map(l => ({
-            id: l.id,
-            name: l.name,
-            type: l.type,
-            mode: l.mode,
-          })),
-          failedCount: input.locations.length - validLocations.length,
-        },
-      });
-      
-      console.log('[DEBUG] ========== LOCATION PROCESSING END ==========');
+      // Update context (triggers map update via React state flow) with error handling
+      try {
+        addLocations(validLocations, false); // false = replace, not merge
+        updateLocationStatus('completed');
+        
+        // Show success toast
+        const locationNames = validLocations.map(l => l.name).join(', ');
+        toast.success(
+          validLocations.length === 1 
+            ? `Location set to ${locationNames}` 
+            : `Locations set to ${locationNames}`
+        );
+        
+        // Report success to AI
+        addToolResult({
+          tool: 'locationTargeting',
+          toolCallId,
+          output: {
+            locations: validLocations.map(l => ({
+              id: l.id,
+              name: l.name,
+              type: l.type,
+              mode: l.mode,
+            })),
+            failedCount: input.locations.length - validLocations.length,
+          },
+        });
+      } catch (error) {
+        console.error('[LocationProcessor] Failed to add locations:', error);
+        updateLocationStatus('error');
+        toast.error('Failed to save location data');
+        throw error;
+      }
       
     } catch (error) {
-      console.error('[DEBUG] ========== PROCESSING ERROR ==========');
-      console.error('[LocationProcessor] ❌ Error:', error);
-      console.error('[DEBUG] Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      });
+      console.error('[LocationProcessor] Error:', error);
       
       updateLocationStatus('error');
       
@@ -573,8 +496,6 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
         output: undefined,
         errorText: errorMessage,
       } as ToolResult);
-      
-      console.log('[DEBUG] ========== ERROR HANDLING END ==========');
     }
   }, [addLocations, updateLocationStatus, addToolResult]);
 
@@ -909,30 +830,16 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
 
   // Process location tool calls (one-time processing with idempotency)
   useEffect(() => {
-    console.log('[DEBUG] ========== TOOL CALL DETECTION ==========');
-    console.log('[DEBUG] Messages count:', messages.length);
-    
-    messages.forEach((msg, msgIdx) => {
+    messages.forEach((msg) => {
       const parts = (msg as { parts?: MessagePart[] }).parts || [];
-      console.log(`[DEBUG] Message ${msgIdx}: ${parts.length} parts`);
 
-      parts.forEach((part, partIdx) => {
-        console.log(`[DEBUG] Part ${partIdx}: type=${part.type}`);
-        
+      parts.forEach((part) => {
         if (
           part.type === 'tool-call' &&
           (part as { toolName?: string }).toolName === 'locationTargeting'
         ) {
           const callId = (part as { toolCallId?: string }).toolCallId;
-          const state = (part as { state?: string }).state;
           const input = (part as { input?: LocationToolInput }).input;
-
-          console.log('[DEBUG] Found locationTargeting tool call:', {
-            callId,
-            state,
-            hasInput: !!input,
-            alreadyProcessed: processedLocationCalls.current.has(callId || '')
-          });
 
           // RELAXED DETECTION: Process if has callId and input, regardless of state
           // Only check idempotency via processedLocationCalls ref
@@ -941,21 +848,11 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
             input &&
             !processedLocationCalls.current.has(callId)
           ) {
-            // Process asynchronously (don't block render)
-            console.log('[LocationProcessor] ✅ Found unprocessed tool call:', callId, '(state:', state, ')');
             processLocationToolCall(callId, input);
-          } else {
-            console.log('[LocationProcessor] ⏭️ Skipping tool call:', {
-              reason: !callId ? 'no callId' : 
-                      !input ? 'no input' : 
-                      'already processed'
-            });
           }
         }
       });
     });
-    
-    console.log('[DEBUG] ========== TOOL CALL DETECTION END ==========');
   }, [messages, processLocationToolCall]);
 
   // Listen for ad edit events from preview panel

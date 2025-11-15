@@ -128,6 +128,11 @@ async function main() {
   for (let i = 0; i < businesses.length; i++) {
     const business = businesses[i];
     
+    if (!business) {
+      console.log(`\n⚠️ Skipping undefined business at index ${i}`);
+      continue;
+    }
+    
     console.log(`\n[${ i + 1}/${businesses.length}] ${business.businessName}`);
     process.stdout.write(`   🎨 Generating... `);
     
