@@ -80,8 +80,12 @@ export function AdMockup({
         <div className="relative z-20 bg-[#F2F3F5] px-3 py-2.5" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px' }}>
           <div className="flex items-center gap-2">
             {/* Brand Logo - 40x40px */}
-            <div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center flex-shrink-0" style={{ width: '40px', height: '40px', borderRadius: '8px' }}>
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500" />
+            <div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center flex-shrink-0 overflow-hidden p-1" style={{ width: '40px', height: '40px', borderRadius: '8px' }}>
+              {logoUrl ? (
+                <img src={logoUrl} alt={brandName} className="h-full w-full object-contain" />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500" />
+              )}
             </div>
             
             {/* Brand Name & Sponsored */}
@@ -170,8 +174,14 @@ export function AdMockup({
     <div className="w-full rounded-lg border-2 bg-white overflow-hidden shadow-lg border-[#CED0D4]">
       {/* Header Section - Facebook Style */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[#CED0D4]" style={{ paddingLeft: '12px', paddingRight: '12px', paddingTop: '10px', paddingBottom: '10px' }}>
-        {/* Profile Picture - 40px circle, solid blue */}
-        <div className="h-10 w-10 rounded-full bg-[#1877F2] flex-shrink-0" style={{ width: '40px', height: '40px' }} />
+        {/* Profile Picture - 40px circle with logo */}
+        <div className="h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ width: '40px', height: '40px' }}>
+          {logoUrl ? (
+            <img src={logoUrl} alt={brandName} className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full rounded-full bg-[#1877F2]" />
+          )}
+        </div>
         
         {/* Business Name & Sponsored */}
         <div className="flex-1 min-w-0">

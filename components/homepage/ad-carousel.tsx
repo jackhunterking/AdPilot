@@ -41,13 +41,13 @@ export function AdCarousel() {
     // 4. SparkRide Auto Detailing - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/generated-1760571482569.png',
+      gradient: 'from-blue-600 via-sky-500 to-blue-500',
       logoUrl: '/logo-sparkride-auto.svg',
       brandName: 'SparkRide Auto Detailing',
       primaryText: 'Restore the shine of your car with our premium detailing treatments.',
       headline: 'Full Car Detailing',
       description: 'Mobile service available.',
-      ctaText: 'Get Quote',
+      ctaText: 'Shop Now',
     },
     // 5. Bloomfield Landscaping - Feed
     {
@@ -58,40 +58,40 @@ export function AdCarousel() {
       primaryText: 'Make your yard summer-ready with expert lawn care and design.',
       headline: 'Landscaping & Yard Care',
       description: 'Free design estimate.',
-      ctaText: 'Contact Us',
+      ctaText: 'Learn More',
     },
     // 6. TechRevive Phone Repair - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/generated-1760573419416.png',
+      gradient: 'from-purple-600 via-violet-500 to-purple-500',
       logoUrl: '/logo-techrevive-phone.svg',
       brandName: 'TechRevive Phone Repair',
       primaryText: 'Broken screen? Get fast, same-day phone repair you can trust.',
       headline: 'Phone Repair Service',
       description: 'Most fixes under 30 minutes.',
-      ctaText: 'Book Repair',
+      ctaText: 'Learn More',
     },
     // 7. Maple & Stone Realtors - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/generated-1760573575903.png',
+      gradient: 'from-orange-600 via-red-500 to-orange-500',
       logoUrl: '/logo-maple-stone-realtors.svg',
       brandName: 'Maple & Stone Realtors',
       primaryText: 'Find your perfect home with a trusted local real estate expert.',
       headline: 'Buy or Sell With Confidence',
       description: 'Personalized market guidance.',
-      ctaText: 'View Listings',
+      ctaText: 'Learn More',
     },
     // 8. Lifted Meals Prep Service - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/generated-1760629780435.png',
+      gradient: 'from-emerald-600 via-green-500 to-teal-500',
       logoUrl: '/logo-lifted-meals.svg',
       brandName: 'Lifted Meals Prep Service',
       primaryText: 'Healthy, chef-crafted meals delivered fresh to your door weekly.',
       headline: 'Meal Prep Made Easy',
       description: 'Fresh menu every week.',
-      ctaText: 'Subscribe',
+      ctaText: 'Learn More',
     },
     // 9. LuxeSkin Aesthetics - Story
     {
@@ -113,7 +113,7 @@ export function AdCarousel() {
       primaryText: 'Keep your pet looking fresh and healthy with gentle grooming specialists.',
       headline: 'Pet Grooming Services',
       description: 'Book online easily.',
-      ctaText: 'Schedule',
+      ctaText: 'Learn More',
     },
     // 11. The Interior Loft - Feed
     {
@@ -124,7 +124,7 @@ export function AdCarousel() {
       primaryText: 'Refresh your space with professional interior styling made simple.',
       headline: 'Interior Design Services',
       description: 'Virtual consult available.',
-      ctaText: 'Get Started',
+      ctaText: 'Learn More',
     },
     // 12. BluePeak Roofing - Feed
     {
@@ -135,7 +135,7 @@ export function AdCarousel() {
       primaryText: 'Protect your home with durable, long-lasting roofing solutions.',
       headline: 'Roofing Experts',
       description: 'Free inspection.',
-      ctaText: 'Get Quote',
+      ctaText: 'Learn More',
     },
     // 13. BrightPath Tutoring - Feed
     {
@@ -157,18 +157,18 @@ export function AdCarousel() {
       primaryText: 'Melt away stress with therapeutic massage treatments tailored to your needs.',
       headline: 'Relax & Rejuvenate',
       description: 'Intro massage available.',
-      ctaText: 'Book Session',
+      ctaText: 'Learn More',
     },
     // 15. SilverSpoon Catering - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/generated-1760630455340.png',
+      gradient: 'from-slate-600 via-gray-500 to-slate-500',
       logoUrl: '/logo-silverspoon-catering.svg',
       brandName: 'SilverSpoon Catering',
       primaryText: 'Make your next event unforgettable with gourmet catering your guests will love.',
       headline: 'Event Catering',
       description: 'Weddings, parties & more.',
-      ctaText: 'View Menu',
+      ctaText: 'Learn More',
     },
     // 16. DriveRight Instructors - Feed
     {
@@ -179,7 +179,7 @@ export function AdCarousel() {
       primaryText: 'Learn to drive with patient, certified instructors recommended by students.',
       headline: 'Driving Lessons',
       description: 'Packages available.',
-      ctaText: 'Get Started',
+      ctaText: 'Learn More',
     },
     // 17. FitFuel Smoothie Bar - Story
     {
@@ -201,7 +201,7 @@ export function AdCarousel() {
       primaryText: 'Enjoy a crystal-clear pool all season with reliable cleaning experts.',
       headline: 'Pool Maintenance',
       description: 'Weekly service options.',
-      ctaText: 'Get Quote',
+      ctaText: 'Learn More',
     },
     // 19. CozyNest AirBnB Management - Feed
     {
@@ -234,7 +234,7 @@ export function AdCarousel() {
       primaryText: 'Keep your vehicle running safely with expert, honest auto repair.',
       headline: 'Trusted Auto Repair',
       description: 'Fair pricing guaranteed.',
-      ctaText: 'Schedule',
+      ctaText: 'Learn More',
     },
     // 22. Meadow Kids Montessori - Feed
     {
@@ -267,7 +267,7 @@ export function AdCarousel() {
       primaryText: 'Get spotless, streak-free windows for a brighter home.',
       headline: 'Window Cleaning',
       description: 'Affordable packages.',
-      ctaText: 'Get Quote',
+      ctaText: 'Learn More',
     },
     // 25. Horizon Solar Installers - Feed
     {
@@ -289,18 +289,18 @@ export function AdCarousel() {
       primaryText: 'Grow your business with actionable coaching tailored to your goals.',
       headline: 'Business Coaching',
       description: 'Strategy call available.',
-      ctaText: 'Get Started',
+      ctaText: 'Learn More',
     },
     // 27. CraftedStone Renovations - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/generated-1760631169657.png',
+      gradient: 'from-teal-700 via-cyan-600 to-teal-600',
       logoUrl: '/logo-craftedstone-renovations.svg',
       brandName: 'CraftedStone Renovations',
       primaryText: 'Transform your kitchen or bathroom with expert renovation specialists.',
       headline: 'Home Renovations',
       description: 'Free quote.',
-      ctaText: 'Contact Us',
+      ctaText: 'Learn More',
     },
     // 28. VelvetBloom Florist - Story
     {
@@ -344,7 +344,7 @@ export function AdCarousel() {
       primaryText: 'Bring your carpets back to life with professional deep cleaning.',
       headline: 'Carpet Cleaning',
       description: 'Same-day service.',
-      ctaText: 'Get Quote',
+      ctaText: 'Learn More',
     },
     // 32. CityCycle Bike Shop - Feed
     {
@@ -360,7 +360,7 @@ export function AdCarousel() {
     // 33. SweetCrate Bakery - Story
     {
       format: 'story' as const,
-      imageUrl: '/generated-1760630830944.png',
+      gradient: 'from-pink-400 via-rose-400 to-pink-500',
       logoUrl: '/logo-sweetcrate-bakery.svg',
       brandName: 'SweetCrate Bakery',
       primaryText: 'Treat yourself to handcrafted cakes and pastries made fresh daily.',
@@ -388,7 +388,7 @@ export function AdCarousel() {
       primaryText: 'Protect your home with smart security and 24/7 monitoring.',
       headline: 'Home Security Systems',
       description: 'Free equipment quote.',
-      ctaText: 'Get Quote',
+      ctaText: 'Learn More',
     },
     // 36. Metro Movers - Feed
     {
@@ -399,7 +399,7 @@ export function AdCarousel() {
       primaryText: 'Move with confidence—fast, reliable movers at fair prices.',
       headline: 'Professional Moving',
       description: 'Local & long-distance.',
-      ctaText: 'Get Quote',
+      ctaText: 'Learn More',
     },
     // 37. ProTutor Coding Bootcamp - Feed
     {
@@ -421,7 +421,7 @@ export function AdCarousel() {
       primaryText: 'Laundry done for you—fast pickup and fresh delivery.',
       headline: 'Laundry Service',
       description: 'Weekly plans.',
-      ctaText: 'Get Started',
+      ctaText: 'Learn More',
     },
     // 39. GoldenLeaf Tea House - Feed
     {
