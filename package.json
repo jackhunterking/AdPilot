@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "lint:strict": "next lint --max-warnings=0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "generate-homepage-images": "tsx scripts/generate-all-homepage-images.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.34",
@@ -78,6 +79,7 @@
     "eslint": "^9",
     "eslint-config-next": "15.4.6",
     "tailwindcss": "^4",
+    "tsx": "^4.7.0",
     "tw-animate-css": "^1.3.6",
     "typescript": "^5"
   },
