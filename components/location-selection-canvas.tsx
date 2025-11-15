@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { logger } from "@/lib/utils/logger"
 import { useLeafletReady } from "@/lib/hooks/use-leaflet-ready"
 import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "sonner"
 
 interface LeafletBounds {
   isValid(): boolean;
@@ -74,7 +75,7 @@ function getLeaflet(): LeafletLib | null {
 }
 
 export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionCanvasProps = {}) {
-  const { locationState, removeLocation, resetLocations, clearLocations } = useLocation()
+  const { locationState, removeLocation, resetLocations, clearLocations, startLocationSetup } = useLocation()
   const { isPublished } = useAdPreview()
   const mapRef = useRef<LeafletMap | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
@@ -83,7 +84,6 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
   const isSummary = variant === "summary"
   const [isMapLoading, setIsMapLoading] = useState(true)
   const [mapError, setMapError] = useState<string | null>(null)
-  const lastClickTimeRef = useRef<number>(0)
   
   // Use hook to detect when Leaflet is ready
   const { isReady: isLeafletReady, error: leafletError } = useLeafletReady()
@@ -317,20 +317,16 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
   }, [updateMapMarkers])
 
   const handleAddMore = () => {
-    // Debounce rapid clicks - prevent multiple AI questions
-    const now = Date.now()
-    const timeSinceLastClick = now - lastClickTimeRef.current
-    
-    if (timeSinceLastClick < 1000) {
-      // Ignore clicks within 1 second of previous click
-      logger.debug('LocationCanvas', 'Ignoring rapid click on Add Location button')
-      return
+    try {
+      // Validate via context (will throw if no ad)
+      startLocationSetup()
+      
+      // Dispatch request event for AI chat to handle
+      window.dispatchEvent(new Event('requestLocationSetup'))
+      
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Please select an ad first')
     }
-    
-    lastClickTimeRef.current = now
-    
-    // Trigger location setup - AI will proactively ask "What location would you like to target?"
-    window.dispatchEvent(new Event('triggerLocationSetup'))
   }
 
   // Show error if Leaflet failed to load

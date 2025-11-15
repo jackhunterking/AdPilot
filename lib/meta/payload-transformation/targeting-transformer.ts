@@ -226,6 +226,7 @@ export class TargetingTransformer {
 
   /**
    * Extract region key from location
+   * Throws error if Meta key is missing
    */
   private extractRegionKey(location: LocationItem): { key: string } | null {
     // Meta requires region keys (e.g., "3847" for California)
@@ -234,15 +235,15 @@ export class TargetingTransformer {
       return { key: location.key };
     }
 
-    // Otherwise, we need to look up the region key
-    // This would require the Meta Location Search API
-    // For now, return null and log warning
-    console.warn(`Region ${location.name} missing Meta location key. Use Location Search API to get key.`);
-    return null;
+    // Meta key is required for publishing - throw error
+    const error = `Missing Meta region key for ${location.name}. Cannot publish without Meta keys.`;
+    console.error('[TargetingTransformer]', error);
+    throw new Error(error);
   }
 
   /**
    * Extract city key from location
+   * Throws error if Meta key is missing
    */
   private extractCityKey(location: LocationItem): string {
     // Meta requires city keys for targeting
@@ -251,10 +252,45 @@ export class TargetingTransformer {
       return location.key;
     }
 
-    // Otherwise, we need to look up the city key via Meta Location Search API
-    // For now, use the ID as a fallback (may not work)
-    console.warn(`City ${location.name} missing Meta location key. Use Location Search API to get key.`);
-    return location.id;
+    // Meta key is required for publishing - throw error
+    const error = `Missing Meta city key for ${location.name}. Cannot publish without Meta keys.`;
+    console.error('[TargetingTransformer]', error);
+    throw new Error(error);
+  }
+
+  /**
+   * Validate that all locations have Meta keys before publishing
+   * This should be called before transform() to ensure data integrity
+   */
+  validateMetaKeys(locationData: unknown): {
+    isValid: boolean;
+    errors: string[];
+  } {
+    const errors: string[] = [];
+    const parsed = this.parseLocationData(locationData);
+    
+    if (!parsed) {
+      // No locations = valid (will use default targeting)
+      return { isValid: true, errors: [] };
+    }
+    
+    // Check each location for Meta keys (except countries which use country_code)
+    parsed.locations.forEach(loc => {
+      if (loc.type === 'city' && !loc.key) {
+        errors.push(`Location "${loc.name}" is missing Meta city key`);
+      } else if (loc.type === 'region' && !loc.key) {
+        errors.push(`Location "${loc.name}" is missing Meta region key`);
+      } else if (loc.type === 'radius' && !loc.key) {
+        // Radius locations also need a city key for the center point
+        errors.push(`Location "${loc.name}" is missing Meta location key for radius center`);
+      }
+      // Country locations use country_code, not key, so they're OK
+    });
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
   }
 
   /**

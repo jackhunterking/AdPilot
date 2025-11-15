@@ -23,6 +23,7 @@
 10. [Performance Architecture](#10-performance-architecture)
 11. [Migration Strategy](#11-migration-strategy)
 12. [Technology Stack](#12-technology-stack)
+13. [Location Targeting Architecture](#13-location-targeting-architecture)
 
 ---
 
@@ -1155,6 +1156,175 @@ graph TD
 
 ---
 
+# 13. Location Targeting Architecture
+
+## Overview
+
+Location targeting is a core feature that allows users to define geographical areas for their ad campaigns. The system uses a **single source of truth** approach where location data is stored at the ad level, ensuring each ad can have independent location targeting.
+
+## Data Storage
+
+### Storage Location
+- **Primary:** `ads.setup_snapshot.location` (JSONB column)
+- **Format:** LocationSnapshot object containing array of location objects
+- **Isolation:** Each ad has independent location targeting
+
+### LocationSnapshot Structure
+```typescript
+interface LocationSnapshot {
+  locations: Array<{
+    id: string
+    name: string                // Full display name (e.g., "Toronto, Ontario, Canada")
+    coordinates: [number, number] // [longitude, latitude]
+    radius: number              // For radius-based targeting (miles)
+    type: 'city' | 'region' | 'country' | 'radius'
+    mode: 'include' | 'exclude'
+    bbox?: [number, number, number, number] // Bounding box [minLng, minLat, maxLng, maxLat]
+    geometry?: GeoJSONGeometry  // Boundary shape for map display
+    key?: string                // Meta location key (required for publishing)
+    country_code?: string       // ISO country code
+  }>
+  status: 'idle' | 'setup-in-progress' | 'completed' | 'error'
+}
+```
+
+## Geocoding
+
+### Provider
+- **Service:** OpenStreetMap Nominatim API (free, no API key required)
+- **Endpoint:** `https://nominatim.openstreetmap.org/search`
+- **Features:** Forward geocoding, bounding boxes, boundary geometry
+
+### Caching
+- **Type:** In-memory Map cache
+- **TTL:** 1 hour
+- **Purpose:** Reduce API calls for repeated location searches
+
+### Boundary Data
+- **Format:** GeoJSON geometry
+- **Purpose:** Display location shapes on Leaflet map
+- **Fetching:** Separate API call for detailed boundaries
+
+## Meta Integration
+
+### Meta Location Keys
+- **Purpose:** Required for publishing to Meta Ads API
+- **Format:** Numeric string (e.g., "2490299" for Toronto)
+- **Lookup:** Via Meta Location Search API (not yet implemented)
+- **Validation:** Pre-publish validator checks for missing keys
+
+### Location Types Mapping
+| Internal Type | Meta Format | Requires Key? |
+|--------------|-------------|---------------|
+| `country` | `countries: ["US", "CA"]` | No (uses ISO code) |
+| `region` | `regions: [{key: "3847"}]` | Yes |
+| `city` | `cities: [{key: "2490299"}]` | Yes |
+| `radius` | `custom_locations: [{...}]` | Yes (for center) |
+
+## AI Integration
+
+### Flow Overview
+1. User clicks "Add Location" button in LocationSelectionCanvas
+2. LocationContext.startLocationSetup() validates active ad exists
+3. Event dispatched to AI chat: `requestLocationSetup`
+4. AI chat stops current work (if any) and asks: "What location would you like to target?"
+5. User responds with location name(s)
+6. Metadata injected: `{locationSetupMode: true, locationInput: "Toronto"}`
+7. System prompt enforces AI must call `locationTargeting` tool
+8. LocationTargetingProcessor component geocodes and fetches boundaries
+9. Location data saved to ad snapshot via LocationContext
+10. Map updates automatically via Leaflet
+
+### Metadata Enforcement
+The system uses metadata to guarantee the AI calls the `locationTargeting` tool:
+
+```typescript
+// In chat API route
+if (isLocationSetupMode && locationInput) {
+  systemInstructions += `
+🎯 CRITICAL: LOCATION SETUP MODE ACTIVE
+You MUST call locationTargeting tool NOW with: "${locationInput}"
+No exceptions. Do not ask questions or call other tools.
+`
+}
+```
+
+## Component Architecture
+
+### Key Components
+| Component | Purpose |
+|-----------|---------|
+| `LocationContext` | State management, single save path |
+| `LocationSelectionCanvas` | Map display (Leaflet), add/remove UI |
+| `LocationTargetingProcessor` | Geocoding, boundary fetching, Meta key lookup |
+| `location-targeting-tool.ts` | AI tool definition |
+| `targeting-transformer.ts` | Convert to Meta TargetingSpec |
+| `pre-publish-validator.ts` | Validate before publishing |
+
+### Data Flow
+```
+User → LocationContext → Ad Snapshot → Database
+  ↓
+AI Tool Call → Geocoding → Location Data
+  ↓
+Map Update (Leaflet) ← Location Data
+```
+
+## Publishing Integration
+
+### Pre-Publish Validation
+1. Check `ad.setup_snapshot.location` for location data
+2. Validate Meta keys exist for all non-country locations
+3. If missing keys: block publish with error message
+4. Transform locations to Meta TargetingSpec format
+
+### Targeting Transformer
+```typescript
+// Example transformation
+{
+  locations: [{
+    name: "Toronto, Ontario, Canada",
+    type: "city",
+    mode: "include",
+    key: "2490299"
+  }]
+}
+// Becomes:
+{
+  geo_locations: {
+    cities: [{ key: "2490299", name: "Toronto" }]
+  }
+}
+```
+
+## Error Handling
+
+### Geocoding Failures
+- **Not Found:** Show user-friendly error: "Location not found. Try a more specific name."
+- **API Error:** Log error, show generic message: "Geocoding service unavailable"
+- **Invalid Input:** Validate minimum 2 characters
+
+### Missing Meta Keys
+- **During Setup:** Log warning (keys will be fetched when Meta API is integrated)
+- **Pre-Publish:** Block publish with error and suggested action
+- **Publishing:** Throw error if key missing (prevents invalid API call)
+
+## Future Enhancements
+
+### Phase 2 - Meta Location Search API
+- Integrate Meta Location Search API for real-time key lookup
+- Replace OSM-only geocoding with Meta's location database
+- Support DMA (Designated Market Area) targeting
+- Add location suggestions/autocomplete
+
+### Phase 3 - Advanced Features
+- Saved location sets (e.g., "US Major Cities")
+- Location recommendations based on campaign goal
+- Competitor location analysis
+- Location performance analytics
+
+---
+
 ## Summary
 
 This architecture provides:
@@ -1165,6 +1335,7 @@ This architecture provides:
 - ✅ **Real-time updates** (Supabase subscriptions)
 - ✅ **Easy to maintain** (shared middleware, standards)
 - ✅ **Scalable design** (resource-based, flat structure)
+- ✅ **Ad-level location targeting** (isolated, single source of truth)
 
 **Ready for production deployment and future growth.**
 

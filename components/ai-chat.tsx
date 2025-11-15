@@ -55,7 +55,7 @@ import { DefaultChatTransport, ChatStatus } from "ai";
 import { supabase } from "@/lib/supabase/client";
 import { generateImage } from "@/server/images";
 import { ImageGenerationConfirmation } from "@/components/ai-elements/image-generation-confirmation";
-import { LocationTargetingConfirmation } from "@/components/ai-elements/location-targeting-confirmation";
+import { LocationTargetingProcessor } from "@/components/ai-elements/location-targeting-processor";
 import { ConfirmationCard, SuccessCard } from "@/components/ai-elements/confirmation-card";
 // Removed legacy FormSelectionUI in favor of unified canvas in Goal step
 import { ImageEditProgressLoader } from "@/components/ai-elements/image-edit-progress-loader";
@@ -192,7 +192,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
   const { campaign } = useCampaignContext();
   const { adContent, setAdContent } = useAdPreview();
   const { goalState, setFormData, setError } = useGoal();
-  const { locationState, addLocations, updateStatus: updateLocationStatus } = useLocation();
+  const { locationState, addLocations, updateStatus: updateLocationStatus, startLocationSetup } = useLocation();
   const [generatingImages, setGeneratingImages] = useState<Set<string>>(new Set());
   // removed unused editingImages setter
   const [likedMessages, setLikedMessages] = useState<Set<string>>(new Set());
@@ -200,8 +200,9 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
   // Track dispatched events to prevent duplicates (infinite loop prevention)
   const dispatchedEvents = useRef<Set<string>>(new Set());
   const [dislikedMessages, setDislikedMessages] = useState<Set<string>>(new Set());
-  const [processingLocations, setProcessingLocations] = useState<Set<string>>(new Set());
-  const [pendingLocationCalls, setPendingLocationCalls] = useState<Array<{ toolCallId: string; input: LocationToolInput }>>([]);
+  
+  // NEW: Location setup mode flag for enforcing AI tool calling
+  const [locationSetupMode, setLocationSetupMode] = useState(false);
   
   // Helper to check if a tool call already has a result in messages
   const hasToolResult = (toolCallId: string): boolean => {
@@ -428,6 +429,13 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
       source: 'chat_input',
     };
     
+    // CRITICAL: Inject location setup mode metadata to enforce AI tool calling
+    if (locationSetupMode && message.text) {
+      messageMetadata.locationSetupMode = true;
+      messageMetadata.locationInput = message.text;
+      setLocationSetupMode(false); // Clear flag after injecting metadata
+    }
+    
     if (adEditReference) {
       
       const normalizedIndexForMeta = toZeroBasedIndex({
@@ -639,173 +647,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
   };
 
   // Process pending location calls in useEffect (not during render)
-  useEffect(() => {
-    if (pendingLocationCalls.length === 0) return;
-
-    const processCalls = async () => {
-      for (const { toolCallId, input } of pendingLocationCalls) {
-        if (processingLocations.has(toolCallId)) continue;
-
-        setProcessingLocations(prev => new Set(prev).add(toolCallId));
-
-        try {
-          // Geocode locations and fetch boundary data from OpenStreetMap
-          const locationsWithCoords = await Promise.all(
-            input.locations.map(async (loc) => {
-              let coordinates = loc.coordinates;
-              let bbox = null;
-              let geometry = null;
-              
-              // Get coordinates via geocoding if not provided
-              if (!coordinates) {
-                const results = await searchLocations(loc.name);
-                if (results.length > 0 && results[0]) {
-                  coordinates = results[0].center as [number, number];
-                  bbox = results[0].bbox as [number, number, number, number];
-                } else {
-                  // Geocoding failed - return null to filter out later
-                  console.error(`Failed to geocode location: ${loc.name}`);
-                  return null;
-                }
-              }
-              
-              // Validate coordinates are valid numbers
-              if (!coordinates || !Array.isArray(coordinates) || coordinates.length !== 2 || 
-                  typeof coordinates[0] !== 'number' || typeof coordinates[1] !== 'number' ||
-                  isNaN(coordinates[0]) || isNaN(coordinates[1])) {
-                console.error(`Invalid coordinates for location: ${loc.name}`, coordinates);
-                return null;
-              }
-              
-              // For non-radius types, fetch actual boundary geometry from OpenStreetMap
-              if (loc.type !== "radius" && coordinates) {
-                const boundaryData = await getLocationBoundary(coordinates, loc.name);
-                if (boundaryData) {
-                  geometry = boundaryData.geometry;
-                  // Update bbox with better boundary data if available
-                  if (boundaryData.bbox) {
-                    bbox = boundaryData.bbox;
-                  }
-                }
-              }
-              
-              return {
-                id: `${Date.now()}-${Math.random()}`,
-                name: loc.name,
-                coordinates,
-                radius: loc.radius || 30,
-                type: loc.type as "radius" | "city" | "region" | "country",
-                mode: loc.mode as "include" | "exclude",
-                bbox: bbox || undefined,
-                geometry,
-              };
-            })
-          );
-          
-          // Filter out any null values (failed geocoding)
-          const validLocations = locationsWithCoords.filter((loc): loc is NonNullable<typeof loc> => loc !== null);
-          
-          // Check if any locations were successfully geocoded
-          if (validLocations.length === 0) {
-            throw new Error('Failed to geocode any locations. Please check the location names and try again.');
-          }
-
-          // Update location context with full data
-          updateLocationStatus("setup-in-progress");
-          addLocations(validLocations);
-          
-          // Show success notification
-          const locationNames = validLocations.map(loc => loc.name).join(', ');
-          toast.success(
-            validLocations.length === 1 
-              ? `Location set to ${locationNames}` 
-              : `Locations set to ${locationNames}`
-          );
-          
-          // Send FULL data (with geometry) to the map
-          emitBrowserEvent('locationsUpdated', validLocations);
-
-          // Switch to location tab
-          emitBrowserEvent('switchToTab', 'location');
-          
-          // Ensure status is set to completed after processing
-          // Small delay to ensure map has time to render
-          setTimeout(() => {
-            updateLocationStatus("completed");
-          }, 100);
-
-          // Send MINIMAL data to AI conversation (no geometry - it's too large!)
-          addToolResult({
-            tool: 'locationTargeting',
-            toolCallId,
-            output: {
-              locations: validLocations.map(loc => ({
-                id: loc.id,
-                name: loc.name,
-                coordinates: loc.coordinates,
-                radius: loc.radius,
-                type: loc.type,
-                mode: loc.mode,
-                // Exclude geometry and bbox from conversation - they can be massive
-              })),
-              explanation: input.explanation,
-              failedCount: input.locations.length - validLocations.length,
-            },
-          });
-        } catch {
-          addToolResult({
-            tool: 'locationTargeting',
-            toolCallId,
-            output: undefined,
-            errorText: 'Failed to set location targeting',
-          } as ToolResult);
-        } finally {
-          setProcessingLocations(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(toolCallId);
-            return newSet;
-          });
-        }
-      }
-
-      // Clear pending calls after processing
-      setPendingLocationCalls([]);
-    };
-
-    processCalls();
-  }, [pendingLocationCalls, processingLocations, addLocations, updateLocationStatus, addToolResult]);
-
-  // Safety net: scan for any generic tool-call parts that we didn't enqueue yet
-  // Prevents missed processing if render branch was skipped mid-stream
-  useEffect(() => {
-    const newlyDiscovered: Array<{ toolCallId: string; input: LocationToolInput }> = [];
-    for (const msg of messages) {
-      const parts = (msg as unknown as { parts?: Array<{ type?: string; toolName?: string; toolCallId?: string; input?: unknown }> }).parts || [];
-      for (const p of parts) {
-        if (p && p.type === 'tool-call' && (p.toolName === 'locationTargeting')) {
-          const callId = p.toolCallId || `${msg.id}-auto`;
-          const alreadyPending = pendingLocationCalls.some(c => c.toolCallId === callId) || processingLocations.has(callId);
-          if (alreadyPending) continue;
-
-          const rawInput = (p as unknown as { input?: unknown }).input;
-          if (rawInput && typeof rawInput === 'object' && Array.isArray((rawInput as Record<string, unknown>).locations)) {
-            const input: LocationToolInput = {
-              locations: (rawInput as Record<string, unknown>).locations as unknown as LocationToolInput['locations'],
-              explanation: typeof (rawInput as Record<string, unknown>).explanation === 'string' ? (rawInput as Record<string, unknown>).explanation as string : undefined,
-            };
-            newlyDiscovered.push({ toolCallId: callId, input });
-          }
-        }
-      }
-    }
-    if (newlyDiscovered.length > 0) {
-      setPendingLocationCalls(prev => {
-        const existingIds = new Set(prev.map(p => p.toolCallId));
-        const deduped = newlyDiscovered.filter(n => !existingIds.has(n.toolCallId));
-        return deduped.length ? [...prev, ...deduped] : prev;
-      });
-    }
-  }, [messages, pendingLocationCalls, processingLocations]);
+  // OLD LOCATION PROCESSING LOGIC REMOVED - Now handled by LocationTargetingProcessor component
 
   // Listen for goal setup trigger from canvas
   useEffect(() => {
@@ -821,34 +663,45 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
     return () => window.removeEventListener('triggerGoalSetup', handleGoalSetup as EventListener);
   }, []);
 
-  // Listen for location setup trigger from canvas
+  // NEW: Handle location setup requests from canvas
   useEffect(() => {
-    const handleLocationSetup = () => {
-      // Prevent duplicate questions if AI is already streaming or waiting for response
-      if (status === 'streaming' || status === 'submitted') {
-        return;
+    const handleLocationSetupRequest = () => {
+      try {
+        // Validate via context (throws if no ad)
+        startLocationSetup()
+        
+        // Stop AI if busy (interrupt)
+        if (status === 'streaming' || status === 'submitted') {
+          stop()
+        }
+        
+        // Set flag to enforce tool calling
+        setLocationSetupMode(true)
+        
+        // Ask location question
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          {
+            id: `location-setup-${Date.now()}`,
+            role: 'assistant',
+            parts: [
+              {
+                type: 'text',
+                text: 'What location would you like to target?'
+              }
+            ]
+          } as UIMessage
+        ]);
+        
+      } catch (error) {
+        // Error already handled by context (throws if no ad)
+        toast.error(error instanceof Error ? error.message : 'Cannot set up location')
       }
-      
-      // Directly add an assistant message asking for location
-      // This creates a clean UX where AI proactively asks without showing user trigger message
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        {
-          id: `location-setup-${Date.now()}`,
-          role: 'assistant',
-          parts: [
-            {
-              type: 'text',
-              text: 'What location would you like to target?'
-            }
-          ]
-        } as UIMessage
-      ]);
     };
 
-    window.addEventListener('triggerLocationSetup', handleLocationSetup);
-    return () => window.removeEventListener('triggerLocationSetup', handleLocationSetup);
-  }, [status, setMessages]);
+    window.addEventListener('requestLocationSetup', handleLocationSetupRequest);
+    return () => window.removeEventListener('requestLocationSetup', handleLocationSetupRequest);
+  }, [status, startLocationSetup, stop, setMessages]);
 
   // Listen for ad edit events from preview panel
   useEffect(() => {
@@ -1681,154 +1534,52 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                             }
                           }
                             case "tool-locationTargeting": {
-                              const callId = part.toolCallId;
-                              const isProcessing = processingLocations.has(callId);
-                              const input = part.input as LocationToolInput;
-
-                              switch (part.state) {
-                                case 'input-streaming':
-                                  return <div key={callId} className="text-sm text-muted-foreground">Setting up location targeting...</div>;
-                                
-                                case 'input-available':
-                                  if (isProcessing) {
-                                    return (
-                                      <div key={callId} className="flex items-center gap-3 p-4 border rounded-lg bg-card">
-                                        <Loader size={16} />
-                                        <span className="text-sm text-muted-foreground">Geocoding locations...</span>
-                                      </div>
-                                    );
-                                  }
-                                  // Schedule processing (don't call during render!)
-                                  if (!pendingLocationCalls.some(c => c.toolCallId === callId)) {
-                                    setTimeout(() => {
-                                      setPendingLocationCalls(prev => [...prev, { toolCallId: callId, input }]);
-                                    }, 0);
-                                  }
-                                  return null;
-                                
-                                case 'output-available': {
-                                  const output = part.output as { locations: LocationOutput[]; explanation: string };
-                                  
-                                  const getLocationTypeLabel = (loc: LocationOutput) => {
-                                    switch (loc.type) {
-                                      case "radius": return loc.radius ? `${loc.radius} mile radius` : "Radius"
-                                      case "city": return "City"
-                                      case "region": return "Province/Region"
-                                      case "country": return "Country"
-                                      default: return loc.type
-                                    }
-                                  };
-                                  
-                                  return (
-                                    <div key={callId} className="w-full my-4 space-y-2">
-                                      {output.locations.map((loc, idx: number) => {
-                                        const isExcluded = loc.mode === "exclude";
-                                        
-                                        return (
-                                          <div
-                                            key={`${callId}-${idx}`}
-                                            className="flex items-center justify-between p-3 rounded-lg border panel-surface cursor-pointer"
-                                            onClick={() => {
-                                              // Switch to the location targeting tab
-                                              emitBrowserEvent('switchToTab', 'location');
-                                            }}
-                                          >
-                                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                                              <div className="icon-tile-muted">
-                                                {isExcluded ? (
-                                                  <X className="h-4 w-4 text-red-600" />
-                                                ) : (
-                                                  <Check className="h-4 w-4 text-status-green" />
-                                                )}
-                                              </div>
-                                              <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-1.5 min-w-0">
-                                                  <p className="text-sm font-medium truncate">{loc.name}</p>
-                                                  {isExcluded && (
-                                                    <span className="status-muted flex-shrink-0">Excluded</span>
-                                                  )}
-                                                </div>
-                                                <p className="text-xs text-muted-foreground">{getLocationTypeLabel(loc)}</p>
-                                              </div>
-                                            </div>
-                                            <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0 ml-2" />
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  );
-                                }
-                                
-                                case 'output-error':
-                                  return (
-                                    <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
-                                      {part.errorText}
-                                    </div>
-                                  );
-                              }
-                              break;
-                            }
-                            case "tool-locationTargeting": {
+                              // NEW: Unified location targeting processor (no dual paths, no step guard)
                               const callId = part.toolCallId;
                               const input = part.input as LocationToolInput;
                               
-                              // Only show confirmation dialog on location step
-                              if (currentStep !== 'location') {
-                                console.log(`[AIChat] Skipping locationTargeting UI - current step is '${currentStep}', not 'location'`);
-                                return null;
-                              }
-
                               switch (part.state) {
                                 case 'input-streaming':
                                   return <div key={callId} className="text-sm text-muted-foreground">Preparing location targeting...</div>;
                                 
                                 case 'input-available':
-                                  // Show confirmation dialog to get location names from user
+                                  // Process immediately with LocationTargetingProcessor component
                                   return (
-                                    <div key={callId} className="border rounded-lg p-4 my-2 bg-blue-500/5 border-blue-500/30 max-w-md mx-auto">
-                                      <LocationTargetingConfirmation
-                                        onConfirm={(locationNames) => {
-                                          // Convert location names to the format expected by the tool
-                                          const locations = locationNames.map(name => ({
-                                            name,
-                                            type: 'city' as const,
-                                            mode: 'include' as const,
-                                          }));
-                                          
-                                          // Add to pending location calls for processing
-                                          setPendingLocationCalls(prev => [...prev, { 
-                                            toolCallId: callId, 
-                                            input: { 
-                                              locations, 
-                                              explanation: `Targeting ${locationNames.join(', ')}`
-                                            } 
-                                          }]);
-                                        }}
-                                        onCancel={() => {
-                                          // Send cancellation result
-                                          addToolResult({
-                                            tool: 'locationTargeting',
-                                            toolCallId: callId,
-                                            output: {
-                                              cancelled: true,
-                                              message: 'User cancelled location setup'
-                                            },
-                                          });
-                                        }}
-                                        existingLocations={locationState.locations}
-                                      />
-                                    </div>
+                                    <LocationTargetingProcessor
+                                      key={callId}
+                                      toolCallId={callId}
+                                      input={input}
+                                      onComplete={(output) => {
+                                        addToolResult({
+                                          tool: 'locationTargeting',
+                                          toolCallId: callId,
+                                          output,
+                                        });
+                                      }}
+                                      onError={(errorMessage) => {
+                                        addToolResult({
+                                          tool: 'locationTargeting',
+                                          toolCallId: callId,
+                                          output: undefined,
+                                          errorText: errorMessage,
+                                        } as ToolResult);
+                                      }}
+                                    />
                                   );
                                 
                                 case 'output-available': {
-                                  const output = part.output as { locations?: Array<{ name: string }>; cancelled?: boolean } | undefined;
+                                  const output = part.output as { 
+                                    locations?: Array<{ id: string; name: string; type: string; mode: string }>; 
+                                    failedCount?: number;
+                                    cancelled?: boolean;
+                                  } | undefined;
                                   
                                   // Don't show anything if cancelled
                                   if (output?.cancelled) {
                                     return null;
                                   }
                                   
-                                  // Show success message
+                                  // Show success message with location list
                                   if (output?.locations && output.locations.length > 0) {
                                     return (
                                       <div key={callId} className="border rounded-lg p-4 my-2 bg-green-500/5 border-green-500/30 max-w-md mx-auto">
@@ -1839,6 +1590,11 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                         <p className="text-sm text-muted-foreground">
                                           {output.locations.map(l => l.name).join(', ')}
                                         </p>
+                                        {output.failedCount && output.failedCount > 0 && (
+                                          <p className="text-xs text-orange-600 mt-1">
+                                            Note: {output.failedCount} location(s) could not be found
+                                          </p>
+                                        )}
                                       </div>
                                     );
                                   }
@@ -1848,17 +1604,14 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                 
                                 case 'output-error':
                                   return (
-                                    <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4 my-2">
-                                      <p className="font-medium mb-1">Location Setup Failed</p>
-                                      <p className="text-xs">{part.errorText}</p>
+                                    <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
+                                      Failed to set location targeting. Please try again.
                                     </div>
                                   );
-                                
-                                default:
-                                  return null;
                               }
                               break;
                             }
+                            
                             case "tool-setupGoal": {
                               const callId = part.toolCallId;
                               const input = part.input as GoalToolInput;

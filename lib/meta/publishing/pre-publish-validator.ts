@@ -336,12 +336,39 @@ export async function validatePrePublish(params: PrePublishValidationParams): Pr
     }
   }
 
-  // Validate location targeting
-  const locationData = campaignStates?.location_data
+  // Validate location targeting (ad-level)
+  const locationData = ad.setup_snapshot?.location as { locations?: unknown[] } | undefined
+  
   if (!locationData?.locations || locationData.locations.length === 0) {
-    console.warn('[PrePublishValidator] ⚠️  No location targeting set (will default to US)')
+    console.warn('[PrePublishValidator] ⚠️ No location targeting set (will default to US)')
+    errors.push({
+      code: 'validation_warning',
+      message: 'No location targeting set',
+      userMessage: 'You should set location targeting for better ad performance.',
+      recoverable: true,
+      suggestedAction: 'Add location targeting in the Location step',
+      timestamp: new Date().toISOString()
+    })
   } else {
     console.log('[PrePublishValidator] ✅ Location targeting set:', locationData.locations.length, 'locations')
+    
+    // Validate Meta keys are present
+    const transformer = new TargetingTransformer()
+    const metaKeyValidation = transformer.validateMetaKeys(locationData)
+    
+    if (!metaKeyValidation.isValid) {
+      console.error('[PrePublishValidator] ❌ Location Meta keys missing:', metaKeyValidation.errors)
+      errors.push({
+        code: 'validation_error',
+        message: 'Location Meta keys missing',
+        userMessage: metaKeyValidation.errors.join('. ') + '. This will cause publishing to fail.',
+        recoverable: false,
+        suggestedAction: 'Re-set your locations to fetch Meta keys',
+        timestamp: new Date().toISOString()
+      })
+    } else {
+      console.log('[PrePublishValidator] ✅ All locations have Meta keys')
+    }
   }
 
   // Summary
