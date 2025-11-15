@@ -146,7 +146,7 @@ export async function searchLocations(query: string): Promise<GeocodingResult> {
       return result
     }
     
-    const item = data[0]
+    const item = data[0]!
     
     // Parse bounding box if available
     let bbox: [number, number, number, number] | null = null
