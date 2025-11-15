@@ -355,13 +355,13 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
     transport,
   });
   
-  const { messages, sendMessage, addToolResult, status, stop, append } = chatHelpers as {
+  const { messages, sendMessage, addToolResult, status, stop, setMessages } = chatHelpers as {
     messages: UIMessage[];
     sendMessage: (input: { text?: string; files?: File[]; metadata?: Record<string, unknown> }) => void;
     addToolResult: (r: { tool: string; toolCallId: string; output?: unknown; errorText?: string }) => void;
     status: 'idle' | 'streaming' | 'submitted';
     stop: () => void;
-    append: (message: { role: 'user' | 'assistant'; content: string }) => void;
+    setMessages: (messages: UIMessage[] | ((messages: UIMessage[]) => UIMessage[])) => void;
   };
 
 
@@ -829,17 +829,26 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
         return;
       }
       
-      // Directly append an assistant message asking for location
+      // Directly add an assistant message asking for location
       // This creates a clean UX where AI proactively asks without showing user trigger message
-      append({
-        role: 'assistant',
-        content: 'What location would you like to target?'
-      });
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          id: `location-setup-${Date.now()}`,
+          role: 'assistant',
+          parts: [
+            {
+              type: 'text',
+              text: 'What location would you like to target?'
+            }
+          ]
+        } as UIMessage
+      ]);
     };
 
     window.addEventListener('triggerLocationSetup', handleLocationSetup);
     return () => window.removeEventListener('triggerLocationSetup', handleLocationSetup);
-  }, [status, append]);
+  }, [status, setMessages]);
 
   // Listen for ad edit events from preview panel
   useEffect(() => {
