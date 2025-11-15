@@ -8,6 +8,7 @@
 
 import { generateText } from 'ai';
 import { NextRequest, NextResponse } from 'next/server';
+import { getModel } from '@/lib/ai/gateway-provider';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     // Generate image using Google Gemini
     const result = await generateText({
-      model: 'google/gemini-2.5-flash-image-preview',
+      model: getModel('google/gemini-2.5-flash-image-preview'),
       prompt: enhancedPrompt,
       providerOptions: {
         google: { 
