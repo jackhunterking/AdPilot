@@ -450,7 +450,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
       
       // Update context (triggers map update via React state flow) with error handling
       try {
-        addLocations(validLocations, false); // false = replace, not merge
+        await addLocations(validLocations, true); // true = ADD mode (merge with existing)
         updateLocationStatus('completed');
         
         // Show success toast

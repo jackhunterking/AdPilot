@@ -176,8 +176,19 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
 
   // Update map markers when locations change (purely reactive - no events)
   useEffect(() => {
+    console.log('[Map] useEffect triggered with:', {
+      locationCount: locationState.locations.length,
+      locations: locationState.locations.map(l => ({
+        name: l.name,
+        mode: l.mode,
+        hasGeometry: !!l.geometry,
+        hasBbox: !!l.bbox
+      }))
+    });
+    
     const L = getLeaflet();
     if (!mapRef.current || !L) {
+      console.log('[Map] Not ready - map:', !!mapRef.current, 'Leaflet:', !!L);
       logger.debug('Map', 'Cannot update markers - map or Leaflet not ready');
       return;
     }
@@ -185,6 +196,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     const map = mapRef.current;
     const locations = locationState.locations;
 
+    console.log('[Map] Updating map with', locations.length, 'locations');
     logger.debug('Map', '🗺️ Updating map with locations', { count: locations.length });
 
     // Clear existing markers and shapes

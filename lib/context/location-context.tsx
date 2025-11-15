@@ -106,15 +106,10 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     setIsInitialized(true)
   }, [currentAd?.id])
 
-  // SINGLE SAVE PATH: Ad snapshot only
+  // SINGLE SAVE PATH: Ad snapshot only (kept for backward compatibility, not used with immediate writes)
   const saveFn = useCallback(async (state: LocationState) => {
-    console.log('[DEBUG] ========== LocationContext SAVING ==========');
-    console.log('[DEBUG] Save triggered for ad:', currentAd?.id);
-    console.log('[DEBUG] Is initialized:', isInitialized);
-    
     if (!currentAd?.id || !isInitialized) {
       logger.debug('LocationContext', 'Skipping save - no ad or not initialized')
-      console.log('[DEBUG] Skipping save - no ad or not initialized');
       return
     }
     
@@ -123,19 +118,6 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       locationsCount: state.locations.length
     })
     
-    console.log('[DEBUG] Saving state:', {
-      locationCount: state.locations.length,
-      status: state.status,
-      locations: state.locations.map(l => ({
-        name: l.name,
-        hasGeometry: !!l.geometry,
-        geometryType: l.geometry?.type,
-        hasBbox: !!l.bbox,
-        hasCoordinates: !!l.coordinates,
-        hasId: !!l.id
-      }))
-    });
-    
     // Save to ad snapshot only (ensure status is never null)
     await updateAdSnapshot({
       location: {
@@ -143,88 +125,117 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         status: state.status || 'completed',  // Default to 'completed' if somehow null
       }
     })
-    
-    console.log('[DEBUG] ✅ Save complete');
-    console.log('[DEBUG] ========== LocationContext SAVE COMPLETE ==========');
   }, [currentAd?.id, updateAdSnapshot, isInitialized])
 
-  // Auto-save with NORMAL config (300ms debounce)
-  useAutoSave(memoizedLocationState, saveFn, AUTO_SAVE_CONFIGS.NORMAL)
+  // Note: useAutoSave removed - using immediate database writes instead
 
-  const addLocations = useCallback((newLocations: Location[], shouldMerge: boolean = true) => {
+  const addLocations = useCallback(async (newLocations: Location[], shouldMerge: boolean = true) => {
     if (!newLocations || newLocations.length === 0) {
-      console.error('[LocationContext] addLocations: empty array provided');
+      console.error('[LocationContext] Empty locations array');
       return;
     }
     
-    setLocationState(prev => {
+    if (!currentAd?.id) {
+      console.error('[LocationContext] No current ad - cannot save');
+      return;
+    }
+    
+    console.log('[LocationContext] Adding locations (DB-first):', {
+      adId: currentAd.id,
+      newCount: newLocations.length,
+      mode: shouldMerge ? 'ADD/merge' : 'REPLACE',
+      currentCount: locationState.locations.length
+    });
+    
+    try {
+      // Calculate final locations OUTSIDE setState
       let finalLocations: Location[];
       
       if (shouldMerge) {
-        // Merge locations, avoiding duplicates by name+mode
-        const existingMap = new Map(prev.locations.map(loc => [`${loc.name}-${loc.mode}`, loc]))
+        // ADD mode: Merge with existing locations, deduplicate by name+mode
+        const existingMap = new Map(
+          locationState.locations.map(loc => [`${loc.name}-${loc.mode}`, loc])
+        );
         
         newLocations.forEach(newLoc => {
-          existingMap.set(`${newLoc.name}-${newLoc.mode}`, newLoc)
-        })
+          existingMap.set(`${newLoc.name}-${newLoc.mode}`, newLoc);
+        });
         
-        finalLocations = Array.from(existingMap.values())
+        finalLocations = Array.from(existingMap.values());
       } else {
-        // Replace all locations (don't bring back removed ones)
-        finalLocations = newLocations
+        // REPLACE mode: Use only new locations
+        finalLocations = newLocations;
       }
       
-      const updated = {
-        ...prev,
+      console.log('[LocationContext] Final location count:', finalLocations.length);
+      
+      // WRITE DIRECTLY TO DATABASE (blocking call - wait for completion)
+      console.log('[LocationContext] Writing to database...');
+      await updateAdSnapshot({
+        location: {
+          locations: finalLocations,
+          status: 'completed'
+        }
+      });
+      
+      console.log('[LocationContext] ✅ Database write successful');
+      
+      // Update local state to MATCH database
+      setLocationState({
         locations: finalLocations,
-        status: 'completed' as const,
+        status: 'completed',
         errorMessage: undefined
-      };
+      });
       
-      // CRITICAL FIX: Immediate save - bypass useAutoSave to avoid cleanup cancellation
-      if (currentAd?.id && isInitialized) {
-        console.log('[LocationContext] Immediate save triggered for', finalLocations.length, 'locations');
-        updateAdSnapshot({
-          location: {
-            locations: updated.locations,
-            status: updated.status || 'completed'
-          }
-        }).then(() => {
-          console.log('[LocationContext] ✅ Location data saved successfully');
-        }).catch(error => {
-          console.error('[LocationContext] ❌ Failed to save locations:', error);
-        });
-      }
+      console.log('[LocationContext] ✅ Local state synchronized with database');
       
-      return updated;
-    });
-  }, [currentAd?.id, isInitialized, updateAdSnapshot]);
-
-  const removeLocation = useCallback((id: string) => {
-    setLocationState(prev => {
-      const updatedLocations = prev.locations.filter(loc => loc.id !== id);
-      const updated = {
+    } catch (error) {
+      console.error('[LocationContext] ❌ Database write failed:', error);
+      setLocationState(prev => ({
         ...prev,
+        status: 'error',
+        errorMessage: error instanceof Error ? error.message : 'Failed to save location'
+      }));
+      throw error;
+    }
+  }, [currentAd?.id, locationState.locations, updateAdSnapshot]);
+
+  const removeLocation = useCallback(async (id: string) => {
+    if (!currentAd?.id) {
+      console.error('[LocationContext] No current ad - cannot remove');
+      return;
+    }
+    
+    console.log('[LocationContext] Removing location:', id);
+    
+    try {
+      // Calculate updated locations
+      const updatedLocations = locationState.locations.filter(loc => loc.id !== id);
+      
+      console.log('[LocationContext] Remaining locations:', updatedLocations.length);
+      
+      // WRITE TO DATABASE FIRST
+      await updateAdSnapshot({
+        location: {
+          locations: updatedLocations,
+          status: updatedLocations.length > 0 ? 'completed' : 'idle'
+        }
+      });
+      
+      console.log('[LocationContext] ✅ Removed from database');
+      
+      // Update local state to match database
+      setLocationState({
         locations: updatedLocations,
-        status: updatedLocations.length > 0 ? 'completed' as const : 'idle' as const
-      };
+        status: updatedLocations.length > 0 ? 'completed' : 'idle',
+        errorMessage: undefined
+      });
       
-      // Immediate save after removal
-      if (currentAd?.id && isInitialized) {
-        console.log('[LocationContext] Immediate save after removing location');
-        updateAdSnapshot({
-          location: {
-            locations: updated.locations,
-            status: updated.status || 'completed'
-          }
-        }).catch(error => {
-          console.error('[LocationContext] ❌ Failed to save after removal:', error);
-        });
-      }
-      
-      return updated;
-    });
-  }, [currentAd?.id, isInitialized, updateAdSnapshot]);
+    } catch (error) {
+      console.error('[LocationContext] ❌ Failed to remove location:', error);
+      throw error;
+    }
+  }, [currentAd?.id, locationState.locations, updateAdSnapshot]);
 
   const updateStatus = (status: LocationStatus) => {
     setLocationState(prev => ({ ...prev, status }))

@@ -169,9 +169,18 @@ export function CurrentAdProvider({ children }: { children: ReactNode }) {
   // Update ad snapshot (partial update with merge)
   const updateAdSnapshot = useCallback(async (snapshot: Partial<SetupSnapshot>) => {
     if (!currentAdId || !campaign?.id) {
+      console.error('[updateAdSnapshot] Missing ad or campaign ID');
       logger.warn('CurrentAdContext', 'Cannot update snapshot: no current ad')
       return
     }
+
+    console.log('[updateAdSnapshot] Writing to database:', {
+      adId: currentAdId,
+      campaignId: campaign.id,
+      sections: Object.keys(snapshot),
+      locationCount: snapshot.location?.locations?.length,
+      locationData: snapshot.location
+    });
 
     try {
       logger.debug('CurrentAdContext', 'Updating ad snapshot', {
@@ -186,10 +195,15 @@ export function CurrentAdProvider({ children }: { children: ReactNode }) {
       })
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[updateAdSnapshot] HTTP error:', response.status, errorText);
         throw new Error(`Failed to update snapshot: ${response.statusText}`)
       }
 
       const data = await response.json()
+      
+      console.log('[updateAdSnapshot] ✅ Database write successful');
+      console.log('[updateAdSnapshot] Saved location count:', data.setup_snapshot?.location?.locations?.length || 0);
       
       // Update local state with new snapshot
       setCurrentAd(prev => prev ? { ...prev, setup_snapshot: data.setup_snapshot } : null)
@@ -200,6 +214,7 @@ export function CurrentAdProvider({ children }: { children: ReactNode }) {
       logger.debug('CurrentAdContext', 'Snapshot updated successfully')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update snapshot'
+      console.error('[updateAdSnapshot] ❌ Database write failed:', errorMessage, err);
       logger.error('CurrentAdContext', `Error updating snapshot: ${errorMessage}`)
       throw err
     }
