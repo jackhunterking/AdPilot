@@ -147,15 +147,21 @@ export async function POST(request: NextRequest) {
     let finalName = requestedName ?? null
     if (!finalName) {
       const source = (initialPrompt ?? prompt ?? '').slice(0, 500)
+      console.log('[POST /api/campaigns] No name provided, generating AI name from prompt:', source.substring(0, 100) + '...')
+      
       const avoid: string[] = []
       // Try up to 3 times to avoid global conflicts
       for (let attempt = 0; attempt < 3; attempt++) {
+        console.log(`[POST /api/campaigns] AI naming attempt ${attempt + 1}/3`)
+        
         const proposed = await generateCampaignNameAI({
           prompt: source,
           ...(typeof initialGoal === 'string' ? { goalType: initialGoal } : {}),
           avoid,
         })
         const nameToTry = proposed && proposed.trim().length > 0 ? proposed : 'Campaign'
+        
+        console.log(`[POST /api/campaigns] AI proposed name: "${nameToTry}"`)
 
         // Attempt insert immediately to leverage DB unique index globally
         const insert = await supabaseServer
@@ -172,6 +178,7 @@ export async function POST(request: NextRequest) {
 
         if (!insert.error) {
           const campaign: Tables<'campaigns'> | null = insert.data as Tables<'campaigns'> | null
+          console.log(`[POST /api/campaigns] ✅ Successfully created campaign "${campaign?.name}" (ID: ${campaign?.id})`)
           
           // Conversation init
           try {
@@ -223,6 +230,7 @@ export async function POST(request: NextRequest) {
         const code = (insert.error as unknown as { code?: string }).code
         if (code === '23505') {
           // unique violation → add to avoid list and retry
+          console.log(`[POST /api/campaigns] ⚠️  Name "${nameToTry}" already exists, retrying...`)
           avoid.push(nameToTry)
           continue
         }

@@ -50,8 +50,8 @@ export class PostAuthHandler {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          tempPromptId,
-          name: 'Untitled Campaign' // Will be AI-generated
+          tempPromptId
+          // Omit 'name' to trigger AI auto-naming
         })
       })
       
