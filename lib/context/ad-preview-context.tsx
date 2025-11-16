@@ -130,32 +130,6 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
     
     loadSnapshot()
   }, [currentAd?.id, campaign?.id])
-  
-  // Legacy fallback - remove this block if present
-  if (false) {
-    // This block intentionally disabled - campaign_states no longer exists
-    const legacyFallback = () => {
-      logger.debug('AdPreviewContext', '⚠️ Legacy fallback disabled')
-      
-      const savedData = campaign.campaign_states?.ad_preview_data as unknown as {
-        adContent?: AdContent | null;
-        isPublished?: boolean;
-        selectedCreativeVariation?: CreativeVariation | null;
-        selectedImageIndex?: number | null;
-      } | null
-      
-      if (savedData) {
-        if (savedData.adContent) setAdContent(savedData.adContent)
-        if (savedData.isPublished !== undefined) setIsPublished(savedData.isPublished)
-        if (savedData.selectedCreativeVariation) setSelectedCreativeVariation(savedData.selectedCreativeVariation)
-        if (savedData.selectedImageIndex !== undefined) setSelectedImageIndex(savedData.selectedImageIndex ?? null)
-      }
-    } else {
-      logger.debug('AdPreviewContext', 'No snapshot or campaign_states - starting fresh')
-    }
-    
-    setIsInitialized(true)
-  }, [currentAd?.id, campaign?.id])
 
   // Save function with proper return type
   const saveFn = useCallback(async (state: typeof adPreviewState) => {
