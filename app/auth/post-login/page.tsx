@@ -8,23 +8,36 @@
  *  - Supabase (Code exchange route pattern): https://supabase.com/docs/guides/auth/auth-helpers/nextjs#managing-sign-in-with-code-exchange
  *  - PostAuthHandler service for unified auth completion logic
  */
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useEffect, useState, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/components/auth/auth-provider"
 import { postAuthHandler } from "@/lib/services/post-auth-handler"
 import { Button } from "@/components/ui/button"
 import { AlertCircle, Loader2 } from "lucide-react"
-import { toast } from "sonner"
 
-type PageState = 'loading' | 'creating' | 'success' | 'error' | 'no-prompt'
+type PageState = 'creating' | 'error' | 'no-prompt'
 
 function PostLoginContent() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [state, setState] = useState<PageState>('loading')
+  const [state, setState] = useState<PageState>('creating')
   const [error, setError] = useState<string | null>(null)
-  const [campaignId, setCampaignId] = useState<string | null>(null)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const hasRunRef = useRef(false)
+
+  useEffect(() => {
+    // Cleanup timeout on unmount
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+      // Clean up processing lock but keep campaign ID for recovery
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('post_login_processing')
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const run = async () => {
@@ -34,14 +47,7 @@ function PostLoginContent() {
         userId: user?.id,
         userEmail: user?.email,
         url: typeof window !== 'undefined' ? window.location.href : 'SSR',
-        effectRunCount: (window as unknown as { effectCount?: number }).effectCount || 0
       })
-
-      // Track effect runs for debugging
-      if (typeof window !== 'undefined') {
-        (window as unknown as { effectCount?: number }).effectCount = 
-          ((window as unknown as { effectCount?: number }).effectCount || 0) + 1
-      }
 
       if (loading) {
         console.log('[POST-LOGIN] Still loading, waiting...')
@@ -55,82 +61,129 @@ function PostLoginContent() {
         return
       }
 
-      // Avoid double processing across reloads - check BEFORE any async work
-      const sentinelKey = "post_login_processed"
-      const alreadyProcessed = sessionStorage.getItem(sentinelKey)
-      
-      if (alreadyProcessed) {
-        console.log('[POST-LOGIN] Already processed, exiting WITHOUT redirect to avoid loop')
-        // Don't redirect - just exit. User should already be navigating away.
+      // Prevent multiple concurrent executions using ref
+      if (hasRunRef.current) {
+        console.log('[POST-LOGIN] Already running, skipping duplicate execution')
         return
       }
+
+      // Check if already processed successfully
+      const sentinelKey = "post_login_processed"
+      const campaignIdKey = "post_login_campaign_id"
+      const processingKey = "post_login_processing"
       
-      // Set sentinel IMMEDIATELY before any async operations
-      console.log('[POST-LOGIN] Setting sentinel key to prevent re-runs')
-      sessionStorage.setItem(sentinelKey, "true")
+      if (typeof window !== 'undefined') {
+        const alreadyProcessed = sessionStorage.getItem(sentinelKey)
+        
+        if (alreadyProcessed) {
+          console.log('[POST-LOGIN] Already processed, checking for saved campaign')
+          // Check if we have a saved campaign ID to continue the journey
+          const savedCampaignId = sessionStorage.getItem(campaignIdKey)
+          
+          if (savedCampaignId) {
+            console.log('[POST-LOGIN] Found saved campaign, redirecting:', savedCampaignId)
+            // Clean up and redirect to campaign
+            sessionStorage.removeItem(campaignIdKey)
+            sessionStorage.removeItem(sentinelKey)
+            router.replace(`/${savedCampaignId}`)
+          } else {
+            console.log('[POST-LOGIN] No saved campaign, redirecting to homepage')
+            sessionStorage.removeItem(sentinelKey)
+            router.replace('/')
+          }
+          return
+        }
+
+        // Check if currently processing (another tab/window)
+        const isProcessing = sessionStorage.getItem(processingKey)
+        if (isProcessing) {
+          console.log('[POST-LOGIN] Already processing in another execution, waiting...')
+          return
+        }
+
+        // Lock processing
+        sessionStorage.setItem(processingKey, 'true')
+      }
+
+      hasRunRef.current = true
+
+      // Set timeout safety net (5 seconds)
+      timeoutRef.current = setTimeout(() => {
+        console.error('[POST-LOGIN] Timeout: Campaign creation took too long')
+        setState('error')
+        setError('This is taking longer than expected. Please try again.')
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem(processingKey)
+        }
+      }, 5000)
 
       try {
         setState('creating')
         
         // Use PostAuthHandler service for unified logic
-        const campaign = await postAuthHandler.processAuthCompletion(user.user_metadata)
+        const result = await postAuthHandler.processAuthCompletion(user.user_metadata)
 
-        if (!campaign) {
+        // Clear timeout - we got a response
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current)
+          timeoutRef.current = null
+        }
+
+        if (!result) {
           // No temp prompt to process
           console.log('[POST-LOGIN] No temp prompt found, redirecting to homepage')
           setState('no-prompt')
-          sessionStorage.removeItem(sentinelKey)
-          setTimeout(() => router.push('/'), 1000)
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem(processingKey)
+            sessionStorage.setItem(sentinelKey, 'true')
+          }
+          setTimeout(() => router.push('/'), 500)
           return
         }
 
-        console.log('[POST-LOGIN] Campaign created successfully:', campaign.id)
-        setCampaignId(campaign.id)
-        setState('success')
+        const { campaign, draftAdId } = result
+        console.log('[POST-LOGIN] Campaign created successfully:', campaign.id, draftAdId ? `with draft ad: ${draftAdId}` : '')
         
-        // Show success toast
-        toast.success('Campaign created successfully!')
-        
-        // Clear any query indicators for clean URL
-        const authSuccess = searchParams?.get("auth") === "success"
-        if (authSuccess && typeof window !== "undefined") {
-          window.history.replaceState({}, "", "/auth/post-login")
+        // Save campaign ID for recovery and mark as processed
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(campaignIdKey, campaign.id)
+          sessionStorage.setItem(sentinelKey, 'true')
+          sessionStorage.removeItem(processingKey)
         }
 
-        // Navigate using router.push (client-side) AFTER state is confirmed
-        console.log('[POST-LOGIN] Navigating to campaign:', campaign.id)
-        setTimeout(() => router.push(`/${campaign.id}`), 500)
+        // Navigate to campaign builder with draft ad ID and firstVisit flag
+        const targetUrl = draftAdId 
+          ? `/${campaign.id}?view=build&adId=${draftAdId}&firstVisit=true`
+          : `/${campaign.id}`
+        
+        console.log('[POST-LOGIN] Navigating to:', targetUrl)
+        router.push(targetUrl)
 
       } catch (err) {
         console.error('[POST-LOGIN] Error in post-login flow:', err)
+        
+        // Clear timeout
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current)
+          timeoutRef.current = null
+        }
+
         const errorMessage = err instanceof Error ? err.message : 'Failed to create campaign'
         setError(errorMessage)
         setState('error')
-        sessionStorage.removeItem(sentinelKey)
         
-        // Show error toast
-        toast.error('Failed to create campaign', {
-          description: errorMessage
-        })
+        // Clear locks to allow retry
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem(sentinelKey)
+          sessionStorage.removeItem(processingKey)
+        }
       }
     }
 
     run()
   }, [user, loading, router, searchParams])
 
-  // Loading state
-  if (state === 'loading') {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
-          <p className="text-sm text-muted-foreground">Finishing sign-in…</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Creating campaign state
+  // Creating campaign state (combined loading + creating)
   if (state === 'creating') {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
@@ -142,29 +195,13 @@ function PostLoginContent() {
     )
   }
 
-  // Success state
-  if (state === 'success' && campaignId) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-            <svg className="h-6 w-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <p className="text-sm text-muted-foreground">Redirecting to your campaign…</p>
-        </div>
-      </div>
-    )
-  }
-
   // No prompt state
   if (state === 'no-prompt') {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
-          <p className="text-sm text-muted-foreground">Redirecting to homepage…</p>
+          <p className="text-sm text-muted-foreground">Let&apos;s get started…</p>
         </div>
       </div>
     )
@@ -172,6 +209,15 @@ function PostLoginContent() {
 
   // Error state
   if (state === 'error') {
+    const handleRetry = () => {
+      // Clear sentinel to allow retry
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('post_login_processed')
+        sessionStorage.removeItem('post_login_processing')
+      }
+      window.location.reload()
+    }
+
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="max-w-md space-y-6 text-center px-6">
@@ -180,7 +226,7 @@ function PostLoginContent() {
           </div>
           
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold">Failed to Create Campaign</h1>
+            <h1 className="text-2xl font-bold">Something Went Wrong</h1>
             <p className="text-muted-foreground">
               {error || 'An unexpected error occurred. Please try again.'}
             </p>
@@ -188,18 +234,18 @@ function PostLoginContent() {
           
           <div className="space-y-3">
             <Button 
-              onClick={() => router.push('/')} 
-              className="w-full"
-            >
-              Back to Homepage
-            </Button>
-            
-            <Button 
-              onClick={() => window.location.reload()} 
-              variant="outline" 
+              onClick={handleRetry} 
               className="w-full"
             >
               Try Again
+            </Button>
+            
+            <Button 
+              onClick={() => router.push('/')} 
+              variant="outline" 
+              className="w-full"
+            >
+              Go to Homepage
             </Button>
           </div>
         </div>

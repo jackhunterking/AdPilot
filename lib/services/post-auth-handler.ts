@@ -20,14 +20,20 @@ interface Campaign {
 
 interface CreateCampaignResponse {
   campaign: Campaign
+  draftAdId?: string
+}
+
+export interface CampaignResult {
+  campaign: Campaign
+  draftAdId?: string
 }
 
 export class PostAuthHandler {
   /**
    * Process temp prompt and create campaign
-   * Returns campaign object or throws error
+   * Returns campaign object with draft ad ID or null if no temp prompt
    */
-  async processAuthCompletion(userMetadata?: Record<string, unknown>): Promise<Campaign | null> {
+  async processAuthCompletion(userMetadata?: Record<string, unknown>): Promise<CampaignResult | null> {
     // 1. Check for temp prompt (localStorage or user metadata)
     const tempPromptId = this.getTempPromptId(userMetadata)
     
@@ -56,8 +62,9 @@ export class PostAuthHandler {
       
       const data = await response.json() as CreateCampaignResponse
       const campaign = data.campaign
+      const draftAdId = data.draftAdId
       
-      console.log('[PostAuthHandler] Campaign created:', campaign.id)
+      console.log('[PostAuthHandler] Campaign created:', campaign.id, draftAdId ? `with draft ad: ${draftAdId}` : 'without draft ad')
       
       // 3. Verify campaign exists before returning
       const verified = await this.verifyCampaignExists(campaign.id)
@@ -76,7 +83,7 @@ export class PostAuthHandler {
       // 4. Clean up temp prompt from localStorage
       this.clearTempPrompt()
       
-      return campaign
+      return { campaign, draftAdId }
       
     } catch (error) {
       console.error('[PostAuthHandler] Error:', error)

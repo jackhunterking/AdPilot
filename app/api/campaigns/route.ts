@@ -195,6 +195,7 @@ export async function POST(request: NextRequest) {
           }
 
           // Create initial draft ad
+          let draftAdId: string | undefined
           try {
             const { data: draftAd, error: draftError } = await supabaseServer
               .from('ads')
@@ -211,13 +212,14 @@ export async function POST(request: NextRequest) {
               // Don't fail campaign creation, but log the error
             } else {
               console.log(`Created initial draft ad ${draftAd.id} for campaign ${campaign!.id}`)
+              draftAdId = draftAd.id
             }
           } catch (draftError) {
             console.error('Error creating initial draft ad:', draftError)
             // Continue - campaign is still valid without initial draft
           }
 
-          return NextResponse.json({ campaign }, { status: 201 })
+          return NextResponse.json({ campaign, draftAdId }, { status: 201 })
         }
 
         const code = (insert.error as unknown as { code?: string }).code
@@ -272,6 +274,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create initial draft ad
+    let draftAdId: string | undefined
     try {
       const { data: draftAd, error: draftError } = await supabaseServer
         .from('ads')
@@ -288,13 +291,14 @@ export async function POST(request: NextRequest) {
         // Don't fail campaign creation, but log the error
       } else {
         console.log(`Created initial draft ad ${draftAd.id} for campaign ${(manualCampaign as Tables<'campaigns'>).id}`)
+        draftAdId = draftAd.id
       }
     } catch (draftError) {
       console.error('Error creating initial draft ad:', draftError)
       // Continue - campaign is still valid without initial draft
     }
 
-    return NextResponse.json({ campaign: manualCampaign }, { status: 201 })
+    return NextResponse.json({ campaign: manualCampaign, draftAdId }, { status: 201 })
   } catch (error) {
     console.error('Unexpected error:', error)
     return NextResponse.json(

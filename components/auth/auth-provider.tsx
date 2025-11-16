@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
 import { Tables } from '@/lib/supabase/database.types'
@@ -26,6 +26,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const isInitializingRef = useRef(false)
+  const hasInitializedRef = useRef(false)
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -50,6 +52,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    // Prevent duplicate initialization
+    if (isInitializingRef.current) {
+      console.log('[AUTH-PROVIDER] Already initializing, skipping')
+      return
+    }
+
+    isInitializingRef.current = true
+
     // Check if we just came from OAuth callback
     const hasAuthCallback = typeof window !== 'undefined' && 
       (window.location.search.includes('auth=success') || 
@@ -63,14 +73,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const initAuth = async () => {
       try {
-        // Force refresh session if coming from OAuth callback
-        if (hasAuthCallback) {
-          console.log('[AUTH-PROVIDER] Detected OAuth callback, refreshing session')
-          await supabase.auth.refreshSession()
+        // Get current session first to check if we already have one
+        let { data: { session } } = await supabase.auth.getSession()
+        
+        // Only refresh if coming from OAuth callback AND we don't already have a session
+        if (hasAuthCallback && !session) {
+          console.log('[AUTH-PROVIDER] OAuth callback without session, refreshing')
+          const refreshResult = await supabase.auth.refreshSession()
+          session = refreshResult.data.session
+        } else if (hasAuthCallback && session) {
+          console.log('[AUTH-PROVIDER] OAuth callback with existing session, skipping refresh')
         }
         
-        // Get current session
-        const { data: { session } } = await supabase.auth.getSession()
         console.log('[AUTH-PROVIDER] Got session', { 
           hasSession: !!session, 
           hasUser: !!session?.user,
@@ -86,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         setLoading(false)
+        hasInitializedRef.current = true
         
         // Clean up URL parameters after successful auth
         if (hasAuthCallback && typeof window !== 'undefined') {
@@ -95,6 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error('[AUTH-PROVIDER] Error initializing auth:', error)
         setLoading(false)
+        hasInitializedRef.current = true
       }
     }
 
@@ -104,11 +120,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      // Don't process auth state changes during initialization
+      if (!hasInitializedRef.current) {
+        console.log('[AUTH-PROVIDER] Skipping auth state change during initialization', { event })
+        return
+      }
+
       console.log('[AUTH-PROVIDER] Auth state changed', { 
         event, 
         hasSession: !!session,
         userId: session?.user?.id 
       })
+      
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) {
@@ -119,7 +142,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      isInitializingRef.current = false
+    }
   }, [])
 
   const signIn = async (email: string, password: string) => {

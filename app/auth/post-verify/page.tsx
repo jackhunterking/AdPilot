@@ -72,18 +72,19 @@ function PostVerifyContent() {
         setState('creating')
         
         // Use PostAuthHandler service for unified logic
-        const campaign = await postAuthHandler.processAuthCompletion(user.user_metadata)
+        const result = await postAuthHandler.processAuthCompletion(user.user_metadata)
 
-        if (!campaign) {
+        if (!result) {
           // No temp prompt to process
           console.log('[POST-VERIFY] No temp prompt found, redirecting to homepage')
           setState('no-prompt')
           sessionStorage.removeItem(sentinelKey)
-          setTimeout(() => router.push('/'), 1000)
+          setTimeout(() => router.push('/'), 500)
           return
         }
 
-        console.log('[POST-VERIFY] Campaign created successfully:', campaign.id)
+        const { campaign, draftAdId } = result
+        console.log('[POST-VERIFY] Campaign created successfully:', campaign.id, draftAdId ? `with draft ad: ${draftAdId}` : '')
         setCampaignId(campaign.id)
         setState('success')
         
@@ -95,9 +96,13 @@ function PostVerifyContent() {
           window.history.replaceState({}, "", "/auth/post-verify")
         }
 
-        // Navigate using router.push (client-side) AFTER state is confirmed
-        console.log('[POST-VERIFY] Navigating to campaign:', campaign.id)
-        setTimeout(() => router.push(`/${campaign.id}`), 500)
+        // Navigate to campaign builder with draft ad ID and firstVisit flag
+        const targetUrl = draftAdId 
+          ? `/${campaign.id}?view=build&adId=${draftAdId}&firstVisit=true`
+          : `/${campaign.id}`
+        
+        console.log('[POST-VERIFY] Navigating to:', targetUrl)
+        setTimeout(() => router.push(targetUrl), 500)
 
       } catch (err) {
         console.error('[POST-VERIFY] Error in post-verify flow:', err)
