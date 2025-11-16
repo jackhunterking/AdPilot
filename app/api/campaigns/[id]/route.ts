@@ -37,11 +37,11 @@ export async function GET(
           selected_copy_id,
           created_at,
           updated_at,
-          ad_creatives (*),
-          ad_copy_variations (*),
-          ad_target_locations (*),
-          ad_destinations (*),
-          ad_budgets (*)
+          ad_creatives!ad_creatives_ad_id_fkey (*),
+          ad_copy_variations!ad_copy_variations_ad_id_fkey (*),
+          ad_target_locations!ad_target_locations_ad_id_fkey (*),
+          ad_destinations!ad_destinations_ad_id_fkey (*),
+          ad_budgets!ad_budgets_ad_id_fkey (*)
         )
       `)
       .eq('id', id)

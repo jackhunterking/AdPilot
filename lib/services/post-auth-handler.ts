@@ -66,21 +66,9 @@ export class PostAuthHandler {
       
       console.log('[PostAuthHandler] Campaign created:', campaign.id, draftAdId ? `with draft ad: ${draftAdId}` : 'without draft ad')
       
-      // 3. Verify campaign exists before returning
-      const verified = await this.verifyCampaignExists(campaign.id)
-      if (!verified) {
-        console.warn('[PostAuthHandler] Campaign created but not immediately available, retrying...')
-        // Retry once after brief delay
-        await this.sleep(500)
-        const retriedVerification = await this.verifyCampaignExists(campaign.id)
-        if (!retriedVerification) {
-          throw new Error('Campaign created but not immediately available')
-        }
-      }
+      console.log('[PostAuthHandler] Campaign created and ready')
       
-      console.log('[PostAuthHandler] Campaign verified and ready')
-      
-      // 4. Clean up temp prompt from localStorage
+      // 3. Clean up temp prompt from localStorage
       this.clearTempPrompt()
       
       return { campaign, draftAdId }
@@ -88,19 +76,6 @@ export class PostAuthHandler {
     } catch (error) {
       console.error('[PostAuthHandler] Error:', error)
       throw error
-    }
-  }
-  
-  /**
-   * Verify campaign exists in database
-   * Simple GET request to confirm availability
-   */
-  private async verifyCampaignExists(campaignId: string): Promise<boolean> {
-    try {
-      const response = await fetch(`/api/campaigns/${campaignId}`)
-      return response.ok
-    } catch {
-      return false
     }
   }
   
@@ -134,13 +109,6 @@ export class PostAuthHandler {
       localStorage.removeItem('temp_prompt_id')
       console.log('[PostAuthHandler] Cleared temp prompt from localStorage')
     }
-  }
-  
-  /**
-   * Sleep utility for retry logic
-   */
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
   }
 }
 
