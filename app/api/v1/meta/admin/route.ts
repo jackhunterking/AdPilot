@@ -56,20 +56,16 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Get admin status from campaign_states (backward compatibility)
-    const { data: state } = await supabaseServer
-      .from('campaign_states')
-      .select('meta_connect_data')
-      .eq('campaign_id', campaignId)
-      .maybeSingle()
-
-    const metaConnectData = (state as { meta_connect_data?: { admin_connected?: boolean; admin_business_role?: string; admin_ad_account_role?: string; admin_checked_at?: string } } | null)?.meta_connect_data
+    // Get admin status from meta connection service
+    // Note: campaign_states table removed - using getConnectionWithToken service
+    const { getConnectionWithToken } = await import('@/lib/meta/service')
+    const conn = await getConnectionWithToken({ campaignId })
 
     const response: AdminStatus = {
-      adminConnected: metaConnectData?.admin_connected || false,
-      businessRole: metaConnectData?.admin_business_role || undefined,
-      adAccountRole: metaConnectData?.admin_ad_account_role || undefined,
-      checkedAt: metaConnectData?.admin_checked_at || undefined
+      adminConnected: conn?.admin_connected || false,
+      businessRole: conn?.admin_business_role || undefined,
+      adAccountRole: conn?.admin_ad_account_role || undefined,
+      checkedAt: conn?.admin_checked_at || undefined
     }
 
     return NextResponse.json({

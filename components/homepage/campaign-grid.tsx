@@ -80,20 +80,10 @@ export function CampaignGrid() {
   }
 
   const getThumbnail = (campaign: Campaign): string => {
-    // Images are stored in campaign_states.ad_preview_data
-    const adPreviewData = campaign.campaign_states?.ad_preview_data as unknown as { adContent?: { baseImageUrl?: string; imageVariations?: string[] } } | null
-    
-    if (adPreviewData?.adContent?.baseImageUrl) {
-      return adPreviewData.adContent.baseImageUrl
-    }
-    
-    if (adPreviewData?.adContent?.imageVariations && adPreviewData.adContent.imageVariations.length > 0) {
-      const firstImage = adPreviewData.adContent.imageVariations[0]
-      if (firstImage) {
-        return firstImage
-      }
-    }
-    
+    // Images are now stored in ads table via ad_creatives
+    // Note: campaign_states.ad_preview_data no longer exists
+    // For now, return placeholder - thumbnail should be fetched from ads API
+    // TODO: Update to fetch thumbnail from first ad's creative
     return '/placeholder.svg'
   }
 

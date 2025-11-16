@@ -61,40 +61,9 @@ export interface MetaConnectionSummary {
 export async function getCampaignMetaConnection(
   campaignId: string
 ): Promise<MetaConnectionData | null> {
-  try {
-    metaLogger.info(CONTEXT, 'Fetching Meta connection from database', { campaignId })
-
-    const { data, error } = await supabase
-      .from('campaign_states')
-      .select('meta_connection_data')
-      .eq('campaign_id', campaignId)
-      .single()
-
-    if (error) {
-      metaLogger.error(CONTEXT, 'Failed to fetch Meta connection', error)
-      return null
-    }
-
-    if (!data?.meta_connection_data) {
-      metaLogger.info(CONTEXT, 'No Meta connection found in database', { campaignId })
-      return null
-    }
-
-    const connectionData = data.meta_connection_data as unknown as MetaConnectionData
-
-    metaLogger.info(CONTEXT, 'Meta connection loaded from database', {
-      campaignId,
-      hasConnection: !!connectionData,
-      status: connectionData?.connection_status,
-      hasBusiness: !!connectionData?.business?.id,
-      hasAdAccount: !!connectionData?.adAccount?.id,
-    })
-
-    return connectionData
-  } catch (err) {
-    metaLogger.error(CONTEXT, 'Exception loading Meta connection', err as Error)
-    return null
-  }
+  // DEPRECATED: campaign_states table removed - use getConnectionWithToken instead
+  metaLogger.info(CONTEXT, 'DEPRECATED - getCampaignMetaConnection no longer supported')
+  return null
 }
 
 /**
@@ -104,45 +73,9 @@ export async function saveCampaignMetaConnection(
   campaignId: string,
   connectionData: MetaConnectionData
 ): Promise<boolean> {
-  try {
-    metaLogger.info(CONTEXT, 'Saving Meta connection to database', {
-      campaignId,
-      status: connectionData.connection_status,
-      businessId: connectionData.business?.id,
-      adAccountId: connectionData.adAccount?.id,
-    })
-
-    // Ensure updated_at is current
-    connectionData.updated_at = new Date().toISOString()
-
-    const { error } = await supabase
-      .from('campaign_states')
-      .update({
-        meta_connection_data: connectionData as unknown as Json,
-      })
-      .eq('campaign_id', campaignId)
-
-    if (error) {
-      metaLogger.error(CONTEXT, 'Failed to save Meta connection', error)
-      return false
-    }
-
-    metaLogger.info(CONTEXT, '✅ Meta connection saved to database', { campaignId })
-
-    // Emit event to notify other components
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(
-        new CustomEvent('meta-connection-updated', {
-          detail: { campaignId, connectionData },
-        })
-      )
-    }
-
-    return true
-  } catch (err) {
-    metaLogger.error(CONTEXT, 'Exception saving Meta connection', err as Error)
-    return false
-  }
+  // DEPRECATED: campaign_states table removed - use meta service functions instead
+  metaLogger.info(CONTEXT, 'DEPRECATED - saveCampaignMetaConnection no longer supported')
+  return false
 }
 
 /**
@@ -152,32 +85,9 @@ export async function updateCampaignMetaConnection(
   campaignId: string,
   updates: Partial<MetaConnectionData>
 ): Promise<boolean> {
-  try {
-    metaLogger.info(CONTEXT, 'Updating Meta connection fields', {
-      campaignId,
-      fields: Object.keys(updates),
-    })
-
-    // Get existing connection
-    const existing = await getCampaignMetaConnection(campaignId)
-
-    if (!existing) {
-      metaLogger.error(CONTEXT, 'Cannot update - no existing connection found', new Error('No existing connection'))
-      return false
-    }
-
-    // Merge updates with existing data
-    const merged: MetaConnectionData = {
-      ...existing,
-      ...updates,
-      updated_at: new Date().toISOString(),
-    }
-
-    return await saveCampaignMetaConnection(campaignId, merged)
-  } catch (err) {
-    metaLogger.error(CONTEXT, 'Exception updating Meta connection', err as Error)
-    return false
-  }
+  // DEPRECATED: campaign_states table removed - use meta service functions instead
+  metaLogger.info(CONTEXT, 'DEPRECATED - updateCampaignMetaConnection no longer supported')
+  return false
 }
 
 /**
@@ -265,36 +175,8 @@ export async function disconnectMeta(campaignId: string): Promise<boolean> {
  * Clear Meta connection data (hard delete)
  */
 export async function clearMetaConnection(campaignId: string): Promise<boolean> {
-  try {
-    metaLogger.info(CONTEXT, 'Clearing Meta connection from database', { campaignId })
-
-    const { error } = await supabase
-      .from('campaign_states')
-      .update({
-        meta_connection_data: null,
-      })
-      .eq('campaign_id', campaignId)
-
-    if (error) {
-      metaLogger.error(CONTEXT, 'Failed to clear Meta connection', error)
-      return false
-    }
-
-    metaLogger.info(CONTEXT, '✅ Meta connection cleared', { campaignId })
-
-    // Emit event
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(
-        new CustomEvent('meta-connection-updated', {
-          detail: { campaignId, connectionData: null },
-        })
-      )
-    }
-
-    return true
-  } catch (err) {
-    metaLogger.error(CONTEXT, 'Exception clearing Meta connection', err as Error)
-    return false
-  }
+  // DEPRECATED: campaign_states table removed - use meta service functions instead
+  metaLogger.info(CONTEXT, 'DEPRECATED - clearMetaConnection no longer supported')
+  return false
 }
 

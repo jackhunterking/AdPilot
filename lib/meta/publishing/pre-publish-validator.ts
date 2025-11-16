@@ -56,10 +56,10 @@ export async function validatePrePublish(params: PrePublishValidationParams): Pr
     return { valid: false, errors }
   }
 
-  // Load campaign data
+  // Load campaign data (campaign_states table removed)
   const { data: campaign, error: campaignError } = await supabaseServer
     .from('campaigns')
-    .select('*, campaign_states(*)')
+    .select('*')
     .eq('id', params.campaignId)
     .single()
 
@@ -94,7 +94,13 @@ export async function validatePrePublish(params: PrePublishValidationParams): Pr
   // Load ad data
   const { data: ad, error: adError } = await supabaseServer
     .from('ads')
-    .select('*')
+    .select(`
+      *,
+      ad_copy_variations(*),
+      ad_creatives(*),
+      ad_target_locations(*),
+      ad_destinations(*)
+    `)
     .eq('id', params.adId)
     .eq('campaign_id', params.campaignId)
     .single()
@@ -182,15 +188,8 @@ export async function validatePrePublish(params: PrePublishValidationParams): Pr
     }
   }
 
-  // Check campaign goal
-  const campaignStates = campaign.campaign_states as {
-    goal_data?: { selectedGoal?: string }
-    budget_data?: { dailyBudget?: number }
-    location_data?: { locations?: unknown[] }
-  } | null
-  
-  const goalData = campaignStates?.goal_data
-  const goal = goalData?.selectedGoal
+  // Check campaign goal (from normalized schema)
+  const goal = campaign.initial_goal
 
   if (!goal) {
     console.error('[PrePublishValidator] ❌ Campaign goal not set')
@@ -206,9 +205,9 @@ export async function validatePrePublish(params: PrePublishValidationParams): Pr
     console.log('[PrePublishValidator] ✅ Campaign goal set:', goal)
   }
 
-  // Check budget
-  const budgetData = campaignStates?.budget_data
-  const dailyBudget = budgetData?.dailyBudget
+  // Check budget (from normalized schema)
+  const budgetCents = campaign.campaign_budget_cents
+  const dailyBudget = budgetCents ? budgetCents / 100 : undefined
 
   if (!dailyBudget || dailyBudget < 1) {
     console.error('[PrePublishValidator] ❌ Invalid budget:', dailyBudget)
@@ -224,26 +223,24 @@ export async function validatePrePublish(params: PrePublishValidationParams): Pr
     console.log('[PrePublishValidator] ✅ Budget set:', `$${dailyBudget}/day`)
   }
 
-  // Check ad creative
-  const setupSnapshot = (ad.setup_snapshot || {}) as Record<string, unknown>
-  const copyData = (ad.copy_data || {}) as Record<string, unknown>
-  const creativeData = (ad.creative_data || {}) as Record<string, unknown>
-
-  const copy = (setupSnapshot.copy || copyData) as {
+  // Check ad creative from normalized tables
+  const copyVariations = ad.ad_copy_variations as Array<{
     headline?: string
-    primaryText?: string
+    primary_text?: string
     description?: string
-  }
+    is_selected?: boolean
+  }> | undefined
+  
+  const creatives = ad.ad_creatives as Array<{
+    image_url?: string
+    is_selected?: boolean
+  }> | undefined
 
-  const creative = (setupSnapshot.creative || creativeData) as {
-    imageUrl?: string
-    imageVariations?: string[]
-    selectedImageIndex?: number
-  }
+  const copy = copyVariations?.find(c => c.is_selected) || copyVariations?.[0] || {}
+  const creative = creatives?.find(c => c.is_selected) || creatives?.[0] || {}
 
   // Validate image exists
-  const selectedImageIndex = creative.selectedImageIndex ?? 0
-  const imageUrl = creative.imageVariations?.[selectedImageIndex] || creative.imageUrl
+  const imageUrl = creative.image_url
 
   if (!imageUrl) {
     console.error('[PrePublishValidator] ❌ No image found')
@@ -273,7 +270,7 @@ export async function validatePrePublish(params: PrePublishValidationParams): Pr
   }
 
   // Validate copy exists
-  if (!copy.headline && !copy.primaryText) {
+  if (!copy.headline && !copy.primary_text) {
     console.error('[PrePublishValidator] ❌ No ad copy found')
     errors.push({
       code: 'validation_error',
@@ -287,8 +284,21 @@ export async function validatePrePublish(params: PrePublishValidationParams): Pr
     console.log('[PrePublishValidator] ✅ Ad copy found')
   }
 
-  // Validate destination (required for publish)
-  const destination = setupSnapshot.destination as { type?: string; data?: { formId?: string; websiteUrl?: string; phoneNumber?: string } } | undefined
+  // Validate destination (required for publish) - load from ad_destinations table (one-to-one)
+  const adDestinations = ad.ad_destinations as {
+    destination_type?: string
+    website_url?: string
+    instant_form_id?: string
+    phone_number?: string
+  } | null | undefined
+  const destination = {
+    type: adDestinations?.destination_type,
+    data: {
+      formId: adDestinations?.instant_form_id,
+      websiteUrl: adDestinations?.website_url,
+      phoneNumber: adDestinations?.phone_number
+    }
+  }
   
   if (!destination?.type) {
     console.error('[PrePublishValidator] ❌ No destination configured')
@@ -337,17 +347,27 @@ export async function validatePrePublish(params: PrePublishValidationParams): Pr
     }
   }
 
-  // Validate location targeting (ad-level)
-  const adSnapshot = ad.setup_snapshot as Record<string, unknown> | null | undefined
-  const locationData = adSnapshot?.location as { locations?: unknown[] } | undefined
+  // Validate location targeting from ad_target_locations table
+  const targetLocations = ad.ad_target_locations as Array<{
+    location_key?: string
+    location_name: string
+    location_type: string
+  }> | undefined
   
-  if (!locationData?.locations || locationData.locations.length === 0) {
+  if (!targetLocations || targetLocations.length === 0) {
     console.warn('[PrePublishValidator] ⚠️ No location targeting set (will default to US)')
     // Note: This is a warning, not blocking - ad can still publish with default targeting
   } else {
-    console.log('[PrePublishValidator] ✅ Location targeting set:', locationData.locations.length, 'locations')
+    console.log('[PrePublishValidator] ✅ Location targeting set:', targetLocations.length, 'locations')
     
     // Validate Meta keys are present
+    const locationData = {
+      locations: targetLocations.map(loc => ({
+        key: loc.location_key || loc.location_name,
+        name: loc.location_name,
+        type: loc.location_type
+      }))
+    }
     const transformer = new TargetingTransformer()
     const metaKeyValidation = transformer.validateMetaKeys(locationData)
     

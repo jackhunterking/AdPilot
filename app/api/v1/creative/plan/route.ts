@@ -34,16 +34,27 @@ export async function POST(req: NextRequest) {
       offerText: body.offerText,
     })
 
-    // Persist plan if campaignId provided
+    // Persist plan if campaignId provided (store in campaigns.metadata)
     if (body.campaignId) {
+      const { data: campaign } = await supabase
+        .from('campaigns')
+        .select('metadata')
+        .eq('id', body.campaignId)
+        .single()
+
+      const currentMetadata = (campaign?.metadata as Record<string, unknown>) || {}
+      
       const { error } = await supabase
-        .from('creative_plans')
-        .insert({
-          campaign_id: body.campaignId,
-          plan,
-          status: 'generated',
-          created_by: user.id,
+        .from('campaigns')
+        .update({
+          metadata: {
+            ...currentMetadata,
+            creative_plan: plan,
+            creative_plan_status: 'generated',
+          }
         })
+        .eq('id', body.campaignId)
+        
       if (error) throw error
     }
 

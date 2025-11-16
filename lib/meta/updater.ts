@@ -79,13 +79,16 @@ export async function updateBudgetAndSchedule({ campaignId, dailyBudget, startTi
     throw new Error(message)
   }
 
-  const { data: existingState } = await supabaseServer
-    .from('campaign_states')
-    .select('budget_data')
-    .eq('campaign_id', campaignId)
+  // Load current budget from campaigns table (campaign_states removed)
+  const { data: campaign } = await supabaseServer
+    .from('campaigns')
+    .select('campaign_budget_cents, metadata')
+    .eq('id', campaignId)
     .maybeSingle()
 
-  const currentBudget = ((existingState?.budget_data as Json) ?? {}) as Record<string, Json>
+  const metadata = (campaign?.metadata as Record<string, unknown>) || {}
+  const currentBudget = (metadata.budget_data as Record<string, unknown>) || {}
+  
   const previousStart =
     'startTime' in currentBudget && typeof currentBudget.startTime === 'string'
       ? (currentBudget.startTime as string)
@@ -102,15 +105,17 @@ export async function updateBudgetAndSchedule({ campaignId, dailyBudget, startTi
     endTime: endTime ?? previousEnd ?? null,
   } satisfies Record<string, Json>
 
+  // Update budget in campaigns table
   const { error: updateError } = await supabaseServer
-    .from('campaign_states')
-    .upsert(
-      {
-        campaign_id: campaignId,
-        budget_data: nextBudget,
-      },
-      { onConflict: 'campaign_id' }
-    )
+    .from('campaigns')
+    .update({
+      campaign_budget_cents: dailyBudget * 100, // Store in cents
+      metadata: {
+        ...metadata,
+        budget_data: nextBudget
+      }
+    })
+    .eq('id', campaignId)
 
   if (updateError) {
     throw new Error(updateError.message)

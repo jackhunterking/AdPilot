@@ -271,60 +271,65 @@ export async function POST(req: Request) {
       console.warn('[API v1] Could not read conversation metadata:', e);
     }
 
-      // Quick extraction from latest user message if needed
-      if (!offerText && message?.role === 'user' && typeof (message as { content?: unknown }).content === 'string') {
-        const text = (message as unknown as { content: string }).content;
-        if (/free|%\s*off|discount|quote|consult|download|trial/i.test(text)) {
-          offerText = text;
-        }
+    // Quick extraction from latest user message if needed
+    if (!offerText && message?.role === 'user' && typeof (message as { content?: unknown }).content === 'string') {
+      const text = (message as unknown as { content: string }).content;
+      if (/free|%\s*off|discount|quote|consult|download|trial/i.test(text)) {
+        offerText = text;
       }
-      if (!offerText) {
-        // Stricter ask-one-offer-question branch; plan will be created after user answers
-        offerAskContext = `\n[OFFER REQUIRED - INITIAL SETUP]\nAsk ONE concise question to capture the user's concrete offer/value (e.g., "Free quote", "% off", "Consultation", "Download").\n\n**When Asking:**\n- Ask ONLY this one question, no extra text.\n- Do NOT call any tools yet.\n- Do NOT ask about location, audience, or targeting.\n- Wait for user's response.\n\n**CRITICAL - After User Answers:**\n- Provide brief acknowledgment (1 sentence): "Perfect! Creating your ${effectiveGoal || 'campaign'} ads with that offer..."\n- IMMEDIATELY call generateImage tool ONLY with the offer incorporated\n- Use appropriate format based on offer type:\n  * Discounts/percentages (e.g., "20% off") → Include text overlay in prompt\n  * "Free" offers → Text overlay or notes-style aesthetic\n  * Product/service names → Clean professional imagery\n- Do NOT ask any follow-up questions\n- Do NOT call setupGoal tool (goal is already set)\n- Do NOT call locationTargeting tool (location comes later in build phase)\n- Do NOT call any other tools besides generateImage\n- Generate creative immediately with generateImage ONLY`;
-      } else {
-        // Create plan now that we have an offer
-        try {
-          const plan = await createCreativePlan({
-            goal: (['calls','leads','website-visits'].includes(String(effectiveGoal)) ? String(effectiveGoal) : 'unknown') as 'calls'|'leads'|'website-visits'|'unknown',
-            offerText,
-          });
+    }
+    
+    if (!offerText) {
+      // Stricter ask-one-offer-question branch; plan will be created after user answers
+      offerAskContext = `\n[OFFER REQUIRED - INITIAL SETUP]\nAsk ONE concise question to capture the user's concrete offer/value (e.g., "Free quote", "% off", "Consultation", "Download").\n\n**When Asking:**\n- Ask ONLY this one question, no extra text.\n- Do NOT call any tools yet.\n- Do NOT ask about location, audience, or targeting.\n- Wait for user's response.\n\n**CRITICAL - After User Answers:**\n- Provide brief acknowledgment (1 sentence): "Perfect! Creating your ${effectiveGoal || 'campaign'} ads with that offer..."\n- IMMEDIATELY call generateImage tool ONLY with the offer incorporated\n- Use appropriate format based on offer type:\n  * Discounts/percentages (e.g., "20% off") → Include text overlay in prompt\n  * "Free" offers → Text overlay or notes-style aesthetic\n  * Product/service names → Clean professional imagery\n- Do NOT ask any follow-up questions\n- Do NOT call setupGoal tool (goal is already set)\n- Do NOT call locationTargeting tool (location comes later in build phase)\n- Do NOT call any other tools besides generateImage\n- Generate creative immediately with generateImage ONLY`;
+    } else {
+      // Create plan now that we have an offer
+      try {
+        const plan = await createCreativePlan({
+          goal: (['calls','leads','website-visits'].includes(String(effectiveGoal)) ? String(effectiveGoal) : 'unknown') as 'calls'|'leads'|'website-visits'|'unknown',
+          offerText,
+        });
 
-          const { data: inserted, error } = await supabase
-            .from('creative_plans')
-            .insert({
-              campaign_id: conversation.campaign_id,
-              plan,
-              status: 'generated',
-              created_by: user.id,
-            })
-            .select('id')
-            .single();
-          if (!error && inserted?.id) {
-            planId = inserted.id as string;
-            planContext = `\n[CREATIVE PLAN ACTIVE]\nPlan ID: ${planId}\nFollow plan coverage and constraints. Generate square and vertical with vertical reusing the same base square image via extended canvas (blur/gradient/solid). Keep edges clean and reflow overlays within edge-safe areas; never draw frames or labels. Respect copy limits: primary ≤125, headline ≤40, description ≤30.`;
-          }
+        // Store plan in campaigns.metadata (creative_plans table removed)
+        const { data: campaign } = await supabase
+          .from('campaigns')
+          .select('metadata')
+          .eq('id', conversation.campaign_id)
+          .single();
 
-          // Persist offerText to memory
-          try {
-            const { data: cs2 } = await supabase
-              .from('campaign_states')
-              .select('ad_copy_data')
-              .eq('campaign_id', conversation.campaign_id)
-              .maybeSingle();
-            const existing = (cs2?.ad_copy_data as unknown) as import('@/lib/supabase/database.types').Json | null;
-            const base: Record<string, import('@/lib/supabase/database.types').Json> =
-              existing && typeof existing === 'object' && !Array.isArray(existing) ? (existing as Record<string, import('@/lib/supabase/database.types').Json>) : {};
-            const merged = { ...base, offerText: offerText as import('@/lib/supabase/database.types').Json } as import('@/lib/supabase/database.types').Json;
-            await supabase
-              .from('campaign_states')
-              .update({ ad_copy_data: merged, updated_at: new Date().toISOString() })
-              .eq('campaign_id', conversation.campaign_id);
-          } catch (e) {
-            console.warn('[API] Failed to upsert offerText in ad_copy_data:', e);
-          }
-        } catch (e) {
-          console.error('[API] Failed to auto-create CreativePlan:', e);
+        const currentMetadata = (campaign?.metadata as Record<string, unknown>) || {};
+        const { error } = await supabase
+          .from('campaigns')
+          .update({
+            metadata: {
+              ...currentMetadata,
+              creative_plan: plan,
+              creative_plan_status: 'generated'
+            }
+          })
+          .eq('id', conversation.campaign_id);
+
+        if (!error) {
+          planContext = `\n[CREATIVE PLAN ACTIVE]\nFollow plan coverage and constraints. Generate square and vertical with vertical reusing the same base square image via extended canvas (blur/gradient/solid). Keep edges clean and reflow overlays within edge-safe areas; never draw frames or labels. Respect copy limits: primary ≤125, headline ≤40, description ≤30.`;
         }
+
+        // Persist offerText to conversation.metadata (campaign_states table removed)
+        try {
+          const existingConvMeta = (conversation.metadata as Record<string, unknown>) || {};
+          await supabase
+            .from('conversations')
+            .update({ 
+              metadata: {
+                ...existingConvMeta,
+                offerText
+              } 
+            })
+            .eq('id', conversation.id);
+        } catch (e) {
+          console.warn('[API v1] Failed to save offerText to conversation metadata:', e);
+        }
+      } catch (e) {
+        console.error('[API v1] Failed to auto-create CreativePlan:', e);
       }
     }
   }

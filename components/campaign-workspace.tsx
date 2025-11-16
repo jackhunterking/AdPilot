@@ -204,11 +204,11 @@ export function CampaignWorkspace() {
     }
   }, [campaign?.id, budgetState.selectedAdAccount])
   
-  // Check Meta connection status
+  // Check Meta connection status (campaign_states table removed)
   const isMetaConnectionComplete = useMemo(() => {
-    const states = campaign?.campaign_states as { meta_connect_data?: { status?: string } } | null | undefined
-    const metaConnectData = states?.meta_connect_data
-    const serverConnected = Boolean(metaConnectData?.status === 'connected' || metaConnectData?.status === 'selected_assets')
+    // Note: campaign_states.meta_connect_data no longer exists
+    // Connection status now comes from meta_campaign_connections table
+    // For now, check budget state and local storage
     
     const budgetConnected = budgetState.isConnected === true
     
@@ -229,8 +229,8 @@ export function CampaignWorkspace() {
       }
     }
     
-    return serverConnected || budgetConnected || localStorageConnected
-  }, [campaign?.campaign_states, campaign?.id, budgetState.isConnected])
+    return budgetConnected || localStorageConnected
+  }, [campaign?.id, budgetState.isConnected])
   
   // Get view mode from URL
   const viewParam = searchParams.get("view") as WorkspaceMode | null

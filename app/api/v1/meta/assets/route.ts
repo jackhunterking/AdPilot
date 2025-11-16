@@ -59,22 +59,18 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Get Meta token - try campaign_states first (backward compatibility)
-    const { data: state } = await supabaseServer
-      .from('campaign_states')
-      .select('meta_connect_data')
-      .eq('campaign_id', campaignId)
-      .maybeSingle()
+    // Get Meta token from connection service (campaign_states table removed)
+    const { getConnectionWithToken } = await import('@/lib/meta/service')
+    const conn = await getConnectionWithToken({ campaignId })
 
-    const metaConnectData = (state as { meta_connect_data?: { long_lived_user_token?: string } } | null)?.meta_connect_data
-    const token = metaConnectData?.long_lived_user_token
-
-    if (!token) {
+    if (!conn?.long_lived_user_token) {
       return NextResponse.json(
         { success: false, error: { code: 'not_connected', message: 'Meta not connected for this campaign' } },
         { status: 404 }
       )
     }
+
+    const token = conn.long_lived_user_token
 
     console.log('[v1/meta/assets] Fetching assets:', { campaignId, assetType })
 

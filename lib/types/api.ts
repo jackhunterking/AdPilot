@@ -38,7 +38,8 @@ export interface ApiError {
 // ============================================================================
 
 export type Campaign = Database['public']['Tables']['campaigns']['Row']
-export type CampaignState = Database['public']['Tables']['campaign_states']['Row']
+// DEPRECATED: campaign_states table removed in backend refactoring
+// export type CampaignState = Database['public']['Tables']['campaign_states']['Row']
 
 export interface CreateCampaignRequest {
   name?: string
@@ -64,7 +65,7 @@ export interface ListCampaignsResponse {
 }
 
 export interface GetCampaignResponse {
-  campaign: Campaign & { campaign_states?: CampaignState[] | CampaignState | null }
+  campaign: Campaign
 }
 
 // ============================================================================

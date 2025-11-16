@@ -62,11 +62,9 @@ function convertToKPIMetricsRow(metrics: CampaignMetricsSnapshot | null): KPIMet
 export function ResultsPanel({ isEnabled }: ResultsPanelProps) {
   const { campaign } = useCampaignContext()
   const campaignId = campaign?.id ?? null
-  const goalState = campaign?.campaign_states?.goal_data as { selectedGoal?: string } | undefined
-  const goal = deriveGoalLabel(goalState?.selectedGoal ?? null)
-  const currencyCode = campaign?.campaign_states?.budget_data && typeof campaign.campaign_states.budget_data === "object"
-    ? (campaign.campaign_states.budget_data as { currencyCode?: string }).currencyCode ?? "USD"
-    : "USD"
+  // Goal now stored in campaign.initial_goal (campaign_states table removed)
+  const goal = deriveGoalLabel(campaign?.initial_goal ?? null)
+  const currencyCode = campaign?.currency_code ?? "USD"
 
   const [range, setRange] = useState<MetricsRangeKey>("7d")
   const [metrics, setMetrics] = useState<CampaignMetricsSnapshot | null>(null)

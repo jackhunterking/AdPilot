@@ -41,7 +41,7 @@ interface BudgetContextType {
 const BudgetContext = createContext<BudgetContextType | undefined>(undefined)
 
 export function BudgetProvider({ children }: { children: ReactNode }) {
-  const { campaign, saveCampaignState } = useCampaignContext()
+  const { campaign } = useCampaignContext()
   const [budgetState, setBudgetState] = useState<BudgetState>({
     dailyBudget: 20,
     selectedAdAccount: null,
@@ -60,21 +60,25 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!campaign?.id || isInitialized) return
     
-    // campaign_states is 1-to-1 object, not array
-    const savedData = campaign.campaign_states?.budget_data as unknown as Partial<BudgetState> | null
-    if (savedData) {
-      logger.debug('BudgetContext', '✅ Restoring budget state', savedData)
+    // Load budget from campaign.campaign_budget_cents and metadata
+    const metadata = campaign.metadata as {
+      budget?: Partial<BudgetState>
+    } | null
+    
+    const budgetCents = campaign.campaign_budget_cents
+    const savedData = metadata?.budget
+    
+    if (budgetCents || savedData) {
+      logger.debug('BudgetContext', '✅ Restoring budget state from campaign')
       setBudgetState(prev => ({
         ...prev,
-        dailyBudget: typeof savedData.dailyBudget === "number" ? savedData.dailyBudget : prev.dailyBudget,
-        selectedAdAccount: typeof savedData.selectedAdAccount === "string" ? savedData.selectedAdAccount : prev.selectedAdAccount,
-        isConnected: typeof savedData.isConnected === "boolean" ? savedData.isConnected : prev.isConnected,
-        currency: typeof savedData.currency === "string" && savedData.currency.trim().length === 3
-          ? savedData.currency.trim().toUpperCase()
-          : prev.currency,
-        startTime: savedData.startTime === undefined ? prev.startTime : savedData.startTime,
-        endTime: savedData.endTime === undefined ? prev.endTime : savedData.endTime,
-        timezone: savedData.timezone === undefined ? prev.timezone : savedData.timezone,
+        dailyBudget: typeof budgetCents === 'number' ? budgetCents / 100 : prev.dailyBudget,
+        selectedAdAccount: typeof savedData?.selectedAdAccount === "string" ? savedData.selectedAdAccount : prev.selectedAdAccount,
+        isConnected: typeof savedData?.isConnected === "boolean" ? savedData.isConnected : prev.isConnected,
+        currency: campaign.currency_code || prev.currency,
+        startTime: savedData?.startTime === undefined ? prev.startTime : savedData.startTime,
+        endTime: savedData?.endTime === undefined ? prev.endTime : savedData.endTime,
+        timezone: savedData?.timezone === undefined ? prev.timezone : savedData.timezone,
       }))
     }
     
@@ -134,11 +138,14 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     }
   }, [campaign?.id, isInitialized])
 
-  // Save function
+  // Save function (save to campaign.metadata for state, campaign.campaign_budget_cents for budget)
   const saveFn = useCallback(async (state: BudgetState) => {
     if (!campaign?.id || !isInitialized) return
-    await saveCampaignState('budget_data', state as unknown as Record<string, unknown>)
-  }, [campaign?.id, saveCampaignState, isInitialized])
+    
+    // Budget auto-save now happens through the budget API endpoint
+    logger.debug('BudgetContext', 'Budget save triggered', { dailyBudget: state.dailyBudget })
+    // Actual save happens through specific API calls, not auto-save
+  }, [campaign?.id, isInitialized])
 
   // Auto-save with NORMAL config (300ms debounce)
   useAutoSave(memoizedBudgetState, saveFn, AUTO_SAVE_CONFIGS.NORMAL)

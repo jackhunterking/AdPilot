@@ -112,19 +112,19 @@ function pickResultValue(actions: GraphInsightRow['actions'], goal: string | nul
 }
 
 async function loadGoalType(campaignId: string): Promise<string | null> {
+  // Load from campaigns.initial_goal (campaign_states table removed)
   const { data, error } = await supabaseServer
-    .from('campaign_states')
-    .select('goal_data')
-    .eq('campaign_id', campaignId)
+    .from('campaigns')
+    .select('initial_goal')
+    .eq('id', campaignId)
     .maybeSingle()
 
   if (error) {
-    console.error('[MetaInsights] Failed to load goal data:', error)
+    console.error('[MetaInsights] Failed to load goal:', error)
     return null
   }
 
-  const goalData = (data?.goal_data ?? null) as GoalData | null
-  return goalData?.selectedGoal ?? null
+  return data?.initial_goal ?? null
 }
 
 function resolveDatePreset(range: MetricsRangeKey): string {

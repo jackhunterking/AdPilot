@@ -56,9 +56,8 @@ export function SettingsModal({
   const metaActions = useMetaActions()
   const [isConnecting, setIsConnecting] = useState(false)
 
-  // Get campaign goal
-  const campaignGoal = campaign?.initial_goal || 
-    (campaign?.campaign_states as { goal_data?: { selectedGoal?: string } } | null | undefined)?.goal_data?.selectedGoal
+  // Get campaign goal (campaign_states table removed)
+  const campaignGoal = campaign?.initial_goal
 
   const goalLabels: Record<string, string> = {
     'leads': 'Leads',

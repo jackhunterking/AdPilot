@@ -41,7 +41,7 @@ interface AdCopyContextType {
 const AdCopyContext = createContext<AdCopyContextType | undefined>(undefined)
 
 export function AdCopyProvider({ children }: { children: ReactNode }) {
-  const { campaign, saveCampaignState } = useCampaignContext()
+  const { campaign } = useCampaignContext()
   const { currentAd, updateAdSnapshot } = useCurrentAd()
   const [adCopyState, setAdCopyState] = useState<AdCopyState>({
     selectedCopyIndex: null,
@@ -101,35 +101,8 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
         customCopyVariations: variations,
         isGeneratingCopy: false,
       })
-    } else if (campaign?.campaign_states) {
-      // Fallback to campaign_states for backward compatibility
-      logger.debug('AdCopyContext', '⚠️ Falling back to campaign_states (legacy)')
-      
-      const savedData = campaign.campaign_states?.ad_copy_data as unknown as AdCopyState | null
-      if (savedData) {
-        // Ensure variations have IDs
-        const limitedVariations = savedData.customCopyVariations 
-          ? savedData.customCopyVariations.slice(0, 3).map((v, index) => ({
-              id: v.id || `variation-${index}`,
-              primaryText: v.primaryText || '',
-              description: v.description || '',
-              headline: v.headline || '',
-              overlay: v.overlay
-            }))
-          : null
-        
-        const validSelectedIndex = savedData.selectedCopyIndex != null && savedData.selectedCopyIndex < 3
-          ? savedData.selectedCopyIndex
-          : null
-        
-        setAdCopyState({
-          selectedCopyIndex: validSelectedIndex,
-          status: savedData.status || "idle",
-          customCopyVariations: limitedVariations,
-          isGeneratingCopy: false,
-        })
-      }
     }
+    // Note: campaign_states fallback removed - table no longer exists
     
     setIsInitialized(true)
   }, [currentAd?.id, campaign?.id])
@@ -168,12 +141,9 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
         logger.error('AdCopyContext', 'Failed to save to ad snapshot', error)
         throw error
       }
-    } else if (campaign?.id) {
-      // Fallback to campaign_states for backward compatibility
-      logger.debug('AdCopyContext', '⚠️ Saving to campaign_states (legacy fallback)')
-      await saveCampaignState('ad_copy_data', state as unknown as Record<string, unknown>)
     }
-  }, [currentAd, campaign?.id, updateAdSnapshot, saveCampaignState, isInitialized])
+    // Note: campaign_states fallback removed - table no longer exists
+  }, [currentAd, campaign?.id, updateAdSnapshot, isInitialized])
 
   // Auto-save with NORMAL config (300ms debounce)
   useAutoSave(memoizedAdCopyState, saveFn, AUTO_SAVE_CONFIGS.NORMAL)

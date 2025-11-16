@@ -333,34 +333,60 @@ export class PublishOrchestrator {
       throw new Error('Meta connection not found. Please connect your Facebook account.');
     }
 
-    // Load publish_data
-    const { data: stateRow } = await supabaseServer
-      .from('campaign_states')
-      .select('publish_data, goal_data, ad_copy_data, ad_preview_data')
-      .eq('campaign_id', campaignId)
+    // Load publish_data from campaigns.metadata (campaign_states table removed)
+    const { data: campaignData } = await supabaseServer
+      .from('campaigns')
+      .select('metadata, initial_goal')
+      .eq('id', campaignId)
       .single();
 
-    if (!stateRow?.publish_data) {
+    const metadata = (campaignData?.metadata as Record<string, unknown>) || {};
+    const publishDataRaw = metadata.publish_data;
+    
+    if (!publishDataRaw) {
       throw new Error('Campaign not prepared for publishing. Please run prepare-publish first.');
     }
 
     // Extract data with proper type checking
-    const publishDataRaw = stateRow.publish_data;
-    if (!publishDataRaw || typeof publishDataRaw !== 'object') {
+    if (typeof publishDataRaw !== 'object') {
       throw new Error('Invalid publish_data format');
     }
 
     const publishData = publishDataRaw as unknown as PublishData;
-    const goalData = (stateRow.goal_data || {}) as { 
-      selectedGoal?: GoalType; 
-      formData?: {
+    const goalData = { 
+      selectedGoal: campaignData?.initial_goal as GoalType | undefined,
+      formData: (metadata.formData as {
         id?: string;
         websiteUrl?: string;
         phoneNumber?: string;
-      };
+      } | undefined)
     };
-    const adCopyData = (stateRow.ad_copy_data || {}) as { customCopyVariations?: Array<{ primaryText: string; headline: string; description?: string }> };
-    const adPreviewData = (stateRow.ad_preview_data || {}) as { adContent?: { imageVariations?: string[] } };
+    // Note: Copy and preview data now in normalized tables (ad_copy_variations, ad_creatives)
+    // Load ads to get copy variations and images
+    const { data: ads } = await supabaseServer
+      .from('ads')
+      .select('ad_copy_variations(*), ad_creatives(*)')
+      .eq('campaign_id', campaignId);
+    
+    const allCopyVariations = (ads || []).flatMap(ad => 
+      (ad.ad_copy_variations as Array<{primary_text?: string; headline?: string; description?: string}> || [])
+    );
+    const allCreatives = (ads || []).flatMap(ad =>
+      (ad.ad_creatives as Array<{image_url?: string}> || [])
+    );
+    
+    const adCopyData = {
+      customCopyVariations: allCopyVariations.map(v => ({
+        primaryText: v.primary_text || '',
+        headline: v.headline || '',
+        description: v.description || ''
+      }))
+    };
+    const adPreviewData = {
+      adContent: {
+        imageVariations: allCreatives.map(c => c.image_url || '').filter(Boolean)
+      }
+    };
 
     if (!goalData.selectedGoal) {
       throw new Error('Goal not found in campaign data');

@@ -57,23 +57,13 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // Get connection using existing service
+    // Get connection using existing service (campaign_states table removed)
     const conn = await getConnectionPublic({ campaignId })
 
-    // Fallback to campaign_states for backward compatibility during migration
-    const { data: state } = await supabaseServer
-      .from('campaign_states')
-      .select('meta_connect_data')
-      .eq('campaign_id', campaignId)
-      .maybeSingle()
-
-    // Build unified status response
-    const stateStatus = (state as { meta_connect_data?: { status?: string } } | null)?.meta_connect_data?.status || null
+    // Determine connection status from conn data
     let connectionStatus = 'disconnected'
     if (conn) {
       connectionStatus = conn.ad_account_payment_connected ? 'payment_linked' : 'connected'
-    } else if (stateStatus) {
-      connectionStatus = stateStatus
     }
 
     const statusResponse: MetaConnectionStatus = conn ? {

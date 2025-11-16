@@ -68,12 +68,13 @@ export const adDataService = {
       }
 
       // Type-safe extraction of related data
+      // Note: ad_destinations and ad_budgets are one-to-one, not arrays
       const adData = data as Ad & {
         ad_creatives: AdCreative[]
         ad_copy_variations: AdCopyVariation[]
         ad_target_locations: AdTargetLocation[]
-        ad_destinations: AdDestination[]
-        ad_budgets: AdBudget[]
+        ad_destinations: AdDestination | null
+        ad_budgets: AdBudget | null
       }
 
       return {
@@ -81,8 +82,8 @@ export const adDataService = {
         creatives: adData.ad_creatives || [],
         copyVariations: adData.ad_copy_variations || [],
         locations: adData.ad_target_locations || [],
-        destination: adData.ad_destinations?.[0] || null,
-        budget: adData.ad_budgets?.[0] || null,
+        destination: adData.ad_destinations || null,
+        budget: adData.ad_budgets || null,
       }
     } catch (error) {
       console.error('[AdDataService] Get complete ad data exception:', error)
@@ -484,8 +485,8 @@ export const adDataService = {
           ad_creatives: AdCreative[]
           ad_copy_variations: AdCopyVariation[]
           ad_target_locations: AdTargetLocation[]
-          ad_destinations: AdDestination[]
-          ad_budgets: AdBudget[]
+          ad_destinations: AdDestination | null
+          ad_budgets: AdBudget | null
         }
 
         return {
@@ -493,8 +494,8 @@ export const adDataService = {
           creatives: adData.ad_creatives || [],
           copyVariations: adData.ad_copy_variations || [],
           locations: adData.ad_target_locations || [],
-          destination: adData.ad_destinations?.[0] || null,
-          budget: adData.ad_budgets?.[0] || null,
+          destination: adData.ad_destinations || null,
+          budget: adData.ad_budgets || null,
         }
       })
     } catch (error) {

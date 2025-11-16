@@ -46,7 +46,7 @@ interface AdPreviewContextType {
 const AdPreviewContext = createContext<AdPreviewContextType | undefined>(undefined)
 
 export function AdPreviewProvider({ children }: { children: ReactNode }) {
-  const { campaign, saveCampaignState } = useCampaignContext()
+  const { campaign } = useCampaignContext()
   const { currentAd, updateAdSnapshot } = useCurrentAd()
   const [adContent, setAdContent] = useState<AdContent | null>(null)
   const [isPublished, setIsPublished] = useState(false)
@@ -157,12 +157,9 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
         logger.error('AdPreviewContext', 'Failed to save to ad snapshot', error)
         throw error
       }
-    } else if (campaign?.id) {
-      // Fallback to campaign_states for backward compatibility
-      logger.debug('AdPreviewContext', '⚠️ Saving to campaign_states (legacy fallback)')
-      await saveCampaignState('ad_preview_data', state)
     }
-  }, [currentAd, campaign?.id, updateAdSnapshot, saveCampaignState, isInitialized])
+    // Note: campaign_states fallback removed - table no longer exists
+  }, [currentAd, campaign?.id, updateAdSnapshot, isInitialized])
 
   // Memoize save config to force CRITICAL mode when images present
   // This ensures images save immediately (0ms) instead of 300ms debounce

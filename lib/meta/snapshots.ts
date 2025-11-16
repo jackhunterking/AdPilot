@@ -14,13 +14,10 @@ export async function saveAssetSnapshotForUser(params: {
   pagesJson: Json | null
   adAccountsJson: Json | null
 }): Promise<void> {
-  const { userId, businessJson, pagesJson, adAccountsJson } = params
-  await supabaseServer.from('meta_asset_snapshots').insert({
-    user_id: userId,
-    business_json: businessJson,
-    pages_json: pagesJson,
-    ad_accounts_json: adAccountsJson,
-  })
+  // DEPRECATED: meta_asset_snapshots table was removed in backend refactoring
+  // This function is now a no-op for backward compatibility
+  console.log('[saveAssetSnapshotForUser] DEPRECATED - meta_asset_snapshots table removed')
+  return Promise.resolve()
 }
 
 

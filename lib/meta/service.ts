@@ -195,19 +195,27 @@ export async function getConnection(args: { campaignId: string }): Promise<{
 }
 
 export async function updateCampaignState(args: { campaignId: string; status: string; extra?: Record<string, unknown> }): Promise<void> {
+  // Store meta_connect_data in campaigns.metadata (campaign_states table removed)
+  const { data: campaign } = await supabaseServer
+    .from('campaigns')
+    .select('metadata')
+    .eq('id', args.campaignId)
+    .single()
+  
+  const currentMetadata = (campaign?.metadata as Record<string, unknown>) || {}
   const meta_connect_data = { status: args.status, ...(args.extra ?? {}) }
-  const { data: updatedRows, error } = await supabaseServer
-    .from('campaign_states')
-    .update({ meta_connect_data })
-    .eq('campaign_id', args.campaignId)
-    .select('campaign_id')
+  
+  const { error } = await supabaseServer
+    .from('campaigns')
+    .update({ 
+      metadata: {
+        ...currentMetadata,
+        meta_connect_data
+      }
+    })
+    .eq('id', args.campaignId)
 
-  if (error || !updatedRows || updatedRows.length === 0) {
-    const { error: insertError } = await supabaseServer
-      .from('campaign_states')
-      .insert({ campaign_id: args.campaignId, meta_connect_data })
-    if (insertError) throw insertError
-  }
+  if (error) throw error
 }
 
 export async function validateAdAccount(args: { token: string; actId: string }): Promise<{
@@ -294,10 +302,28 @@ export async function deleteConnection(args: { campaignId: string }): Promise<vo
 }
 
 export async function setDisconnected(args: { campaignId: string }): Promise<void> {
+  // Update campaigns.metadata instead of campaign_states (table removed)
+  const { data: campaign } = await supabaseServer
+    .from('campaigns')
+    .select('metadata')
+    .eq('id', args.campaignId)
+    .single()
+    
+  const currentMetadata = (campaign?.metadata as Record<string, unknown>) || {}
+  
   const { error } = await supabaseServer
-    .from('campaign_states')
-    .update({ meta_connect_data: { status: 'disconnected', disconnectedAt: new Date().toISOString() } })
-    .eq('campaign_id', args.campaignId)
+    .from('campaigns')
+    .update({ 
+      metadata: {
+        ...currentMetadata,
+        meta_connect_data: { 
+          status: 'disconnected', 
+          disconnectedAt: new Date().toISOString() 
+        }
+      }
+    })
+    .eq('id', args.campaignId)
+    
   if (error) {
     // non-fatal
     console.error('[MetaService] setDisconnected error:', error)

@@ -53,9 +53,10 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
         campaign_id,
         name,
         status,
-        setup_snapshot,
-        copy_data,
-        creative_data
+        ad_copy_variations(*),
+        ad_creatives(*),
+        ad_destinations(*),
+        ad_target_locations(*)
       `)
       .eq('id', params.adId)
       .single()
@@ -73,9 +74,10 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
       id: ad.id,
       name: ad.name,
       status: ad.status,
-      hasSetupSnapshot: !!ad.setup_snapshot,
-      hasCopyData: !!ad.copy_data,
-      hasCreativeData: !!ad.creative_data
+      hasCopyVariations: !!(ad.ad_copy_variations as Array<unknown>)?.length,
+      hasCreatives: !!(ad.ad_creatives as Array<unknown>)?.length,
+      hasDestination: !!(ad.ad_destinations as Record<string, unknown> | null),
+      hasTargetLocations: !!(ad.ad_target_locations as Array<unknown>)?.length
     })
 
     // ====================================================================
@@ -84,7 +86,7 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
     console.log('[PublishSingleAd] 📦 STEP 2: Loading campaign data...')
     const { data: campaign, error: campaignError } = await supabaseServer
       .from('campaigns')
-      .select('*, campaign_states(*)')
+      .select('*')
       .eq('id', params.campaignId)
       .single()
 
@@ -100,7 +102,7 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
     console.log('[PublishSingleAd] ✅ Campaign loaded:', {
       id: campaign.id,
       name: campaign.name,
-      hasCampaignStates: !!campaign.campaign_states
+      initialGoal: campaign.initial_goal
     })
 
     // ====================================================================
@@ -155,29 +157,30 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
     })
 
     // ====================================================================
-    // STEP 4: EXTRACT AD DATA
+    // STEP 4: EXTRACT AD DATA FROM NORMALIZED TABLES
     // ====================================================================
-    const setupSnapshot = (ad.setup_snapshot || {}) as Record<string, unknown>
-    const copyData = (ad.copy_data || {}) as Record<string, unknown>
-    const creativeData = (ad.creative_data || {}) as Record<string, unknown>
-    
-    // Get copy from setup_snapshot or copy_data
-    const copy = (setupSnapshot.copy || copyData) as {
+    // Data now comes from normalized tables instead of JSON columns
+    const copyVariations = ad.ad_copy_variations as Array<{
       headline?: string
-      primaryText?: string
+      primary_text?: string
       description?: string
-      cta?: string
-    }
+      cta_text?: string
+      is_selected?: boolean
+    }> | undefined
     
-    // Get creative from setup_snapshot or creative_data
-    const creative = (setupSnapshot.creative || creativeData) as {
-      imageUrl?: string
-      imageVariations?: string[]
-      selectedImageIndex?: number
-    }
-
-    const selectedImageIndex = creative.selectedImageIndex ?? 0
-    const imageUrl = creative.imageVariations?.[selectedImageIndex] || creative.imageUrl
+    const creatives = ad.ad_creatives as Array<{
+      image_url?: string
+      format?: string
+      is_selected?: boolean
+    }> | undefined
+    
+    // Get selected copy variation (or first one)
+    const copy = copyVariations?.find(c => c.is_selected) || copyVariations?.[0] || {}
+    
+    // Get selected creative (or first one)  
+    const creative = creatives?.find(c => c.is_selected) || creatives?.[0] || {}
+    
+    const imageUrl = creative.image_url
 
     if (!imageUrl) {
       return {
@@ -194,57 +197,41 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
     }
 
     // ====================================================================
-    // STEP 5: GET CAMPAIGN CONFIG
+    // STEP 5: GET CAMPAIGN CONFIG FROM NORMALIZED SCHEMA
     // ====================================================================
-    const stateRow = campaign.campaign_states as {
-      goal_data?: {
-        selectedGoal?: GoalType
-        formData?: {
-          id?: string
-          websiteUrl?: string
-          phoneNumber?: string
-        }
-      }
-      budget_data?: {
-        dailyBudget?: number
-        selectedAdAccount?: string
-      }
-      location_data?: {
-        locations?: Array<{
-          key: string
-          name: string
-          type: string
-        }>
+    // Campaign config now comes from campaigns table and metadata (campaign_states removed)
+    const metadata = campaign.metadata as {
+      formData?: {
+        id?: string
+        websiteUrl?: string
+        phoneNumber?: string
       }
     } | null
 
-    const goalData = stateRow?.goal_data || {}
-    const budgetData = stateRow?.budget_data || {}
+    const goalData = {
+      selectedGoal: campaign.initial_goal as GoalType | undefined,
+      formData: metadata?.formData
+    }
     
-    // Load location data from ad's setup_snapshot (ad-specific targeting)
-    // Fallback to campaign_states for backward compatibility during transition
-    const setupSnapshotTyped = ad.setup_snapshot as { location?: {
-      locations?: Array<{
-        id?: string
-        name: string
-        coordinates?: [number, number]
-        radius?: number
-        type: string
-        mode: string
-        key?: string
-      }>
-      status?: string
-    } } | null | undefined
+    const budgetData = {
+      dailyBudget: campaign.campaign_budget_cents ? campaign.campaign_budget_cents / 100 : undefined,
+      selectedAdAccount: undefined // Not stored in campaign
+    }
     
-    const locationSnapshot = setupSnapshotTyped?.location
-    const locationData = (locationSnapshot || (stateRow as { location_data?: unknown } | null)?.location_data || {}) as {
-      locations?: Array<{
-        id?: string
-        name: string
-        type: string
-        mode: string
-        key?: string
-      }>
+    // Load location data from ad_target_locations table  
+    const adTargetLocations = ad.ad_target_locations as Array<{
+      location_key?: string
+      location_name: string
+      location_type: string
+    }> | undefined
+    
+    const locationData = {
+      locations: adTargetLocations?.map(loc => ({
+        key: loc.location_key || loc.location_name,
+        name: loc.location_name,
+        type: loc.location_type,
+        mode: 'include'
+      })) || []
     }
 
     const goal = goalData.selectedGoal
@@ -348,9 +335,9 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
       destinationUrl,
       leadFormId,
       phoneNumber,
-      primaryText: copy.primaryText || '',
+      primaryText: copy.primary_text || '',
       headline: copy.headline || '',
-      description: copy.description,
+      description: copy.description || '',
       imageHash,
       variationIndex: 0
     })

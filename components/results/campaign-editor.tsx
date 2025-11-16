@@ -34,13 +34,14 @@ export function CampaignEditor() {
   const { campaign } = useCampaignContext()
   const campaignId = campaign?.id ?? null
   const initialBudget = useMemo(() => {
-    const raw = (campaign?.campaign_states?.budget_data ?? null) as Partial<BudgetState> | null
+    // Budget now stored in campaigns.campaign_budget_cents (campaign_states table removed)
+    const budgetCents = campaign?.campaign_budget_cents ?? null
     return {
-      dailyBudget: typeof raw?.dailyBudget === 'number' ? raw.dailyBudget : 20,
-      startTime: raw?.startTime ?? null,
-      endTime: raw?.endTime ?? null,
+      dailyBudget: typeof budgetCents === 'number' ? budgetCents / 100 : 20,
+      startTime: null, // Schedule data not yet migrated
+      endTime: null, // Schedule data not yet migrated
     }
-  }, [campaign?.campaign_states?.budget_data])
+  }, [campaign?.campaign_budget_cents])
 
   const [budget, setBudget] = useState<BudgetState>(initialBudget)
   const [savingBudget, setSavingBudget] = useState(false)

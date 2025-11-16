@@ -74,10 +74,7 @@ export function PreviewPanel() {
 
   // Memoized Meta connection completion check - reacts to campaign state and budget state changes
   const isMetaConnectionComplete = useMemo(() => {
-    // Check database state first
-    const states = campaign?.campaign_states as Database['public']['Tables']['campaign_states']['Row'] | null | undefined
-    const metaConnectData = (states as unknown as { meta_connect_data?: { status?: string } } | null | undefined)?.meta_connect_data
-    const serverConnected = Boolean(metaConnectData?.status === 'connected' || metaConnectData?.status === 'selected_assets')
+    // Note: campaign_states table removed - check budget state and localStorage
     
     // Check budget state
     const budgetConnected = budgetState.isConnected === true
@@ -100,8 +97,8 @@ export function PreviewPanel() {
       }
     }
     
-    return serverConnected || budgetConnected || localStorageConnected
-  }, [campaign?.campaign_states, campaign?.id, budgetState.isConnected])
+    return budgetConnected || localStorageConnected
+  }, [campaign?.id, budgetState.isConnected])
 
   // Listen for step changes
   useEffect(() => {

@@ -65,19 +65,20 @@ function mapFieldDataToRecord(data: MetaLeadField[] | undefined): Record<string,
 }
 
 async function getLeadFormId(campaignId: string): Promise<string | null> {
+  // Load from campaigns.metadata (campaign_states table removed)
   const { data, error } = await supabaseServer
-    .from('campaign_states')
-    .select('goal_data')
-    .eq('campaign_id', campaignId)
+    .from('campaigns')
+    .select('metadata')
+    .eq('id', campaignId)
     .maybeSingle()
 
   if (error) {
-    console.error('[LeadService] Failed to load goal data:', error)
+    console.error('[LeadService] Failed to load campaign metadata:', error)
     return null
   }
 
-  const goalData = (data?.goal_data ?? null) as { formData?: { id?: string } } | null
-  const formId = goalData?.formData?.id
+  const metadata = (data?.metadata ?? null) as { formData?: { id?: string } } | null
+  const formId = metadata?.formData?.id
   return typeof formId === 'string' && formId.length > 0 ? formId : null
 }
 
