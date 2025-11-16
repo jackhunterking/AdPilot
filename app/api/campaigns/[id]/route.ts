@@ -24,7 +24,8 @@ export async function GET(
       )
     }
 
-    const { data: campaign, error } = await supabaseServer
+    // Use authenticated client for RLS to work correctly
+    const { data: campaign, error } = await supabase
       .from('campaigns')
       .select(`
         *,
@@ -88,8 +89,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify ownership
-    const { data: campaign, error: fetchErr } = await supabaseServer
+    // Verify ownership using authenticated client
+    const { data: campaign, error: fetchErr } = await supabase
       .from('campaigns')
       .select('id,user_id,name,metadata')
       .eq('id', campaignId)
@@ -109,7 +110,7 @@ export async function PATCH(
 
     // Attempt update, on conflict generate alternative using existing metadata.initialPrompt if available
     const attemptUpdate = async (proposed: string) => {
-      return await supabaseServer
+      return await supabase
         .from('campaigns')
         .update({ name: proposed, updated_at: new Date().toISOString() })
         .eq('id', campaignId)
@@ -123,7 +124,7 @@ export async function PATCH(
       const prompt = (campaign.metadata as { initialPrompt?: string } | null)?.initialPrompt || ''
       const candidates = generateNameCandidates(prompt)
       // Build existing set including the colliding desiredName
-      const { data: rows } = await supabaseServer
+      const { data: rows } = await supabase
         .from('campaigns')
         .select('name')
         .eq('user_id', user.id)
@@ -178,8 +179,8 @@ export async function DELETE(
 
     console.log('[DELETE Campaign] User authenticated:', user.id)
 
-    // Verify ownership
-    const { data: campaign, error: fetchErr } = await supabaseServer
+    // Verify ownership using authenticated client
+    const { data: campaign, error: fetchErr } = await supabase
       .from('campaigns')
       .select('id,user_id')
       .eq('id', campaignId)
@@ -208,7 +209,7 @@ export async function DELETE(
     console.log('[DELETE Campaign] Ownership verified, proceeding with deletion')
 
     // Delete ads associated with this campaign (cascade will handle ad_creatives, ad_copy_variations, etc.)
-    const { error: adsError } = await supabaseServer
+    const { error: adsError } = await supabase
       .from('ads')
       .delete()
       .eq('campaign_id', campaignId)
@@ -220,7 +221,7 @@ export async function DELETE(
     }
 
     // Delete conversations (if conversation table has campaign_id)
-    const { error: convError } = await supabaseServer
+    const { error: convError } = await supabase
       .from('conversations')
       .delete()
       .eq('campaign_id', campaignId)
@@ -232,7 +233,7 @@ export async function DELETE(
     }
 
     // Finally, delete the campaign itself
-    const { error: deleteError } = await supabaseServer
+    const { error: deleteError } = await supabase
       .from('campaigns')
       .delete()
       .eq('id', campaignId)

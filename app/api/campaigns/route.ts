@@ -33,10 +33,8 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get('limit')
     const limit = limitParam ? parseInt(limitParam, 10) : undefined
 
-    // Fetch campaigns with their ads (simplified query - no nested creatives for now)
-    // Note: Foreign keys for selected_creative_id don't exist yet, so we can't use FK hints
-    // TODO: After running SUPABASE_FK_MIGRATION.sql, we can add back nested ad_creatives query
-    let query = supabaseServer
+    // Fetch campaigns with their ads using authenticated client for RLS
+    let query = supabase
       .from('campaigns')
       .select(`
         id,
