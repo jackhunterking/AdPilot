@@ -1,5 +1,20 @@
 "use client"
 
+/**
+ * Feature: Sign In Form
+ * Purpose: Authenticate users via email/password or Google OAuth
+ * Journey Context:
+ *   - Journey 1: User has temp_prompt → After sign in → Redirects to /auth/post-login for campaign creation
+ *   - Journey 3: User has NO temp_prompt → After sign in → Stays on homepage (no automation)
+ * Key Behavior:
+ *   - Checks localStorage for temp_prompt_id after successful authentication
+ *   - Smart routing: redirects ONLY if temp_prompt exists
+ *   - OAuth uses smart redirect (via auth-provider)
+ * References:
+ *   - AUTH_JOURNEY_MASTER_PLAN.md - Journey 1, Journey 3
+ *   - Supabase Auth: https://supabase.com/docs/guides/auth
+ */
+
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,10 +57,11 @@ export function SignInForm({ onSuccess }: SignInFormProps) {
         : null
       
       if (tempPromptId) {
-        console.log('[SIGN-IN] Temp prompt found, redirecting to post-login handler')
+        console.log('[JOURNEY-1] Temp prompt found after sign in, redirecting to post-login for campaign creation')
         // Redirect to post-login handler to process temp prompt
         window.location.href = '/auth/post-login'
       } else {
+        console.log('[JOURNEY-3] Sign in successful, no temp prompt - staying on homepage (no automation)')
         // No temp prompt, just close modal
         onSuccess?.()
       }
@@ -59,7 +75,7 @@ export function SignInForm({ onSuccess }: SignInFormProps) {
           type="button"
           variant="outline"
           className="w-full h-11 text-base font-medium"
-          onClick={() => { void signInWithGoogle('/auth/post-login') }}
+          onClick={() => { void signInWithGoogle() }}
         >
           <span className="flex items-center justify-center gap-2">
             Continue with Google

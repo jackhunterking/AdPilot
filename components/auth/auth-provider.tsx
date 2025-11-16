@@ -1,5 +1,22 @@
 "use client"
 
+/**
+ * Feature: Auth Provider (Global Authentication Context)
+ * Purpose: Manage authentication state, provide auth methods to entire app
+ * Journey Context:
+ *   - Journey 1: Handles OAuth with temp_prompt metadata, redirects to /auth/post-login
+ *   - Journey 2: Handles direct sign up, OAuth redirects to homepage (no automation)
+ *   - Journey 3: Handles direct sign in, OAuth redirects to homepage (no automation)
+ *   - Journey 4: Provides user state for authenticated prompt submission
+ * Key Behavior:
+ *   - Smart OAuth redirect: checks temp_prompt_id to decide destination
+ *   - Manages session state across all components
+ *   - Fetches user profile after authentication
+ * References:
+ *   - AUTH_JOURNEY_MASTER_PLAN.md - All Journeys
+ *   - Supabase Auth: https://supabase.com/docs/guides/auth/server-side
+ */
+
 import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
@@ -16,7 +33,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, redirectUrl?: string, tempPromptId?: string) => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
-  signInWithGoogle: (nextPath?: string) => Promise<void>
+  signInWithGoogle: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -202,21 +219,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null)
   }
 
-  const signInWithGoogle = async (nextPath: string = '/auth/post-login') => {
+  const signInWithGoogle = async () => {
     // Read temp_prompt_id from localStorage before OAuth redirect
     const tempPromptId = typeof window !== 'undefined' 
       ? localStorage.getItem('temp_prompt_id')
       : null
 
+    // Smart redirect: only go to post-login if temp prompt exists
+    // Journey 1 (has temp_prompt) → /auth/post-login (creates campaign)
+    // Journey 2/3 (no temp_prompt) → / homepage (no automation)
+    const nextPath = tempPromptId ? '/auth/post-login' : '/'
+
     console.log('[AUTH-PROVIDER] Starting Google OAuth', { 
       nextPath, 
       hasTempPrompt: !!tempPromptId,
-      tempPromptId 
+      journey: tempPromptId ? 'Journey 1 (automation)' : 'Journey 2/3 (no automation)'
     })
 
     const origin = typeof window !== 'undefined' ? window.location.origin : undefined
     const redirectTo = origin
-      ? `${origin}/auth/callback?next=${encodeURIComponent(nextPath ?? '/')}`
+      ? `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
       : undefined
 
     // Build OAuth options with temp_prompt_id in user metadata if available
@@ -231,7 +253,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     if (tempPromptId) {
       oauthOptions.data = { temp_prompt_id: tempPromptId }
-      console.log('[AUTH-PROVIDER] Attaching temp_prompt_id to OAuth metadata')
+      console.log('[AUTH-PROVIDER] Attaching temp_prompt_id to OAuth metadata for Journey 1')
     }
 
     await supabase.auth.signInWithOAuth({

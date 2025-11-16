@@ -1,5 +1,20 @@
 "use client"
 
+/**
+ * Feature: Hero Section with Prompt Input
+ * Purpose: Main landing section allowing users to create campaigns via natural language prompts
+ * Journey Context:
+ *   - Journey 1: Unauthenticated user enters prompt → Stores temp_prompt → Opens auth modal → Campaign created
+ *   - Journey 4: Authenticated user enters prompt → Immediately creates campaign (no auth needed)
+ * Key Behavior:
+ *   - ONLY automation trigger in the app
+ *   - Users express desires naturally (e.g., "I want more customers for my gym")
+ *   - Sign Up/Sign In buttons do NOT trigger automation
+ * References:
+ *   - AUTH_JOURNEY_MASTER_PLAN.md - Journey 1, Journey 4
+ *   - AI Elements: https://ai-sdk.dev/elements/overview
+ */
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
@@ -24,17 +39,18 @@ interface HeroSectionProps {
 }
 
 // Move placeholders outside to avoid recreating on every render
+// Natural language desires - users express what they want, not business descriptions
 const PLACEHOLDERS = [
-  "I run a fitness coaching business...",
-  "I have a B2B SaaS platform...",
-  "I run an immigration law firm...",
-  "I have an e-commerce kitchen store...",
-  "I own a real estate agency...",
-  "I run a digital marketing agency...",
-  "I own a yoga studio...",
-  "I have a tech startup...",
-  "I run a plumbing service and need local calls...",
-  "I have a restaurant and want more reservations...",
+  "I want more customers for my fitness studio",
+  "Need leads for my B2B software platform",
+  "Get more calls for my plumbing business",
+  "Want bookings for my restaurant",
+  "Drive traffic to my online store",
+  "Generate leads for my law practice",
+  "Get more students for my yoga classes",
+  "Need clients for my consulting services",
+  "Want appointments for my salon",
+  "Get more inquiries for my real estate agency",
 ]
 
 // Custom hook for typewriter effect
@@ -127,7 +143,8 @@ export function HeroSection({ onAuthRequired }: HeroSectionProps) {
 
     try {
       if (!user) {
-        // User is not logged in - store prompt temporarily with goal
+        // Journey 1: User is not logged in - store prompt temporarily with goal
+        console.log('[JOURNEY-1] Unauthenticated user entered prompt, storing temp_prompt and opening auth modal')
         const response = await fetch('/api/temp-prompt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -138,14 +155,16 @@ export function HeroSection({ onAuthRequired }: HeroSectionProps) {
           const { tempId } = await response.json()
           // Store in localStorage for retrieval after auth
           localStorage.setItem('temp_prompt_id', tempId)
+          console.log('[JOURNEY-1] Temp prompt stored, tempId:', tempId)
           // Open auth modal
           onAuthRequired()
         } else {
-          console.error('Failed to store prompt')
+          console.error('[JOURNEY-1] Failed to store temp prompt')
           setErrorMsg('We could not start your session. Please try again in a moment.')
         }
       } else {
-        // User is logged in - create campaign; let server auto-name from prompt
+        // Journey 4: User is logged in - create campaign immediately (no auth needed)
+        console.log('[JOURNEY-4] Authenticated user entered prompt, creating campaign directly')
         const campaign = await createCampaign(
           '',
           promptText,

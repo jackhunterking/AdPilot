@@ -1,12 +1,20 @@
 "use client"
 
 /**
- * Feature: Post-login prompt handoff
- * Purpose: After OAuth returns, consume the saved temp prompt and create a campaign, then redirect into the wizard
+ * Feature: Post-login Campaign Creation Handler
+ * Purpose: Process temp prompt after authentication and create campaign
+ * Journey Context:
+ *   - Journey 1: Temp prompt exists → Creates campaign → Redirects to builder
+ *   - Journey 2/3: No temp prompt → Quick redirect to homepage (no automation)
+ * Key Behavior:
+ *   - Checks both localStorage and user_metadata for temp_prompt_id
+ *   - Creates campaign via PostAuthHandler service
+ *   - Prevents duplicate processing with sessionStorage sentinels
+ *   - Smart state: 'creating' for Journey 1, 'redirecting' for Journey 2/3
  * References:
- *  - Supabase (Advanced SSR Auth): https://supabase.com/docs/guides/auth/server-side/advanced-guide
- *  - Supabase (Code exchange route pattern): https://supabase.com/docs/guides/auth/auth-helpers/nextjs#managing-sign-in-with-code-exchange
- *  - PostAuthHandler service for unified auth completion logic
+ *   - AUTH_JOURNEY_MASTER_PLAN.md - Journey 1, Journey 2, Journey 3
+ *   - Supabase Auth: https://supabase.com/docs/guides/auth/server-side/advanced-guide
+ *   - PostAuthHandler service for unified logic
  */
 import { Suspense, useEffect, useState, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -15,7 +23,7 @@ import { postAuthHandler } from "@/lib/services/post-auth-handler"
 import { Button } from "@/components/ui/button"
 import { AlertCircle, Loader2 } from "lucide-react"
 
-type PageState = 'creating' | 'error' | 'no-prompt'
+type PageState = 'creating' | 'error' | 'redirecting'
 
 function PostLoginContent() {
   const { user, loading } = useAuth()
@@ -130,19 +138,20 @@ function PostLoginContent() {
         }
 
         if (!result) {
-          // No temp prompt to process
-          console.log('[POST-LOGIN] No temp prompt found, redirecting to homepage')
-          setState('no-prompt')
+          // No temp prompt to process - Journey 2/3 (no automation)
+          console.log('[JOURNEY-2/3] No temp prompt found, redirecting to homepage (no automation)')
+          setState('redirecting')
           if (typeof window !== 'undefined') {
             sessionStorage.removeItem(processingKey)
             sessionStorage.setItem(sentinelKey, 'true')
           }
-          setTimeout(() => router.push('/'), 500)
+          setTimeout(() => router.push('/'), 100)  // Quick redirect
           return
         }
 
         const { campaign, draftAdId } = result
-        console.log('[POST-LOGIN] Campaign created successfully:', campaign.id, draftAdId ? `with draft ad: ${draftAdId}` : '')
+        console.log('[JOURNEY-1] Campaign created successfully:', campaign.id, draftAdId ? `with draft ad: ${draftAdId}` : '')
+        console.log('[JOURNEY-1] Navigating to campaign builder with firstVisit=true')
         
         // Save campaign ID for recovery and mark as processed
         if (typeof window !== 'undefined') {
@@ -156,7 +165,6 @@ function PostLoginContent() {
           ? `/${campaign.id}?view=build&adId=${draftAdId}&firstVisit=true`
           : `/${campaign.id}`
         
-        console.log('[POST-LOGIN] Navigating to:', targetUrl)
         router.push(targetUrl)
 
       } catch (err) {
@@ -195,13 +203,12 @@ function PostLoginContent() {
     )
   }
 
-  // No prompt state
-  if (state === 'no-prompt') {
+  // Redirecting state (Journey 2/3 - no automation)
+  if (state === 'redirecting') {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
-          <p className="text-sm text-muted-foreground">Let&apos;s get started…</p>
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
         </div>
       </div>
     )

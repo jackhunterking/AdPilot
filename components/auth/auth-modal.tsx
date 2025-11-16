@@ -1,5 +1,20 @@
 "use client"
 
+/**
+ * Feature: Authentication Modal
+ * Purpose: Modal dialog for sign in/sign up with tabbed interface
+ * Journey Context:
+ *   - Journey 1: Opened after user enters prompt (unauthenticated)
+ *   - Journey 2: Opened when user clicks "Sign Up" button
+ *   - Journey 3: Opened when user clicks "Sign In" button
+ * Key Behavior:
+ *   - Switches between SignInForm and SignUpForm
+ *   - Shows email confirmation dialog after successful signup
+ *   - Closes after successful authentication (unless redirecting to post-login)
+ * References:
+ *   - AUTH_JOURNEY_MASTER_PLAN.md - Journey 1, Journey 2, Journey 3
+ */
+
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'

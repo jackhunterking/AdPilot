@@ -1,5 +1,21 @@
 "use client"
 
+/**
+ * Feature: Sign Up Form
+ * Purpose: Create new user accounts via email/password or Google OAuth
+ * Journey Context:
+ *   - Journey 1: User has temp_prompt → After email verification + sign in → Campaign created
+ *   - Journey 2: User has NO temp_prompt → After email verification + sign in → Homepage (no automation)
+ * Key Behavior:
+ *   - Attaches temp_prompt_id to user_metadata for OAuth persistence
+ *   - Clears localStorage.temp_prompt_id immediately (relies on metadata)
+ *   - Shows email confirmation dialog after signup
+ *   - OAuth uses smart redirect (via auth-provider)
+ * References:
+ *   - AUTH_JOURNEY_MASTER_PLAN.md - Journey 1, Journey 2
+ *   - Supabase Auth: https://supabase.com/docs/guides/auth
+ */
+
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -85,7 +101,7 @@ export function SignUpForm({ onSuccess }: SignUpFormProps) {
           type="button"
           variant="outline"
           className="w-full h-11 text-base font-medium"
-          onClick={() => { void signInWithGoogle('/auth/post-login') }}
+          onClick={() => { void signInWithGoogle() }}
         >
           <span className="flex items-center justify-center gap-2">
             Continue with Google
