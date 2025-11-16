@@ -133,12 +133,12 @@ export function useDraftAutoSave(
       // Build payload for normalized save endpoint
       const savePayload = {
         copy: {
-          variations: contexts.adCopyState.variations?.map(v => ({
+          variations: contexts.adCopyState.customCopyVariations?.map((v) => ({
             headline: v.headline,
             primaryText: v.primaryText,
             description: v.description || ''
           })) || [],
-          selectedCopyIndex: contexts.adCopyState.selectedIndex ?? 0
+          selectedCopyIndex: contexts.adCopyState.selectedCopyIndex ?? 0
         },
         creative: {
           imageVariations: contexts.adContent?.imageVariations || [],
@@ -146,8 +146,8 @@ export function useDraftAutoSave(
           format: 'feed'
         },
         destination: {
-          type: contexts.destinationState.type || 'website',
-          url: contexts.destinationState.data?.websiteUrl || contexts.destinationState.data?.url || null,
+          type: contexts.destinationState.data?.type || 'website',
+          url: contexts.destinationState.data?.websiteUrl || null,
           phoneNumber: contexts.destinationState.data?.phoneNumber || null,
           normalizedPhone: contexts.destinationState.data?.phoneFormatted || null,
           cta: contexts.adContent?.cta || 'Learn More'
