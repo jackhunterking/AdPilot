@@ -84,23 +84,71 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
     // Fetch ad snapshot from normalized tables
     const loadSnapshot = async () => {
       try {
+        logger.debug('AdPreviewContext', `Fetching snapshot for ad ${currentAd.id}`)
+        
         const response = await fetch(`/api/campaigns/${campaign?.id}/ads/${currentAd.id}/snapshot`)
+        
         if (!response.ok) {
-          logger.warn('AdPreviewContext', 'Failed to load snapshot, using empty state')
+          logger.warn('AdPreviewContext', 'Failed to load snapshot, starting empty')
           setIsInitialized(true)
           return
         }
         
-        // Load from normalized ad_creatives table instead of setup_snapshot
-        // Note: setup_snapshot.creative column was removed - data is now in ad_creatives table
-        // For now, start with empty state - creatives will be loaded/generated via chat
-        // use-draft-auto-save hook handles saving to ad_creatives table
+        const json = await response.json()
+        const snapshot = json.setup_snapshot
         
-        logger.debug('AdPreviewContext', 'Starting with empty state (normalized schema)')
+        // CRITICAL: Hydrate from backend (single source of truth)
+        if (snapshot?.creative?.imageVariations?.length > 0) {
+          logger.info('AdPreviewContext', `✅ Loaded ${snapshot.creative.imageVariations.length} creatives from backend`)
+          
+          // Get copy data for initial display (headline, body, CTA)
+          const firstCopy = snapshot.copy?.variations?.[0]
+          
+          // Hydrate adContent with all 3 variations
+          setAdContent({
+            imageVariations: snapshot.creative.imageVariations, // ["url1", "url2", "url3"]
+            baseImageUrl: snapshot.creative.baseImageUrl,
+            imageUrl: snapshot.creative.imageUrl, // Legacy support
+            headline: firstCopy?.headline || '',
+            body: firstCopy?.primaryText || '',
+            cta: firstCopy?.cta || 'Learn More',
+          })
+          
+          // Hydrate selectedImageIndex (which variation user selected)
+          const selectedIdx = snapshot.creative.selectedImageIndex
+          if (typeof selectedIdx === 'number' && selectedIdx >= 0 && selectedIdx < 3) {
+            setSelectedImageIndex(selectedIdx)
+            
+            // Hydrate selectedCreativeVariation (for gradient display)
+            const variations = [
+              { gradient: "from-blue-600 via-blue-500 to-cyan-500", title: "Variation 1" },
+              { gradient: "from-purple-600 via-purple-500 to-pink-500", title: "Variation 2" },
+              { gradient: "from-green-600 via-green-500 to-emerald-500", title: "Variation 3" },
+            ]
+            const selectedVariation = variations[selectedIdx]
+            if (selectedVariation) {
+              setSelectedCreativeVariation(selectedVariation)
+              logger.debug('AdPreviewContext', `Selected variation ${selectedIdx}`)
+            }
+          } else {
+            // No selection yet - valid state
+            setSelectedImageIndex(null)
+            setSelectedCreativeVariation(null)
+          }
+          
+          logger.debug('AdPreviewContext', '✅ State hydrated from backend')
+        } else {
+          // Truly empty - no creatives generated yet (valid for new ads)
+          logger.debug('AdPreviewContext', 'No creatives in backend, starting empty (new ad)')
+          setAdContent(null)
+          setSelectedImageIndex(null)
+          setSelectedCreativeVariation(null)
+        }
         
         setIsInitialized(true)
       } catch (err) {
         logger.error('AdPreviewContext', 'Error loading snapshot', err)
+        // On error, start empty (don't block user)
         setIsInitialized(true)
       }
     }
