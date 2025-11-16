@@ -92,34 +92,11 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
         }
         
         // Load from normalized ad_creatives table instead of setup_snapshot
-        const creativeSnapshot = null // Deprecated: setup_snapshot.creative no longer exists
+        // Note: setup_snapshot.creative column was removed - data is now in ad_creatives table
+        // For now, start with empty state - creatives will be loaded/generated via chat
+        // use-draft-auto-save hook handles saving to ad_creatives table
         
-        if (creativeSnapshot) {
-          logger.debug('AdPreviewContext', '✅ Loaded snapshot from normalized tables', {
-            hasImageUrl: !!creativeSnapshot.imageUrl,
-            imageVariationsCount: creativeSnapshot.imageVariations?.length || 0
-          })
-          
-          // Construct AdContent from snapshot
-          if (creativeSnapshot.imageUrl || creativeSnapshot.imageVariations) {
-            setAdContent({
-              imageUrl: creativeSnapshot.imageUrl,
-              imageVariations: creativeSnapshot.imageVariations,
-              baseImageUrl: creativeSnapshot.baseImageUrl,
-              headline: '', // Will be populated from copy context
-              body: '',
-              cta: 'Learn More'
-            })
-          }
-          
-          if (creativeSnapshot.selectedImageIndex !== undefined) {
-            setSelectedImageIndex(creativeSnapshot.selectedImageIndex ?? null)
-          }
-          
-          if (creativeSnapshot.selectedCreativeVariation) {
-            setSelectedCreativeVariation(creativeSnapshot.selectedCreativeVariation)
-          }
-        }
+        logger.debug('AdPreviewContext', 'Starting with empty state (normalized schema)')
         
         setIsInitialized(true)
       } catch (err) {
@@ -131,35 +108,18 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
     loadSnapshot()
   }, [currentAd?.id, campaign?.id])
 
-  // Save function with proper return type
+  // Save function - DEPRECATED: Auto-save hook handles persistence
+  // This context manages UI state only, actual database saves handled by use-draft-auto-save
   const saveFn = useCallback(async (state: typeof adPreviewState) => {
     if (!isInitialized) return
     
-    // Save to current ad's snapshot (new architecture)
-    if (currentAd) {
-      logger.debug('AdPreviewContext', '💾 Saving to ad snapshot', {
-        adId: currentAd.id,
-        hasImageVariations: !!state.adContent?.imageVariations?.length,
-        imageCount: state.adContent?.imageVariations?.length || 0,
-      })
-      
-      try {
-        await updateAdSnapshot({
-          creative: {
-            imageUrl: state.adContent?.imageUrl,
-            imageVariations: state.adContent?.imageVariations,
-            baseImageUrl: state.adContent?.baseImageUrl,
-            selectedImageIndex: state.selectedImageIndex,
-            selectedCreativeVariation: state.selectedCreativeVariation
-          }
-        })
-      } catch (error) {
-        logger.error('AdPreviewContext', 'Failed to save to ad snapshot', error)
-        throw error
-      }
-    }
-    // Note: campaign_states fallback removed - table no longer exists
-  }, [currentAd, campaign?.id, updateAdSnapshot, isInitialized])
+    // No-op: Saving is handled by use-draft-auto-save hook which uses /save endpoint
+    // This prevents the context from trying to save to deprecated setup_snapshot column
+    logger.debug('AdPreviewContext', 'State updated (auto-save hook handles persistence)', {
+      hasImageVariations: !!state.adContent?.imageVariations?.length,
+      imageCount: state.adContent?.imageVariations?.length || 0
+    })
+  }, [isInitialized])
 
   // Memoize save config to force CRITICAL mode when images present
   // This ensures images save immediately (0ms) instead of 300ms debounce
