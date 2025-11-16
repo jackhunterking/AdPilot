@@ -232,9 +232,9 @@ export async function PUT(
         .from('ads')
         .select(`
           *,
-          ad_creatives (*),
-          ad_copy_variations (*),
-          ad_destinations (*)
+          ad_creatives!ad_creatives_ad_id_fkey (*),
+          ad_copy_variations!ad_copy_variations_ad_id_fkey (*),
+          ad_destinations!ad_destinations_ad_id_fkey (*)
         `)
         .eq('id', adId)
         .single()

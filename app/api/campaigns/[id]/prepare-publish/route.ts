@@ -35,7 +35,7 @@ export async function POST(
     // ====================================================================
     const { data: campaign, error: campaignError } = await supabaseServer
       .from('campaigns')
-      .select('*, ads(id, ad_copy_variations(*))')
+      .select('*, ads!ads_campaign_id_fkey(id, ad_copy_variations!ad_copy_variations_ad_id_fkey(*))')
       .eq('id', campaignId)
       .eq('user_id', user.id)
       .maybeSingle();
