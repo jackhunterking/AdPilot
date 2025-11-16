@@ -36,7 +36,19 @@ export function SignInForm({ onSuccess }: SignInFormProps) {
       }
       setLoading(false)
     } else {
-      onSuccess?.()
+      // Check for temp prompt before closing modal
+      const tempPromptId = typeof window !== 'undefined' 
+        ? localStorage.getItem('temp_prompt_id')
+        : null
+      
+      if (tempPromptId) {
+        console.log('[SIGN-IN] Temp prompt found, redirecting to post-login handler')
+        // Redirect to post-login handler to process temp prompt
+        window.location.href = '/auth/post-login'
+      } else {
+        // No temp prompt, just close modal
+        onSuccess?.()
+      }
     }
   }
 

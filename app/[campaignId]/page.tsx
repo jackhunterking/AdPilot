@@ -58,7 +58,9 @@ export default async function CampaignPage({
 }) {
   const { campaignId } = await params;
   
-  console.log(`[SERVER] Incoming campaignId: ${campaignId}`);
+  console.log(`[SERVER] Incoming campaignId: ${campaignId}`, {
+    timestamp: new Date().toISOString()
+  });
   
   // Validate campaign ID format to prevent image requests and invalid IDs from hitting database
   if (!isValidUUID(campaignId)) {
@@ -68,21 +70,33 @@ export default async function CampaignPage({
   
   console.log(`[SERVER] ✅ Valid UUID format, loading campaign data for: ${campaignId}`);
   
-  // Load campaign data including goal
+  // Load campaign data with nested ads and their related data (following new hierarchy)
   const { data: campaign, error: campaignError } = await supabaseServer
     .from('campaigns')
     .select(`
       *,
-      campaign_states (*)
+      ads (
+        id,
+        name,
+        status,
+        selected_creative_id,
+        selected_copy_id,
+        destination_type,
+        created_at,
+        updated_at
+      )
     `)
     .eq('id', campaignId)
     .single();
   
   // Check if campaign exists
   if (!campaign || campaignError) {
-    console.log(`[SERVER] ❌ Campaign not found or error loading campaign:`, {
+    console.error(`[SERVER] ❌ Campaign not found or error loading campaign:`, {
       campaignId,
-      error: campaignError?.message || 'Campaign is null'
+      error: campaignError?.message || 'Campaign is null',
+      errorCode: (campaignError as unknown as { code?: string })?.code,
+      errorDetails: (campaignError as unknown as { details?: string })?.details,
+      timestamp: new Date().toISOString()
     });
     notFound();
   }
@@ -90,7 +104,11 @@ export default async function CampaignPage({
   console.log(`[SERVER] ✅ Campaign loaded successfully:`, {
     id: campaign.id,
     name: campaign.name,
-    hasInitialGoal: !!campaign.initial_goal
+    status: campaign.status,
+    hasInitialGoal: !!campaign.initial_goal,
+    adsCount: Array.isArray(campaign.ads) ? campaign.ads.length : 0,
+    userId: campaign.user_id,
+    timestamp: new Date().toISOString()
   });
   
   // Extract goal and metadata from campaign (new normalized structure)

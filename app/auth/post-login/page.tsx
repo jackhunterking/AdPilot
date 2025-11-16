@@ -6,16 +6,25 @@
  * References:
  *  - Supabase (Advanced SSR Auth): https://supabase.com/docs/guides/auth/server-side/advanced-guide
  *  - Supabase (Code exchange route pattern): https://supabase.com/docs/guides/auth/auth-helpers/nextjs#managing-sign-in-with-code-exchange
+ *  - PostAuthHandler service for unified auth completion logic
  */
 import { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/components/auth/auth-provider"
+import { postAuthHandler } from "@/lib/services/post-auth-handler"
+import { Button } from "@/components/ui/button"
+import { AlertCircle, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+
+type PageState = 'loading' | 'creating' | 'success' | 'error' | 'no-prompt'
 
 function PostLoginContent() {
   const { user, loading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [statusText, setStatusText] = useState<string>("Finishing sign-in…")
+  const [state, setState] = useState<PageState>('loading')
+  const [error, setError] = useState<string | null>(null)
+  const [campaignId, setCampaignId] = useState<string | null>(null)
 
   useEffect(() => {
     const run = async () => {
@@ -49,85 +58,144 @@ function PostLoginContent() {
       sessionStorage.setItem(sentinelKey, "true")
 
       try {
-        // Prefer localStorage id created on anonymous prompt submit
-        const tempPromptId = typeof window !== "undefined"
-          ? localStorage.getItem("temp_prompt_id")
-          : null
+        setState('creating')
+        
+        // Use PostAuthHandler service for unified logic
+        const campaign = await postAuthHandler.processAuthCompletion(user.user_metadata)
 
-        // If we have no local id, try user metadata as a fallback (e.g., OAuth flows)
-        // Safely read metadata without using any
-        const meta = (user?.user_metadata ?? {}) as { temp_prompt_id?: unknown }
-        const metaPromptId = typeof meta.temp_prompt_id === "string" ? meta.temp_prompt_id : undefined
-
-        const idToUse = tempPromptId || metaPromptId || null
-
-        console.log('[POST-LOGIN] Checking for temp prompt', { 
-          hasLocalStorage: !!tempPromptId,
-          hasMetadata: !!metaPromptId,
-          idToUse,
-          userMetadata: user?.user_metadata
-        })
-
-        if (!idToUse) {
-          // Nothing to process – go back home gracefully
+        if (!campaign) {
+          // No temp prompt to process
           console.log('[POST-LOGIN] No temp prompt found, redirecting to homepage')
+          setState('no-prompt')
           sessionStorage.removeItem(sentinelKey)
-          router.replace("/")
+          setTimeout(() => router.push('/'), 1000)
           return
         }
 
-        console.log('[POST-LOGIN] Creating campaign with temp prompt:', idToUse)
-        setStatusText("Creating your campaign…")
-
-        const res = await fetch("/api/campaigns", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: "Untitled Campaign", tempPromptId: idToUse }),
-        })
-
-        if (!res.ok) {
-          // If for some reason the temp prompt was used/expired, just return home
-          console.warn('[POST-LOGIN] Failed to create campaign:', await res.text())
-          sessionStorage.removeItem(sentinelKey)
-          router.replace("/")
-          return
-        }
-
-        const { campaign } = await res.json()
         console.log('[POST-LOGIN] Campaign created successfully:', campaign.id)
-
-        // Clean up client state
-        if (tempPromptId) {
-          console.log('[POST-LOGIN] Removing temp_prompt_id from localStorage')
-          localStorage.removeItem("temp_prompt_id")
-        }
-
-        // Optional: clear any query indicators like auth=success for a clean URL on next page
+        setCampaignId(campaign.id)
+        setState('success')
+        
+        // Show success toast
+        toast.success('Campaign created successfully!')
+        
+        // Clear any query indicators for clean URL
         const authSuccess = searchParams?.get("auth") === "success"
         if (authSuccess && typeof window !== "undefined") {
           window.history.replaceState({}, "", "/auth/post-login")
         }
 
-        console.log('[POST-LOGIN] Redirecting to campaign:', campaign.id)
-        router.replace(`/${campaign.id}`)
-      } catch (error) {
-        console.error('[POST-LOGIN] Error in post-login flow:', error)
+        // Navigate using router.push (client-side) AFTER state is confirmed
+        console.log('[POST-LOGIN] Navigating to campaign:', campaign.id)
+        setTimeout(() => router.push(`/${campaign.id}`), 500)
+
+      } catch (err) {
+        console.error('[POST-LOGIN] Error in post-login flow:', err)
+        const errorMessage = err instanceof Error ? err.message : 'Failed to create campaign'
+        setError(errorMessage)
+        setState('error')
         sessionStorage.removeItem(sentinelKey)
-        router.replace("/")
+        
+        // Show error toast
+        toast.error('Failed to create campaign', {
+          description: errorMessage
+        })
       }
     }
 
     run()
   }, [user, loading, router, searchParams])
 
-  return (
-    <div className="flex h-screen items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
-        <p className="text-sm text-muted-foreground">{statusText}</p>
+  // Loading state
+  if (state === 'loading') {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+          <p className="text-sm text-muted-foreground">Finishing sign-in…</p>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
+
+  // Creating campaign state
+  if (state === 'creating') {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+          <p className="text-sm text-muted-foreground">Creating your campaign…</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Success state
+  if (state === 'success' && campaignId) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+            <svg className="h-6 w-6 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <p className="text-sm text-muted-foreground">Redirecting to your campaign…</p>
+        </div>
+      </div>
+    )
+  }
+
+  // No prompt state
+  if (state === 'no-prompt') {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+          <p className="text-sm text-muted-foreground">Redirecting to homepage…</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (state === 'error') {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="max-w-md space-y-6 text-center px-6">
+          <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+            <AlertCircle className="w-8 h-8 text-destructive" />
+          </div>
+          
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold">Failed to Create Campaign</h1>
+            <p className="text-muted-foreground">
+              {error || 'An unexpected error occurred. Please try again.'}
+            </p>
+          </div>
+          
+          <div className="space-y-3">
+            <Button 
+              onClick={() => router.push('/')} 
+              className="w-full"
+            >
+              Back to Homepage
+            </Button>
+            
+            <Button 
+              onClick={() => window.location.reload()} 
+              variant="outline" 
+              className="w-full"
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return null
 }
 
 export default function PostLoginPage() {
