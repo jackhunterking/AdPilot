@@ -50,15 +50,25 @@ export function CampaignGrid() {
         const campaignList = (data || []).filter((c: Campaign | null) => c && c.id)
         // Show only first 6 for homepage preview
         setCampaigns(campaignList.slice(0, 6))
-      } else {
-        console.error('Failed to fetch campaigns:', response.status)
+      } else if (response.status === 401) {
+        // Auth timing issue - silently set empty and let user try again
+        console.log('Auth not ready, campaigns will load after sign in')
         setCampaigns([])
-        toast.error('Failed to load campaigns')
+      } else if (response.status >= 500) {
+        // Server error - show error message
+        console.error('Server error fetching campaigns:', response.status)
+        setCampaigns([])
+        toast.error('Failed to load campaigns. Please try again later.')
+      } else {
+        // Other client errors (400-499) - log but don't show error
+        console.warn('Campaign fetch returned:', response.status)
+        setCampaigns([])
       }
     } catch (error) {
-      console.error('Error fetching campaigns:', error)
+      // Network errors - show error (real connectivity issue)
+      console.error('Network error fetching campaigns:', error)
       setCampaigns([])
-      toast.error('Network error')
+      toast.error('Network error. Please check your connection.')
     } finally {
       setLoading(false)
     }
