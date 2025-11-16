@@ -47,7 +47,7 @@ const AdPreviewContext = createContext<AdPreviewContextType | undefined>(undefin
 
 export function AdPreviewProvider({ children }: { children: ReactNode }) {
   const { campaign } = useCampaignContext()
-  const { currentAd, updateAdSnapshot } = useCurrentAd()
+  const { currentAd } = useCurrentAd()
   const [adContent, setAdContent] = useState<AdContent | null>(null)
   const [isPublished, setIsPublished] = useState(false)
   const [selectedCreativeVariation, setSelectedCreativeVariation] = useState<CreativeVariation | null>(null)

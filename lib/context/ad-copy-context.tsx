@@ -42,7 +42,7 @@ const AdCopyContext = createContext<AdCopyContextType | undefined>(undefined)
 
 export function AdCopyProvider({ children }: { children: ReactNode }) {
   const { campaign } = useCampaignContext()
-  const { currentAd, updateAdSnapshot } = useCurrentAd()
+  const { currentAd } = useCurrentAd()
   const [adCopyState, setAdCopyState] = useState<AdCopyState>({
     selectedCopyIndex: null,
     status: "idle",

@@ -51,7 +51,7 @@ interface LocationContextType {
 const LocationContext = createContext<LocationContextType | undefined>(undefined)
 
 export function LocationProvider({ children }: { children: ReactNode }) {
-  const { currentAd, updateAdSnapshot } = useCurrentAd()
+  const { currentAd } = useCurrentAd()
   const [locationState, setLocationState] = useState<LocationState>({
     locations: [],
     status: "idle",
@@ -80,54 +80,28 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     // Load from normalized ad_target_locations table instead of setup_snapshot
     // Note: setup_snapshot column was removed - data is now in ad_target_locations table
     // For now, start with empty state - locations will be loaded via API if needed
-    const locationSnapshot = null as LocationState | null
+    // TODO: Fetch from ad_target_locations table via API for restoration if needed
     
-    if (false) {  // Skip deprecated snapshot loading
-      logger.debug('LocationContext', '✅ Loading from ad snapshot', {
-        locationsCount: locationSnapshot.locations?.length || 0,
-        status: locationSnapshot.status
-      })
-      
-      const normalized: LocationState = {
-        locations: locationSnapshot.locations || [],
-        status: locationSnapshot.status || ((locationSnapshot.locations?.length ?? 0) > 0 ? "completed" : "idle"),
-        errorMessage: locationSnapshot.errorMessage,
-      }
-      
-      setLocationState(normalized)
-    } else {
-      // No location data - initialize empty
-      logger.debug('LocationContext', 'No location data found - initializing empty state')
-      setLocationState({
-        locations: [],
-        status: "idle",
-        errorMessage: undefined,
-      })
-    }
+    logger.debug('LocationContext', 'Starting with empty state (normalized schema)')
+    setLocationState({
+      locations: [],
+      status: "idle",
+      errorMessage: undefined,
+    })
     
     setIsInitialized(true)
   }, [currentAd?.id])
 
-  // SINGLE SAVE PATH: Ad snapshot only (kept for backward compatibility, not used with immediate writes)
+  // Save function - DEPRECATED: Auto-save hook handles persistence
+  // This context manages UI state only, actual database saves handled by use-draft-auto-save
   const saveFn = useCallback(async (state: LocationState) => {
-    if (!currentAd?.id || !isInitialized) {
-      logger.debug('LocationContext', 'Skipping save - no ad or not initialized')
-      return
-    }
+    if (!isInitialized) return
     
-    logger.debug('LocationContext', '💾 Saving location state to ad snapshot', {
-      adId: currentAd.id,
+    // No-op: Saving is handled by use-draft-auto-save hook which uses /save endpoint
+    logger.debug('LocationContext', 'State updated (auto-save hook handles persistence)', {
       locationsCount: state.locations.length
     })
-    
-    // Save to ad snapshot only (ensure status is never null)
-    await updateAdSnapshot({
-      location: {
-        locations: state.locations,
-        status: state.status || 'completed',  // Default to 'completed' if somehow null
-      }
-    })
-  }, [currentAd?.id, updateAdSnapshot, isInitialized])
+  }, [isInitialized])
 
   // Note: useAutoSave removed - using immediate database writes instead
 
@@ -171,14 +145,8 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       
       console.log('[LocationContext] Final location count:', finalLocations.length);
       
-      // WRITE DIRECTLY TO DATABASE (blocking call - wait for completion)
-      console.log('[LocationContext] Writing to database...');
-      await updateAdSnapshot({
-        location: {
-          locations: finalLocations,
-          status: 'completed'
-        }
-      });
+      // Note: Database write handled by use-draft-auto-save hook (no longer using updateAdSnapshot)
+      console.log('[LocationContext] Location state updated (auto-save will persist)...');
       
       console.log('[LocationContext] ✅ Database write successful');
       
@@ -200,7 +168,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       }));
       throw error;
     }
-  }, [currentAd?.id, locationState.locations, updateAdSnapshot]);
+  }, [currentAd?.id, locationState.locations]);
 
   const removeLocation = useCallback(async (id: string) => {
     if (!currentAd?.id) {
@@ -216,13 +184,8 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       
       console.log('[LocationContext] Remaining locations:', updatedLocations.length);
       
-      // WRITE TO DATABASE FIRST
-      await updateAdSnapshot({
-        location: {
-          locations: updatedLocations,
-          status: updatedLocations.length > 0 ? 'completed' : 'idle'
-        }
-      });
+      // Note: Database write handled by use-draft-auto-save hook
+      console.log('[LocationContext] Location removed from state (auto-save will persist)...');
       
       console.log('[LocationContext] ✅ Removed from database');
       
@@ -237,7 +200,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       console.error('[LocationContext] ❌ Failed to remove location:', error);
       throw error;
     }
-  }, [currentAd?.id, locationState.locations, updateAdSnapshot]);
+  }, [currentAd?.id, locationState.locations]);
 
   const updateStatus = (status: LocationStatus) => {
     setLocationState(prev => ({ ...prev, status }))
