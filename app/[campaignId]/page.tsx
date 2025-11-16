@@ -90,15 +90,13 @@ export default async function CampaignPage({
   console.log(`[SERVER] ✅ Campaign loaded successfully:`, {
     id: campaign.id,
     name: campaign.name,
-    hasStates: !!campaign.campaign_states
+    hasInitialGoal: !!campaign.initial_goal
   });
   
-  // Extract goal from campaign_states
-  const goalData = (campaign?.campaign_states as Database['public']['Tables']['campaign_states']['Row'] | null | undefined)?.goal_data as unknown as Record<string, unknown> | null | undefined;
-  const selectedGoal = (goalData as { selectedGoal?: string } | null | undefined)?.selectedGoal ?? null;
+  // Extract goal and metadata from campaign (new normalized structure)
   const rawInitialPrompt = (campaign?.metadata as unknown as { initialPrompt?: string } | null | undefined)?.initialPrompt;
   const campaignMetadata: { initialGoal: string | null; initialPrompt?: string } = {
-    initialGoal: selectedGoal,
+    initialGoal: campaign.initial_goal ?? null,
     ...(typeof rawInitialPrompt === 'string' ? { initialPrompt: rawInitialPrompt } : {}),
   };
   

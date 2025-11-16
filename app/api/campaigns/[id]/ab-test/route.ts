@@ -37,7 +37,7 @@ export async function GET(
     // Verify campaign belongs to user
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
-      .select('id, user_id, campaign_states(*)')
+      .select('id, user_id, metadata')
       .eq('id', campaignId)
       .eq('user_id', user.id)
       .single()
@@ -49,9 +49,9 @@ export async function GET(
       )
     }
 
-    // Check for active A/B test in campaign_states (stored in publish_data)
-    const states = campaign.campaign_states as { publish_data?: { ab_test?: ABTest } } | null
-    const abTest = states?.publish_data?.ab_test
+    // Check for active A/B test in campaign metadata
+    const metadata = campaign.metadata as { ab_test?: ABTest } | null
+    const abTest = metadata?.ab_test
 
     if (!abTest) {
       return NextResponse.json({ ab_test: null })
@@ -152,15 +152,27 @@ export async function POST(
       ...(start_immediately && { started_at: new Date().toISOString() }),
     }
 
-    // Store in campaign_states (in publish_data field)
+    // Get current metadata to merge with AB test data
+    const { data: currentCampaign } = await supabase
+      .from('campaigns')
+      .select('metadata')
+      .eq('id', campaignId)
+      .single()
+
+    const currentMetadata = (currentCampaign?.metadata as Record<string, unknown>) || {}
+
+    // Store in campaign metadata and update status
     const { error: updateError } = await supabase
-      .from('campaign_states')
+      .from('campaigns')
       .update({
-        publish_data: {
+        metadata: {
+          ...currentMetadata,
           ab_test: abTest as unknown as Json,
         } as unknown as Json,
+        published_status: 'ab_test_active',
+        updated_at: new Date().toISOString(),
       })
-      .eq('campaign_id', campaignId)
+      .eq('id', campaignId)
 
     if (updateError) {
       console.error('[API] Error storing A/B test:', updateError)
@@ -169,15 +181,6 @@ export async function POST(
         { status: 500 }
       )
     }
-
-    // Update campaign status
-    await supabase
-      .from('campaigns')
-      .update({
-        published_status: 'ab_test_active',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', campaignId)
 
     return NextResponse.json({ ab_test: abTest }, { status: 201 })
   } catch (error) {
@@ -212,7 +215,7 @@ export async function PATCH(
     // Get current A/B test
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
-      .select('id, user_id, campaign_states(*)')
+      .select('id, user_id, metadata')
       .eq('id', campaignId)
       .eq('user_id', user.id)
       .single()
@@ -224,8 +227,8 @@ export async function PATCH(
       )
     }
 
-    const states = campaign.campaign_states as { publish_data?: { ab_test?: ABTest } } | null
-    const currentTest = states?.publish_data?.ab_test
+    const metadata = campaign.metadata as { ab_test?: ABTest } | null
+    const currentTest = metadata?.ab_test
 
     if (!currentTest) {
       return NextResponse.json(
@@ -269,15 +272,20 @@ export async function PATCH(
       updatedTest.results = results
     }
 
-    // Store updated test (in publish_data field)
+    // Get current metadata to merge with updated test
+    const currentMetadata = (campaign.metadata as Record<string, unknown>) || {}
+
+    // Store updated test in campaign metadata
     const { error: updateError } = await supabase
-      .from('campaign_states')
+      .from('campaigns')
       .update({
-        publish_data: {
+        metadata: {
+          ...currentMetadata,
           ab_test: updatedTest as unknown as Json,
         } as unknown as Json,
+        updated_at: new Date().toISOString(),
       })
-      .eq('campaign_id', campaignId)
+      .eq('id', campaignId)
 
     if (updateError) {
       console.error('[API] Error updating A/B test:', updateError)

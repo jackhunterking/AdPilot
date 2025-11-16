@@ -85,20 +85,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         return NextResponse.json({ error: 'Failed to update campaign budget' }, { status: 500 })
       }
       
-      // Also update campaign_states budget_data for consistency
-      await supabaseServer
-        .from('campaign_states')
-        .upsert(
-          {
-            campaign_id: id,
-            budget_data: {
-              dailyBudget,
-              totalBudget,
-            },
-          },
-          { onConflict: 'campaign_id' }
-        )
-      
       return NextResponse.json({ 
         success: true, 
         budget: { dailyBudget, totalBudget } 

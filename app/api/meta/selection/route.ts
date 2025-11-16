@@ -40,33 +40,15 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    const { data: state, error: stateError } = await supabaseServer
-      .from('campaign_states')
-      .select('meta_connect_data')
-      .eq('campaign_id', campaignId)
-      .maybeSingle()
-
-    if (stateError) {
-      console.error('[MetaSelection] Error fetching campaign state:', {
-        error: stateError,
-        campaignId,
-        userId: user.id,
-      })
-    }
-
-    // Prefer connection-derived status; fall back to state
-    const stateStatus = (state as { meta_connect_data?: { status?: string } } | null)?.meta_connect_data?.status || null
+    // Determine status from connection data (campaign_states no longer exists)
     let status = 'disconnected'
     if (conn) {
       status = conn.ad_account_payment_connected ? 'payment_linked' : 'connected'
-    } else if (stateStatus) {
-      status = stateStatus
     }
 
     console.log('[MetaSelection] Returning selection data:', {
       campaignId,
       hasConnection: !!conn,
-      hasState: !!state,
       status,
       businessId: conn?.selected_business_id,
       pageId: conn?.selected_page_id,

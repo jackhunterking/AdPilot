@@ -31,11 +31,11 @@ export async function POST(
     }
 
     // ====================================================================
-    // STEP 2: VERIFY CAMPAIGN OWNERSHIP
+    // STEP 2: VERIFY CAMPAIGN OWNERSHIP AND LOAD DATA
     // ====================================================================
     const { data: campaign, error: campaignError } = await supabaseServer
       .from('campaigns')
-      .select('*, campaign_states(*)')
+      .select('*, ads(id, ad_copy_variations(*))')
       .eq('id', campaignId)
       .eq('user_id', user.id)
       .maybeSingle();
@@ -74,9 +74,8 @@ export async function POST(
     // ====================================================================
     const preflightValidator = createPreflightValidator();
 
-    // Extract data for validation
-    const goalData = campaign.campaign_states?.goal_data as {
-      selectedGoal?: string;
+    // Extract data for validation from normalized structure
+    const metadata = campaign.metadata as {
       formData?: {
         id?: string;
         websiteUrl?: string;
@@ -84,24 +83,29 @@ export async function POST(
       };
     } | null;
 
-    const adCopyData = campaign.campaign_states?.ad_copy_data as {
-      customCopyVariations?: Array<{ primaryText?: string; headline?: string; description?: string }>;
-    } | null;
+    const selectedGoal = campaign.initial_goal;
 
-    const firstCopy = adCopyData?.customCopyVariations?.[0];
+    // Get first ad copy from normalized tables
+    const ads = campaign.ads as Array<{ ad_copy_variations: Array<{
+      primary_text?: string;
+      headline?: string;
+      description?: string;
+    }> }> | undefined;
+    
+    const firstCopy = ads?.[0]?.ad_copy_variations?.[0];
 
-    // Extract destination URL from goal data
-    const destinationUrl = goalData?.formData?.websiteUrl || undefined;
+    // Extract destination URL from metadata
+    const destinationUrl = metadata?.formData?.websiteUrl || undefined;
 
     const preflightParams: PreflightParams = {
       token: connection.long_lived_user_token,
       pageId: connection.selected_page_id,
       adAccountId: connection.selected_ad_account_id,
       instagramActorId: connection.selected_ig_user_id,
-      tokenExpiresAt: connection.user_app_token_expires_at, // Using user_app_token expiry as proxy
+      tokenExpiresAt: connection.user_app_token_expires_at,
       hasPaymentConnected: connection.ad_account_payment_connected ?? false,
-      campaignStates: campaign.campaign_states || null,
-      primaryText: firstCopy?.primaryText,
+      campaignStates: null, // Legacy field, no longer used
+      primaryText: firstCopy?.primary_text,
       headline: firstCopy?.headline,
       description: firstCopy?.description,
       destinationUrl
@@ -115,7 +119,7 @@ export async function POST(
     if (validationResults.canPublish) {
       try {
         // Determine destination type and config from goal data
-        const goal = goalData?.selectedGoal;
+        const goal = selectedGoal;
         let destinationType: 'website' | 'form' | 'call' = 'website';
         let destinationConfig: {
           websiteUrl?: string;
@@ -124,20 +128,20 @@ export async function POST(
         } = {};
 
         if (goal === 'leads') {
-          if (goalData?.formData?.id) {
+          if (metadata?.formData?.id) {
             destinationType = 'form';
-            destinationConfig.leadFormId = goalData.formData.id;
-            destinationConfig.websiteUrl = goalData.formData.websiteUrl; // Fallback URL
+            destinationConfig.leadFormId = metadata.formData.id;
+            destinationConfig.websiteUrl = metadata.formData.websiteUrl; // Fallback URL
           } else {
             destinationType = 'website';
-            destinationConfig.websiteUrl = goalData?.formData?.websiteUrl || 'https://example.com';
+            destinationConfig.websiteUrl = metadata?.formData?.websiteUrl || 'https://example.com';
           }
         } else if (goal === 'calls') {
           destinationType = 'call';
-          destinationConfig.phoneNumber = goalData?.formData?.phoneNumber;
+          destinationConfig.phoneNumber = metadata?.formData?.phoneNumber;
         } else {
           destinationType = 'website';
-          destinationConfig.websiteUrl = goalData?.formData?.websiteUrl || 'https://example.com';
+          destinationConfig.websiteUrl = metadata?.formData?.websiteUrl || 'https://example.com';
         }
 
         const payloadGenerator = createPayloadGenerator();
@@ -145,11 +149,11 @@ export async function POST(
         const result = await payloadGenerator.generate(
           campaign.name,
           {
-            goal_data: campaign.campaign_states?.goal_data,
-            location_data: campaign.campaign_states?.location_data,
-            budget_data: campaign.campaign_states?.budget_data,
-            ad_copy_data: campaign.campaign_states?.ad_copy_data,
-            ad_preview_data: campaign.campaign_states?.ad_preview_data
+            goal_data: null, // Legacy field - goal is now in campaign.initial_goal
+            location_data: null, // Legacy field - locations are now in ad_target_locations table
+            budget_data: null, // Legacy field - budget is now in campaign.campaign_budget_cents
+            ad_copy_data: null, // Legacy field - copy is now in ad_copy_variations table
+            ad_preview_data: null // Legacy field - preview data is in ads.setup_snapshot
           },
           {
             selected_page_id: connection.selected_page_id,
@@ -161,14 +165,18 @@ export async function POST(
           destinationConfig
         );
 
-        // Save publish_data to database
+        // Save publish_data to campaign metadata
+        const currentMetadata = (campaign.metadata as Record<string, unknown>) || {};
         const { error: saveError } = await supabaseServer
-          .from('campaign_states')
+          .from('campaigns')
           .update({
-            publish_data: result.publishData as unknown as Json,
+            metadata: {
+              ...currentMetadata,
+              publish_data: result.publishData as unknown as Json,
+            } as unknown as Json,
             updated_at: new Date().toISOString()
           })
-          .eq('campaign_id', campaignId);
+          .eq('id', campaignId);
 
         if (saveError) {
           console.error('[PreparePublish] Failed to save publish_data:', saveError);

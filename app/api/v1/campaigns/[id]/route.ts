@@ -294,17 +294,8 @@ export async function DELETE(
 
     console.log('[v1/campaigns/:id] DELETE - Ownership verified, proceeding with deletion')
 
-    // Delete campaign_states (cascade should handle this, but being explicit)
-    const { error: stateError } = await supabaseServer
-      .from('campaign_states')
-      .delete()
-      .eq('campaign_id', campaignId)
-    
-    if (stateError) {
-      console.error('[v1/campaigns/:id] DELETE - Error deleting campaign states:', stateError)
-    } else {
-      console.log('[v1/campaigns/:id] DELETE - Campaign states deleted successfully')
-    }
+    // Note: campaign_states table no longer exists (removed in backend refactoring)
+    // Cascade deletes will handle related records in normalized tables
 
     // Delete ads associated with this campaign
     const { error: adsError } = await supabaseServer

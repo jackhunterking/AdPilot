@@ -59,10 +59,7 @@ export async function GET(request: NextRequest) {
         name,
         status,
         created_at,
-        updated_at,
-        campaign_states (
-          ad_preview_data
-        )
+        updated_at
       `)
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
@@ -194,28 +191,8 @@ export async function POST(request: NextRequest) {
 
         if (!insert.error) {
           const campaign: Tables<'campaigns'> | null = insert.data as Tables<'campaigns'> | null
-          // Create campaign state with initial goal if provided
-          const initialGoalData = initialGoal 
-            ? { selectedGoal: initialGoal, status: 'idle', formData: null }
-            : null
-          const { error: stateError } = await supabaseServer
-            .from('campaign_states')
-            .insert({
-              campaign_id: campaign!.id,
-              goal_data: initialGoalData,
-              location_data: null,
-              ad_copy_data: null,
-              ad_preview_data: null,
-              budget_data: null,
-            })
-          if (stateError) {
-            console.error('[v1/campaigns] Error creating campaign state:', stateError)
-            await supabaseServer.from('campaigns').delete().eq('id', campaign!.id)
-            return NextResponse.json(
-              { success: false, error: { code: 'state_creation_failed', message: 'Failed to initialize campaign state' } },
-              { status: 500 }
-            )
-          }
+          // Note: campaign_states table no longer exists. Initial goal is stored in campaigns.initial_goal
+          // Campaign data will be stored in normalized tables (ad_creatives, ad_copy_variations, etc.)
 
           // Conversation init
           try {
@@ -312,30 +289,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create campaign state with initial goal if provided
-    const manualGoalData = initialGoal 
-      ? { selectedGoal: initialGoal, status: 'idle', formData: null }
-      : null
-
-    const { error: manualStateErr } = await supabaseServer
-      .from('campaign_states')
-      .insert({
-        campaign_id: (manualCampaign as Tables<'campaigns'>).id,
-        goal_data: manualGoalData,
-        location_data: null,
-        ad_copy_data: null,
-        ad_preview_data: null,
-        budget_data: null,
-      })
-
-    if (manualStateErr) {
-      console.error('[v1/campaigns] Error creating campaign state:', manualStateErr)
-      await supabaseServer.from('campaigns').delete().eq('id', (manualCampaign as Tables<'campaigns'>).id)
-      return NextResponse.json(
-        { success: false, error: { code: 'state_creation_failed', message: 'Failed to initialize campaign state' } },
-        { status: 500 }
-      )
-    }
+    // Note: campaign_states table no longer exists. Initial goal is stored in campaigns.initial_goal
+    // Campaign data will be stored in normalized tables (ad_creatives, ad_copy_variations, etc.)
 
     try {
       const conversation = await conversationManager.createConversation(

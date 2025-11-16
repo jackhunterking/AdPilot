@@ -43,8 +43,9 @@ export async function GET(request: NextRequest) {
 
     // Filter by status
     const status = searchParams.get('status')
-    if (status) {
-      query = query.eq('status', status)
+    const validStatuses = ['draft', 'pending_review', 'active', 'paused', 'rejected', 'failed', 'learning', 'archived'] as const
+    if (status && validStatuses.includes(status as typeof validStatuses[number])) {
+      query = query.eq('status', status as typeof validStatuses[number])
     }
 
     // Filter by location (requires join)

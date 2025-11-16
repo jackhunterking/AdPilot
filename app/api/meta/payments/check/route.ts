@@ -31,20 +31,23 @@ export async function GET(req: NextRequest) {
 
   if (!token) return NextResponse.json({ connected: false })
 
-  const { data: conn } = await supabase
-    .from('meta_connections')
+  const { data: account } = await supabase
+    .from('meta_accounts')
     .select('business_id,ad_account_id')
     .eq('user_id', user.id)
     .maybeSingle()
 
-  if (!conn || !conn.ad_account_id) return NextResponse.json({ connected: false })
+  if (!account || !account.ad_account_id) return NextResponse.json({ connected: false })
 
-  const v = await validateAdAccount({ token, actId: conn.ad_account_id })
+  const v = await validateAdAccount({ token, actId: account.ad_account_id })
   const hasFunding = Boolean(v.hasFunding)
 
   await supabase
-    .from('meta_connections')
-    .update({ has_funding: hasFunding, status: hasFunding ? 'ready' : 'connected' })
+    .from('meta_accounts')
+    .update({ 
+      payment_connected: hasFunding,
+      funding_last_checked_at: new Date().toISOString()
+    })
     .eq('user_id', user.id)
 
   return NextResponse.json({ connected: hasFunding })

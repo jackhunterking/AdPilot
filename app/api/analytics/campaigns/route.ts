@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
           id: string
           name: string
           status: string
-          ad_budgets: Array<{ daily_budget_cents: number; currency_code: string }>
+          ad_budgets: { daily_budget_cents: number; currency_code: string } | null
           ad_creatives: Array<unknown>
           ad_copy_variations: Array<unknown>
           ad_target_locations: Array<unknown>
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
       }
 
       const totalAllocated = campaignData.ads.reduce((sum, ad) => {
-        const adBudget = ad.ad_budgets?.[0]?.daily_budget_cents || 0
+        const adBudget = ad.ad_budgets?.daily_budget_cents || 0
         return sum + adBudget
       }, 0)
 

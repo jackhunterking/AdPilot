@@ -31,7 +31,7 @@ export async function POST(
     // Get ad with campaign to verify ownership
     const { data: ad } = await supabaseServer
       .from('ads')
-      .select('id, setup_snapshot, campaigns!inner(user_id)')
+      .select('id, campaigns!inner(user_id)')
       .eq('id', adId)
       .single()
 
@@ -43,30 +43,17 @@ export async function POST(
     }
 
     // Parse snapshot from request body
-    const body: unknown = await req.json()
+    await req.json()
     
-    // Save snapshot
-    const { data: updated, error } = await supabaseServer
-      .from('ads')
-      .update({ 
-        setup_snapshot: body as Json,
-        updated_at: new Date().toISOString() 
-      })
-      .eq('id', adId)
-      .select()
-      .single()
-
-    if (error) {
-      console.error('[v1/ads/:id/save] Error:', error)
-      return NextResponse.json(
-        { success: false, error: { code: 'save_failed', message: 'Failed to save snapshot' } },
-        { status: 500 }
-      )
-    }
+    // NOTE: This v1 API is deprecated. setup_snapshot column was removed in backend refactoring.
+    // Ad data is now stored in normalized tables (ad_creatives, ad_copy_variations, etc.)
+    // This endpoint now returns success without saving for backward compatibility.
+    // Use the v2 APIs for saving ad data to normalized tables.
 
     return NextResponse.json({
       success: true,
-      data: { ad: updated }
+      data: { ad: { id: ad.id } },
+      warning: 'This v1 API is deprecated. Use v2 APIs for saving ad data.'
     })
   } catch (error) {
     console.error('[v1/ads/:id/save] POST unexpected error:', error)
@@ -99,7 +86,7 @@ export async function GET(
     // Get ad with campaign to verify ownership
     const { data: ad } = await supabaseServer
       .from('ads')
-      .select('id, setup_snapshot, campaigns!inner(user_id)')
+      .select('id, campaigns!inner(user_id)')
       .eq('id', adId)
       .single()
 
@@ -110,9 +97,11 @@ export async function GET(
       )
     }
 
+    // Return null snapshot (setup_snapshot column removed in backend refactoring)
     return NextResponse.json({
       success: true,
-      data: { snapshot: ad.setup_snapshot }
+      data: { snapshot: null },
+      warning: 'This v1 API is deprecated. Use v2 APIs for fetching ad data.'
     })
   } catch (error) {
     console.error('[v1/ads/:id/save] GET unexpected error:', error)

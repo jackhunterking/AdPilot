@@ -45,10 +45,14 @@ export async function GET(
       )
     }
 
-    // Get all ads (variants) for this campaign
+    // Get all ads (variants) for this campaign with related creative/copy data
     const { data: ads, error: adsError } = await supabase
       .from('ads')
-      .select('*')
+      .select(`
+        *,
+        ad_creatives(image_url, format),
+        ad_copy_variations(headline, primary_text, cta_text)
+      `)
       .eq('campaign_id', campaignId)
       .order('created_at', { ascending: false })
 
@@ -61,22 +65,28 @@ export async function GET(
     }
 
     // Transform to AdVariant format
-    const variants: AdVariant[] = (ads || []).map((ad) => ({
-      id: ad.id,
-      campaign_id: ad.campaign_id,
-      name: ad.name,
-      status: ad.status as 'draft' | 'active' | 'paused' | 'archived',
-      variant_type: 'original', // TODO: Add variant_type column to ads table
-      creative_data: (ad.creative_data as AdVariant['creative_data']) || {
-        headline: '',
-        body: '',
-        cta: '',
-      },
-      metrics_snapshot: ad.metrics_snapshot as unknown as AdVariant['metrics_snapshot'],
-      meta_ad_id: ad.meta_ad_id || undefined,
-      created_at: ad.created_at,
-      updated_at: ad.updated_at,
-    }))
+    const variants: AdVariant[] = (ads || []).map((ad) => {
+      const adCopy = (ad.ad_copy_variations as Array<{headline?: string; primary_text?: string; cta_text?: string}> | undefined)?.[0];
+      const adCreative = (ad.ad_creatives as Array<{image_url?: string; format?: string}> | undefined)?.[0];
+      
+      return {
+        id: ad.id,
+        campaign_id: ad.campaign_id,
+        name: ad.name,
+        status: ad.status as 'draft' | 'active' | 'paused' | 'archived',
+        variant_type: 'original', // TODO: Add variant_type column to ads table
+        creative_data: {
+          headline: adCopy?.headline || '',
+          body: adCopy?.primary_text || '',
+          cta: adCopy?.cta_text || '',
+          imageUrl: adCreative?.image_url
+        } as AdVariant['creative_data'],
+        metrics_snapshot: ad.metrics_snapshot as unknown as AdVariant['metrics_snapshot'],
+        meta_ad_id: ad.meta_ad_id || undefined,
+        created_at: ad.created_at,
+        updated_at: ad.updated_at,
+      };
+    })
 
     return NextResponse.json({ variants })
   } catch (error) {

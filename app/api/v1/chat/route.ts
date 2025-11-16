@@ -257,36 +257,19 @@ export async function POST(req: Request) {
     ? `\n[RESULTS MODE]\nThe user is viewing the Results tab. Focus on:\n- Explaining metrics in plain language\n- Suggesting optimisations based on the numbers above\n- Offering to adjust budget, schedule, or targeting when helpful\nDo NOT ask setup questions unless the user switches back to Setup.`
     : '';
 
-  // Load latest CreativePlan for this campaign (if any) to provide plan-driven guardrails
+  // Load creative guardrails (creative_plans and campaign_states tables removed)
   let planContext = '';
   let offerAskContext = '';
   let planId: string | null = null;
-  if (conversation?.campaign_id) {
-    const { data: planRow } = await supabase
-      .from('creative_plans')
-      .select('id, created_at')
-      .eq('campaign_id', conversation.campaign_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (planRow?.id) {
-      planId = planRow.id as string;
-      planContext = `\n[CREATIVE PLAN ACTIVE]\nPlan ID: ${planId}\nFollow plan coverage and constraints. Generate square and vertical with vertical reusing the same base square image via extended canvas (blur/gradient/solid). Keep edges clean and reflow overlays within edge-safe areas; never draw frames or labels. Respect copy limits: primary ≤125, headline ≤40, description ≤30.`;
-    } else if (effectiveGoal) {
-      // Auto-orchestrate plan when missing
-      // Try to read offer from campaign_states.ad_copy_data.offerText
-      let offerText: string | null = null;
-      try {
-        const { data: cs } = await supabase
-          .from('campaign_states')
-          .select('ad_copy_data')
-          .eq('campaign_id', conversation.campaign_id)
-          .maybeSingle();
-        const adCopyData = (cs?.ad_copy_data as unknown as { offerText?: string } | null) || null;
-        offerText = adCopyData?.offerText || null;
-      } catch (e) {
-        console.warn('[API] Could not read campaign_states.ad_copy_data:', e);
-      }
+  if (conversation?.campaign_id && effectiveGoal) {
+    // Try to read offer from conversation metadata
+    let offerText: string | null = null;
+    try {
+      const conversationMeta = (conversation.metadata as { offerText?: string } | null) || null;
+      offerText = conversationMeta?.offerText || null;
+    } catch (e) {
+      console.warn('[API v1] Could not read conversation metadata:', e);
+    }
 
       // Quick extraction from latest user message if needed
       if (!offerText && message?.role === 'user' && typeof (message as { content?: unknown }).content === 'string') {
