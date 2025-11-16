@@ -1,8 +1,23 @@
-# Authentication Journey Refactoring - COMPLETE
+# Authentication Journey Refactoring - TEST STATUS
 
 **Date:** 2025-11-16  
-**Status:** ✅ All Code Changes Complete  
+**Code Status:** ✅ All Changes Complete  
+**Testing Status:** 🧪 In Progress  
 **Aligned With:** AUTH_JOURNEY_MASTER_PLAN.md
+
+---
+
+## 🧪 Journey Testing Status
+
+| Journey | Status | Notes |
+|---------|--------|-------|
+| Journey 1: Prompt → Auth → Campaign | ⏳ Pending Full Test | Campaign creation working, full flow needs verification |
+| Journey 2: Google Sign Up → Homepage | ✅ VERIFIED WORKING | No automation, stays on homepage correctly |
+| Journey 3: Google Sign In → Homepage | ✅ VERIFIED WORKING | No automation, stays on homepage correctly |
+| Journey 4: Auth User + Prompt | ⏳ Not Yet Tested | Pending |
+| Email Sign Up Flow | ✅ WORKING | Supabase redirect URLs configured |
+
+---
 
 ---
 
