@@ -576,3 +576,162 @@ export interface SaveAdResponse {
 export type PartialAdVariant = Partial<AdVariant> & Pick<AdVariant, 'id' | 'campaign_id'>
 export type PartialABTest = Partial<ABTest> & Pick<ABTest, 'id' | 'campaign_id'>
 
+// ============================================================================
+// Normalized Schema Types (New Backend Architecture)
+// ============================================================================
+
+/**
+ * Complete ad data from normalized tables
+ * Use these types when working with the new backend structure
+ */
+export interface NormalizedAdData {
+  ad: NormalizedAd
+  creatives: NormalizedAdCreative[]
+  copyVariations: NormalizedAdCopyVariation[]
+  locations: NormalizedAdLocation[]
+  destination: NormalizedAdDestination | null
+  budget: NormalizedAdBudget | null
+}
+
+export interface NormalizedAd {
+  id: string
+  campaign_id: string
+  name: string
+  status: AdStatus
+  meta_ad_id: string | null
+  selected_creative_id: string | null
+  selected_copy_id: string | null
+  destination_type: string | null
+  created_at: string
+  updated_at: string
+  published_at: string | null
+  approved_at: string | null
+  rejected_at: string | null
+  last_error: Record<string, unknown> | null
+  meta_review_status: string
+  metrics_snapshot: Record<string, unknown> | null
+}
+
+export interface NormalizedAdCreative {
+  id: string
+  ad_id: string
+  creative_format: 'feed' | 'story' | 'reel'
+  image_url: string
+  creative_style: string | null
+  variation_label: string | null
+  gradient_class: string | null
+  is_base_image: boolean | null
+  sort_order: number | null
+  created_at: string
+}
+
+export interface NormalizedAdCopyVariation {
+  id: string
+  ad_id: string
+  headline: string
+  primary_text: string
+  description: string | null
+  cta_text: string
+  cta_type: string | null
+  overlay_headline: string | null
+  overlay_offer: string | null
+  overlay_body: string | null
+  overlay_density: string | null
+  is_selected: boolean | null
+  sort_order: number | null
+  generation_prompt: string | null
+  created_at: string
+}
+
+export interface NormalizedAdLocation {
+  id: string
+  ad_id: string
+  location_name: string
+  location_type: 'city' | 'region' | 'country' | 'radius' | 'postal_code'
+  latitude: number | null
+  longitude: number | null
+  radius_km: number | null
+  inclusion_mode: 'include' | 'exclude'
+  meta_location_key: string | null
+  created_at: string
+}
+
+export interface NormalizedAdDestination {
+  id: string
+  ad_id: string
+  destination_type: 'instant_form' | 'website_url' | 'phone_number'
+  instant_form_id: string | null
+  website_url: string | null
+  display_link: string | null
+  utm_params: Record<string, string> | null
+  phone_number: string | null
+  phone_country_code: string | null
+  phone_formatted: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface NormalizedAdBudget {
+  id: string
+  ad_id: string
+  daily_budget_cents: number
+  currency_code: string
+  start_date: string | null
+  end_date: string | null
+  timezone: string | null
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Instant Form Types
+ */
+export interface NormalizedInstantForm {
+  id: string
+  campaign_id: string | null
+  user_id: string
+  meta_form_id: string | null
+  name: string
+  intro_headline: string
+  intro_description: string | null
+  intro_image_url: string | null
+  privacy_policy_url: string
+  privacy_link_text: string | null
+  thank_you_title: string
+  thank_you_message: string
+  thank_you_button_text: string | null
+  thank_you_button_url: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface NormalizedInstantFormField {
+  id: string
+  form_id: string
+  field_type: 'full_name' | 'email' | 'phone' | 'custom_text'
+  field_label: string
+  is_required: boolean | null
+  sort_order: number
+  created_at: string
+}
+
+/**
+ * Campaign Analytics Types
+ */
+export interface CampaignAnalytics {
+  campaign_id: string
+  campaign_name: string
+  campaign_status: string | null
+  goal_type: string | null
+  total_budget: number
+  allocated_budget: number
+  remaining_budget: number
+  currency: string
+  budget_status: string | null
+  ad_count: number
+  active_ads: number
+  draft_ads: number
+  created_at: string | null
+  updated_at: string | null
+}
+

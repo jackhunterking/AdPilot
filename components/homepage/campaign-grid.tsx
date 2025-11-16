@@ -12,7 +12,15 @@ import { RenameCampaignDialog } from '@/components/workspace/rename-campaign-dia
 import { toast } from 'sonner'
 
 type Campaign = Tables<'campaigns'> & {
-  campaign_states?: Tables<'campaign_states'>
+  ads?: Array<{
+    id: string
+    name: string
+    status: string
+    ad_creatives?: Array<{ 
+      image_url: string
+      creative_format: string
+    }>
+  }>
 }
 
 export function CampaignGrid() {

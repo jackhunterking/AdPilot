@@ -116,108 +116,158 @@ export async function PUT(
       )
     }
 
-    console.log(`[${traceId}] Validation passed, building update data`)
+    console.log(`[${traceId}] Validation passed, saving to normalized tables`)
 
-    // Build structured data objects
-    const copyData: Json = {
-      primaryText: body.copy.primaryText,
-      headline: body.copy.headline,
-      description: body.copy.description || '',
-      selectedCopyIndex: body.copy.selectedCopyIndex,
-      variations: body.copy.variations || []
-    }
+    try {
+      // 1. Save creative variations
+      if (body.creative && body.creative.imageVariations && body.creative.imageVariations.length > 0) {
+        // Delete existing creatives for this ad
+        await supabaseServer
+          .from('ad_creatives')
+          .delete()
+          .eq('ad_id', adId)
 
-    const creativeData: Json = {
-      imageVariations: body.creative.imageVariations,
-      selectedImageIndex: body.creative.selectedImageIndex,
-      selectedCreativeVariation: body.creative.selectedCreativeVariation as Json,
-      baseImageUrl: body.creative.baseImageUrl || null,
-      format: body.creative.format
-    }
+        // Insert all creative variations
+        const creativeInserts = body.creative.imageVariations.map((imageUrl: string, idx: number) => ({
+          ad_id: adId,
+          creative_format: (body.creative.format as string) || 'feed',
+          image_url: imageUrl,
+          creative_style: null,
+          variation_label: `Variation ${idx + 1}`,
+          is_base_image: idx === 0,
+          sort_order: idx
+        }))
 
-    const destinationData: Json = {
-      type: body.destination.type,
-      url: body.destination.url || null,
-      phoneNumber: body.destination.phoneNumber || null,
-      normalizedPhone: body.destination.normalizedPhone || null,
-      formFields: body.destination.formFields || null,
-      cta: body.destination.cta
-    }
+        const { data: creatives, error: creativesError } = await supabaseServer
+          .from('ad_creatives')
+          .insert(creativeInserts)
+          .select()
 
-    // Build comprehensive setup_snapshot
-    const setupSnapshot: Json = {
-      // Include all structured data
-      copy: copyData,
-      creative: creativeData,
-      destination: destinationData,
-      
-      // Add metadata
-      metadata: {
-        savedAt: new Date().toISOString(),
-        version: '1.0',
-        editedBy: user.id,
-        editContext: body.metadata?.editContext || 'manual_save',
-        savedFrom: body.metadata?.savedFrom || 'edit_mode'
+        if (creativesError) {
+          console.error(`[${traceId}] Failed to save creatives:`, creativesError)
+          throw new Error('Failed to save creatives')
+        }
+
+        // Set selected creative
+        const selectedIdx = body.creative.selectedImageIndex || 0
+        if (creatives && creatives[selectedIdx]) {
+          await supabaseServer
+            .from('ads')
+            .update({ selected_creative_id: creatives[selectedIdx].id })
+            .eq('id', adId)
+        }
       }
-    }
 
-    console.log(`[${traceId}] Updating ad in database`)
+      // 2. Save copy variations
+      if (body.copy && body.copy.variations && body.copy.variations.length > 0) {
+        // Delete existing copy variations
+        await supabaseServer
+          .from('ad_copy_variations')
+          .delete()
+          .eq('ad_id', adId)
 
-    // Update ad with all data in single transaction
-    const { data: updatedAd, error: updateError } = await supabaseServer
-      .from('ads')
-      .update({
-        copy_data: copyData,
-        creative_data: creativeData,
-        destination_data: destinationData,
-        destination_type: body.destination.type,
-        setup_snapshot: setupSnapshot,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', adId)
-      .eq('campaign_id', campaignId)
-      .select()
-      .single()
+        // Insert all copy variations
+        const copyInserts = body.copy.variations.map((variation: { headline: string; primaryText: string; description: string }, idx: number) => ({
+          ad_id: adId,
+          headline: variation.headline,
+          primary_text: variation.primaryText,
+          description: variation.description || null,
+          cta_text: body.destination?.cta || 'Learn More',
+          is_selected: idx === (body.copy.selectedCopyIndex || 0),
+          sort_order: idx
+        }))
 
-    if (updateError) {
-      console.error(`[${traceId}] Database update failed:`, updateError)
+        const { data: copyVariations, error: copyError } = await supabaseServer
+          .from('ad_copy_variations')
+          .insert(copyInserts)
+          .select()
+
+        if (copyError) {
+          console.error(`[${traceId}] Failed to save copy:`, copyError)
+          throw new Error('Failed to save copy variations')
+        }
+
+        // Set selected copy
+        const selectedCopy = copyVariations?.find(c => c.is_selected)
+        if (selectedCopy) {
+          await supabaseServer
+            .from('ads')
+            .update({ selected_copy_id: selectedCopy.id })
+            .eq('id', adId)
+        }
+      }
+
+      // 3. Save destination
+      if (body.destination) {
+        let destinationType = 'website_url'
+        if (body.destination.type === 'form') destinationType = 'instant_form'
+        if (body.destination.type === 'call') destinationType = 'phone_number'
+
+        await supabaseServer
+          .from('ad_destinations')
+          .upsert({
+            ad_id: adId,
+            destination_type: destinationType,
+            website_url: body.destination.url || null,
+            display_link: body.destination.url || null,
+            phone_number: body.destination.phoneNumber || null,
+            phone_formatted: body.destination.normalizedPhone || null,
+            instant_form_id: null // TODO: Handle form ID when forms are implemented
+          }, { onConflict: 'ad_id' })
+
+        // Update destination_type on ads table for backward compatibility
+        await supabaseServer
+          .from('ads')
+          .update({ 
+            destination_type: body.destination.type,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', adId)
+      }
+
+      console.log(`[${traceId}] Ad saved successfully to normalized tables`)
+
+      // Fetch updated ad with all relations
+      const { data: updatedAd, error: fetchError } = await supabaseServer
+        .from('ads')
+        .select(`
+          *,
+          ad_creatives (*),
+          ad_copy_variations (*),
+          ad_destinations (*)
+        `)
+        .eq('id', adId)
+        .single()
+
+      if (fetchError || !updatedAd) {
+        console.error(`[${traceId}] Failed to fetch updated ad:`, fetchError)
+        throw new Error('Failed to fetch updated ad')
+      }
+
+      // Return success response
+      const response: SaveAdResponse = {
+        success: true,
+        ad: {
+          id: updatedAd.id,
+          campaign_id: updatedAd.campaign_id,
+          name: updatedAd.name,
+          status: updatedAd.status,
+          copy_data: null, // Deprecated
+          creative_data: null, // Deprecated
+          destination_data: null, // Deprecated
+          setup_snapshot: null, // Deprecated
+          updated_at: updatedAd.updated_at
+        }
+      }
+      
+      return NextResponse.json(response)
+    } catch (saveError) {
+      console.error(`[${traceId}] Save operation failed:`, saveError)
       return NextResponse.json(
-        { success: false, error: 'Failed to save ad changes' } as SaveAdResponse,
+        { success: false, error: saveError instanceof Error ? saveError.message : 'Failed to save ad' } as SaveAdResponse,
         { status: 500 }
       )
     }
-
-    if (!updatedAd) {
-      console.error(`[${traceId}] Ad not found after update`)
-      return NextResponse.json(
-        { success: false, error: 'Ad not found' } as SaveAdResponse,
-        { status: 404 }
-      )
-    }
-
-    console.log(`[${traceId}] Ad saved successfully:`, {
-      adId: updatedAd.id,
-      updatedAt: updatedAd.updated_at
-    })
-
-    // Return success response
-    const response: SaveAdResponse = {
-      success: true,
-      ad: {
-        id: updatedAd.id,
-        campaign_id: updatedAd.campaign_id,
-        name: updatedAd.name,
-        status: updatedAd.status,
-        copy_data: updatedAd.copy_data,
-        creative_data: updatedAd.creative_data,
-        destination_data: updatedAd.destination_data,
-        setup_snapshot: updatedAd.setup_snapshot,
-        updated_at: updatedAd.updated_at
-      }
-    }
-
-    return NextResponse.json(response)
-    
   } catch (error) {
     console.error(`[${traceId}] Unexpected error:`, {
       error,

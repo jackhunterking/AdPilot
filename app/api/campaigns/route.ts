@@ -33,8 +33,7 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get('limit')
     const limit = limitParam ? parseInt(limitParam, 10) : undefined
 
-    // Optimize query to fetch only necessary fields
-    // For list view, we don't need all campaign_states data
+    // Fetch campaigns with their ads and preview data
     let query = supabaseServer
       .from('campaigns')
       .select(`
@@ -43,8 +42,19 @@ export async function GET(request: NextRequest) {
         status,
         created_at,
         updated_at,
-        campaign_states (
-          ad_preview_data
+        initial_goal,
+        campaign_budget_cents,
+        currency_code,
+        budget_status,
+        ads (
+          id,
+          name,
+          status,
+          selected_creative_id,
+          ad_creatives!selected_creative_id (
+            image_url,
+            creative_format
+          )
         )
       `)
       .eq('user_id', user.id)
@@ -154,8 +164,6 @@ export async function POST(request: NextRequest) {
             user_id: user.id,
             name: nameToTry,
             status: 'draft',
-            current_step: 1,
-            total_steps: 6,
             metadata,
             initial_goal: initialGoal || null,
           })
@@ -164,26 +172,7 @@ export async function POST(request: NextRequest) {
 
         if (!insert.error) {
           const campaign: Tables<'campaigns'> | null = insert.data as Tables<'campaigns'> | null
-          // Create campaign state with initial goal if provided
-          const initialGoalData = initialGoal 
-            ? { selectedGoal: initialGoal, status: 'idle', formData: null }
-            : null
-          const { error: stateError } = await supabaseServer
-            .from('campaign_states')
-            .insert({
-              campaign_id: campaign!.id,
-              goal_data: initialGoalData,
-              location_data: null,
-              ad_copy_data: null,
-              ad_preview_data: null,
-              budget_data: null,
-            })
-          if (stateError) {
-            console.error('Error creating campaign state:', stateError)
-            await supabaseServer.from('campaigns').delete().eq('id', campaign!.id)
-            return NextResponse.json({ error: 'Failed to initialize campaign state' }, { status: 500 })
-          }
-
+          
           // Conversation init
           try {
             const conversation = await conversationManager.createConversation(
@@ -210,12 +199,7 @@ export async function POST(request: NextRequest) {
               .insert({
                 campaign_id: campaign!.id,
                 name: `${campaign!.name} - Draft`,
-                status: 'draft',
-                creative_data: null,
-                copy_data: null,
-                meta_ad_id: null,
-                metrics_snapshot: null,
-                setup_snapshot: null
+                status: 'draft'
               })
               .select()
               .single()
@@ -256,8 +240,6 @@ export async function POST(request: NextRequest) {
         user_id: user.id,
         name: finalName!,
         status: 'draft',
-        current_step: 1,
-        total_steps: 6,
         metadata,
         initial_goal: initialGoal || null,
       })
@@ -267,28 +249,6 @@ export async function POST(request: NextRequest) {
     if (manualErr) {
       const status = (manualErr as unknown as { code?: string }).code === '23505' ? 409 : 500
       return NextResponse.json({ error: manualErr.message }, { status })
-    }
-
-    // Create campaign state with initial goal if provided
-    const manualGoalData = initialGoal 
-      ? { selectedGoal: initialGoal, status: 'idle', formData: null }
-      : null
-
-    const { error: manualStateErr } = await supabaseServer
-      .from('campaign_states')
-      .insert({
-        campaign_id: (manualCampaign as Tables<'campaigns'>).id,
-        goal_data: manualGoalData,
-        location_data: null,
-        ad_copy_data: null,
-        ad_preview_data: null,
-        budget_data: null,
-      })
-
-    if (manualStateErr) {
-      console.error('Error creating campaign state:', manualStateErr)
-      await supabaseServer.from('campaigns').delete().eq('id', (manualCampaign as Tables<'campaigns'>).id)
-      return NextResponse.json({ error: 'Failed to initialize campaign state' }, { status: 500 })
     }
 
     try {
@@ -316,12 +276,7 @@ export async function POST(request: NextRequest) {
         .insert({
           campaign_id: (manualCampaign as Tables<'campaigns'>).id,
           name: `${(manualCampaign as Tables<'campaigns'>).name} - Draft`,
-          status: 'draft',
-          creative_data: null,
-          copy_data: null,
-          meta_ad_id: null,
-          metrics_snapshot: null,
-          setup_snapshot: null
+          status: 'draft'
         })
         .select()
         .single()

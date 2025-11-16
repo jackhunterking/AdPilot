@@ -66,7 +66,7 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
     selectedImageIndex,
   }), [adContent, isPublished, selectedCreativeVariation, selectedImageIndex])
 
-  // Load initial state from current ad's setup_snapshot
+  // Load initial state from normalized tables via snapshot API
   useEffect(() => {
     if (!currentAd) {
       // No ad selected - reset to empty state
@@ -81,37 +81,61 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
     
     logger.debug('AdPreviewContext', `Loading state from ad ${currentAd.id}`)
     
-    // Load from ad's setup_snapshot first (new architecture)
-    const creativeSnapshot = currentAd.setup_snapshot?.creative
+    // Fetch ad snapshot from normalized tables
+    const loadSnapshot = async () => {
+      try {
+        const response = await fetch(`/api/campaigns/${campaign?.id}/ads/${currentAd.id}/snapshot`)
+        if (!response.ok) {
+          logger.warn('AdPreviewContext', 'Failed to load snapshot, using empty state')
+          setIsInitialized(true)
+          return
+        }
+        
+        const { setup_snapshot } = await response.json()
+        const creativeSnapshot = setup_snapshot?.creative
+        
+        if (creativeSnapshot) {
+          logger.debug('AdPreviewContext', '✅ Loaded snapshot from normalized tables', {
+            hasImageUrl: !!creativeSnapshot.imageUrl,
+            imageVariationsCount: creativeSnapshot.imageVariations?.length || 0
+          })
+          
+          // Construct AdContent from snapshot
+          if (creativeSnapshot.imageUrl || creativeSnapshot.imageVariations) {
+            setAdContent({
+              imageUrl: creativeSnapshot.imageUrl,
+              imageVariations: creativeSnapshot.imageVariations,
+              baseImageUrl: creativeSnapshot.baseImageUrl,
+              headline: '', // Will be populated from copy context
+              body: '',
+              cta: 'Learn More'
+            })
+          }
+          
+          if (creativeSnapshot.selectedImageIndex !== undefined) {
+            setSelectedImageIndex(creativeSnapshot.selectedImageIndex ?? null)
+          }
+          
+          if (creativeSnapshot.selectedCreativeVariation) {
+            setSelectedCreativeVariation(creativeSnapshot.selectedCreativeVariation)
+          }
+        }
+        
+        setIsInitialized(true)
+      } catch (err) {
+        logger.error('AdPreviewContext', 'Error loading snapshot', err)
+        setIsInitialized(true)
+      }
+    }
     
-    if (creativeSnapshot) {
-      logger.debug('AdPreviewContext', '✅ Loading from ad snapshot', {
-        hasImageUrl: !!creativeSnapshot.imageUrl,
-        imageVariationsCount: creativeSnapshot.imageVariations?.length || 0
-      })
-      
-      // Construct AdContent from snapshot
-      if (creativeSnapshot.imageUrl || creativeSnapshot.imageVariations) {
-        setAdContent({
-          imageUrl: creativeSnapshot.imageUrl,
-          imageVariations: creativeSnapshot.imageVariations,
-          baseImageUrl: creativeSnapshot.baseImageUrl,
-          headline: '', // Will be populated from copy context
-          body: '',
-          cta: 'Learn More'
-        })
-      }
-      
-      if (creativeSnapshot.selectedImageIndex !== undefined) {
-        setSelectedImageIndex(creativeSnapshot.selectedImageIndex ?? null)
-      }
-      
-      if (creativeSnapshot.selectedCreativeVariation) {
-        setSelectedCreativeVariation(creativeSnapshot.selectedCreativeVariation)
-      }
-    } else if (campaign?.campaign_states) {
-      // Fallback to campaign_states for backward compatibility
-      logger.debug('AdPreviewContext', '⚠️ Falling back to campaign_states (legacy)')
+    loadSnapshot()
+  }, [currentAd?.id, campaign?.id])
+  
+  // Legacy fallback - remove this block if present
+  if (false) {
+    // This block intentionally disabled - campaign_states no longer exists
+    const legacyFallback = () => {
+      logger.debug('AdPreviewContext', '⚠️ Legacy fallback disabled')
       
       const savedData = campaign.campaign_states?.ad_preview_data as unknown as {
         adContent?: AdContent | null;

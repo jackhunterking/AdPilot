@@ -28,7 +28,20 @@ export async function GET(
       .from('campaigns')
       .select(`
         *,
-        campaign_states (*)
+        ads (
+          id,
+          name,
+          status,
+          selected_creative_id,
+          selected_copy_id,
+          created_at,
+          updated_at,
+          ad_creatives (*),
+          ad_copy_variations (*),
+          ad_target_locations (*),
+          ad_destinations (*),
+          ad_budgets (*)
+        )
       `)
       .eq('id', id)
       .eq('user_id', user.id)
@@ -46,22 +59,9 @@ export async function GET(
     console.log(`[API] Campaign loaded:`, {
       id: campaign.id,
       name: campaign.name,
-      hasCampaignStates: !!campaign.campaign_states,
-      campaignStatesType: Array.isArray(campaign.campaign_states) ? 'array' : typeof campaign.campaign_states,
-      campaignStatesKeys: campaign.campaign_states ? Object.keys(campaign.campaign_states) : []
+      adsCount: campaign.ads?.length || 0,
+      hasAds: !!campaign.ads
     });
-    
-    if (campaign.campaign_states && typeof campaign.campaign_states === 'object') {
-      console.log(`[API] ✅ campaign_states exists as object:`, {
-        hasAdPreviewData: Boolean((campaign.campaign_states as Database['public']['Tables']['campaign_states']['Row']).ad_preview_data),
-        hasGoalData: Boolean((campaign.campaign_states as Database['public']['Tables']['campaign_states']['Row']).goal_data),
-        hasLocationData: Boolean((campaign.campaign_states as Database['public']['Tables']['campaign_states']['Row']).location_data),
-        adPreviewDataSample: (campaign.campaign_states as Database['public']['Tables']['campaign_states']['Row']).ad_preview_data ? 
-          JSON.stringify((campaign.campaign_states as Database['public']['Tables']['campaign_states']['Row']).ad_preview_data).substring(0, 200) : null
-      });
-    } else {
-      console.warn(`[API] ⚠️ campaign_states is NULL or wrong type!`);
-    }
 
     return NextResponse.json({ campaign })
   } catch (error) {
@@ -207,19 +207,7 @@ export async function DELETE(
 
     console.log('[DELETE Campaign] Ownership verified, proceeding with deletion')
 
-    // Delete campaign_states (cascade should handle this, but being explicit)
-    const { error: stateError } = await supabaseServer
-      .from('campaign_states')
-      .delete()
-      .eq('campaign_id', campaignId)
-    
-    if (stateError) {
-      console.error('[DELETE Campaign] Error deleting campaign states:', stateError)
-    } else {
-      console.log('[DELETE Campaign] Campaign states deleted successfully')
-    }
-
-    // Delete ads associated with this campaign
+    // Delete ads associated with this campaign (cascade will handle ad_creatives, ad_copy_variations, etc.)
     const { error: adsError } = await supabaseServer
       .from('ads')
       .delete()

@@ -4,34 +4,25 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { logger } from "@/lib/utils/logger"
 import { useAuth } from '@/components/auth/auth-provider'
 
-interface CampaignState {
-  goal_data?: Record<string, unknown> | null
-  location_data?: Record<string, unknown> | null
-  budget_data?: Record<string, unknown> | null
-  ad_copy_data?: Record<string, unknown> | null
-  ad_preview_data?: Record<string, unknown> | null
-  meta_connect_data?: Record<string, unknown> | null
-}
-
 interface Campaign {
   id: string
   user_id: string
   name: string
   status: string
-  current_step: number
-  total_steps: number
   initial_goal?: string | null
   metadata: { initialPrompt?: string } | null
-  campaign_states?: CampaignState  // 1-to-1 relationship (object, not array)
   created_at: string
   updated_at: string
   published_status?: string | null
   last_metrics_sync_at?: string | null
   conversationId?: string // Link to AI SDK conversation
   ai_conversation_id?: string | null // Campaign-level conversation ID (persists across ads)
-  campaign_budget?: number | null // Total campaign budget
+  campaign_budget?: number | null // Legacy - use campaign_budget_cents
+  campaign_budget_cents?: number | null // New normalized field
   budget_strategy?: string | null
   budget_status?: string | null
+  currency_code?: string
+  ads?: unknown[] // Nested ads data from API
 }
 
 interface CampaignContextType {
@@ -41,8 +32,7 @@ interface CampaignContextType {
   createCampaign: (name: string, prompt?: string, goal?: string) => Promise<Campaign | null>
   loadCampaign: (id: string) => Promise<void>
   updateCampaign: (updates: Partial<Campaign>) => Promise<void>
-  updateBudget: (budget: number) => Promise<void>
-  saveCampaignState: (field: string, value: Record<string, unknown> | null, options?: { retries?: number; silent?: boolean }) => Promise<boolean>
+  updateBudget: (budgetCents: number) => Promise<void>
   clearCampaign: () => void
   getOrCreateConversationId: () => Promise<string | null>
   updateConversationId: (conversationId: string) => Promise<void>
@@ -77,16 +67,10 @@ export function CampaignProvider({
         logger.debug('CampaignContext', 'Raw campaign data', {
           id: campaign.id,
           name: campaign.name,
-          hasStates: !!campaign.campaign_states,
-          statesType: typeof campaign.campaign_states,
-          statesKeys: campaign.campaign_states ? Object.keys(campaign.campaign_states) : [],
+          hasAds: !!campaign.ads,
+          adsCount: campaign.ads?.length || 0,
+          budget: campaign.campaign_budget_cents
         })
-        
-        if (campaign.campaign_states && typeof campaign.campaign_states === 'object') {
-          logger.debug('CampaignContext', '✅ campaign_states exists as object', campaign.campaign_states)
-        } else {
-          logger.warn('CampaignContext', '⚠️ campaign_states is NULL or wrong type!', campaign.campaign_states)
-        }
         
         // Fetch linked conversation (AI SDK pattern)
         try {
@@ -203,64 +187,13 @@ export function CampaignProvider({
     }
   }
 
-  // Save campaign state (goal, location, etc.) with retry logic
-  const saveCampaignState = async (
-    field: string, 
-    value: Record<string, unknown> | null,
-    options: { retries?: number; silent?: boolean } = {}
-  ): Promise<boolean> => {
-    const { retries = 3, silent = false } = options
-    
-    if (!campaign?.id) {
-      console.warn('No active campaign to save state to')
-      return false
-    }
-
-    let lastError: Error | null = null
-
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        // Log what we're saving (debug mode only)
-        if (field === 'ad_preview_data') {
-          logger.debug('CampaignContext', `💾 Saving ${field}`, {
-            campaignId: campaign.id,
-            hasImageVariations: Boolean((value as { adContent?: { imageVariations?: unknown[] } })?.adContent?.imageVariations?.length),
-            imageCount: ((value as { adContent?: { imageVariations?: unknown[] } })?.adContent?.imageVariations?.length) || 0,
-            attempt: attempt,
-          })
-        }
-        
-        const response = await fetch(`/api/campaigns/${campaign.id}/state`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ [field]: value }),
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${await response.text()}`)
-        }
-
-        logger.debug('CampaignContext', `✅ Saved ${field} to campaign ${campaign.id}`)
-        return true
-
-      } catch (err) {
-        lastError = err instanceof Error ? err : new Error('Save failed')
-        logger.error('CampaignContext', `Save attempt ${attempt}/${retries} failed for ${field}`, lastError)
-
-        if (attempt < retries) {
-          const delay = Math.pow(2, attempt - 1) * 1000
-          await new Promise(resolve => setTimeout(resolve, delay))
-        }
-      }
-    }
-
-    // All retries failed
-    if (!silent) {
-      console.error(`💥 Failed to save ${field} after ${retries} attempts`)
-    }
-    
-    return false
-  }
+  // DEPRECATED: saveCampaignState removed - campaign_states table no longer exists
+  // Use specific ad endpoints instead:
+  //   - POST /api/ads/[id]/creative for creative data
+  //   - POST /api/ads/[id]/copy for copy data
+  //   - POST /api/ads/[id]/locations for location data
+  //   - PUT /api/ads/[id]/destination for destination data
+  //   - PUT /api/ads/[id]/budget for budget data
 
   // Clear campaign (for logout, etc.)
   const clearCampaign = () => {
@@ -377,7 +310,6 @@ export function CampaignProvider({
       loadCampaign,
       updateCampaign,
       updateBudget,
-      saveCampaignState,
       clearCampaign,
       getOrCreateConversationId,
       updateConversationId,

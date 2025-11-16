@@ -274,18 +274,13 @@ export async function POST(req: Request) {
       planContext = `\n[CREATIVE PLAN ACTIVE]\nPlan ID: ${planId}\nFollow plan coverage and constraints. Generate square and vertical with vertical reusing the same base square image via extended canvas (blur/gradient/solid). Keep edges clean and reflow overlays within edge-safe areas; never draw frames or labels. Respect copy limits: primary ≤125, headline ≤40, description ≤30.`;
     } else if (effectiveGoal) {
       // Auto-orchestrate plan when missing
-      // Try to read offer from campaign_states.ad_copy_data.offerText
+      // Try to read offer from conversation metadata
       let offerText: string | null = null;
       try {
-        const { data: cs } = await supabase
-          .from('campaign_states')
-          .select('ad_copy_data')
-          .eq('campaign_id', conversation.campaign_id)
-          .maybeSingle();
-        const adCopyData = (cs?.ad_copy_data as unknown as { offerText?: string } | null) || null;
-        offerText = adCopyData?.offerText || null;
+        const conversationMeta = (conversation.metadata as { offerText?: string } | null) || null;
+        offerText = conversationMeta?.offerText || null;
       } catch (e) {
-        console.warn('[API] Could not read campaign_states.ad_copy_data:', e);
+        console.warn('[API] Could not read conversation metadata:', e);
       }
 
       // Quick extraction from latest user message if needed
@@ -321,23 +316,16 @@ export async function POST(req: Request) {
             planContext = `\n[CREATIVE PLAN ACTIVE]\nPlan ID: ${planId}\nFollow plan coverage and constraints. Generate square and vertical with vertical reusing the same base square image via extended canvas (blur/gradient/solid). Keep edges clean and reflow overlays within edge-safe areas; never draw frames or labels. Respect copy limits: primary ≤125, headline ≤40, description ≤30.`;
           }
 
-          // Persist offerText to memory
+          // Persist offerText to conversation metadata
           try {
-            const { data: cs2 } = await supabase
-              .from('campaign_states')
-              .select('ad_copy_data')
-              .eq('campaign_id', conversation.campaign_id)
-              .maybeSingle();
-            const existing = (cs2?.ad_copy_data as unknown) as import('@/lib/supabase/database.types').Json | null;
-            const base: Record<string, import('@/lib/supabase/database.types').Json> =
-              existing && typeof existing === 'object' && !Array.isArray(existing) ? (existing as Record<string, import('@/lib/supabase/database.types').Json>) : {};
-            const merged = { ...base, offerText: offerText as import('@/lib/supabase/database.types').Json } as import('@/lib/supabase/database.types').Json;
+            const existing = (conversation.metadata as Record<string, unknown>) || {};
+            const merged = { ...existing, offerText };
             await supabase
-              .from('campaign_states')
-              .update({ ad_copy_data: merged, updated_at: new Date().toISOString() })
-              .eq('campaign_id', conversation.campaign_id);
+              .from('conversations')
+              .update({ metadata: merged as import('@/lib/supabase/database.types').Json })
+              .eq('id', conversation.id);
           } catch (e) {
-            console.warn('[API] Failed to upsert offerText in ad_copy_data:', e);
+            console.warn('[API] Failed to save offerText to conversation metadata:', e);
           }
         } catch (e) {
           console.error('[API] Failed to auto-create CreativePlan:', e);
