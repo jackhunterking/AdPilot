@@ -33,7 +33,9 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get('limit')
     const limit = limitParam ? parseInt(limitParam, 10) : undefined
 
-    // Fetch campaigns with their ads and preview data
+    // Fetch campaigns with their ads (simplified query - no nested creatives for now)
+    // Note: Foreign keys for selected_creative_id don't exist yet, so we can't use FK hints
+    // TODO: After running SUPABASE_FK_MIGRATION.sql, we can add back nested ad_creatives query
     let query = supabaseServer
       .from('campaigns')
       .select(`
@@ -51,10 +53,10 @@ export async function GET(request: NextRequest) {
           name,
           status,
           selected_creative_id,
-          ad_creatives!selected_creative_id (
-            image_url,
-            creative_format
-          )
+          selected_copy_id,
+          destination_type,
+          created_at,
+          updated_at
         )
       `)
       .eq('user_id', user.id)

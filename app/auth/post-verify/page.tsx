@@ -27,12 +27,19 @@ function PostVerifyContent() {
 
   useEffect(() => {
     const run = async () => {
-      console.log('[POST-VERIFY] Starting post-verify flow', {
+      console.log('[POST-VERIFY] useEffect triggered', {
         loading,
         hasUser: !!user,
         userId: user?.id,
-        userEmail: user?.email
+        userEmail: user?.email,
+        effectRunCount: (window as unknown as { effectCountVerify?: number }).effectCountVerify || 0
       })
+
+      // Track effect runs for debugging
+      if (typeof window !== 'undefined') {
+        (window as unknown as { effectCountVerify?: number }).effectCountVerify = 
+          ((window as unknown as { effectCountVerify?: number }).effectCountVerify || 0) + 1
+      }
 
       if (loading) {
         console.log('[POST-VERIFY] Still loading, waiting...')
@@ -47,12 +54,18 @@ function PostVerifyContent() {
         return
       }
 
+      // Avoid double processing - check BEFORE any async work
       const sentinelKey = "post_verify_processed"
-      if (sessionStorage.getItem(sentinelKey)) {
-        console.log('[POST-VERIFY] Already processed, redirecting to homepage')
-        router.replace("/")
+      const alreadyProcessed = sessionStorage.getItem(sentinelKey)
+      
+      if (alreadyProcessed) {
+        console.log('[POST-VERIFY] Already processed, exiting WITHOUT redirect to avoid loop')
+        // Don't redirect - just exit. User should already be navigating away.
         return
       }
+      
+      // Set sentinel IMMEDIATELY before any async operations
+      console.log('[POST-VERIFY] Setting sentinel key to prevent re-runs')
       sessionStorage.setItem(sentinelKey, "true")
 
       try {

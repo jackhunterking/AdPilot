@@ -28,13 +28,20 @@ function PostLoginContent() {
 
   useEffect(() => {
     const run = async () => {
-      console.log('[POST-LOGIN] Starting post-login flow', { 
+      console.log('[POST-LOGIN] useEffect triggered', { 
         loading, 
         hasUser: !!user,
         userId: user?.id,
         userEmail: user?.email,
-        url: typeof window !== 'undefined' ? window.location.href : 'SSR'
+        url: typeof window !== 'undefined' ? window.location.href : 'SSR',
+        effectRunCount: (window as unknown as { effectCount?: number }).effectCount || 0
       })
+
+      // Track effect runs for debugging
+      if (typeof window !== 'undefined') {
+        (window as unknown as { effectCount?: number }).effectCount = 
+          ((window as unknown as { effectCount?: number }).effectCount || 0) + 1
+      }
 
       if (loading) {
         console.log('[POST-LOGIN] Still loading, waiting...')
@@ -48,13 +55,18 @@ function PostLoginContent() {
         return
       }
 
-      // Avoid double processing across reloads
+      // Avoid double processing across reloads - check BEFORE any async work
       const sentinelKey = "post_login_processed"
-      if (sessionStorage.getItem(sentinelKey)) {
-        console.log('[POST-LOGIN] Already processed, redirecting to homepage')
-        router.replace("/")
+      const alreadyProcessed = sessionStorage.getItem(sentinelKey)
+      
+      if (alreadyProcessed) {
+        console.log('[POST-LOGIN] Already processed, exiting WITHOUT redirect to avoid loop')
+        // Don't redirect - just exit. User should already be navigating away.
         return
       }
+      
+      // Set sentinel IMMEDIATELY before any async operations
+      console.log('[POST-LOGIN] Setting sentinel key to prevent re-runs')
       sessionStorage.setItem(sentinelKey, "true")
 
       try {

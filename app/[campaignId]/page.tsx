@@ -70,7 +70,9 @@ export default async function CampaignPage({
   
   console.log(`[SERVER] ✅ Valid UUID format, loading campaign data for: ${campaignId}`);
   
-  // Load campaign data with nested ads and their related data (following new hierarchy)
+  // Load campaign data with ads (no nested creatives until FKs are added)
+  // Note: Foreign keys for selected_creative_id don't exist yet
+  // TODO: After running SUPABASE_FK_MIGRATION.sql, we can add nested queries
   const { data: campaign, error: campaignError } = await supabaseServer
     .from('campaigns')
     .select(`
