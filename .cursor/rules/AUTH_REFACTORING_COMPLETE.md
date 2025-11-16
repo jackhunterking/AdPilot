@@ -431,5 +431,107 @@ All modified files are aligned with:
 - ✅ Supabase auth best practices
 - ✅ Lean development principles
 
-**Ready for Manual Testing!**
+---
+
+## ✅ Verified Working Journeys
+
+### Journey 2: Google Sign Up (Direct) ✅
+**Test Date:** 2025-11-16  
+**Result:** PASS
+
+**Flow:**
+1. User clicks "Sign Up" button
+2. Auth modal opens
+3. User clicks "Continue with Google"
+4. OAuth redirects to homepage (NOT /auth/post-login) ✅
+5. User stays on homepage (logged in)
+6. NO campaign created ✅
+7. Empty campaign grid shown ✅
+
+**Verified:**
+- ✅ Smart OAuth redirect working
+- ✅ No temp_prompt → goes to homepage
+- ✅ Zero automation triggered
+- ✅ User can enter prompt to create campaign
+
+---
+
+### Journey 3: Google Sign In (Existing User) ✅
+**Test Date:** 2025-11-16  
+**Result:** PASS
+
+**Flow:**
+1. User clicks "Sign In" button
+2. Auth modal opens
+3. User clicks "Continue with Google"
+4. OAuth redirects to homepage (NOT /auth/post-login) ✅
+5. User stays on homepage (logged in)
+6. Existing campaigns shown ✅
+7. NO new campaign created ✅
+
+**Verified:**
+- ✅ Smart OAuth redirect working
+- ✅ No temp_prompt → goes to homepage
+- ✅ Zero automation triggered
+- ✅ User sees existing campaigns
+
+---
+
+### Email Sign Up Flow ✅
+**Test Date:** 2025-11-16  
+**Result:** WORKING (after Supabase config)
+
+**Configuration Applied:**
+- Supabase Dashboard → Authentication → URL Configuration
+- Added redirect URLs:
+  - `https://adpilot.studio/**`
+  - `https://staging.adpilot.studio/**`
+
+**Flow:**
+1. User signs up with email/password
+2. Verification email sent
+3. User clicks verification link
+4. Redirects to correct domain (staging/production) ✅
+5. User signs in with credentials
+6. Lands on homepage
+
+**Note:** Email verification does NOT auto-sign-in (correct Supabase behavior)
+
+---
+
+## ⏳ Pending Full Testing
+
+### Journey 1: Unauthenticated User Enters Prompt
+**Status:** Partial verification
+
+**Verified So Far:**
+- ✅ Temp prompt storage
+- ✅ Campaign creation ("Unlock Home Leads")
+- ✅ Draft ad creation
+- ✅ Builder landing with firstVisit=true
+- ✅ Auto-save working (3 creatives persisted to normalized tables)
+- ✅ Zero PGRST204 errors
+
+**Still Need to Test:**
+- Complete wizard flow
+- Copy generation via AI chat
+- Destination selection
+- Location targeting
+- Budget configuration
+- Full end-to-end verification
+
+### Journey 4: Authenticated User Enters Prompt
+**Status:** Not yet tested
+
+**Test Plan:**
+1. Sign in first (Journey 3)
+2. Enter prompt on homepage
+3. Verify immediate campaign creation
+4. Verify NO auth modal opens
+5. Verify lands in builder
+6. Test auto-save functionality
+
+---
+
+**Testing Continues...**
 
