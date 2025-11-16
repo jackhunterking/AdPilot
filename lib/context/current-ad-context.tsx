@@ -1,8 +1,9 @@
 /**
  * Feature: Current Ad Context
- * Purpose: Manage the currently active ad and provide its setup_snapshot to all other contexts
+ * Purpose: Manage the currently active ad and load from normalized tables
  * References:
  *  - Supabase: https://supabase.com/docs/reference/javascript/select
+ *  - MASTER_PROJECT_ARCHITECTURE.md - Normalized schema
  */
 
 "use client"
@@ -12,16 +13,17 @@ import { useSearchParams } from 'next/navigation'
 import { logger } from "@/lib/utils/logger"
 import { useCampaignContext } from './campaign-context'
 
-// Ad structure from database
+// Ad structure from database (normalized schema)
 interface Ad {
   id: string
   campaign_id: string
   name: string
   status: 'draft' | 'published'
-  creative_data: unknown
-  copy_data: unknown
-  setup_snapshot: SetupSnapshot | null
+  // Deprecated: creative_data, copy_data, setup_snapshot (use normalized tables)
+  selected_creative_id: string | null
+  selected_copy_id: string | null
   meta_ad_id: string | null
+  destination_type: string | null
   created_at: string
   updated_at: string
 }
@@ -134,8 +136,8 @@ export function CurrentAdProvider({ children }: { children: ReactNode }) {
       
       logger.debug('CurrentAdContext', 'Ad loaded successfully', {
         adId: data.ad.id,
-        hasSnapshot: !!data.ad.setup_snapshot,
-        snapshotKeys: data.ad.setup_snapshot ? Object.keys(data.ad.setup_snapshot) : []
+        selectedCreativeId: data.ad.selected_creative_id,
+        selectedCopyId: data.ad.selected_copy_id
       })
       
       setCurrentAd(data.ad)

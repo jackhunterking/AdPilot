@@ -17,8 +17,9 @@ export async function PATCH(
     const { id: campaignId, adId } = await context.params
     const body = await request.json()
 
-    // Only allow updating specific fields
-    const allowedFields = ["name", "status", "creative_data", "copy_data", "metrics_snapshot", "meta_ad_id", "setup_snapshot", "destination_type", "destination_data"]
+    // Only allow updating specific fields (normalized schema only)
+    // Deprecated: creative_data, copy_data, setup_snapshot, destination_data (use /save endpoint instead)
+    const allowedFields = ["name", "status", "metrics_snapshot", "meta_ad_id", "destination_type", "selected_creative_id", "selected_copy_id"]
     const updates: Record<string, unknown> = {}
 
     for (const field of allowedFields) {

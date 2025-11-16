@@ -126,32 +126,39 @@ export function useDraftAutoSave(
         return
       }
       
-      // Prepare ad data
+      // Prepare ad data for normalized schema (using /save endpoint)
       const selectedCopy = contexts.getSelectedCopy?.()
-      const selectedImageUrl = contexts.selectedImageIndex !== null && contexts.adContent?.imageVariations?.[contexts.selectedImageIndex]
-        ? contexts.adContent.imageVariations[contexts.selectedImageIndex]
-        : contexts.adContent?.imageUrl || contexts.adContent?.imageVariations?.[0]
-        
-      const adData = {
-        creative_data: {
-          imageUrl: selectedImageUrl,
-          imageVariations: contexts.adContent?.imageVariations,
-          baseImageUrl: contexts.adContent?.baseImageUrl,
+      const selectedImageIndex = contexts.selectedImageIndex ?? 0
+      
+      // Build payload for normalized save endpoint
+      const savePayload = {
+        copy: {
+          variations: contexts.adCopyState.variations?.map(v => ({
+            headline: v.headline,
+            primaryText: v.primaryText,
+            description: v.description || ''
+          })) || [],
+          selectedCopyIndex: contexts.adCopyState.selectedIndex ?? 0
         },
-        copy_data: {
-          headline: selectedCopy?.headline || contexts.adContent?.headline,
-          primaryText: selectedCopy?.primaryText || contexts.adContent?.body,
-          description: selectedCopy?.description || contexts.adContent?.body,
-          cta: contexts.adContent?.cta || 'Learn More',
+        creative: {
+          imageVariations: contexts.adContent?.imageVariations || [],
+          selectedImageIndex,
+          format: 'feed'
         },
-        setup_snapshot: snapshot,
+        destination: {
+          type: contexts.destinationState.type || 'website',
+          url: contexts.destinationState.data?.websiteUrl || contexts.destinationState.data?.url || null,
+          phoneNumber: contexts.destinationState.data?.phoneNumber || null,
+          normalizedPhone: contexts.destinationState.data?.phoneFormatted || null,
+          cta: contexts.adContent?.cta || 'Learn More'
+        }
       }
       
-      // Save to server
-      const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}`, {
-        method: 'PATCH',
+      // Save to server using normalized save endpoint
+      const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/save`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(adData),
+        body: JSON.stringify(savePayload),
       })
       
       if (response.ok) {
