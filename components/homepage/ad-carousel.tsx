@@ -8,7 +8,7 @@ export function AdCarousel() {
     // 1. UrbanGlow Dental - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/dental-office-smile.jpg', // Professional dental office with patient smiling
+      imageUrl: '/dental-office-smile.webp', // Professional dental office with patient smiling
       gradient: 'from-cyan-500 via-blue-500 to-blue-600',
       logoUrl: '/logo-urbanglow-dental.svg',
       brandName: 'UrbanGlow Dental',
@@ -20,7 +20,7 @@ export function AdCarousel() {
     // 2. PrimeFit Personal Training - Story
     {
       format: 'story' as const,
-      imageUrl: '/personal-trainer-workout.jpg', // Personal trainer helping client with exercise
+      imageUrl: '/personal-trainer-workout.webp', // Personal trainer helping client with exercise
       gradient: 'from-red-600 via-red-500 to-orange-500',
       logoUrl: '/logo-primefit-training.svg',
       brandName: 'PrimeFit Personal Training',
@@ -32,7 +32,7 @@ export function AdCarousel() {
     // 3. FreshNest Cleaning Co. - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/clean-home-interior.jpg', // Spotless, organized home interior
+      imageUrl: '/clean-home-interior.webp', // Spotless, organized home interior
       gradient: 'from-emerald-500 via-green-500 to-teal-500',
       logoUrl: '/logo-freshnest-cleaning.svg',
       brandName: 'FreshNest Cleaning Co.',
@@ -44,7 +44,7 @@ export function AdCarousel() {
     // 4. SparkRide Auto Detailing - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/detailed-shiny-car.jpg', // Shiny, freshly detailed luxury car
+      imageUrl: '/detailed-shiny-car.webp', // Shiny, freshly detailed luxury car
       gradient: 'from-blue-600 via-sky-500 to-blue-500',
       logoUrl: '/logo-sparkride-auto.svg',
       brandName: 'SparkRide Auto Detailing',
@@ -56,7 +56,7 @@ export function AdCarousel() {
     // 5. Bloomfield Landscaping - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/beautiful-landscaped-yard.jpg', // Professional landscaped backyard with greenery
+      imageUrl: '/beautiful-landscaped-yard.webp', // Professional landscaped backyard with greenery
       gradient: 'from-green-600 via-emerald-500 to-green-500',
       logoUrl: '/logo-bloomfield-landscaping.svg',
       brandName: 'Bloomfield Landscaping',
@@ -68,7 +68,7 @@ export function AdCarousel() {
     // 6. TechRevive Phone Repair - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/phone-repair-service.jpg', // Technician repairing smartphone
+      imageUrl: '/phone-repair-service.webp', // Technician repairing smartphone
       gradient: 'from-purple-600 via-violet-500 to-purple-500',
       logoUrl: '/logo-techrevive-phone.svg',
       brandName: 'TechRevive Phone Repair',
@@ -80,7 +80,7 @@ export function AdCarousel() {
     // 7. Maple & Stone Realtors - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/beautiful-home-exterior.jpg', // Attractive residential home exterior
+      imageUrl: '/beautiful-home-exterior.webp', // Attractive residential home exterior
       gradient: 'from-orange-600 via-red-500 to-orange-500',
       logoUrl: '/logo-maple-stone-realtors.svg',
       brandName: 'Maple & Stone Realtors',
@@ -92,7 +92,7 @@ export function AdCarousel() {
     // 8. Lifted Meals Prep Service - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/meal-prep-containers.jpg', // Healthy meal prep containers with fresh food
+      imageUrl: '/meal-prep-containers.webp', // Healthy meal prep containers with fresh food
       gradient: 'from-emerald-600 via-green-500 to-teal-500',
       logoUrl: '/logo-lifted-meals.svg',
       brandName: 'Lifted Meals Prep Service',
@@ -104,7 +104,7 @@ export function AdCarousel() {
     // 9. LuxeSkin Aesthetics - Story
     {
       format: 'story' as const,
-      imageUrl: '/facial-treatment-spa.jpg', // Facial skincare treatment in spa setting
+      imageUrl: '/facial-treatment-spa.webp', // Facial skincare treatment in spa setting
       gradient: 'from-pink-500 via-rose-500 to-pink-600',
       logoUrl: '/logo-luxeskin-aesthetics.svg',
       brandName: 'LuxeSkin Aesthetics',
@@ -116,7 +116,7 @@ export function AdCarousel() {
     // 10. Paw Haven Grooming - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/groomed-happy-dog.jpg', // Well-groomed, happy dog after grooming
+      imageUrl: '/groomed-happy-dog.webp', // Well-groomed, happy dog after grooming
       gradient: 'from-amber-500 via-orange-500 to-yellow-500',
       logoUrl: '/logo-pawhaven-grooming.svg',
       brandName: 'Paw Haven Grooming',
@@ -128,7 +128,7 @@ export function AdCarousel() {
     // 11. The Interior Loft - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/modern-interior-design.jpg', // Stylish, modern interior design living room
+      imageUrl: '/modern-interior-design.webp', // Stylish, modern interior design living room
       gradient: 'from-indigo-600 via-blue-500 to-purple-500',
       logoUrl: '/logo-interior-loft.svg',
       brandName: 'The Interior Loft',
@@ -140,7 +140,7 @@ export function AdCarousel() {
     // 12. BluePeak Roofing - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/professional-roofing-work.jpg', // Roofers working on residential roof
+      imageUrl: '/professional-roofing-work.webp', // Roofers working on residential roof
       gradient: 'from-sky-500 via-blue-500 to-cyan-600',
       logoUrl: '/logo-bluepeak-roofing.svg',
       brandName: 'BluePeak Roofing',
@@ -152,7 +152,7 @@ export function AdCarousel() {
     // 13. BrightPath Tutoring - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/student-tutoring-session.jpg', // Tutor helping student with studies
+      imageUrl: '/student-tutoring-session.webp', // Tutor helping student with studies
       gradient: 'from-teal-500 via-cyan-500 to-blue-500',
       logoUrl: '/logo-brightpath-tutoring.svg',
       brandName: 'BrightPath Tutoring',
@@ -164,7 +164,7 @@ export function AdCarousel() {
     // 14. ZenBody Massage Studio - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/massage-therapy-session.jpg', // Relaxing massage therapy treatment
+      imageUrl: '/massage-therapy-session.webp', // Relaxing massage therapy treatment
       gradient: 'from-purple-500 via-violet-500 to-purple-600',
       logoUrl: '/logo-zenbody-massage.svg',
       brandName: 'ZenBody Massage Studio',
@@ -176,7 +176,7 @@ export function AdCarousel() {
     // 15. SilverSpoon Catering - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/gourmet-catering-food.jpg', // Beautiful gourmet catered food display
+      imageUrl: '/gourmet-catering-food.webp', // Beautiful gourmet catered food display
       gradient: 'from-slate-600 via-gray-500 to-slate-500',
       logoUrl: '/logo-silverspoon-catering.svg',
       brandName: 'SilverSpoon Catering',
@@ -188,7 +188,7 @@ export function AdCarousel() {
     // 16. DriveRight Instructors - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/driving-lesson-car.jpg', // Instructor teaching student to drive
+      imageUrl: '/driving-lesson-car.webp', // Instructor teaching student to drive
       gradient: 'from-red-500 via-orange-500 to-red-600',
       logoUrl: '/logo-driveright-instructors.svg',
       brandName: 'DriveRight Instructors',
@@ -200,7 +200,7 @@ export function AdCarousel() {
     // 17. FitFuel Smoothie Bar - Story
     {
       format: 'story' as const,
-      imageUrl: '/healthy-smoothie-bowls.jpg', // Colorful, healthy smoothies and bowls
+      imageUrl: '/healthy-smoothie-bowls.webp', // Colorful, healthy smoothies and bowls
       gradient: 'from-green-500 via-emerald-500 to-teal-500',
       logoUrl: '/logo-fitfuel-smoothie.svg',
       brandName: 'FitFuel Smoothie Bar',
@@ -212,7 +212,7 @@ export function AdCarousel() {
     // 18. AquaPure Pool Services - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/crystal-clear-pool.jpg', // Crystal clear swimming pool, well-maintained
+      imageUrl: '/crystal-clear-pool.webp', // Crystal clear swimming pool, well-maintained
       gradient: 'from-cyan-500 via-blue-400 to-sky-500',
       logoUrl: '/logo-aquapure-pool.svg',
       brandName: 'AquaPure Pool Services',
@@ -224,7 +224,7 @@ export function AdCarousel() {
     // 19. CozyNest AirBnB Management - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/beautiful-airbnb-interior.jpg', // Cozy, inviting Airbnb rental space
+      imageUrl: '/beautiful-airbnb-interior.webp', // Cozy, inviting Airbnb rental space
       gradient: 'from-rose-500 via-pink-500 to-red-500',
       logoUrl: '/logo-cozynest-airbnb.svg',
       brandName: 'CozyNest AirBnB Management',
@@ -236,7 +236,7 @@ export function AdCarousel() {
     // 20. Thrive Chiropractic - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/chiropractic-adjustment.jpg', // Chiropractor performing adjustment
+      imageUrl: '/chiropractic-adjustment.webp', // Chiropractor performing adjustment
       gradient: 'from-teal-600 via-cyan-500 to-teal-500',
       logoUrl: '/logo-thrive-chiropractic.svg',
       brandName: 'Thrive Chiropractic',
@@ -248,7 +248,7 @@ export function AdCarousel() {
     // 21. AutoGuard Mechanics - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/auto-mechanic-work.jpg', // Mechanic working under car hood
+      imageUrl: '/auto-mechanic-work.webp', // Mechanic working under car hood
       gradient: 'from-slate-600 via-gray-500 to-slate-500',
       logoUrl: '/logo-autoguard-mechanics.svg',
       brandName: 'AutoGuard Mechanics',
@@ -260,7 +260,7 @@ export function AdCarousel() {
     // 22. Meadow Kids Montessori - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/montessori-classroom-kids.jpg', // Children in Montessori classroom learning
+      imageUrl: '/montessori-classroom-kids.webp', // Children in Montessori classroom learning
       gradient: 'from-orange-400 via-amber-500 to-yellow-500',
       logoUrl: '/logo-meadow-kids-montessori.svg',
       brandName: 'Meadow Kids Montessori',
@@ -272,7 +272,7 @@ export function AdCarousel() {
     // 23. BoldBrew Coffee Co. - Story
     {
       format: 'story' as const,
-      imageUrl: '/fresh-coffee-beans-brewing.jpg', // Fresh coffee beans and brewing equipment
+      imageUrl: '/fresh-coffee-beans-brewing.webp', // Fresh coffee beans and brewing equipment
       gradient: 'from-amber-900 via-yellow-800 to-orange-800',
       logoUrl: '/logo-boldbrew-coffee.svg',
       brandName: 'BoldBrew Coffee Co.',
@@ -284,7 +284,7 @@ export function AdCarousel() {
     // 24. ShinePro Window Cleaning - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/clean-sparkling-windows.jpg', // Spotless, streak-free windows
+      imageUrl: '/clean-sparkling-windows.webp', // Spotless, streak-free windows
       gradient: 'from-sky-400 via-blue-400 to-cyan-400',
       logoUrl: '/logo-shinepro-window.svg',
       brandName: 'ShinePro Window Cleaning',
@@ -296,7 +296,7 @@ export function AdCarousel() {
     // 25. Horizon Solar Installers - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/solar-panels-installation.jpg', // Solar panels being installed on roof
+      imageUrl: '/solar-panels-installation.webp', // Solar panels being installed on roof
       gradient: 'from-yellow-500 via-amber-500 to-orange-500',
       logoUrl: '/logo-horizon-solar.svg',
       brandName: 'Horizon Solar Installers',
@@ -308,7 +308,7 @@ export function AdCarousel() {
     // 26. Peak Performance Coaching - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/business-coaching-session.jpg', // Business coach with client, strategy session
+      imageUrl: '/business-coaching-session.webp', // Business coach with client, strategy session
       gradient: 'from-indigo-600 via-blue-500 to-indigo-500',
       logoUrl: '/logo-peak-performance-coaching.svg',
       brandName: 'Peak Performance Coaching',
@@ -320,7 +320,7 @@ export function AdCarousel() {
     // 27. CraftedStone Renovations - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/kitchen-bathroom-renovation.jpg', // Beautiful renovated kitchen or bathroom
+      imageUrl: '/kitchen-bathroom-renovation.webp', // Beautiful renovated kitchen or bathroom
       gradient: 'from-teal-700 via-cyan-600 to-teal-600',
       logoUrl: '/logo-craftedstone-renovations.svg',
       brandName: 'CraftedStone Renovations',
@@ -332,7 +332,7 @@ export function AdCarousel() {
     // 28. VelvetBloom Florist - Story
     {
       format: 'story' as const,
-      imageUrl: '/luxury-flower-arrangement.jpg', // Stunning luxury floral arrangement
+      imageUrl: '/luxury-flower-arrangement.webp', // Stunning luxury floral arrangement
       gradient: 'from-pink-600 via-rose-500 to-pink-500',
       logoUrl: '/logo-velvetbloom-florist.svg',
       brandName: 'VelvetBloom Florist',
@@ -344,7 +344,7 @@ export function AdCarousel() {
     // 29. Summit Tax Advisors - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/tax-preparation-advisor.jpg', // Tax advisor helping client with paperwork
+      imageUrl: '/tax-preparation-advisor.webp', // Tax advisor helping client with paperwork
       gradient: 'from-blue-800 via-indigo-700 to-blue-700',
       logoUrl: '/logo-summit-tax.svg',
       brandName: 'Summit Tax Advisors',
@@ -356,7 +356,7 @@ export function AdCarousel() {
     // 30. LevelUp Barbershop - Story
     {
       format: 'story' as const,
-      imageUrl: '/modern-barbershop-haircut.jpg', // Modern barbershop, client getting fresh haircut
+      imageUrl: '/modern-barbershop-haircut.webp', // Modern barbershop, client getting fresh haircut
       gradient: 'from-red-600 via-rose-600 to-red-700',
       logoUrl: '/logo-levelup-barbershop.svg',
       brandName: 'LevelUp Barbershop',
@@ -368,7 +368,7 @@ export function AdCarousel() {
     // 31. AquaClean Carpet Care - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/carpet-cleaning-service.jpg', // Professional carpet cleaning in action
+      imageUrl: '/carpet-cleaning-service.webp', // Professional carpet cleaning in action
       gradient: 'from-blue-600 via-sky-500 to-blue-500',
       logoUrl: '/logo-aquaclean-carpet.svg',
       brandName: 'AquaClean Carpet Care',
@@ -380,7 +380,7 @@ export function AdCarousel() {
     // 32. CityCycle Bike Shop - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/quality-bicycles-shop.jpg', // Quality bicycles displayed in shop
+      imageUrl: '/quality-bicycles-shop.webp', // Quality bicycles displayed in shop
       gradient: 'from-emerald-600 via-green-500 to-emerald-500',
       logoUrl: '/logo-citycycle-bike.svg',
       brandName: 'CityCycle Bike Shop',
@@ -392,7 +392,7 @@ export function AdCarousel() {
     // 33. SweetCrate Bakery - Story
     {
       format: 'story' as const,
-      imageUrl: '/custom-decorated-cakes.jpg', // Beautiful custom decorated cakes
+      imageUrl: '/custom-decorated-cakes.webp', // Beautiful custom decorated cakes
       gradient: 'from-pink-400 via-rose-400 to-pink-500',
       logoUrl: '/logo-sweetcrate-bakery.svg',
       brandName: 'SweetCrate Bakery',
@@ -404,7 +404,7 @@ export function AdCarousel() {
     // 34. BrightSteps Orthotics - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/custom-orthotics-footwear.jpg', // Custom orthotics and comfortable footwear
+      imageUrl: '/custom-orthotics-footwear.webp', // Custom orthotics and comfortable footwear
       gradient: 'from-cyan-600 via-blue-500 to-sky-500',
       logoUrl: '/logo-brightsteps-orthotics.svg',
       brandName: 'BrightSteps Orthotics',
@@ -416,7 +416,7 @@ export function AdCarousel() {
     // 35. EaglePeak Security Systems - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/home-security-system.jpg', // Modern home security system installation
+      imageUrl: '/home-security-system.webp', // Modern home security system installation
       gradient: 'from-gray-800 via-slate-700 to-gray-700',
       logoUrl: '/logo-eaglepeak-security.svg',
       brandName: 'EaglePeak Security Systems',
@@ -428,7 +428,7 @@ export function AdCarousel() {
     // 36. Metro Movers - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/professional-movers-truck.jpg', // Professional movers loading moving truck
+      imageUrl: '/professional-movers-truck.webp', // Professional movers loading moving truck
       gradient: 'from-orange-600 via-red-500 to-orange-500',
       logoUrl: '/logo-metro-movers.svg',
       brandName: 'Metro Movers',
@@ -440,7 +440,7 @@ export function AdCarousel() {
     // 37. ProTutor Coding Bootcamp - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/coding-bootcamp-students.jpg', // Students learning to code on computers
+      imageUrl: '/coding-bootcamp-students.webp', // Students learning to code on computers
       gradient: 'from-purple-700 via-violet-600 to-purple-600',
       logoUrl: '/logo-protutor-coding.svg',
       brandName: 'ProTutor Coding Bootcamp',
@@ -452,7 +452,7 @@ export function AdCarousel() {
     // 38. CleanSpark Laundry - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/folded-fresh-laundry.jpg', // Neatly folded, fresh clean laundry
+      imageUrl: '/folded-fresh-laundry.webp', // Neatly folded, fresh clean laundry
       gradient: 'from-teal-600 via-cyan-500 to-teal-500',
       logoUrl: '/logo-cleanspark-laundry.svg',
       brandName: 'CleanSpark Laundry',
@@ -464,7 +464,7 @@ export function AdCarousel() {
     // 39. GoldenLeaf Tea House - Feed
     {
       format: 'feed' as const,
-      imageUrl: '/premium-loose-leaf-tea.jpg', // Premium loose-leaf tea display
+      imageUrl: '/premium-loose-leaf-tea.webp', // Premium loose-leaf tea display
       gradient: 'from-yellow-700 via-amber-600 to-yellow-600',
       logoUrl: '/logo-goldenleaf-tea.svg',
       brandName: 'GoldenLeaf Tea House',
@@ -476,7 +476,7 @@ export function AdCarousel() {
     // 40. SteelCore Fitness Studio - Story
     {
       format: 'story' as const,
-      imageUrl: '/strength-training-gym.jpg', // People doing strength training in modern gym
+      imageUrl: '/strength-training-gym.webp', // People doing strength training in modern gym
       gradient: 'from-zinc-900 via-gray-800 to-zinc-800',
       logoUrl: '/logo-steelcore-fitness.svg',
       brandName: 'SteelCore Fitness Studio',
@@ -508,7 +508,7 @@ export function AdCarousel() {
               key={index}
               className="flex-shrink-0 w-80 mx-4"
             >
-              <AdMockup {...ad} />
+              <AdMockup {...ad} priority={index < 10} />
             </div>
           ))}
         </div>

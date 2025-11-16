@@ -8,6 +8,7 @@
 
 "use client"
 
+import Image from "next/image"
 import { Sparkles, Globe, MoreVertical, ThumbsUp, MessageCircle, Share2, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -27,6 +28,7 @@ interface AdMockupProps {
   status?: AdStatus
   showEngagement?: boolean
   isLoading?: boolean
+  priority?: boolean // Control lazy vs priority loading for performance
 }
 
 export function AdMockup({
@@ -42,6 +44,7 @@ export function AdMockup({
   status,
   showEngagement = true,
   isLoading = false,
+  priority = false,
 }: AdMockupProps) {
   // Use provided values or fallback to safe defaults only if undefined/null
   const safePrimaryText = primaryText || 'Discover our amazing services and see how we can help you achieve your goals today.'
@@ -82,7 +85,14 @@ export function AdMockup({
             {/* Brand Logo - 40x40px */}
             <div className="h-10 w-10 rounded-lg bg-white flex items-center justify-center flex-shrink-0 overflow-hidden p-1" style={{ width: '40px', height: '40px', borderRadius: '8px' }}>
               {logoUrl ? (
-                <img src={logoUrl} alt={brandName} className="h-full w-full object-contain" />
+                <Image 
+                  src={logoUrl} 
+                  alt={brandName} 
+                  width={40} 
+                  height={40} 
+                  className="h-full w-full object-contain"
+                  priority={priority}
+                />
               ) : (
                 <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500" />
               )}
@@ -103,10 +113,14 @@ export function AdMockup({
         <div className="absolute inset-0" style={{ top: '60px' }}>
           {imageUrl ? (
             <div className="relative w-full h-full">
-              <img 
+              <Image 
                 src={imageUrl} 
                 alt={brandName} 
-                className="w-full h-full object-cover"
+                fill
+                sizes="320px"
+                quality={85}
+                priority={priority}
+                className="object-cover"
               />
             </div>
           ) : (
@@ -177,7 +191,14 @@ export function AdMockup({
         {/* Profile Picture - 40px circle with logo */}
         <div className="h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ width: '40px', height: '40px' }}>
           {logoUrl ? (
-            <img src={logoUrl} alt={brandName} className="h-full w-full object-cover" />
+            <Image 
+              src={logoUrl} 
+              alt={brandName} 
+              width={40} 
+              height={40} 
+              className="h-full w-full object-cover"
+              priority={priority}
+            />
           ) : (
             <div className="h-full w-full rounded-full bg-[#1877F2]" />
           )}
@@ -215,9 +236,14 @@ export function AdMockup({
       {/* Media Section - Square (1:1) aspect ratio - 1080x1080 */}
       {imageUrl ? (
         <div className="relative overflow-hidden" style={{ aspectRatio: '1/1' }}>
-          <img
+          <Image
             src={imageUrl}
             alt={brandName}
+            width={1080}
+            height={1080}
+            sizes="(max-width: 768px) 100vw, 320px"
+            quality={85}
+            priority={priority}
             className="w-full h-full object-cover"
           />
         </div>
