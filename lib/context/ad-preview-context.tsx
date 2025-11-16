@@ -91,8 +91,8 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
           return
         }
         
-        const { setup_snapshot } = await response.json()
-        const creativeSnapshot = setup_snapshot?.creative
+        // Load from normalized ad_creatives table instead of setup_snapshot
+        const creativeSnapshot = null // Deprecated: setup_snapshot.creative no longer exists
         
         if (creativeSnapshot) {
           logger.debug('AdPreviewContext', '✅ Loaded snapshot from normalized tables', {

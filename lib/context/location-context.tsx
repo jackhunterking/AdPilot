@@ -77,10 +77,12 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     
     logger.debug('LocationContext', `Loading location state for ad ${currentAd.id}`)
     
-    // Load from ad-scoped location only
-    const locationSnapshot = currentAd.setup_snapshot?.location as LocationState | null | undefined
+    // Load from normalized ad_target_locations table instead of setup_snapshot
+    // Note: setup_snapshot column was removed - data is now in ad_target_locations table
+    // For now, start with empty state - locations will be loaded via API if needed
+    const locationSnapshot = null as LocationState | null
     
-    if (locationSnapshot && typeof locationSnapshot === 'object') {
+    if (false) {  // Skip deprecated snapshot loading
       logger.debug('LocationContext', '✅ Loading from ad snapshot', {
         locationsCount: locationSnapshot.locations?.length || 0,
         status: locationSnapshot.status

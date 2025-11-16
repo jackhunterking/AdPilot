@@ -71,79 +71,34 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
     
     logger.debug('AdCopyContext', `Loading state from ad ${currentAd.id}`)
     
-    // Load from ad's setup_snapshot first (new architecture)
-    const copySnapshot = currentAd.setup_snapshot?.copy
+    // Load from normalized ad_copy_variations table
+    // Note: setup_snapshot column was removed - data is now in ad_copy_variations table
+    // The use-draft-auto-save hook handles saving, this context just manages UI state
     
-    if (copySnapshot) {
-      logger.debug('AdCopyContext', '✅ Loading from ad snapshot', {
-        hasVariations: !!copySnapshot.variations,
-        variationsCount: copySnapshot.variations?.length || 0
-      })
-      
-      // Map variations and ensure each has an id field
-      const variations = copySnapshot.variations 
-        ? copySnapshot.variations.slice(0, 3).map((v, index) => ({
-            id: (v as { id?: string }).id || `variation-${index}`,
-            primaryText: v.primaryText || '',
-            description: v.description || '',
-            headline: v.headline || '',
-            overlay: (v as { overlay?: AdCopyVariation['overlay'] }).overlay
-          }))
-        : null
-      
-      const validIndex = copySnapshot.selectedCopyIndex != null && copySnapshot.selectedCopyIndex < 3
-        ? copySnapshot.selectedCopyIndex
-        : null
-      
-      setAdCopyState({
-        selectedCopyIndex: validIndex,
-        status: validIndex !== null ? "completed" : "idle",
-        customCopyVariations: variations,
-        isGeneratingCopy: false,
-      })
-    }
-    // Note: campaign_states fallback removed - table no longer exists
+    // For now, start with empty state - copy will be loaded/generated via chat
+    // TODO: Fetch from ad_copy_variations table via API if needed for restoration
+    setAdCopyState({
+      selectedCopyIndex: null,
+      status: "idle",
+      customCopyVariations: null,
+      isGeneratingCopy: false,
+    })
     
     setIsInitialized(true)
   }, [currentAd?.id, campaign?.id])
 
-  // Save function
+  // Save function - DEPRECATED: Auto-save hook handles persistence
+  // This context manages UI state only, actual database saves handled by use-draft-auto-save
   const saveFn = useCallback(async (state: AdCopyState) => {
     if (!isInitialized) return
     
-    // Save to current ad's snapshot (new architecture)
-    if (currentAd) {
-      logger.debug('AdCopyContext', '💾 Saving to ad snapshot', {
-        adId: currentAd.id,
-        hasVariations: !!state.customCopyVariations
-      })
-      
-      try {
-        // Map variations to remove id field for snapshot storage
-        const variationsForSnapshot = state.customCopyVariations
-          ? state.customCopyVariations.map(v => ({
-              headline: v.headline,
-              body: v.primaryText, // Map primaryText to body for consistency
-              primaryText: v.primaryText,
-              description: v.description,
-              cta: v.headline, // Use headline as cta fallback
-              overlay: v.overlay
-            }))
-          : undefined
-        
-        await updateAdSnapshot({
-          copy: {
-            variations: variationsForSnapshot,
-            selectedCopyIndex: state.selectedCopyIndex || undefined
-          }
-        })
-      } catch (error) {
-        logger.error('AdCopyContext', 'Failed to save to ad snapshot', error)
-        throw error
-      }
-    }
-    // Note: campaign_states fallback removed - table no longer exists
-  }, [currentAd, campaign?.id, updateAdSnapshot, isInitialized])
+    // No-op: Saving is handled by use-draft-auto-save hook which uses /save endpoint
+    // This prevents the context from trying to save to deprecated setup_snapshot column
+    logger.debug('AdCopyContext', 'State updated (auto-save hook handles persistence)', {
+      hasVariations: !!state.customCopyVariations,
+      selectedIndex: state.selectedCopyIndex
+    })
+  }, [isInitialized])
 
   // Auto-save with NORMAL config (300ms debounce)
   useAutoSave(memoizedAdCopyState, saveFn, AUTO_SAVE_CONFIGS.NORMAL)
