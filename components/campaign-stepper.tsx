@@ -53,10 +53,9 @@ const stepHeaders: Record<string, { title: string; subtitle: string; subtext: st
 interface CampaignStepperProps {
   steps: Step[]
   campaignId?: string
-  completedSteps?: string[] // NEW: Backend-driven completion state
 }
 
-export function CampaignStepper({ steps, campaignId, completedSteps = [] }: CampaignStepperProps) {
+export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
   const searchParams = useSearchParams()
   const isNewAd = searchParams.get('newAd') === 'true'
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
@@ -95,13 +94,13 @@ export function CampaignStepper({ steps, campaignId, completedSteps = [] }: Camp
       }
     }
 
-    // If no saved step, use backend completedSteps to find first incomplete
+    // If no saved step, use local state to find first incomplete
     if (restoredIndex === null) {
-      const firstIncomplete = steps.findIndex(s => !completedSteps.includes(s.id))
+      const firstIncomplete = steps.findIndex(s => !s.completed)
       restoredIndex = firstIncomplete === -1 ? steps.length - 1 : firstIncomplete
 
-      console.log('[CampaignStepper] No saved step, using first incomplete', {
-        completedSteps,
+      console.log('[CampaignStepper] No saved step, using first incomplete from local state', {
+        completedSteps: steps.filter(s => s.completed).map(s => s.id),
         firstIncompleteStep: steps[restoredIndex]?.id,
         targetIndex: restoredIndex
       })
@@ -109,7 +108,7 @@ export function CampaignStepper({ steps, campaignId, completedSteps = [] }: Camp
 
     setCurrentStepIndex(restoredIndex)
     hasInitializedRef.current = true
-  }, [steps, isNewAd, completedSteps, campaignId])
+  }, [steps, isNewAd, campaignId])
 
   // Clamp currentStepIndex whenever steps array size or ordering changes
   useEffect(() => {
@@ -232,12 +231,22 @@ export function CampaignStepper({ steps, campaignId, completedSteps = [] }: Camp
   }, [currentStepIndex, currentStep, steps.length, campaignId])
 
   const handleNext = () => {
-    if (canGoNext && !isLastStep) {
-      setDirection('forward')
-      setCurrentStepIndex(prev => prev + 1)
-      // Dispatch event to clear any editing references
-      window.dispatchEvent(new CustomEvent('stepNavigation', { detail: { direction: 'next' } }))
-    }
+    if (!canGoNext || isLastStep || !currentStep) return
+    
+    // Dispatch save event BEFORE navigating (user confirmed completion by clicking Next)
+    window.dispatchEvent(new CustomEvent('saveBeforeNext', {
+      detail: { 
+        stepId: currentStep.id,
+        stepIndex: currentStepIndex
+      }
+    }))
+    
+    // Navigate to next step
+    setDirection('forward')
+    setCurrentStepIndex(prev => prev + 1)
+    
+    // Dispatch navigation event
+    window.dispatchEvent(new CustomEvent('stepNavigation', { detail: { direction: 'next' } }))
   }
 
   // Listen for global auto-advance events (e.g., after AI targeting or Meta connect)
@@ -346,14 +355,14 @@ export function CampaignStepper({ steps, campaignId, completedSteps = [] }: Camp
                         <div
                           className={cn(
                             "absolute inset-0 flex items-center justify-center rounded-full border transition-all",
-                            completedSteps.includes(step.id) // Use backend completedSteps prop
+                            step.completed // Use local state - instant update
                               ? "border-green-500 bg-green-500 text-white"
                               : index === currentStepIndex
                               ? "border-yellow-500 bg-yellow-500 text-white"
                               : "border-muted-foreground/20 bg-muted text-muted-foreground"
                           )}
                         >
-                          {completedSteps.includes(step.id) ? ( // Use backend completedSteps prop
+                          {step.completed ? ( // Use local state - instant update
                             <Check className="h-4 w-4" />
                           ) : (
                             <AlertTriangle className="h-4 w-4" />

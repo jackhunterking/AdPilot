@@ -124,6 +124,99 @@ export function PreviewPanel() {
     }
   }, [locationState.status, locationModalOpen])
 
+  // Save current step when user clicks Next (Phase 1, Task 1.2)
+  useEffect(() => {
+    const handleSaveBeforeNext = async (event: Event) => {
+      const customEvent = event as CustomEvent<{ stepId: string }>
+      const stepId = customEvent.detail.stepId
+      
+      if (!campaign?.id || !currentAd?.id) {
+        console.warn('[PreviewPanel] Cannot save - missing campaign or ad ID')
+        return
+      }
+      
+      console.log('[PreviewPanel] Saving step on Next click:', stepId, 'for ad:', currentAd.id)
+      
+      // Build payload based on which step was completed
+      const sections: Record<string, unknown> = {}
+      
+      switch (stepId) {
+        case 'ads':
+          if (adContent?.imageVariations && selectedImageIndex !== null) {
+            sections.creative = {
+              imageVariations: adContent.imageVariations,
+              selectedImageIndex,
+              format: 'feed'
+            }
+          }
+          break
+          
+        case 'copy':
+          if (adCopyState.customCopyVariations && adCopyState.selectedCopyIndex !== null) {
+            sections.copy = {
+              variations: adCopyState.customCopyVariations.map(v => ({
+                headline: v.headline,
+                primaryText: v.primaryText,
+                description: v.description || '',
+                cta: adContent?.cta || 'Learn More'
+              })),
+              selectedCopyIndex: adCopyState.selectedCopyIndex
+            }
+          }
+          break
+          
+        case 'location':
+          if (locationState.locations.length > 0) {
+            sections.location = {
+              locations: locationState.locations
+            }
+          }
+          break
+          
+        case 'destination':
+          if (destinationState.data?.type) {
+            sections.destination = {
+              type: destinationState.data.type,
+              data: destinationState.data
+            }
+          }
+          break
+      }
+      
+      if (Object.keys(sections).length === 0) {
+        console.log('[PreviewPanel] No data to save for step:', stepId)
+        return
+      }
+      
+      // Save to database
+      try {
+        const response = await fetch(
+          `/api/campaigns/${campaign.id}/ads/${currentAd.id}/snapshot`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sections)
+          }
+        )
+        
+        if (response.ok) {
+          const data = await response.json()
+          console.log(`[PreviewPanel] ✅ Step "${stepId}" saved for ad ${currentAd.id}`, {
+            completedSteps: data.completed_steps
+          })
+        } else {
+          console.error('[PreviewPanel] Save failed:', await response.text())
+        }
+      } catch (error) {
+        console.error('[PreviewPanel] Save error:', error)
+        // Don't block navigation on save failure - data is in local state
+      }
+    }
+    
+    window.addEventListener('saveBeforeNext', handleSaveBeforeNext)
+    return () => window.removeEventListener('saveBeforeNext', handleSaveBeforeNext)
+  }, [campaign?.id, currentAd?.id, adContent, selectedImageIndex, adCopyState, locationState, destinationState])
+
   // Listen for image edit events from AI chat (always mounted)
   useEffect(() => {
     const handleImageEdited = (event: Event) => {
@@ -1240,14 +1333,11 @@ export function PreviewPanel() {
     ...step,
     number: index + 1,
   }))
-
-  // Extract completedSteps for passing to CampaignStepper
-  const completedSteps = (currentAd?.completed_steps as string[]) || []
   
   return (
     <div className="flex flex-1 h-full flex-col relative min-h-0">
       <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
-        <CampaignStepper steps={steps} campaignId={campaign?.id} completedSteps={completedSteps} />
+        <CampaignStepper steps={steps} campaignId={campaign?.id} />
       </div>
       
       {/* Publish Flow Dialog */}

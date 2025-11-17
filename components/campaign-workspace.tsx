@@ -28,7 +28,7 @@ import { useCampaignAds } from "@/lib/hooks/use-campaign-ads"
 import { useGoal } from "@/lib/context/goal-context"
 import { useDestination } from "@/lib/context/destination-context"
 import { useMetaConnection } from "@/lib/hooks/use-meta-connection"
-import { useDraftAutoSave } from "@/lib/hooks/use-draft-auto-save"
+// Removed: useDraftAutoSave - now using save-on-Next pattern
 import { usePublishAd } from "@/lib/hooks/use-publish-ad"
 import { useMultipleAdsStatusSubscription } from "@/lib/hooks/use-ad-status-subscription"
 import { metaStorage } from "@/lib/meta/storage"
@@ -251,13 +251,7 @@ export function CampaignWorkspace() {
     viewParam ||
     (currentAdId ? 'build' : 'all-ads')
   
-  // Auto-save draft ads while building or editing
-  const isBuilding = effectiveMode === 'build' || effectiveMode === 'edit'
-  useDraftAutoSave(
-    campaignId,
-    currentAdId,
-    isBuilding // Only auto-save when in build/edit mode
-  )
+  // Removed auto-save - now using save-on-Next pattern (saves when user clicks Next button)
 
   // Convert CampaignAd to AdVariant using snapshot data as source of truth
   const convertedAds: AdVariant[] = useMemo(() => {

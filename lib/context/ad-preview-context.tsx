@@ -44,12 +44,26 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false)
   const [loadingVariations] = useState<boolean[]>([false, false, false])
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null)
+  const [contextAdId, setContextAdId] = useState<string | null>(null)  // Track which ad this context serves
   
   // Track previous save config mode to only log transitions
   const prevSaveConfigModeRef = useRef<'CRITICAL' | 'NORMAL' | null>(null)
 
   // Load initial state from normalized tables via snapshot API
   useEffect(() => {
+    // If ad ID changed, reset state immediately to prevent contamination
+    if (contextAdId && currentAd?.id && currentAd.id !== contextAdId) {
+      logger.info('AdPreviewContext', 'Ad changed - resetting context state', {
+        oldAd: contextAdId,
+        newAd: currentAd.id
+      })
+      setSelectedImageIndex(null)
+      setSelectedCreativeVariation(null)
+      setAdContent(null)
+      setContextAdId(null)
+      setIsInitialized(false)
+    }
+    
     if (!currentAd) {
       // No ad selected - reset to empty state
       logger.debug('AdPreviewContext', 'No current ad - resetting to empty state')
@@ -57,11 +71,13 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
       setIsPublished(false)
       setSelectedCreativeVariation(null)
       setSelectedImageIndex(null)
+      setContextAdId(null)
       setIsInitialized(true)
       return
     }
     
     logger.debug('AdPreviewContext', `Loading state from ad ${currentAd.id}`)
+    setContextAdId(currentAd.id)  // Mark context as serving this ad
     
     // Fetch ad snapshot from normalized tables
     const loadSnapshot = async () => {
@@ -140,7 +156,7 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
     }
     
     loadSnapshot()
-  }, [currentAd?.id, campaign?.id])
+  }, [currentAd?.id, campaign?.id, contextAdId])
 
   // Function to generate image variations from base image
   // NOTE: This function is now a no-op since AI generates all 3 variations upfront

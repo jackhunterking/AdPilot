@@ -48,9 +48,26 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
     isGeneratingCopy: false,
   })
   const [isInitialized, setIsInitialized] = useState(false)
+  const [contextAdId, setContextAdId] = useState<string | null>(null)  // Track which ad this context serves
 
   // Load initial state from backend (single source of truth)
   useEffect(() => {
+    // If ad ID changed, reset state immediately to prevent contamination
+    if (contextAdId && currentAd?.id && currentAd.id !== contextAdId) {
+      logger.info('AdCopyContext', 'Ad changed - resetting context state', {
+        oldAd: contextAdId,
+        newAd: currentAd.id
+      })
+      setAdCopyState({
+        selectedCopyIndex: null,
+        status: "idle",
+        customCopyVariations: null,
+        isGeneratingCopy: false,
+      })
+      setContextAdId(null)
+      setIsInitialized(false)
+    }
+    
     if (!currentAd) {
       // No ad selected - reset to empty state
       logger.debug('AdCopyContext', 'No current ad - resetting to empty state')
@@ -60,9 +77,13 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
         customCopyVariations: null,
         isGeneratingCopy: false,
       })
+      setContextAdId(null)
       setIsInitialized(true)
       return
     }
+    
+    logger.debug('AdCopyContext', `Loading copy from backend for ad ${currentAd.id}`)
+    setContextAdId(currentAd.id)  // Mark context as serving this ad
     
     const loadCopyFromBackend = async () => {
       try {
@@ -109,7 +130,7 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
     }
     
     loadCopyFromBackend()
-  }, [currentAd?.id, campaign?.id])
+  }, [currentAd?.id, campaign?.id, contextAdId])
 
   const setSelectedCopyIndex = (index: number | null) => {
     setAdCopyState(prev => ({
