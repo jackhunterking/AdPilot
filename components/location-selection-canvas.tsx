@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useLocation } from "@/lib/context/location-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import { cn } from "@/lib/utils"
 import { logger } from "@/lib/utils/logger"
 import { useLeafletReady } from "@/lib/hooks/use-leaflet-ready"
@@ -174,11 +174,18 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     }
   }, [isLeafletReady])
 
+  // Use memoized signature to reliably detect location changes
+  const locationsSignature = useMemo(
+    () => JSON.stringify(locationState.locations),
+    [locationState.locations]
+  );
+
   // Update map markers when locations change (purely reactive - no events)
   useEffect(() => {
     console.log('[Map] useEffect triggered:', {
       locationCount: locationState.locations.length,
       status: locationState.status,
+      signature: locationsSignature.substring(0, 100),
       locations: locationState.locations.map(l => ({
         name: l.name,
         mode: l.mode,
@@ -345,7 +352,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
 
     map.invalidateSize(true);
     console.log('[Map] ✅ Map updated with', validLocations.length, 'locations');
-  }, [locationState.locations, locationState.status])
+  }, [locationsSignature, locationState.status])
 
   const handleAddMore = () => {
     try {
@@ -521,10 +528,17 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     )
   }
 
-  // Setup completed - show locations with map
-  if (locationState.status === "completed") {
+  // Show map and location cards whenever we have locations (regardless of status)
+  if (locationState.locations.length > 0) {
     const includedLocations = locationState.locations.filter(loc => loc.mode === "include")
     const excludedLocations = locationState.locations.filter(loc => loc.mode === "exclude")
+
+    console.log('[LocationCanvas] Rendering with locations:', {
+      total: locationState.locations.length,
+      included: includedLocations.length,
+      excluded: excludedLocations.length,
+      status: locationState.status
+    });
 
     return (
       <div

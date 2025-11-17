@@ -1855,64 +1855,44 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                               
                               switch (part.state) {
                                 case 'input-streaming':
-                                  return <div key={callId} className="text-sm text-muted-foreground">Preparing location setup...</div>;
+                                  // DO NOT RENDER - prevents infinite loop
+                                  return null;
                                 
                                 case 'input-available':
-                                  // Show confirmation card BEFORE processing
+                                  // NO CONFIRMATION - Auto-process immediately per user requirements
                                   if (isProcessing) {
+                                    console.log('[AI Chat] Auto-processing location (no confirmation)');
+                                    processedLocationCalls.current.add(callId);
+                                    
+                                    // Start processing immediately
+                                    void handleLocationTargetingCall(callId, input);
+                                    
+                                    // Show processing indicator
                                     return (
-                                      <LocationConfirmationCard
+                                      <LocationProcessingCard
                                         key={callId}
-                                        locations={input.locations}
-                                        explanation={input.explanation}
-                                        onConfirm={() => {
-                                          // Mark as processing
-                                          processedLocationCalls.current.add(callId);
-                                          // Trigger geocoding
-                                          void handleLocationTargetingCall(callId, input);
-                                        }}
-                                        onCancel={() => {
-                                          // Mark as processed to prevent re-render
-                                          processedLocationCalls.current.add(callId);
-                                          // Send cancellation result
-                                          addToolResult({
-                                            tool: 'locationTargeting',
-                                            toolCallId: callId,
-                                            output: {
-                                              cancelled: true,
-                                              message: 'User cancelled location targeting'
-                                            },
-                                          });
-                                        }}
+                                        locationCount={input.locations.length}
                                       />
                                     );
                                   }
-                                  
-                                  // After confirmation, show processing card
-                                  return (
-                                    <LocationProcessingCard
-                                      key={callId}
-                                      locationCount={input.locations.length}
-                                    />
-                                  );
+                                  return null;
                                 
                                 case 'output-available': {
-                                  const output = part.output as { locations?: unknown[]; cancelled?: boolean };
+                                  const output = part.output as { locations?: Array<{ name: string; mode: string }>; cancelled?: boolean };
                                   
                                   // Don't show anything if cancelled
                                   if (output?.cancelled) {
                                     return null;
                                   }
                                   
-                                  // Show success card
+                                  // Simple success message per user requirements
+                                  const locationNames = output?.locations?.map(l => l.name).join(', ') || 'location';
+                                  const action = output?.locations?.[0]?.mode === 'exclude' ? 'excluded' : 'added';
+                                  
                                   return (
-                                    <LocationSuccessCard
-                                      key={callId}
-                                      locationCount={output?.locations?.length || 0}
-                                      onViewMap={() => {
-                                        window.dispatchEvent(new CustomEvent('switchToTab', { detail: { id: 'location' } }));
-                                      }}
-                                    />
+                                    <div key={callId} className="text-sm text-muted-foreground my-2">
+                                      Location {action}: {locationNames}
+                                    </div>
                                   );
                                 }
                                 

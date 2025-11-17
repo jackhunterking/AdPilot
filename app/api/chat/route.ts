@@ -544,31 +544,39 @@ export async function POST(req: Request) {
 
 The user just provided location name(s) in response to your question: "${locationInput}"
 
-YOU MUST CALL THE addLocations TOOL NOW. No exceptions.
+YOU MUST CALL THE addLocations TOOL NOW with EXACTLY what the user typed. No exceptions.
 
-**MANDATORY RULES:**
-1. Parse the location input and call addLocations immediately
-2. DO NOT ask follow-up questions
-3. DO NOT call any other tools (no generateVariations, setupGoal, editVariation, etc.)
-4. DO NOT provide explanations before calling the tool
-5. Call the tool with the locations array properly formatted
+**CRITICAL RULES:**
+1. Process ONLY the location the user provided: "${locationInput}"
+2. DO NOT suggest multiple locations
+3. DO NOT add variations or alternatives
+4. DO NOT call any other tools
+5. DO NOT ask for confirmation
+6. Call addLocations with ONE location only
 
-**How to Parse Location Input:**
-- Single location: "${locationInput}" → Call with [{name: "${locationInput}", type: "city", mode: "include"}]
-- Multiple locations: "Toronto, Vancouver" → Call with multiple location objects
-- With radius: "30 miles around Boston" → Call with [{name: "Boston", type: "radius", radius: 30, mode: "include"}]
-- Exclusions: "Canada except Quebec" → Call with [{name: "Canada", type: "country", mode: "include"}, {name: "Quebec", type: "region", mode: "exclude"}]
+**Mode Detection:**
+- If user said "exclude" → mode: "exclude"
+- Otherwise → mode: "include"
 
-**Type Detection Rules:**
-- If radius/miles/km mentioned → type: "radius" with radius number
-- If city name → type: "city" 
-- If state/province → type: "region"
+**Type Detection:**
+- If radius/miles mentioned → type: "radius"
+- If state/province name → type: "region"
 - If country name → type: "country"
+- Otherwise → type: "city" (default)
 
-**Examples:**
-Input: "Toronto" → addLocations({locations: [{name: "Toronto, Ontario, Canada", type: "city", mode: "include"}], explanation: "Targeting Toronto"})
-Input: "California" → addLocations({locations: [{name: "California", type: "region", mode: "include"}], explanation: "Targeting California"})
-Input: "30 miles around Boston" → addLocations({locations: [{name: "Boston, MA, USA", type: "radius", radius: 30, mode: "include"}], explanation: "Targeting 30 mile radius around Boston"})
+**CORRECT FORMAT (Process ONLY user's input):**
+addLocations({
+  locations: [
+    {
+      name: "${locationInput}",
+      type: "city",
+      mode: "include"
+    }
+  ],
+  explanation: "Added ${locationInput}"
+})
+
+DO NOT ADD OTHER LOCATIONS. DO NOT SUGGEST ALTERNATIVES. PROCESS ONLY WHAT USER TYPED.
 
 CALL THE TOOL NOW. DO NOT OUTPUT ANY OTHER TEXT.
 
