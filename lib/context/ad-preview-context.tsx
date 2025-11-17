@@ -48,14 +48,6 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
   // Track previous save config mode to only log transitions
   const prevSaveConfigModeRef = useRef<'CRITICAL' | 'NORMAL' | null>(null)
 
-  // CRITICAL: Memoize state to prevent unnecessary recreations
-  const adPreviewState = useMemo(() => ({ 
-    adContent, 
-    isPublished, 
-    selectedCreativeVariation,
-    selectedImageIndex,
-  }), [adContent, isPublished, selectedCreativeVariation, selectedImageIndex])
-
   // Load initial state from normalized tables via snapshot API
   useEffect(() => {
     if (!currentAd) {

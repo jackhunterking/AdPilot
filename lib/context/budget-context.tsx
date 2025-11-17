@@ -155,18 +155,6 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     }
   }, [campaign?.id, isInitialized])
 
-  // Save function (save to campaign.metadata for state, campaign.campaign_budget_cents for budget)
-  const saveFn = useCallback(async (state: BudgetState) => {
-    if (!campaign?.id || !isInitialized) return
-    
-    // Budget auto-save now happens through the budget API endpoint
-    logger.debug('BudgetContext', 'Budget save triggered', { dailyBudget: state.dailyBudget })
-    // Actual save happens through specific API calls, not auto-save
-  }, [campaign?.id, isInitialized])
-
-  // Auto-save with NORMAL config (300ms debounce)
-  useAutoSave(memoizedBudgetState, saveFn, AUTO_SAVE_CONFIGS.NORMAL)
-
   useEffect(() => {
     if (!campaign?.id) return
     if (!budgetState.selectedAdAccount) return
