@@ -58,6 +58,7 @@ interface SaveAdOptions {
     endTime?: string | null
     timezone?: string | null
   }
+  onSuccess?: () => void | Promise<void>
 }
 
 interface SaveAdResult {
@@ -169,6 +170,11 @@ export function useSaveAd() {
         adId,
         completedSteps: completed_steps
       })
+      
+      // Call success callback if provided (e.g., to reload currentAd)
+      if (options.onSuccess) {
+        await options.onSuccess()
+      }
       
       return {
         success: true,

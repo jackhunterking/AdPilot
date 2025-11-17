@@ -35,6 +35,7 @@ import { useDestination } from '@/lib/context/destination-context'
 import { useLocation } from '@/lib/context/location-context'
 import { useGoal } from '@/lib/context/goal-context'
 import { useBudget } from '@/lib/context/budget-context'
+import { useCurrentAd } from '@/lib/context/current-ad-context'
 
 export function useDraftAutoSave(
   campaignId: string | null,
@@ -43,6 +44,7 @@ export function useDraftAutoSave(
 ) {
   const lastSaveRef = useRef<string>('')
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const { reloadAd } = useCurrentAd()
   
   // Get all context states
   const { adContent, selectedImageIndex, selectedCreativeVariation } = useAdPreview()
@@ -149,13 +151,16 @@ export function useDraftAutoSave(
       if (response.ok) {
         lastSaveRef.current = currentSignature
         console.log('[DraftAutoSave] ✅ Saved')
+        
+        // Reload currentAd to refresh completed_steps for stepper checkmarks
+        await reloadAd()
       } else {
         console.error('[DraftAutoSave] Failed:', await response.text())
       }
     } catch (error) {
       console.error('[DraftAutoSave] Error:', error)
     }
-  }, [campaignId, adId]) // ONLY campaignId and adId - stable dependencies!
+  }, [campaignId, adId, reloadAd]) // ONLY campaignId, adId, and reloadAd - stable dependencies!
   
   // Set up interval
   useEffect(() => {

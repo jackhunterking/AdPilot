@@ -270,7 +270,8 @@ export function PreviewPanel() {
         adCopyState,
         destinationState,
         locationState,
-        budgetState
+        budgetState,
+        onSuccess: () => reloadAd()
       })
       
       if (result.success) {
@@ -316,7 +317,8 @@ export function PreviewPanel() {
         adCopyState,
         destinationState,
         locationState,
-        budgetState
+        budgetState,
+        onSuccess: () => reloadAd()
       })
       
       if (!saveResult.success) {

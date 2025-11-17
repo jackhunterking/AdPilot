@@ -154,27 +154,15 @@ export async function PATCH(
         return NextResponse.json({ error: 'Creative requires non-empty imageVariations array' }, { status: 400 })
       }
       
-      // Save creative data
-      if (creativeData.imageVariations && creativeData.imageVariations.length > 0) {
-        // Delete existing creatives
-        await supabaseServer
-          .from('ad_creatives')
-          .delete()
-          .eq('ad_id', adId)
-
-        // Insert new creatives
-        const creativeInserts = creativeData.imageVariations.map((url: string, idx: number) => ({
-          ad_id: adId,
-          creative_format: creativeData.format || 'feed',
-          image_url: url,
-          is_base_image: idx === 0,
-          sort_order: idx
-        }))
-
-        await supabaseServer
-          .from('ad_creatives')
-          .insert(creativeInserts)
-      }
+      // Use existing adDataService method (updates selected_creative_id FK automatically)
+      const creatives = creativeData.imageVariations.map((url: string, idx: number) => ({
+        creative_format: creativeData.format || 'feed',
+        image_url: url,
+        is_base_image: idx === 0,
+        sort_order: idx
+      }))
+      
+      await adDataService.saveCreatives(adId, creatives, creativeData.selectedImageIndex ?? 0)
     }
 
     if (body.copy) {
@@ -190,30 +178,16 @@ export async function PATCH(
         if (hasInvalid) {
           return NextResponse.json({ error: 'Each variation must have headline and primaryText' }, { status: 400 })
         }
-      }
-      
-      // Save copy data
-      if (copyData.variations && copyData.variations.length > 0) {
-        // Delete existing copy
-        await supabaseServer
-          .from('ad_copy_variations')
-          .delete()
-          .eq('ad_id', adId)
-
-        // Insert new copy variations
-        const copyInserts = copyData.variations.map((v: { headline: string; primaryText: string; description: string; cta: string }, idx: number) => ({
-          ad_id: adId,
+        
+        // Use existing adDataService method (updates selected_copy_id FK automatically)
+        const variations = copyData.variations.map((v: { headline: string; primaryText: string; description: string; cta: string }) => ({
           headline: v.headline,
           primary_text: v.primaryText,
-          description: v.description || null,
-          cta_text: v.cta || 'Learn More',
-          is_selected: idx === (copyData.selectedCopyIndex || 0),
-          sort_order: idx
+          description: v.description || '',
+          cta_text: v.cta || 'Learn More'
         }))
-
-        await supabaseServer
-          .from('ad_copy_variations')
-          .insert(copyInserts)
+        
+        await adDataService.saveCopyVariations(adId, variations, copyData.selectedCopyIndex || 0)
       }
     }
 
