@@ -20,7 +20,7 @@ export function AdCopySelectionCanvas() {
   const { adContent, selectedCreativeVariation, loadingVariations, selectedImageIndex } = useAdPreview()
   const { isGenerating, setIsGenerating, setGenerationMessage } = useGeneration()
   const { campaign } = useCampaignContext()
-  const { currentAd } = useCurrentAd()
+  const { currentAd, reloadAd } = useCurrentAd()
   const { goalState } = useGoal()
   const [activeFormat, setActiveFormat] = useState("feed")
   const [showReelMessage, setShowReelMessage] = useState(false)
@@ -99,6 +99,9 @@ export function AdCopySelectionCanvas() {
             selectedIndex: index,
             completedSteps: data.completed_steps
           })
+          
+          // Reload ad to update currentAd.completed_steps from backend
+          await reloadAd()
         } else {
           console.error('[AdCopy] Failed to save:', await response.text())
           toast.error('Failed to save copy selection')

@@ -319,12 +319,21 @@ export function WorkspaceHeader({
         "flex items-center justify-between gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-3 flex-shrink-0",
         className
       )}>
-        {/* Left: Back Button or "All Ads" Tab */}
+        {/* Left: Back Button or "Back to Campaigns" */}
         <div className="flex items-center gap-4">
           {mode === 'all-ads' ? (
-            <div className="px-3 py-1.5 rounded-md bg-primary/10 text-primary font-medium text-sm">
-              All Ads
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Navigate to homepage (campaigns dashboard)
+                window.location.href = '/'
+              }}
+              className="gap-2 hover:bg-muted"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Campaigns
+            </Button>
           ) : shouldShowBack && onBack ? (
             <Button
               variant="outline"

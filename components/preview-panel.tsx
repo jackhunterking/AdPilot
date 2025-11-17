@@ -56,7 +56,7 @@ export function PreviewPanel() {
   const { adContent, setAdContent, isPublished, setIsPublished, selectedImageIndex, selectedCreativeVariation, setSelectedCreativeVariation, setSelectedImageIndex } = useAdPreview()
   const { budgetState, isComplete, setDailyBudget } = useBudget()
   const { campaign } = useCampaignContext()
-  const { currentAd } = useCurrentAd()
+  const { currentAd, reloadAd } = useCurrentAd()
   const { locationState } = useLocation()
   const { goalState } = useGoal()
   const { destinationState } = useDestination()
@@ -542,6 +542,9 @@ export function PreviewPanel() {
           selectedIndex: index,
           completedSteps: data.completed_steps
         })
+        
+        // Reload ad to update currentAd.completed_steps from backend
+        await reloadAd()
       } catch (error) {
         console.error('[Creative] Error saving selection:', error)
         toast.error('Network error - selection not saved')
