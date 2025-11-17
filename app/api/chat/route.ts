@@ -1381,6 +1381,16 @@ Example: If previous setup had "Ontario, Toronto (excluded)" and user removed To
             }
             
             if (toolParts.length > 0) {
+              // DIAGNOSTIC: Log tool parts structure before filtering
+              toolParts.forEach((p, idx) => {
+                if (p.type?.includes?.('location') || p.type?.includes?.('Location')) {
+                  console.log(`[SAVE] Tool part ${idx} BEFORE filter:`, JSON.stringify(p, null, 2));
+                  console.log(`[SAVE]   - Has output?`, !!p.output, 'Type:', typeof p.output);
+                  console.log(`[SAVE]   - Has result?`, !!p.result);
+                  console.log(`[SAVE]   - Has state?`, !!(p as { state?: unknown }).state, 'Value:', (p as { state?: unknown }).state);
+                }
+              });
+              
               // Check if any tool parts are incomplete (have toolCallId but no result/output)
               // Complete tools have either:
               // 1. result property (server-executed tools)
