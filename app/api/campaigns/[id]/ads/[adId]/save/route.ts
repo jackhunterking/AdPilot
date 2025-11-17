@@ -259,10 +259,6 @@ export async function PUT(
           campaign_id: updatedAd.campaign_id,
           name: updatedAd.name,
           status: updatedAd.status,
-          copy_data: null, // Deprecated
-          creative_data: null, // Deprecated
-          destination_data: null, // Deprecated
-          setup_snapshot: null, // Deprecated
           updated_at: updatedAd.updated_at
         }
       }
