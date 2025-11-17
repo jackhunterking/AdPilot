@@ -200,7 +200,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
   const { adContent, setAdContent } = useAdPreview();
   const { goalState, setFormData, setError } = useGoal();
   const { locationState, addLocations, updateStatus: updateLocationStatus, startLocationSetup } = useLocation();
-  const { triggerSave } = useDraftAutoSave(campaignId, currentAdId || null, true);
+  const { triggerSave } = useDraftAutoSave(campaignId || null, currentAdId || null, true);
   const [generatingImages, setGeneratingImages] = useState<Set<string>>(new Set());
   // removed unused editingImages setter
   const [likedMessages, setLikedMessages] = useState<Set<string>>(new Set());
