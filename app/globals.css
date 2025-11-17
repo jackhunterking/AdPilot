@@ -287,6 +287,58 @@
   animation: accordion-up 0.2s ease-out;
 }
 
+/* Location card animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* Map marker pulse */
+@keyframes marker-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.marker-pulse {
+  animation: marker-pulse 2s ease-in-out infinite;
+}
+
+/* Success badge auto-hide */
+@keyframes badge-appear {
+  0% {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  10%, 90% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+}
+
+.badge-appear {
+  animation: badge-appear 3s ease-in-out forwards;
+}
+
 /* Auto-hiding scrollbars (Cursor-style) - targets StickToBottom inner div */
 .auto-hide-scrollbar > div[style*="overflow"] {
   scrollbar-width: thin;

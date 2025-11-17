@@ -218,37 +218,80 @@ export async function PATCH(
     }
 
     if (body.location) {
-      // Save location data
       const locationData = body.location
-      if (locationData.locations && locationData.locations.length > 0) {
-        // Delete existing locations
-        await supabaseServer
-          .from('ad_target_locations')
-          .delete()
-          .eq('ad_id', adId)
-
-        // Insert new locations
+      
+      if (!locationData.locations || !Array.isArray(locationData.locations)) {
+        return NextResponse.json({ error: 'Location data must include locations array' }, { status: 400 })
+      }
+      
+      console.log('[PATCH snapshot] Saving locations:', {
+        count: locationData.locations.length,
+        sample: locationData.locations[0]
+      })
+      
+      // Validate coordinate format
+      for (const loc of locationData.locations) {
+        if (loc.coordinates && Array.isArray(loc.coordinates)) {
+          const [lng, lat] = loc.coordinates
+          if (typeof lng !== 'number' || typeof lat !== 'number') {
+            return NextResponse.json({ 
+              error: `Invalid coordinates for ${loc.name}: must be [longitude, latitude] numbers` 
+            }, { status: 400 })
+          }
+          if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            return NextResponse.json({ 
+              error: `Coordinates out of range for ${loc.name}: lat=${lat}, lng=${lng}` 
+            }, { status: 400 })
+          }
+        }
+      }
+      
+      // Transaction: delete old + insert new
+      const { error: deleteError } = await supabaseServer
+        .from('ad_target_locations')
+        .delete()
+        .eq('ad_id', adId)
+      
+      if (deleteError) {
+        console.error('[PATCH snapshot] Delete error:', deleteError)
+        return NextResponse.json({ error: 'Failed to clear old locations' }, { status: 500 })
+      }
+      
+      if (locationData.locations.length > 0) {
         const locationInserts = locationData.locations.map((loc: {
           name: string
           type: string
-          coordinates?: [number, number]
+          coordinates?: [number, number] // [lng, lat] format
           radius?: number
           mode?: string
-          id?: string
+          key?: string
+          bbox?: [number, number, number, number]
+          geometry?: unknown
         }) => ({
           ad_id: adId,
           location_name: loc.name,
           location_type: loc.type,
-          latitude: loc.coordinates?.[0] || null,
-          longitude: loc.coordinates?.[1] || null,
-          radius_km: loc.radius || null,
+          longitude: loc.coordinates?.[0] || null, // FIXED: lng is [0]
+          latitude: loc.coordinates?.[1] || null,  // FIXED: lat is [1]
+          radius_km: loc.radius ? loc.radius * 1.60934 : null, // Convert miles to km
           inclusion_mode: loc.mode || 'include',
-          meta_location_key: loc.id || null
+          meta_location_key: loc.key || null
         }))
-
-        await supabaseServer
+        
+        const { data: inserted, error: insertError } = await supabaseServer
           .from('ad_target_locations')
           .insert(locationInserts)
+          .select()
+        
+        if (insertError) {
+          console.error('[PATCH snapshot] Insert error:', insertError)
+          return NextResponse.json({ 
+            error: 'Failed to save locations',
+            details: insertError.message 
+          }, { status: 500 })
+        }
+        
+        console.log('[PATCH snapshot] ✅ Saved locations:', inserted?.length)
       }
     }
 

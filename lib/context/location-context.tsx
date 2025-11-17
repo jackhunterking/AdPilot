@@ -150,12 +150,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       
       console.log('[LocationContext] Final location count:', finalLocations.length);
       
-      // Note: Database write handled by use-draft-auto-save hook (no longer using updateAdSnapshot)
-      console.log('[LocationContext] Location state updated (auto-save will persist)...');
-      
-      console.log('[LocationContext] ✅ Database write successful');
-      
-      // Update local state to MATCH database
+      // Update local state (autosave triggered by caller)
       setLocationState({
         locations: finalLocations,
         status: 'completed',
@@ -189,12 +184,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       
       console.log('[LocationContext] Remaining locations:', updatedLocations.length);
       
-      // Note: Database write handled by use-draft-auto-save hook
-      console.log('[LocationContext] Location removed from state (auto-save will persist)...');
-      
-      console.log('[LocationContext] ✅ Removed from database');
-      
-      // Update local state to match database
+      // Update local state (autosave triggered by caller)
       setLocationState({
         locations: updatedLocations,
         status: updatedLocations.length > 0 ? 'completed' : 'idle',

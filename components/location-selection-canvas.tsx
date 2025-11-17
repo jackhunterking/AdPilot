@@ -1,6 +1,6 @@
 "use client"
 
-import { MapPin, Loader2, Lock, Plus, X, Sparkles, Check, AlertCircle } from "lucide-react"
+import { MapPin, Loader2, Lock, Plus, X, Sparkles, Check, AlertCircle, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useLocation } from "@/lib/context/location-context"
@@ -176,20 +176,21 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
 
   // Update map markers when locations change (purely reactive - no events)
   useEffect(() => {
-    console.log('[Map] useEffect triggered with:', {
+    console.log('[Map] useEffect triggered:', {
       locationCount: locationState.locations.length,
+      status: locationState.status,
       locations: locationState.locations.map(l => ({
         name: l.name,
         mode: l.mode,
         hasGeometry: !!l.geometry,
-        hasBbox: !!l.bbox
+        hasBbox: !!l.bbox,
+        coordinates: l.coordinates
       }))
     });
     
     const L = getLeaflet();
     if (!mapRef.current || !L) {
       console.log('[Map] Not ready - map:', !!mapRef.current, 'Leaflet:', !!L);
-      logger.debug('Map', 'Cannot update markers - map or Leaflet not ready');
       return;
     }
 
@@ -197,7 +198,6 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     const locations = locationState.locations;
 
     console.log('[Map] Updating map with', locations.length, 'locations');
-    logger.debug('Map', '🗺️ Updating map with locations', { count: locations.length });
 
     // Clear existing markers and shapes
     markersRef.current.forEach(marker => marker.remove());
@@ -222,142 +222,130 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     );
 
     if (validLocations.length === 0) {
+      console.warn('[Map] No valid locations with coordinates');
       map.setView([20, 0], 2);
       return;
     }
 
-    // Add markers and shapes
+    // Add markers and shapes with enhanced styling
     validLocations.forEach((location) => {
       const color = location.mode === "include" ? "#16A34A" : "#DC2626";
+      const fillColor = location.mode === "include" ? "#16A34A" : "#DC2626";
 
-      // Add marker
+      // Add marker with custom styling
       const marker = L.circleMarker(
-        [location.coordinates[1], location.coordinates[0]],
+        [location.coordinates[1], location.coordinates[0]], // [lat, lng] for Leaflet
         {
-          radius: 8,
+          radius: 10,
           fillColor: color,
           color: "#fff",
-          weight: 2,
+          weight: 3,
           opacity: 1,
-          fillOpacity: 0.9,
+          fillOpacity: 1,
         }
       ).addTo(map) as LeafletMarker & { bindPopup: (content: string) => void };
 
-      marker.bindPopup(`<strong>${location.name}</strong>`);
+      const modeLabel = location.mode === "include" ? "Included" : "Excluded";
+      marker.bindPopup(`<strong>${location.name}</strong><br/>${modeLabel}`);
       markersRef.current.push(marker);
 
-      // Add radius circle or boundaries (THREE-TIER FALLBACK STRATEGY)
+      // Add coverage area with proper styling
       if (location.type === "radius" && location.radius) {
-        // Tier 3: Explicit radius
+        // Radius circle
         const radiusInMeters = location.radius * 1609.34;
         const circle = L.circle(
           [location.coordinates[1], location.coordinates[0]],
           {
             radius: radiusInMeters,
-            fillColor: color,
-            fillOpacity: 0.15,
+            fillColor: fillColor,
+            fillOpacity: 0.2,
             color: color,
             weight: 2,
-            opacity: 0.6,
+            opacity: 0.8,
           }
         ).addTo(map);
         shapesRef.current.push(circle);
+        console.log('[Map] Added radius circle for:', location.name);
         
       } else if (location.geometry) {
-        // Tier 1: Full geometry (BEST)
+        // Full geometry (most accurate)
         try {
           const geoJsonLayer = L.geoJSON(location.geometry, {
             style: {
-              fillColor: color,
+              fillColor: fillColor,
               fillOpacity: 0.25,
               color: color,
               weight: 3,
-              opacity: 0.9,
+              opacity: 1,
             }
           }).addTo(map);
           shapesRef.current.push(geoJsonLayer);
+          console.log('[Map] Added geometry for:', location.name);
         } catch (error) {
-          console.error("Error adding geometry, trying bbox fallback:", error);
-          // Fall through to bbox fallback
+          console.error('[Map] Geometry error for', location.name, error);
+          // Fallback to bbox if geometry fails
           if (location.bbox) {
             try {
               const bounds: [[number, number], [number, number]] = [
-                [location.bbox[1], location.bbox[0]],  // SW corner
-                [location.bbox[3], location.bbox[2]]   // NE corner
+                [location.bbox[1], location.bbox[0]],  // SW corner [lat, lng]
+                [location.bbox[3], location.bbox[2]]   // NE corner [lat, lng]
               ];
               const rectangle = L.rectangle(bounds, {
-                fillColor: color,
-                fillOpacity: 0.15,
+                fillColor: fillColor,
+                fillOpacity: 0.2,
                 color: color,
                 weight: 2,
-                opacity: 0.6,
+                opacity: 0.8,
               }).addTo(map);
               shapesRef.current.push(rectangle);
+              console.log('[Map] Added bbox fallback for:', location.name);
             } catch (bboxError) {
-              console.error("BBox fallback also failed:", bboxError);
+              console.error('[Map] BBox fallback also failed:', bboxError);
             }
           }
         }
         
       } else if (location.bbox) {
-        // Tier 2: BBox rectangle (GOOD)
+        // Bounding box rectangle
         try {
           const bounds: [[number, number], [number, number]] = [
-            [location.bbox[1], location.bbox[0]],  // SW corner
-            [location.bbox[3], location.bbox[2]]   // NE corner
+            [location.bbox[1], location.bbox[0]],  // SW corner [lat, lng]
+            [location.bbox[3], location.bbox[2]]   // NE corner [lat, lng]
           ];
           const rectangle = L.rectangle(bounds, {
-            fillColor: color,
-            fillOpacity: 0.15,
+            fillColor: fillColor,
+            fillOpacity: 0.2,
             color: color,
             weight: 2,
-            opacity: 0.6,
+            opacity: 0.8,
           }).addTo(map);
           shapesRef.current.push(rectangle);
+          console.log('[Map] Added bbox for:', location.name);
         } catch (error) {
-          console.error("Error adding bbox rectangle:", error);
+          console.error('[Map] BBox error for', location.name, error);
         }
-        
-      } else {
-        // Tier 3: Default radius fallback (MINIMUM)
-        const defaultRadius = location.type === 'country' ? 500000 :  // 500km
-                             location.type === 'region' ? 100000 :    // 100km
-                             50000;  // 50km default for cities
-        const circle = L.circle(
-          [location.coordinates[1], location.coordinates[0]],
-          {
-            radius: defaultRadius,
-            fillColor: color,
-            fillOpacity: 0.1,
-            color: color,
-            weight: 2,
-            opacity: 0.4,
-            dashArray: '5, 10',  // Dashed line to indicate approximation
-          }
-        ).addTo(map);
-        shapesRef.current.push(circle);
       }
     });
 
-    // Fit bounds
+    // Fit bounds to show all locations
     const bounds = L.latLngBounds() as LeafletBounds & { extend: (coords: [number, number]) => void };
     validLocations.forEach(loc => {
       if (loc.bbox) {
-        bounds.extend([loc.bbox[1], loc.bbox[0]]);
-        bounds.extend([loc.bbox[3], loc.bbox[2]]);
+        bounds.extend([loc.bbox[1], loc.bbox[0]]); // SW
+        bounds.extend([loc.bbox[3], loc.bbox[2]]); // NE
       } else {
-        bounds.extend([loc.coordinates[1], loc.coordinates[0]]);
+        bounds.extend([loc.coordinates[1], loc.coordinates[0]]); // [lat, lng]
       }
     });
     
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 10 });
-      logger.debug('Map', '✅ Fitted bounds successfully');
+      console.log('[Map] ✅ Fitted bounds');
     }
 
     map.invalidateSize(true);
-    logger.debug('Map', '✅ Map updated');
-  }, [locationState.locations])
+    console.log('[Map] ✅ Map updated with', validLocations.length, 'locations');
+  }, [locationState.locations, locationState.status])
 
   const handleAddMore = () => {
     try {
@@ -462,11 +450,20 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
               </div>
             )}
             <div ref={mapContainerRef} className="w-full h-[400px]" style={{ position: 'relative', isolation: 'isolate' }} />
-            {/* Loading Overlay Badge - only show when map is ready */}
-            {!isMapLoading && (
+            
+            {/* Status badge - show only when processing location */}
+            {!isMapLoading && locationState.locations.length === 0 && (
               <div className="absolute top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-[1000]">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm font-medium">Adding location...</span>
+                <span className="text-sm font-medium">Geocoding location...</span>
+              </div>
+            )}
+            
+            {/* Success badge - briefly show after location added */}
+            {!isMapLoading && locationState.locations.length > 0 && (
+              <div className="absolute top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-[1000] animate-fade-in">
+                <CheckCircle2 className="h-4 w-4" />
+                <span className="text-sm font-medium">Location added</span>
               </div>
             )}
           </div>

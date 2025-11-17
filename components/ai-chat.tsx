@@ -37,6 +37,7 @@ import { useChat, type UIMessage } from "@ai-sdk/react";
 import { Response } from "@/components/ai-elements/response";
 import { ThumbsUpIcon, ThumbsDownIcon, CopyIcon, Sparkles, ChevronRight, MapPin, CheckCircle2, XCircle, Reply, X, Check, Target, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Source,
@@ -56,6 +57,9 @@ import { supabase } from "@/lib/supabase/client";
 import { generateImage } from "@/server/images";
 import { ImageGenerationConfirmation } from "@/components/ai-elements/image-generation-confirmation";
 import { ConfirmationCard, SuccessCard } from "@/components/ai-elements/confirmation-card";
+import { LocationConfirmationCard } from "@/components/ai-elements/location-confirmation-card";
+import { LocationProcessingCard } from "@/components/ai-elements/location-processing-card";
+import { LocationSuccessCard } from "@/components/ai-elements/location-success-card";
 // Removed legacy FormSelectionUI in favor of unified canvas in Goal step
 import { ImageEditProgressLoader } from "@/components/ai-elements/image-edit-progress-loader";
 import { renderEditImageResult, renderRegenerateImageResult, renderEditAdCopyResult } from "@/components/ai-elements/tool-renderers";
@@ -64,6 +68,7 @@ import { searchLocations, getLocationBoundary } from "@/app/actions/geocoding";
 import { searchMetaLocation } from "@/app/actions/meta-location-search";
 import { useGoal } from "@/lib/context/goal-context";
 import { useLocation } from "@/lib/context/location-context";
+import { useDraftAutoSave } from "@/lib/hooks/use-draft-auto-save";
 import { AdReferenceCard } from "@/components/ad-reference-card-example";
 import { useGeneration } from "@/lib/context/generation-context";
 import { emitBrowserEvent } from "@/lib/utils/browser-events";
@@ -195,6 +200,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
   const { adContent, setAdContent } = useAdPreview();
   const { goalState, setFormData, setError } = useGoal();
   const { locationState, addLocations, updateStatus: updateLocationStatus, startLocationSetup } = useLocation();
+  const { triggerSave } = useDraftAutoSave(campaignId, currentAdId, true);
   const [generatingImages, setGeneratingImages] = useState<Set<string>>(new Set());
   // removed unused editingImages setter
   const [likedMessages, setLikedMessages] = useState<Set<string>>(new Set());
@@ -453,6 +459,11 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
         await addLocations(validLocations, true); // true = ADD mode (merge with existing)
         updateLocationStatus('completed');
         
+        // Trigger immediate autosave after adding locations
+        console.log('[LocationProcessor] Triggering autosave...');
+        await triggerSave(true);
+        console.log('[LocationProcessor] ✅ Autosave completed');
+        
         // Show success toast
         const locationNames = validLocations.map(l => l.name).join(', ');
         toast.success(
@@ -497,7 +508,10 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
         errorText: errorMessage,
       } as ToolResult);
     }
-  }, [addLocations, updateLocationStatus, addToolResult]);
+  }, [addLocations, updateLocationStatus, addToolResult, triggerSave]);
+
+  // Alias for backward compatibility with confirmation flow
+  const handleLocationTargetingCall = processLocationToolCall;
 
   // AUTO-SUBMIT INITIAL PROMPT (AI SDK Native Pattern)
   useEffect(() => {
@@ -770,9 +784,6 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
       } as ToolResult);
     }
   };
-
-  // Process pending location calls in useEffect (not during render)
-  // OLD LOCATION PROCESSING LOGIC REMOVED - Now handled by LocationTargetingProcessor component
 
   // Listen for goal setup trigger from canvas
   useEffect(() => {
@@ -1114,55 +1125,72 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                               const toolName = (part as unknown as { toolName?: string; name?: string }).toolName || (part as unknown as { name?: string }).name || '';
 
                               if (toolName === 'locationTargeting') {
-                                const output = (part as unknown as { output?: unknown }).output as { locations?: LocationOutput[]; explanation?: string } | undefined;
-                                if (!output || !Array.isArray(output.locations)) return null;
-
-                                const getLocationTypeLabel = (loc: LocationOutput) => {
-                                  switch (loc.type) {
-                                    case "radius": return loc.radius ? `${loc.radius} mile radius` : "Radius";
-                                    case "city": return "City";
-                                    case "region": return "Province/Region";
-                                    case "country": return "Country";
-                                    default: return loc.type;
-                                  }
-                                };
+                                const output = (part as unknown as { output?: unknown }).output as { 
+                                  locations?: LocationOutput[]; 
+                                  explanation?: string;
+                                  cancelled?: boolean;
+                                } | undefined;
+                                
+                                // Don't show cancelled results
+                                if (output?.cancelled) return null;
+                                
+                                if (!output || !Array.isArray(output.locations) || output.locations.length === 0) {
+                                  return null;
+                                }
 
                                 return (
-                                  <div key={callId} className="w-full my-4 space-y-2">
-                                    {output.locations.map((loc, idx: number) => {
-                                      const isExcluded = loc.mode === "exclude";
-                                      return (
-                                        <div
-                                          key={`${callId}-${idx}`}
-                                          className={`flex items-center justify-between p-3 rounded-lg border transition-colors cursor-pointer ${
-                                            isExcluded 
-                                              ? "bg-red-500/5 border-red-500/30 hover:border-red-500/50" 
-                                              : "panel-surface hover:border-blue-500/40"
-                                          }`}
-                                          onClick={() => emitBrowserEvent('switchToTab', 'location')}
-                                        >
-                                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                                            <div className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0">
-                                              {isExcluded ? (
-                                                <XCircle className="h-4 w-4 text-red-600" />
-                                              ) : (
-                                                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                              )}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                              <div className="flex items-center gap-1.5">
-                                                <p className="font-medium text-xs truncate">{loc.name}</p>
-                                                {isExcluded && (
-                                                  <span className="text-[10px] text-red-600 font-medium flex-shrink-0">Excluded</span>
+                                  <div key={callId} className="w-full my-4">
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <MapPin className="h-4 w-4 text-blue-600" />
+                                      <p className="text-sm font-medium">Target Locations</p>
+                                      <Badge variant="outline" className="text-xs">{output.locations.length}</Badge>
+                                    </div>
+                                    
+                                    <div className="space-y-2">
+                                      {output.locations.map((loc, idx: number) => {
+                                        const isExcluded = loc.mode === "exclude";
+                                        const typeLabel = loc.type === 'radius' && loc.radius 
+                                          ? `${loc.radius} mile radius` 
+                                          : loc.type === 'city' ? 'City'
+                                          : loc.type === 'region' ? 'Province/Region'
+                                          : loc.type === 'country' ? 'Country'
+                                          : loc.type;
+                                        
+                                        return (
+                                          <button
+                                            key={`${callId}-${idx}`}
+                                            onClick={() => window.dispatchEvent(new CustomEvent('switchToTab', { detail: { id: 'location' } }))}
+                                            className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors text-left ${
+                                              isExcluded 
+                                                ? "bg-red-500/5 border-red-500/30 hover:border-red-500/50" 
+                                                : "panel-surface hover:border-blue-500/40"
+                                            }`}
+                                          >
+                                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                                              <div className={`h-7 w-7 rounded-md flex items-center justify-center flex-shrink-0 ${
+                                                isExcluded ? 'bg-red-500/10' : 'bg-green-500/10'
+                                              }`}>
+                                                {isExcluded ? (
+                                                  <X className="h-3.5 w-3.5 text-red-600" />
+                                                ) : (
+                                                  <Check className="h-3.5 w-3.5 text-green-600" />
                                                 )}
                                               </div>
-                                              <p className="text-xs text-muted-foreground">{getLocationTypeLabel(loc)}</p>
+                                              <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-medium truncate">{loc.name}</p>
+                                                <p className="text-xs text-muted-foreground">{typeLabel}</p>
+                                              </div>
+                                              {isExcluded && (
+                                                <Badge variant="destructive" className="text-[10px] h-5 flex-shrink-0">
+                                                  Excluded
+                                                </Badge>
+                                              )}
                                             </div>
-                                          </div>
-                                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0 ml-2" />
-                                        </div>
-                                      );
-                                    })}
+                                            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 ml-2" />
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
                                   </div>
                                 );
                               }
@@ -1650,67 +1678,91 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                             }
                           }
                             case "tool-locationTargeting": {
-                              // Pure rendering - processing happens in useEffect
                               const callId = part.toolCallId;
                               const input = part.input as LocationToolInput;
-                              const isProcessing = !processedLocationCalls.current.has(callId) && part.state === 'input-available';
+                              const isProcessing = !processedLocationCalls.current.has(callId);
                               
                               switch (part.state) {
                                 case 'input-streaming':
-                                  return <div key={callId} className="text-sm text-muted-foreground">Preparing location targeting...</div>;
+                                  return <div key={callId} className="text-sm text-muted-foreground">Preparing location setup...</div>;
                                 
                                 case 'input-available':
-                                  // Show processing indicator (actual work happens in useEffect)
-                                  return isProcessing ? (
-                                    <div key={callId} className="flex items-center gap-2 text-sm text-muted-foreground my-2">
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                      <span>Setting up location targeting...</span>
-                                    </div>
-                                  ) : null;
+                                  // Show confirmation card BEFORE processing
+                                  if (isProcessing) {
+                                    return (
+                                      <LocationConfirmationCard
+                                        key={callId}
+                                        locations={input.locations}
+                                        explanation={input.explanation}
+                                        onConfirm={() => {
+                                          // Mark as processing
+                                          processedLocationCalls.current.add(callId);
+                                          // Trigger geocoding
+                                          void handleLocationTargetingCall(callId, input);
+                                        }}
+                                        onCancel={() => {
+                                          // Mark as processed to prevent re-render
+                                          processedLocationCalls.current.add(callId);
+                                          // Send cancellation result
+                                          addToolResult({
+                                            tool: 'locationTargeting',
+                                            toolCallId: callId,
+                                            output: {
+                                              cancelled: true,
+                                              message: 'User cancelled location targeting'
+                                            },
+                                          });
+                                        }}
+                                      />
+                                    );
+                                  }
+                                  
+                                  // After confirmation, show processing card
+                                  return (
+                                    <LocationProcessingCard
+                                      key={callId}
+                                      locationCount={input.locations.length}
+                                    />
+                                  );
                                 
                                 case 'output-available': {
-                                  const output = part.output as { 
-                                    locations?: Array<{ id: string; name: string; type: string; mode: string }>; 
-                                    failedCount?: number;
-                                    cancelled?: boolean;
-                                  } | undefined;
+                                  const output = part.output as { locations?: unknown[]; cancelled?: boolean };
                                   
                                   // Don't show anything if cancelled
                                   if (output?.cancelled) {
                                     return null;
                                   }
                                   
-                                  // Show success message with location list
-                                  if (output?.locations && output.locations.length > 0) {
-                                    return (
-                                      <div key={callId} className="border rounded-lg p-4 my-2 bg-green-500/5 border-green-500/30 max-w-md mx-auto">
-                                        <div className="flex items-center gap-2 mb-2">
-                                          <CheckCircle2 className="h-5 w-5 text-green-600" />
-                                          <p className="font-medium text-green-600">Location targeting set!</p>
-                                        </div>
-                                        <p className="text-sm text-muted-foreground">
-                                          {output.locations.map(l => l.name).join(', ')}
-                                        </p>
-                                        {output.failedCount && output.failedCount > 0 && (
-                                          <p className="text-xs text-orange-600 mt-1">
-                                            Note: {output.failedCount} location(s) could not be found
-                                          </p>
-                                        )}
-                                      </div>
-                                    );
-                                  }
-                                  
-                                  return null;
+                                  // Show success card
+                                  return (
+                                    <LocationSuccessCard
+                                      key={callId}
+                                      locationCount={output?.locations?.length || 0}
+                                      onViewMap={() => {
+                                        window.dispatchEvent(new CustomEvent('switchToTab', { detail: { id: 'location' } }));
+                                      }}
+                                    />
+                                  );
                                 }
                                 
                                 case 'output-error':
                                   return (
-                                    <div key={callId} className="text-sm text-destructive border border-destructive/50 rounded-lg p-4">
-                                      Failed to set location targeting. Please try again.
+                                    <div key={callId} className="border rounded-lg bg-red-500/5 border-red-500/20 p-4 my-3">
+                                      <div className="flex items-center gap-3">
+                                        <XCircle className="h-4 w-4 text-red-600" />
+                                        <div>
+                                          <p className="text-sm font-medium text-red-600">Failed to set location</p>
+                                          <p className="text-xs text-muted-foreground mt-1">
+                                            {part.errorText || 'Could not geocode location. Please try again.'}
+                                          </p>
+                                        </div>
+                                      </div>
                                     </div>
                                   );
+                                
+                                default:
+                                  return null;
                               }
-                              break;
                             }
                             
                             case "tool-setupGoal": {

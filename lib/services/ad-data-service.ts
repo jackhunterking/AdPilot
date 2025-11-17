@@ -549,12 +549,15 @@ export const adDataService = {
       },
       location: {
         locations: adData.locations.map((l) => ({
-          id: l.meta_location_key || l.id,
+          id: l.meta_location_key || `loc-${l.id}`,
           name: l.location_name,
           type: l.location_type,
-          coordinates: [l.latitude, l.longitude] as [number | null, number | null],
-          radius: l.radius_km,
-          mode: l.inclusion_mode,
+          coordinates: [l.longitude || 0, l.latitude || 0] as [number, number], // FIXED: [lng, lat] format
+          radius: l.radius_km ? l.radius_km / 1.60934 : undefined, // Convert km back to miles
+          mode: l.inclusion_mode as 'include' | 'exclude',
+          key: l.meta_location_key,
+          // Note: bbox and geometry not stored in DB, will need re-geocoding on load
+          // This is acceptable as frontend will handle it
         })),
       },
       destination: adData.destination

@@ -1,31 +1,9 @@
 /**
- * Feature: Draft Auto-Save Hook
- * Purpose: Automatically save draft ad progress while user is building
+ * Feature: Draft Auto-Save Hook (Action-Triggered)
+ * Purpose: Save draft progress immediately after user actions, not on timer
  * References:
  *  - AI SDK Core: https://ai-sdk.dev/docs/introduction
  *  - Supabase: https://supabase.com/docs
- * 
- * IMPORTANT: Snapshot Comparison Strategy
- * ========================================
- * To prevent infinite save loops, we MUST exclude volatile fields from comparison:
- * 
- * EXCLUDED FIELDS (change every time, don't compare):
- *  - createdAt: Timestamp generated on every buildAdSnapshot() call
- *  - wizardVersion: Static metadata, not user data
- *  - metaConnection: Optional, may change independently of ad config
- * 
- * INCLUDED FIELDS (only these trigger saves):
- *  - creative: Images, variations, selections
- *  - copy: Headlines, text, CTA
- *  - destination: Form/URL/phone config
- *  - location: Targeting locations
- *  - goal: Campaign objective
- *  - budget: Daily spend, schedule
- * 
- * When adding new fields to AdSetupSnapshot:
- *  1. If field is user-editable data → include in stableSnapshot
- *  2. If field is metadata/timestamp → exclude from stableSnapshot
- *  3. Document the decision in comments
  */
 
 import { useEffect, useRef, useCallback } from 'react'
@@ -43,18 +21,18 @@ export function useDraftAutoSave(
   enabled: boolean = true
 ) {
   const lastSaveRef = useRef<string>('')
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const { reloadAd } = useCurrentAd()
   
   // Get all context states
   const { adContent, selectedImageIndex, selectedCreativeVariation } = useAdPreview()
-  const { adCopyState, getSelectedCopy } = useAdCopy()
+  const { adCopyState } = useAdCopy()
   const { destinationState } = useDestination()
   const { locationState } = useLocation()
   const { goalState } = useGoal()
   const { budgetState } = useBudget()
   
-  // Store latest context values in refs (updated on every render, no deps)
+  // Store latest context values in refs
   const contextsRef = useRef({
     adContent: null as unknown as typeof adContent,
     selectedImageIndex: null as unknown as typeof selectedImageIndex,
@@ -64,10 +42,9 @@ export function useDraftAutoSave(
     locationState: null as unknown as typeof locationState,
     goalState: null as unknown as typeof goalState,
     budgetState: null as unknown as typeof budgetState,
-    getSelectedCopy: null as unknown as typeof getSelectedCopy,
   })
   
-  // Update refs on every render (no deps, no loops)
+  // Update refs on every render
   contextsRef.current = {
     adContent,
     selectedImageIndex,
@@ -77,121 +54,118 @@ export function useDraftAutoSave(
     locationState,
     goalState,
     budgetState,
-    getSelectedCopy,
   }
   
-  // Stable save function - ONLY depends on campaignId and adId
-  const saveDraft = useCallback(async () => {
-    if (!campaignId || !adId) return
+  // Stable save function with debouncing
+  const triggerSave = useCallback(async (immediate: boolean = false) => {
+    if (!enabled || !campaignId || !adId) return
     
-    const contexts = contextsRef.current
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
     
-    try {
-      const sections: Record<string, unknown> = {}
+    const doSave = async () => {
+      const contexts = contextsRef.current
       
-      // Only include sections with data
-      if (contexts.adContent?.imageVariations && contexts.adContent.imageVariations.length > 0) {
-        sections.creative = {
-          imageVariations: contexts.adContent.imageVariations,
-          selectedImageIndex: contexts.selectedImageIndex ?? 0,
-          format: 'feed'
-        }
-      }
-      
-      if (contexts.adCopyState.customCopyVariations && contexts.adCopyState.customCopyVariations.length > 0) {
-        sections.copy = {
-          variations: contexts.adCopyState.customCopyVariations.map((v) => ({
-            headline: v.headline,
-            primaryText: v.primaryText,
-            description: v.description || '',
-            cta: contexts.adContent?.cta || 'Learn More'
-          })),
-          selectedCopyIndex: contexts.adCopyState.selectedCopyIndex ?? 0
-        }
-      }
-      
-      if (contexts.destinationState.data?.type) {
-        sections.destination = {
-          type: contexts.destinationState.data.type,
-          data: contexts.destinationState.data
-        }
-      }
-      
-      if (contexts.locationState.locations.length > 0) {
-        sections.location = {
-          locations: contexts.locationState.locations
-        }
-      }
-      
-      if (contexts.budgetState.dailyBudget && contexts.budgetState.dailyBudget > 0) {
-        sections.budget = {
-          dailyBudget: contexts.budgetState.dailyBudget,
-          currency: contexts.budgetState.currency,
-          startTime: contexts.budgetState.startTime,
-          endTime: contexts.budgetState.endTime,
-          timezone: contexts.budgetState.timezone
-        }
-      }
-      
-      if (Object.keys(sections).length === 0) {
-        return // Nothing to save
-      }
-      
-      const currentSignature = JSON.stringify(sections)
-      if (currentSignature === lastSaveRef.current) {
-        return // No changes
-      }
-      
-      const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/snapshot`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sections),
-      })
-      
-      if (response.ok) {
-        lastSaveRef.current = currentSignature
-        console.log('[DraftAutoSave] ✅ Saved')
+      try {
+        const sections: Record<string, unknown> = {}
         
-        // Reload currentAd to refresh completed_steps for stepper checkmarks
-        await reloadAd()
-      } else {
-        console.error('[DraftAutoSave] Failed:', await response.text())
+        // Build sections (same logic as before)
+        if (contexts.adContent?.imageVariations && contexts.adContent.imageVariations.length > 0) {
+          sections.creative = {
+            imageVariations: contexts.adContent.imageVariations,
+            selectedImageIndex: contexts.selectedImageIndex ?? 0,
+            format: 'feed'
+          }
+        }
+        
+        if (contexts.adCopyState.customCopyVariations && contexts.adCopyState.customCopyVariations.length > 0) {
+          sections.copy = {
+            variations: contexts.adCopyState.customCopyVariations.map((v) => ({
+              headline: v.headline,
+              primaryText: v.primaryText,
+              description: v.description || '',
+              cta: contexts.adContent?.cta || 'Learn More'
+            })),
+            selectedCopyIndex: contexts.adCopyState.selectedCopyIndex ?? 0
+          }
+        }
+        
+        if (contexts.destinationState.data?.type) {
+          sections.destination = {
+            type: contexts.destinationState.data.type,
+            data: contexts.destinationState.data
+          }
+        }
+        
+        if (contexts.locationState.locations.length > 0) {
+          sections.location = {
+            locations: contexts.locationState.locations
+          }
+        }
+        
+        if (contexts.budgetState.dailyBudget && contexts.budgetState.dailyBudget > 0) {
+          sections.budget = {
+            dailyBudget: contexts.budgetState.dailyBudget,
+            currency: contexts.budgetState.currency,
+            startTime: contexts.budgetState.startTime,
+            endTime: contexts.budgetState.endTime,
+            timezone: contexts.budgetState.timezone
+          }
+        }
+        
+        if (Object.keys(sections).length === 0) {
+          return // Nothing to save
+        }
+        
+        const currentSignature = JSON.stringify(sections)
+        if (currentSignature === lastSaveRef.current) {
+          console.log('[DraftAutoSave] No changes detected, skipping save')
+          return // No changes
+        }
+        
+        console.log('[DraftAutoSave] Saving sections:', Object.keys(sections))
+        
+        const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/snapshot`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sections),
+        })
+        
+        if (response.ok) {
+          lastSaveRef.current = currentSignature
+          console.log('[DraftAutoSave] ✅ Saved successfully')
+          
+          // Reload currentAd to refresh completed_steps
+          await reloadAd()
+        } else {
+          const errorText = await response.text()
+          console.error('[DraftAutoSave] Failed:', response.status, errorText)
+        }
+      } catch (error) {
+        console.error('[DraftAutoSave] Error:', error)
       }
-    } catch (error) {
-      console.error('[DraftAutoSave] Error:', error)
     }
-  }, [campaignId, adId, reloadAd]) // ONLY campaignId, adId, and reloadAd - stable dependencies!
+    
+    if (immediate) {
+      await doSave()
+    } else {
+      // Debounce: wait 300ms before saving
+      saveTimeoutRef.current = setTimeout(() => {
+        void doSave()
+      }, 300)
+    }
+  }, [campaignId, adId, reloadAd, enabled])
   
-  // Set up interval
+  // Save on unmount (immediate, no debounce)
   useEffect(() => {
-    if (!enabled || !campaignId || !adId) {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-      return
-    }
-    
-    // Save immediately on mount (if data exists)
-    void saveDraft()
-    
-    // Then save every 15 seconds
-    intervalRef.current = setInterval(() => {
-      void saveDraft()
-    }, 15000)
-    
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
+      void triggerSave(true)
     }
-  }, [enabled, campaignId, adId, saveDraft])
+  }, [triggerSave])
   
-  // Save on unmount
-  useEffect(() => {
-    return () => {
-      void saveDraft()
-    }
-  }, [saveDraft])
+  // Expose save function
+  return { triggerSave }
 }
 
