@@ -351,7 +351,7 @@ export function PreviewPanel() {
           detail: {
             campaignId: campaign.id,
             campaignName: campaign.name,
-            adId: ad.id,
+            adId: currentAdId,
             published: true,
             timestamp: Date.now()
           }
