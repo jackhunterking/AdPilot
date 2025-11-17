@@ -544,12 +544,12 @@ export async function POST(req: Request) {
 
 The user just provided location name(s) in response to your question: "${locationInput}"
 
-YOU MUST CALL THE locationTargeting TOOL NOW. No exceptions.
+YOU MUST CALL THE addLocations TOOL NOW. No exceptions.
 
 **MANDATORY RULES:**
-1. Parse the location input and call locationTargeting immediately
+1. Parse the location input and call addLocations immediately
 2. DO NOT ask follow-up questions
-3. DO NOT call any other tools (no generateImage, setupGoal, editImage, etc.)
+3. DO NOT call any other tools (no generateVariations, setupGoal, editVariation, etc.)
 4. DO NOT provide explanations before calling the tool
 5. Call the tool with the locations array properly formatted
 
@@ -566,9 +566,9 @@ YOU MUST CALL THE locationTargeting TOOL NOW. No exceptions.
 - If country name → type: "country"
 
 **Examples:**
-Input: "Toronto" → locationTargeting([{name: "Toronto, Ontario, Canada", type: "city", mode: "include"}], "Targeting Toronto")
-Input: "California" → locationTargeting([{name: "California", type: "region", mode: "include"}], "Targeting California")
-Input: "30 miles around Boston" → locationTargeting([{name: "Boston, MA, USA", type: "radius", radius: 30, mode: "include"}], "Targeting 30 mile radius around Boston")
+Input: "Toronto" → addLocations({locations: [{name: "Toronto, Ontario, Canada", type: "city", mode: "include"}], explanation: "Targeting Toronto"})
+Input: "California" → addLocations({locations: [{name: "California", type: "region", mode: "include"}], explanation: "Targeting California"})
+Input: "30 miles around Boston" → addLocations({locations: [{name: "Boston, MA, USA", type: "radius", radius: 30, mode: "include"}], explanation: "Targeting 30 mile radius around Boston"})
 
 CALL THE TOOL NOW. DO NOT OUTPUT ANY OTHER TEXT.
 

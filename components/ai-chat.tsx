@@ -1152,7 +1152,13 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                               const callId = (part as unknown as { toolCallId?: string }).toolCallId || `${message.id}-${i}`;
                               const toolName = (part as unknown as { toolName?: string; name?: string }).toolName || (part as unknown as { name?: string }).name || '';
 
-                              if (toolName === 'locationTargeting') {
+                              if (toolName === 'addLocations' || toolName === 'locationTargeting') {
+                                console.log('[AI Chat] Rendering location tool result:', {
+                                  toolName,
+                                  hasOutput: !!output,
+                                  locationCount: (output as { locations?: unknown[] })?.locations?.length || 0
+                                });
+                                
                                 const output = (part as unknown as { output?: unknown }).output as { 
                                   locations?: LocationOutput[]; 
                                   explanation?: string;
@@ -1218,6 +1224,105 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                           </button>
                                         );
                                       })}
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              
+                              // NEW GRANULAR TOOL HANDLERS
+                              
+                              // selectVariation - Choose which creative variation to use
+                              if (toolName === 'selectVariation') {
+                                const output = (part as unknown as { output?: unknown }).output as { success?: boolean; selectedIndex?: number };
+                                if (!output?.success) return null;
+                                
+                                return (
+                                  <div key={callId} className="border rounded-lg bg-green-500/5 border-green-500/20 p-3 my-2">
+                                    <div className="flex items-center gap-2">
+                                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                      <p className="text-sm font-medium text-green-600">
+                                        Selected Variation {(output.selectedIndex || 0) + 1}
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              
+                              // selectCopyVariation - Choose which copy variation to use
+                              if (toolName === 'selectCopyVariation') {
+                                const output = (part as unknown as { output?: unknown }).output as { success?: boolean; selectedIndex?: number };
+                                if (!output?.success) return null;
+                                
+                                return (
+                                  <div key={callId} className="border rounded-lg bg-green-500/5 border-green-500/20 p-3 my-2">
+                                    <div className="flex items-center gap-2">
+                                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                      <p className="text-sm font-medium text-green-600">
+                                        Selected Copy Variation {(output.selectedIndex || 0) + 1}
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              
+                              // removeLocation - Remove specific location
+                              if (toolName === 'removeLocation') {
+                                const output = (part as unknown as { output?: unknown }).output as { success?: boolean; locationName?: string };
+                                if (!output?.success) return null;
+                                
+                                return (
+                                  <div key={callId} className="border rounded-lg bg-orange-500/5 border-orange-500/20 p-3 my-2">
+                                    <div className="flex items-center gap-2">
+                                      <X className="h-4 w-4 text-orange-600" />
+                                      <p className="text-sm font-medium text-orange-600">
+                                        Removed location: {output.locationName}
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              
+                              // Unified handler for refine tools (headline, primary text, description)
+                              if (toolName === 'refineHeadline' || toolName === 'refinePrimaryText' || toolName === 'refineDescription') {
+                                const output = (part as unknown as { output?: unknown }).output as { 
+                                  success?: boolean; 
+                                  headline?: string;
+                                  primaryText?: string;
+                                  description?: string;
+                                  variationIndex?: number;
+                                };
+                                
+                                if (!output?.success) return null;
+                                
+                                const fieldName = toolName === 'refineHeadline' ? 'Headline' :
+                                                  toolName === 'refinePrimaryText' ? 'Primary Text' :
+                                                  'Description';
+                                
+                                const newValue = output.headline || output.primaryText || output.description || '';
+                                
+                                return (
+                                  <div key={callId} className="border rounded-lg bg-green-500/5 border-green-500/20 p-3 my-2">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                      <p className="text-sm font-medium text-green-600">{fieldName} updated</p>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground ml-6">&quot;{newValue}&quot;</p>
+                                  </div>
+                                );
+                              }
+                              
+                              // renameAd - Change ad name
+                              if (toolName === 'renameAd') {
+                                const output = (part as unknown as { output?: unknown }).output as { success?: boolean; newName?: string };
+                                if (!output?.success) return null;
+                                
+                                return (
+                                  <div key={callId} className="border rounded-lg bg-green-500/5 border-green-500/20 p-3 my-2">
+                                    <div className="flex items-center gap-2">
+                                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                      <p className="text-sm font-medium text-green-600">
+                                        Ad renamed to &quot;{output.newName}&quot;
+                                      </p>
                                     </div>
                                   </div>
                                 );
@@ -1326,16 +1431,25 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                   return null;
                               }
                             }
-                            case "tool-generateImage": {
+                            case "tool-generateVariations":   // NEW granular tool name
+                            case "tool-generateImage": {      // OLD name (backward compat)
                               const callId = part.toolCallId;
                               const isGenerating = generatingImages.has(callId);
                               const input = part.input as { prompt: string; brandName?: string; caption?: string };
                               
-                              // 🚨 CRITICAL: Prevent showing generateImage tool UI on non-ads steps
+                              console.log('[AI Chat] Handling creative generation tool:', {
+                                type: part.type,
+                                callId,
+                                state: part.state,
+                                currentStep,
+                                isGenerating
+                              });
+                              
+                              // 🚨 CRITICAL: Prevent showing tool UI on non-ads steps
                               // Only show confirmation UI if we're on the 'ads' step OR if the tool is already generating
                               // This prevents stale tool calls from previous steps from showing up
                               if (part.state === 'input-available' && !isGenerating && currentStep !== 'ads') {
-                                console.log(`[AIChat] Skipping generateImage UI - current step is '${currentStep}', not 'ads'`);
+                                console.log(`[AIChat] Skipping creative generation UI - current step is '${currentStep}', not 'ads'`);
                                 return null;
                               }
                               
@@ -1412,9 +1526,16 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                   return null;
                               }
                             }
-                            case "tool-editImage": {
+                            case "tool-editVariation":     // NEW granular tool name
+                            case "tool-editImage": {       // OLD name (backward compat)
                               const callId = part.toolCallId;
                               const input = part.input as { imageUrl?: string; variationIndex?: number; prompt?: string };
+                              
+                              console.log('[AI Chat] Handling edit variation tool:', {
+                                type: part.type,
+                                callId,
+                                state: part.state
+                              });
                               
                               const hasOutput = typeof (part as { output?: unknown }).output !== 'undefined';
                               const hasResult = typeof (part as { result?: unknown }).result !== 'undefined';
@@ -1505,9 +1626,16 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                   return null;
                               }
                             }
-                            case "tool-regenerateImage": {
+                            case "tool-regenerateVariation":  // NEW granular tool name
+                            case "tool-regenerateImage": {    // OLD name (backward compat)
                               const callId = part.toolCallId;
                               const input = part.input as { variationIndex?: number };
+                              
+                              console.log('[AI Chat] Handling regenerate variation tool:', {
+                                type: part.type,
+                                callId,
+                                state: part.state
+                              });
                               
                               // DEBUG: Log all states to see execution flow
                               const hasOutput2 = typeof (part as { output?: unknown }).output !== 'undefined';
@@ -1622,9 +1750,16 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                   return null;
                               }
                             }
-                          case "tool-editAdCopy": {
+                          case "tool-editCopy":       // NEW granular tool name
+                          case "tool-editAdCopy": {   // OLD name (backward compat)
                             const callId = part.toolCallId;
                             const input = part.input as { prompt?: string; current?: { primaryText?: string; headline?: string; description?: string } };
+
+                            console.log('[AI Chat] Handling edit copy tool:', {
+                              type: part.type,
+                              callId,
+                              state: part.state
+                            });
 
                             switch (part.state) {
                               case 'input-streaming':
@@ -1705,10 +1840,18 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                 return null;
                             }
                           }
-                            case "tool-locationTargeting": {
+                            case "tool-addLocations":      // NEW granular tool name
+                            case "tool-locationTargeting": {  // OLD name (backward compat)
                               const callId = part.toolCallId;
                               const input = part.input as LocationToolInput;
                               const isProcessing = !processedLocationCalls.current.has(callId);
+                              
+                              console.log('[AI Chat] Handling location tool:', {
+                                type: part.type,
+                                callId,
+                                state: part.state,
+                                isProcessing
+                              });
                               
                               switch (part.state) {
                                 case 'input-streaming':
