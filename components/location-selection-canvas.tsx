@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useLocation } from "@/lib/context/location-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
-import { useEffect, useRef, useState, useCallback, useMemo } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { cn } from "@/lib/utils"
 import { logger } from "@/lib/utils/logger"
 import { useLeafletReady } from "@/lib/hooks/use-leaflet-ready"
@@ -90,30 +90,39 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
 
   // Initialize map once when Leaflet is ready and container is available
   useEffect(() => {
+    console.log('[Map Init] Starting initialization check:', {
+      isLeafletReady,
+      hasMap: !!mapRef.current,
+      hasContainer: !!mapContainerRef.current
+    });
+    
     // Wait for Leaflet to be ready
     if (!isLeafletReady) {
-      console.log("[Map] Waiting for Leaflet to load...")
+      console.log("[Map Init] Waiting for Leaflet to load...")
       return
     }
 
     // Only initialize if we don't have a map yet
     if (mapRef.current) {
+      console.log("[Map Init] Map already exists, skipping")
       setIsMapLoading(false)
       return
     }
     
     if (!mapContainerRef.current) {
-      console.log("[Map] Container not ready yet")
+      console.log("[Map Init] Container not ready yet")
       return
     }
     
     const L = getLeaflet()
     if (!L) {
-      console.error("[Map] Leaflet not available despite ready signal")
+      console.error("[Map Init] ❌ Leaflet not available despite ready signal")
       setMapError("Map library not available")
       setIsMapLoading(false)
       return
     }
+    
+    console.log('[Map Init] All checks passed, initializing map...');
 
     // Defer map initialization to next frame for better perceived performance
     const timeoutId = setTimeout(() => {
@@ -136,25 +145,29 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
             scrollWheelZoom: true,
           })
 
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
             maxZoom: 19,
-          }).addTo(mapRef.current)
+          });
+          
+          tileLayer.addTo(mapRef.current);
+          console.log('[Map Init] ✅ Tile layer added to map');
 
           // Initial size calculation
           mapRef.current.invalidateSize(true)
+          console.log('[Map Init] Invalidated size');
           
           // Retry size calculation after a short delay to handle any layout shifts
           setTimeout(() => {
             if (mapRef.current) {
               mapRef.current.invalidateSize(true)
-              console.log("[Map] Size recalculated after delay")
+              console.log("[Map Init] Size recalculated after delay")
             }
           }, 100)
 
           setIsMapLoading(false)
           setMapError(null)
-          console.log("[Map] Initialized successfully")
+          console.log("[Map Init] ✅ Map initialized successfully with tiles")
         } catch (error) {
           console.error("[OpenStreetMap] Error initializing map:", error)
           setMapError(error instanceof Error ? error.message : "Failed to initialize map")
@@ -174,26 +187,16 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     }
   }, [isLeafletReady])
 
-  // Use memoized signature to reliably detect location changes
-  const locationsSignature = useMemo(
-    () => JSON.stringify(locationState.locations),
-    [locationState.locations]
-  );
-
   // Update map markers when locations change (purely reactive - no events)
+  // Use primitive values to prevent infinite loops
+  const locationCount = locationState.locations.length;
+  const locationStatus = locationState.status;
+  
   useEffect(() => {
-    console.log('[Map] useEffect triggered:', {
-      locationCount: locationState.locations.length,
-      status: locationState.status,
-      signature: locationsSignature.substring(0, 100),
-      locations: locationState.locations.map(l => ({
-        name: l.name,
-        mode: l.mode,
-        hasGeometry: !!l.geometry,
-        hasBbox: !!l.bbox,
-        coordinates: l.coordinates
-      }))
-    });
+    // Guard: Skip if no locations
+    if (locationCount === 0) {
+      return;
+    }
     
     const L = getLeaflet();
     if (!mapRef.current || !L) {
@@ -238,10 +241,30 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     validLocations.forEach((location) => {
       const color = location.mode === "include" ? "#16A34A" : "#DC2626";
       const fillColor = location.mode === "include" ? "#16A34A" : "#DC2626";
+      
+      // Validate coordinates
+      const lat = location.coordinates[1];
+      const lng = location.coordinates[0];
+      const isValid = lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+      
+      console.log('[Map] Processing location:', {
+        name: location.name,
+        coordinates: location.coordinates,
+        lat,
+        lng,
+        isValid,
+        hasGeometry: !!location.geometry,
+        hasBbox: !!location.bbox
+      });
+      
+      if (!isValid) {
+        console.error('[Map] ❌ Invalid coordinates for:', location.name);
+        return;
+      }
 
       // Add marker with custom styling
       const marker = L.circleMarker(
-        [location.coordinates[1], location.coordinates[0]], // [lat, lng] for Leaflet
+        [lat, lng], // [lat, lng] for Leaflet
         {
           radius: 10,
           fillColor: color,
@@ -352,7 +375,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
 
     map.invalidateSize(true);
     console.log('[Map] ✅ Map updated with', validLocations.length, 'locations');
-  }, [locationsSignature, locationState.status])
+  }, [locationCount, locationStatus, locationState.locations])
 
   const handleAddMore = () => {
     try {
@@ -532,13 +555,6 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
   if (locationState.locations.length > 0) {
     const includedLocations = locationState.locations.filter(loc => loc.mode === "include")
     const excludedLocations = locationState.locations.filter(loc => loc.mode === "exclude")
-
-    console.log('[LocationCanvas] Rendering with locations:', {
-      total: locationState.locations.length,
-      included: includedLocations.length,
-      excluded: excludedLocations.length,
-      status: locationState.status
-    });
 
     return (
       <div
