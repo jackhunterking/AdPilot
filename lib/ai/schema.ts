@@ -59,6 +59,12 @@ function isString(value: unknown): value is string {
 }
 
 function sanitizePart(raw: unknown): { type: string; [k: string]: unknown } | null {
+  // DIAGNOSTIC: Log location-related parts entering sanitization
+  const rawType = (raw as { type?: unknown })?.type;
+  if (typeof rawType === 'string' && (rawType.includes('location') || rawType.includes('Location') || rawType === 'tool-result')) {
+    console.log('[SANITIZER] Input:', JSON.stringify(raw, null, 2));
+  }
+
   // Guard: must have a string type
   const r = raw as { type?: unknown };
   if (!isString(r?.type as unknown as string)) return null;
@@ -101,6 +107,11 @@ function sanitizePart(raw: unknown): { type: string; [k: string]: unknown } | nu
   if (isString((raw as { toolName?: unknown }).toolName as string)) part.toolName = (raw as { toolName?: string }).toolName;
   // Also preserve 'name' as fallback (some tools use this property)
   if (isString((raw as { name?: unknown }).name as string)) part.name = (raw as { name?: string }).name;
+
+  // DIAGNOSTIC: Log location-related parts exiting sanitization
+  if (part && (part.type.includes('location') || part.type.includes('Location') || part.type === 'tool-result')) {
+    console.log('[SANITIZER] Output:', JSON.stringify(part, null, 2));
+  }
 
   return part;
 }

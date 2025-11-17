@@ -1151,6 +1151,15 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                               // AI SDK v5 generic tool result part
                               const callId = (part as unknown as { toolCallId?: string }).toolCallId || `${message.id}-${i}`;
                               const toolName = (part as unknown as { toolName?: string; name?: string }).toolName || (part as unknown as { name?: string }).name || '';
+                              
+                              // DIAGNOSTIC: Log what rendering sees for tool-result parts
+                              console.log('[RENDER tool-result]', {
+                                callId,
+                                toolName,
+                                hasOutput: !!(part as {output?: unknown}).output,
+                                outputKeys: (part as {output?: unknown}).output ? Object.keys((part as {output?: Record<string, unknown>}).output || {}) : [],
+                                fullPart: JSON.stringify(part, null, 2)
+                              });
 
                               if (toolName === 'addLocations' || toolName === 'locationTargeting') {
                                 const output = (part as unknown as { output?: unknown }).output as { 
@@ -1836,7 +1845,17 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                               const input = part.input as LocationToolInput;
                               const isProcessing = !processedLocationCalls.current.has(callId);
                               
-                              // ONLY handle states we care about - no logging to prevent infinite loop
+                              // DIAGNOSTIC: Log what rendering sees for tool-specific location parts
+                              console.log('[RENDER tool-addLocations/tool-locationTargeting]', {
+                                callId,
+                                state: part.state,
+                                hasInput: !!input,
+                                locationCount: input?.locations?.length,
+                                isProcessing,
+                                fullPart: JSON.stringify(part, null, 2)
+                              });
+                              
+                              // ONLY handle states we care about
                               if (part.state === 'input-streaming') {
                                 return null;  // Don't render anything during streaming
                               }

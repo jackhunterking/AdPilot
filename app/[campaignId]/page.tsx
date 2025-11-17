@@ -170,6 +170,26 @@ export default async function CampaignPage({
     partsCount: m.parts?.length || 0 
   }))));
 
+  // DIAGNOSTIC: Log location tool parts specifically
+  messages.forEach((msg, idx) => {
+    if (msg.role === 'assistant' && msg.parts) {
+      const toolParts = (msg.parts as Array<{ type?: string }>).filter(p => {
+        const type = p.type;
+        return typeof type === 'string' && (
+          type.includes('location') || 
+          type.includes('Location') ||
+          type === 'tool-result'
+        );
+      });
+      if (toolParts.length > 0) {
+        console.log(`[SERVER] Message ${idx} has ${toolParts.length} location-related parts:`);
+        toolParts.forEach((part, partIdx) => {
+          console.log(`[SERVER]   Part ${partIdx}:`, JSON.stringify(part, null, 2));
+        });
+      }
+    }
+  });
+
   return (
     <Dashboard 
       messages={messages}
