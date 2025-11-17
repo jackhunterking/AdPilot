@@ -58,7 +58,6 @@ export function CampaignWorkspace() {
   const { ads, refreshAds, updateAdStatus, deleteAd } = useCampaignAds(campaignId)
   const { publishAd, isPublishing: isPublishingHook } = usePublishAd()
   const { saveAd, isSaving: isSavingHook } = useSaveAd()
-  const { reloadAd } = useCurrentAd()
   
   // Subscribe to real-time status updates for all ads in campaign
   useMultipleAdsStatusSubscription({
@@ -1053,7 +1052,6 @@ export function CampaignWorkspace() {
         destinationState,
         locationState,
         budgetState,
-        onSuccess: () => reloadAd()
       })
       
       if (!result.success) {
@@ -1127,7 +1125,6 @@ export function CampaignWorkspace() {
         destinationState,
         locationState,
         budgetState,
-        onSuccess: () => reloadAd()
       })
       
       if (!result.success) {
