@@ -1191,37 +1191,27 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                           : loc.type;
                                         
                                         return (
-                                          <button
+                                          <div
                                             key={`${callId}-${idx}`}
-                                            onClick={() => window.dispatchEvent(new CustomEvent('switchToTab', { detail: { id: 'location' } }))}
-                                            className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors text-left ${
-                                              isExcluded 
-                                                ? "bg-red-500/5 border-red-500/30 hover:border-red-500/50" 
-                                                : "panel-surface hover:border-blue-500/40"
-                                            }`}
+                                            className="flex items-center justify-between p-3 rounded-lg border panel-surface"
                                           >
-                                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                                              <div className={`h-7 w-7 rounded-md flex items-center justify-center flex-shrink-0 ${
-                                                isExcluded ? 'bg-red-500/10' : 'bg-green-500/10'
-                                              }`}>
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                              <div className="icon-tile-muted">
                                                 {isExcluded ? (
-                                                  <X className="h-3.5 w-3.5 text-red-600" />
+                                                  <X className="h-4 w-4 text-red-600" />
                                                 ) : (
-                                                  <Check className="h-3.5 w-3.5 text-green-600" />
+                                                  <Check className="h-4 w-4 text-status-green" />
                                                 )}
                                               </div>
-                                              <div className="min-w-0 flex-1">
-                                                <p className="text-sm font-medium truncate">{loc.name}</p>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                  <p className="text-sm font-medium truncate">{loc.name}</p>
+                                                  {isExcluded && <span className="status-muted flex-shrink-0">Excluded</span>}
+                                                </div>
                                                 <p className="text-xs text-muted-foreground">{typeLabel}</p>
                                               </div>
-                                              {isExcluded && (
-                                                <Badge variant="destructive" className="text-[10px] h-5 flex-shrink-0">
-                                                  Excluded
-                                                </Badge>
-                                              )}
                                             </div>
-                                            <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 ml-2" />
-                                          </button>
+                                          </div>
                                         );
                                       })}
                                     </div>
@@ -1865,16 +1855,64 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                               }
                               
                               if (part.state === 'output-available') {
-                                const output = part.output as { locations?: Array<{ name: string; mode: string }>; cancelled?: boolean };
+                                const output = part.output as { 
+                                  locations?: Array<{ 
+                                    id?: string;
+                                    name: string; 
+                                    mode: string;
+                                    type: string;
+                                    radius?: number;
+                                  }>; 
+                                  cancelled?: boolean 
+                                };
                                 
                                 if (output?.cancelled) return null;
                                 
-                                const locationNames = output?.locations?.map(l => l.name).join(', ') || 'location';
-                                const action = output?.locations?.[0]?.mode === 'exclude' ? 'excluded' : 'added';
+                                if (!output?.locations || output.locations.length === 0) return null;
                                 
                                 return (
-                                  <div key={callId} className="text-sm text-muted-foreground my-2">
-                                    Location {action}: {locationNames}
+                                  <div key={callId} className="w-full my-4">
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <MapPin className="h-4 w-4 text-blue-600" />
+                                      <p className="text-sm font-medium">Target Locations</p>
+                                      <Badge variant="outline" className="text-xs">{output.locations.length}</Badge>
+                                    </div>
+                                    
+                                    <div className="space-y-2">
+                                      {output.locations.map((loc, idx: number) => {
+                                        const isExcluded = loc.mode === "exclude";
+                                        const typeLabel = loc.type === 'radius' && loc.radius 
+                                          ? `${loc.radius} mile radius` 
+                                          : loc.type === 'city' ? 'City'
+                                          : loc.type === 'region' ? 'Province/Region'
+                                          : loc.type === 'country' ? 'Country'
+                                          : loc.type;
+                                        
+                                        return (
+                                          <div
+                                            key={`${callId}-${idx}`}
+                                            className="flex items-center justify-between p-3 rounded-lg border panel-surface"
+                                          >
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                              <div className="icon-tile-muted">
+                                                {isExcluded ? (
+                                                  <X className="h-4 w-4 text-red-600" />
+                                                ) : (
+                                                  <Check className="h-4 w-4 text-status-green" />
+                                                )}
+                                              </div>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                  <p className="text-sm font-medium truncate">{loc.name}</p>
+                                                  {isExcluded && <span className="status-muted flex-shrink-0">Excluded</span>}
+                                                </div>
+                                                <p className="text-xs text-muted-foreground">{typeLabel}</p>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
                                   </div>
                                 );
                               }
