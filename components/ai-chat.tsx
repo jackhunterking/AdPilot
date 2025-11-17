@@ -1153,17 +1153,17 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                               const toolName = (part as unknown as { toolName?: string; name?: string }).toolName || (part as unknown as { name?: string }).name || '';
 
                               if (toolName === 'addLocations' || toolName === 'locationTargeting') {
-                                console.log('[AI Chat] Rendering location tool result:', {
-                                  toolName,
-                                  hasOutput: !!output,
-                                  locationCount: (output as { locations?: unknown[] })?.locations?.length || 0
-                                });
-                                
                                 const output = (part as unknown as { output?: unknown }).output as { 
                                   locations?: LocationOutput[]; 
                                   explanation?: string;
                                   cancelled?: boolean;
                                 } | undefined;
+                                
+                                console.log('[AI Chat] Rendering location tool result:', {
+                                  toolName,
+                                  hasOutput: !!output,
+                                  locationCount: output?.locations?.length || 0
+                                });
                                 
                                 // Don't show cancelled results
                                 if (output?.cancelled) return null;
