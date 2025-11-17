@@ -44,7 +44,7 @@ export function CampaignWorkspace() {
   const { campaign, updateBudget } = useCampaignContext()
   const { goalState } = useGoal()
   const { destinationState, clearDestination, setDestination } = useDestination()
-  const { adContent, resetAdPreview, selectedImageIndex, selectedCreativeVariation, setIsPublished, setAdContent, setSelectedImageIndex, setSelectedCreativeVariation, saveAdChanges } = useAdPreview()
+  const { adContent, resetAdPreview, selectedImageIndex, selectedCreativeVariation, setIsPublished, setAdContent, setSelectedImageIndex, setSelectedCreativeVariation } = useAdPreview()
   const { clearLocations, locationState, addLocations } = useLocation()
   const { adCopyState, getSelectedCopy, resetAdCopy, setCustomCopyVariations, setSelectedCopyIndex, getActiveVariations } = useAdCopy()
   const { budgetState, isComplete: isBudgetComplete } = useBudget()
@@ -1204,43 +1204,57 @@ export function CampaignWorkspace() {
       const selectedCopy = getSelectedCopy()
       const activeVariations = getActiveVariations()
       
-      // Build copy payload
-      const copyPayload = {
-        primaryText: selectedCopy.primaryText,
-        headline: selectedCopy.headline,
-        description: selectedCopy.description || '',
-        selectedCopyIndex: adCopyState.selectedCopyIndex ?? 0,
-        variations: activeVariations.map(v => ({
-          primaryText: v.primaryText,
-          headline: v.headline,
-          description: v.description || ''
-        }))
+      // Build payload sections
+      const sections: Record<string, unknown> = {}
+      
+      // Creative section
+      if (adContent?.imageVariations && adContent.imageVariations.length > 0) {
+        sections.creative = {
+          imageVariations: adContent.imageVariations,
+          selectedImageIndex: selectedImageIndex ?? 0,
+          format: 'feed'
+        }
       }
       
-      // Build destination payload
-      const destinationPayload = {
-        type: destinationState.data?.type === 'instant_form' ? 'form' 
-              : destinationState.data?.type === 'website_url' ? 'website'
-              : destinationState.data?.type === 'phone_number' ? 'call'
-              : 'website',
-        url: destinationState.data?.websiteUrl,
-        phoneNumber: destinationState.data?.phoneNumber,
-        normalizedPhone: destinationState.data?.phoneFormatted,
-        formFields: destinationState.data?.formId ? [{ 
-          id: destinationState.data.formId,
-          type: 'form',
-          label: destinationState.data.formName || 'Lead Form',
-          required: true
-        }] : undefined,
-        cta: 'Learn More'
+      // Copy section
+      if (activeVariations.length > 0) {
+        sections.copy = {
+          variations: activeVariations.map(v => ({
+            headline: v.headline,
+            primaryText: v.primaryText,
+            description: v.description || '',
+            cta: adContent?.cta || 'Learn More'
+          })),
+          selectedCopyIndex: adCopyState.selectedCopyIndex ?? 0
+        }
       }
       
-      // Call saveAdChanges with all collected data
-      await saveAdChanges({
-        copy: copyPayload,
-        destination: destinationPayload,
-        format: 'feed' // TODO: Get from state if we track format
+      // Destination section
+      if (destinationState.data?.type) {
+        sections.destination = {
+          type: destinationState.data.type,
+          data: destinationState.data
+        }
+      }
+      
+      // Location section
+      if (locationState.locations.length > 0) {
+        sections.location = {
+          locations: locationState.locations
+        }
+      }
+      
+      // Save via /snapshot endpoint
+      const response = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAdId}/snapshot`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sections),
       })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to save ad')
+      }
       
       // Show success toast
       toast.success('Ad saved successfully!')
@@ -1260,7 +1274,7 @@ export function CampaignWorkspace() {
     } finally {
       setIsSaving(false)
     }
-  }, [campaign?.id, currentAdId, isSaving, getSelectedCopy, getActiveVariations, adCopyState.selectedCopyIndex, destinationState.data, saveAdChanges, refreshAds, setWorkspaceMode])
+  }, [campaign?.id, currentAdId, isSaving, getSelectedCopy, getActiveVariations, adCopyState.selectedCopyIndex, adContent, selectedImageIndex, destinationState.data, locationState.locations, refreshAds, setWorkspaceMode])
 
   
   // Unsaved changes dialog handlers
