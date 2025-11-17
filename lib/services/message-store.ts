@@ -67,34 +67,48 @@ function storageToMessage(stored: MessageRow): UIMessage {
   
   // For assistant messages, filter incomplete tool invocations
   // Per AI SDK docs: https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#response-messages
-  // AI SDK uses tool-specific types like "tool-generateImage", "tool-editImage", etc.
   if (stored.role === 'assistant' && parts.length > 0) {
-    // Check for tool invocation parts (any part with type starting with "tool-")
-    const toolParts = parts.filter((p) => 
-      typeof (p as { type?: unknown }).type === 'string' && String((p as { type: string }).type).startsWith('tool-')
-    );
-    
-    if (toolParts.length > 0) {
-      // Filter out incomplete tool invocations
-      // Complete tools have either result or output properties
-      // Incomplete tools only have toolCallId (pending execution)
-      parts = parts.filter((part) => {
-        const type = (part as { type?: unknown }).type;
-        if (typeof type !== 'string') return false;
-        if (!type.startsWith('tool-')) return true;
-        const toolCallId = (part as { toolCallId?: unknown }).toolCallId;
-        const hasToolCallId = typeof toolCallId === 'string' && toolCallId.length > 0;
-        const hasOutputOrResult = Boolean((part as { result?: unknown }).result || (part as { output?: unknown }).output);
-        if (type === 'tool-result') return hasToolCallId;
-        if (!hasToolCallId || !hasOutputOrResult) {
-          console.log(`[MessageStore] Filtering invalid tool part in ${stored.id}:`, {
-            type, toolCallId, hasOutputOrResult
-          });
-          return false;
-        }
+    parts = parts.filter((part) => {
+      const type = (part as { type?: unknown }).type;
+      if (typeof type !== 'string') return false;
+      
+      // Keep all non-tool parts
+      if (!type.startsWith('tool-')) return true;
+      
+      // For tool parts, we need a toolCallId
+      const toolCallId = (part as { toolCallId?: unknown }).toolCallId;
+      if (typeof toolCallId !== 'string' || !toolCallId) {
+        console.log(`[MessageStore] Filtering tool part without toolCallId:`, { type });
+        return false;
+      }
+      
+      // Keep tool-result parts (they're complete by definition)
+      if (type === 'tool-result') return true;
+      
+      // For tool-specific parts (tool-addLocations, tool-generateImage, etc.)
+      // Keep them if they have EITHER:
+      // 1. An output property (where results are stored)
+      // 2. A result property (legacy/alternative storage)
+      // 3. A state indicating completion (output-available, output-error)
+      const hasOutput = (part as { output?: unknown }).output !== undefined;
+      const hasResult = (part as { result?: unknown }).result !== undefined;
+      const state = (part as { state?: unknown }).state;
+      const hasCompletionState = state === 'output-available' || state === 'output-error';
+      
+      if (hasOutput || hasResult || hasCompletionState) {
         return true;
+      }
+      
+      // Filter out incomplete tool invocations (streaming, no output yet)
+      console.log(`[MessageStore] Filtering incomplete tool part:`, { 
+        type, 
+        toolCallId, 
+        state,
+        hasOutput, 
+        hasResult 
       });
-    }
+      return false;
+    });
   }
   
   // Migrate legacy data field to metadata for backward compatibility
