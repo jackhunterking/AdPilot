@@ -525,7 +525,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
         
         // Report success to AI
         addToolResult({
-          tool: 'locationTargeting',
+          tool: 'addLocations',
           toolCallId,
           output: {
             locations: validLocations.map(l => ({
@@ -557,7 +557,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
       toast.error(errorMessage);
       
       addToolResult({
-        tool: 'locationTargeting',
+        tool: 'addLocations',
         toolCallId,
         output: undefined,
         errorText: errorMessage,
@@ -1846,74 +1846,56 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                               const input = part.input as LocationToolInput;
                               const isProcessing = !processedLocationCalls.current.has(callId);
                               
-                              console.log('[AI Chat] Handling location tool:', {
-                                type: part.type,
-                                callId,
-                                state: part.state,
-                                isProcessing
-                              });
+                              // ONLY handle states we care about - no logging to prevent infinite loop
+                              if (part.state === 'input-streaming') {
+                                return null;  // Don't render anything during streaming
+                              }
                               
-                              switch (part.state) {
-                                case 'input-streaming':
-                                  // DO NOT RENDER - prevents infinite loop
-                                  return null;
+                              if (part.state === 'input-available' && isProcessing) {
+                                // Auto-process immediately (no confirmation per user requirements)
+                                // DON'T mark as processed here - let the handler do it
+                                void handleLocationTargetingCall(callId, input);
                                 
-                                case 'input-available':
-                                  // NO CONFIRMATION - Auto-process immediately per user requirements
-                                  if (isProcessing) {
-                                    console.log('[AI Chat] Auto-processing location (no confirmation)');
-                                    processedLocationCalls.current.add(callId);
-                                    
-                                    // Start processing immediately
-                                    void handleLocationTargetingCall(callId, input);
-                                    
-                                    // Show processing indicator
-                                    return (
-                                      <LocationProcessingCard
-                                        key={callId}
-                                        locationCount={input.locations.length}
-                                      />
-                                    );
-                                  }
-                                  return null;
+                                return (
+                                  <LocationProcessingCard
+                                    key={callId}
+                                    locationCount={input.locations.length}
+                                  />
+                                );
+                              }
+                              
+                              if (part.state === 'output-available') {
+                                const output = part.output as { locations?: Array<{ name: string; mode: string }>; cancelled?: boolean };
                                 
-                                case 'output-available': {
-                                  const output = part.output as { locations?: Array<{ name: string; mode: string }>; cancelled?: boolean };
-                                  
-                                  // Don't show anything if cancelled
-                                  if (output?.cancelled) {
-                                    return null;
-                                  }
-                                  
-                                  // Simple success message per user requirements
-                                  const locationNames = output?.locations?.map(l => l.name).join(', ') || 'location';
-                                  const action = output?.locations?.[0]?.mode === 'exclude' ? 'excluded' : 'added';
-                                  
-                                  return (
-                                    <div key={callId} className="text-sm text-muted-foreground my-2">
-                                      Location {action}: {locationNames}
-                                    </div>
-                                  );
-                                }
+                                if (output?.cancelled) return null;
                                 
-                                case 'output-error':
-                                  return (
-                                    <div key={callId} className="border rounded-lg bg-red-500/5 border-red-500/20 p-4 my-3">
-                                      <div className="flex items-center gap-3">
-                                        <XCircle className="h-4 w-4 text-red-600" />
-                                        <div>
-                                          <p className="text-sm font-medium text-red-600">Failed to set location</p>
-                                          <p className="text-xs text-muted-foreground mt-1">
-                                            {part.errorText || 'Could not geocode location. Please try again.'}
-                                          </p>
-                                        </div>
+                                const locationNames = output?.locations?.map(l => l.name).join(', ') || 'location';
+                                const action = output?.locations?.[0]?.mode === 'exclude' ? 'excluded' : 'added';
+                                
+                                return (
+                                  <div key={callId} className="text-sm text-muted-foreground my-2">
+                                    Location {action}: {locationNames}
+                                  </div>
+                                );
+                              }
+                              
+                              if (part.state === 'output-error') {
+                                return (
+                                  <div key={callId} className="border rounded-lg bg-red-500/5 border-red-500/20 p-4 my-3">
+                                    <div className="flex items-center gap-3">
+                                      <XCircle className="h-4 w-4 text-red-600" />
+                                      <div>
+                                        <p className="text-sm font-medium text-red-600">Failed to set location</p>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          {part.errorText || 'Could not geocode location. Please try again.'}
+                                        </p>
                                       </div>
                                     </div>
-                                  );
-                                
-                                default:
-                                  return null;
+                                  </div>
+                                );
                               }
+                              
+                              return null;
                             }
                             
                             case "tool-setupGoal": {
