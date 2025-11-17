@@ -97,6 +97,10 @@ function sanitizePart(raw: unknown): { type: string; [k: string]: unknown } | nu
   if ((raw as { result?: unknown }).result !== undefined) part.result = (raw as { result?: unknown }).result;
   if (isString((raw as { state?: unknown }).state as string)) part.state = (raw as { state?: string }).state;
   if (isString((raw as { errorText?: unknown }).errorText as string)) part.errorText = (raw as { errorText?: string }).errorText;
+  // Preserve toolName for tool identification in UI rendering (critical for location cards, etc.)
+  if (isString((raw as { toolName?: unknown }).toolName as string)) part.toolName = (raw as { toolName?: string }).toolName;
+  // Also preserve 'name' as fallback (some tools use this property)
+  if (isString((raw as { name?: unknown }).name as string)) part.name = (raw as { name?: string }).name;
 
   return part;
 }
