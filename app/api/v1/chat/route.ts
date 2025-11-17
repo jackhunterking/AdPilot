@@ -1230,41 +1230,21 @@ Example: If previous setup had "Ontario, Toronto (excluded)" and user removed To
             }
             
             if (toolParts.length > 0) {
-              // Check if any tool parts are incomplete (have toolCallId but no result/output)
-              // Complete tools have either:
-              // 1. result property (server-executed tools)
-              // 2. output property (client-executed tools)
-              // 3. state indicating completion (AI SDK v5 pattern)
-              // Incomplete tools only have toolCallId (pending execution)
-              const incompleteTools = toolParts.filter((p) => {
-                // Must have toolCallId
-                if (!p.toolCallId) return false;
-                
-                // tool-result parts are always complete
-                if (p.type === 'tool-result') return false;
-                
-                // Check if part has completion indicators:
-                // 1. Has result property (server-executed)
-                if (p.result !== undefined) return false;
-                
-                // 2. Has output property (client-executed)
-                if (p.output !== undefined) return false;
-                
-                // 3. Has completion state (AI SDK v5 pattern)
-                const state = (p as { state?: string }).state;
-                if (state === 'output-available' || state === 'output-error') return false;
-                
-                // If none of above, it's incomplete
-                return true;
-              });
+              // SIMPLIFIED FILTERING (Solution B):
+              // Only filter tool parts that are truly broken (missing toolCallId)
+              // Let all other tool parts through - they'll be filtered on load if needed
+              // This handles async tool execution where parts may update after initial save
+              const invalidTools = toolParts.filter((p) => !p.toolCallId);
               
-              if (incompleteTools.length > 0) {
-                console.log(`[SAVE] Filtering message with incomplete tool invocations ${msg.id}`);
-                incompleteTools.forEach((t) => {
-                  console.log(`[SAVE]   - Incomplete tool: ${t.type}, ID: ${t.toolCallId}`);
+              if (invalidTools.length > 0) {
+                console.log(`[SAVE] Filtering message with invalid tool parts (no toolCallId) ${msg.id}`);
+                invalidTools.forEach((t) => {
+                  console.log(`[SAVE]   - Invalid tool: ${t.type}`);
                 });
                 return false;
               }
+              
+              console.log(`[SAVE] ✅ Keeping message with ${toolParts.length} tool parts (load-side filtering will handle incomplete ones)`);
             }
             
             return true;
