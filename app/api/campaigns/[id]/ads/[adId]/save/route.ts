@@ -1,6 +1,11 @@
 /**
- * Feature: Save Ad Changes API
- * Purpose: Comprehensive save endpoint for ad edits (copy, creative, destination)
+ * DEPRECATED: This endpoint is deprecated as of November 17, 2025
+ * Use: PATCH /api/campaigns/[id]/ads/[adId]/snapshot
+ * 
+ * This file will be removed in a future release.
+ * All functionality has been moved to the /snapshot endpoint which uses
+ * a cleaner architecture with the adDataService.
+ * 
  * References:
  *  - Supabase: https://supabase.com/docs/reference/javascript/update
  *  - Next.js Route Handlers: https://nextjs.org/docs/app/building-your-application/routing/route-handlers
@@ -15,6 +20,8 @@ export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string; adId: string }> }
 ) {
+  console.warn('[DEPRECATED] /save endpoint called. Migrate to PATCH /api/campaigns/[id]/ads/[adId]/snapshot')
+  
   const traceId = `save_ad_${Date.now()}`
   
   try {

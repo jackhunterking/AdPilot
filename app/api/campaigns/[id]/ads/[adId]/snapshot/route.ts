@@ -95,8 +95,13 @@ export async function PATCH(
 
     // Update different sections based on what's provided
     if (body.creative) {
-      // Save creative data
+      // Validate creative data
       const creativeData = body.creative
+      if (!Array.isArray(creativeData.imageVariations) || creativeData.imageVariations.length === 0) {
+        return NextResponse.json({ error: 'Creative requires non-empty imageVariations array' }, { status: 400 })
+      }
+      
+      // Save creative data
       if (creativeData.imageVariations && creativeData.imageVariations.length > 0) {
         // Delete existing creatives
         await supabaseServer
@@ -120,8 +125,21 @@ export async function PATCH(
     }
 
     if (body.copy) {
-      // Save copy data
+      // Validate copy data
       const copyData = body.copy
+      if (!Array.isArray(copyData.variations)) {
+        return NextResponse.json({ error: 'Copy requires variations array' }, { status: 400 })
+      }
+      
+      // Validate each variation only if array is not empty
+      if (copyData.variations.length > 0) {
+        const hasInvalid = copyData.variations.some((v: { headline?: string; primaryText?: string }) => !v.headline || !v.primaryText)
+        if (hasInvalid) {
+          return NextResponse.json({ error: 'Each variation must have headline and primaryText' }, { status: 400 })
+        }
+      }
+      
+      // Save copy data
       if (copyData.variations && copyData.variations.length > 0) {
         // Delete existing copy
         await supabaseServer
@@ -182,8 +200,13 @@ export async function PATCH(
     }
 
     if (body.destination) {
-      // Save destination data
+      // Validate destination data
       const destData = body.destination
+      if (!destData.type) {
+        return NextResponse.json({ error: 'Destination requires type' }, { status: 400 })
+      }
+      
+      // Save destination data
       let destinationType = 'website_url'
       if (destData.type === 'instant_form') destinationType = 'instant_form'
       if (destData.type === 'phone_number') destinationType = 'phone_number'

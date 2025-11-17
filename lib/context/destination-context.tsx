@@ -70,86 +70,47 @@ export function DestinationProvider({ children }: { children: ReactNode }) {
     data: null,
   })
   
-  // Load destination from localStorage when campaign or adId changes
+  // Load destination from backend (single source of truth)
   useEffect(() => {
-    if (!campaign?.id) return
+    if (!campaign?.id || !currentAdId) {
+      setDestinationState({ status: 'idle', data: null })
+      return
+    }
     
-    // If we have an adId, try to load destination for that specific ad
-    const storageKey = currentAdId 
-      ? `destination:${campaign.id}:${currentAdId}`
-      : `destination:${campaign.id}:draft`
-    
-    try {
-      const saved = localStorage.getItem(storageKey)
-      if (saved) {
-        const parsed = JSON.parse(saved) as DestinationState
+    const loadDestinationFromBackend = async () => {
+      try {
+        logger.debug('DestinationContext', `Loading destination from backend for ad ${currentAdId}`)
+        const response = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAdId}/snapshot`)
         
-        // Validate the loaded data
-        const isValid = validateDestinationData(parsed.data)
-        
-        if (parsed.status === 'completed' && !isValid) {
-          // Data was marked complete but is invalid - downgrade to in_progress
-          logger.warn('DestinationContext', 'Invalid destination data detected, downgrading status', { 
-            storageKey, 
-            data: parsed.data 
-          })
-          
-          const correctedState: DestinationState = {
-            status: parsed.data ? 'in_progress' : 'idle',
-            data: parsed.data || null,
-          }
-          
-          setDestinationState(correctedState)
-          
-          // Show user-facing feedback
-          if (parsed.data?.type === 'instant_form') {
-            toast.warning('Form selection incomplete. Please select a form to continue.')
-          } else if (parsed.data?.type === 'website_url') {
-            toast.warning('Website URL incomplete. Please enter a website URL to continue.')
-          } else if (parsed.data?.type === 'phone_number') {
-            toast.warning('Phone number incomplete. Please enter a phone number to continue.')
-          }
-        } else {
-          // Data is valid or already has correct status
-          setDestinationState(parsed)
-          logger.debug('DestinationContext', 'Loaded destination from localStorage', { storageKey, parsed })
+        if (!response.ok) {
+          logger.warn('DestinationContext', 'Failed to load snapshot, starting empty')
+          setDestinationState({ status: 'idle', data: null })
+          return
         }
-      } else {
-        // No saved destination, reset to idle
-        setDestinationState({
-          status: 'idle',
-          data: null,
-        })
+        
+        const json = await response.json()
+        const snapshot = json.setup_snapshot
+        
+        if (snapshot?.destination?.type) {
+          logger.info('DestinationContext', `✅ Loaded destination from backend: ${snapshot.destination.type}`)
+          const isValid = validateDestinationData(snapshot.destination.data)
+          
+          setDestinationState({
+            status: isValid ? 'completed' : 'in_progress',
+            data: snapshot.destination.data || null
+          })
+        } else {
+          logger.debug('DestinationContext', 'No destination in backend, starting empty (new ad)')
+          setDestinationState({ status: 'idle', data: null })
+        }
+      } catch (err) {
+        logger.error('DestinationContext', 'Error loading destination from backend', err)
+        setDestinationState({ status: 'idle', data: null })
       }
-    } catch (error) {
-      console.error('[DestinationContext] Failed to load destination from localStorage:', error)
-      setDestinationState({
-        status: 'idle',
-        data: null,
-      })
     }
+    
+    loadDestinationFromBackend()
   }, [campaign?.id, currentAdId])
-  
-  // Save destination to localStorage whenever it changes
-  useEffect(() => {
-    if (!campaign?.id) return
-    
-    const storageKey = currentAdId 
-      ? `destination:${campaign.id}:${currentAdId}`
-      : `destination:${campaign.id}:draft`
-    
-    try {
-      if (destinationState.data) {
-        localStorage.setItem(storageKey, JSON.stringify(destinationState))
-        logger.debug('DestinationContext', 'Saved destination to localStorage', { storageKey })
-      } else if (destinationState.status === 'idle') {
-        // Clear storage if destination is idle with no data
-        localStorage.removeItem(storageKey)
-      }
-    } catch (error) {
-      console.error('[DestinationContext] Failed to save destination to localStorage:', error)
-    }
-  }, [campaign?.id, currentAdId, destinationState])
   
   const setDestination = useCallback((data: DestinationData) => {
     const isValid = validateDestinationData(data)
@@ -177,15 +138,8 @@ export function DestinationProvider({ children }: { children: ReactNode }) {
       status: 'idle',
       data: null,
     })
-    
-    if (campaign?.id) {
-      const storageKey = currentAdId 
-        ? `destination:${campaign.id}:${currentAdId}`
-        : `destination:${campaign.id}:draft`
-      localStorage.removeItem(storageKey)
-      logger.debug('DestinationContext', 'Destination cleared')
-    }
-  }, [campaign?.id, currentAdId])
+    logger.debug('DestinationContext', 'Destination cleared')
+  }, [])
   
   const resetDestination = useCallback(() => {
     setDestinationState({

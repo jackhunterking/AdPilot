@@ -10,10 +10,9 @@
 
 "use client"
 
-import { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
 import { useCampaignContext } from "@/lib/context/campaign-context"
-import { useAutoSave } from "@/lib/hooks/use-auto-save"
-import { AUTO_SAVE_CONFIGS } from "@/lib/types/auto-save"
+import { useCurrentAd } from "@/lib/context/current-ad-context"
 import { logger } from "@/lib/utils/logger"
 import { metaStorage } from "@/lib/meta/storage"
 
@@ -42,6 +41,7 @@ const BudgetContext = createContext<BudgetContextType | undefined>(undefined)
 
 export function BudgetProvider({ children }: { children: ReactNode }) {
   const { campaign } = useCampaignContext()
+  const { currentAd } = useCurrentAd()
   const [budgetState, setBudgetState] = useState<BudgetState>({
     dailyBudget: 20,
     selectedAdAccount: null,
@@ -53,37 +53,54 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
   })
   const [isInitialized, setIsInitialized] = useState(false)
 
-  // Memoize state to prevent unnecessary recreations
-  const memoizedBudgetState = useMemo(() => budgetState, [budgetState])
-
-  // Load initial state from campaign ONCE (even if empty)
+  // Load from backend (single source of truth)
   useEffect(() => {
-    if (!campaign?.id || isInitialized) return
+    if (!campaign?.id || !currentAd?.id || isInitialized) return
     
-    // Load budget from campaign.campaign_budget_cents and metadata
-    const metadata = campaign.metadata as {
-      budget?: Partial<BudgetState>
-    } | null
-    
-    const budgetCents = campaign.campaign_budget_cents
-    const savedData = metadata?.budget
-    
-    if (budgetCents || savedData) {
-      logger.debug('BudgetContext', '✅ Restoring budget state from campaign')
-      setBudgetState(prev => ({
-        ...prev,
-        dailyBudget: typeof budgetCents === 'number' ? budgetCents / 100 : prev.dailyBudget,
-        selectedAdAccount: typeof savedData?.selectedAdAccount === "string" ? savedData.selectedAdAccount : prev.selectedAdAccount,
-        isConnected: typeof savedData?.isConnected === "boolean" ? savedData.isConnected : prev.isConnected,
-        currency: campaign.currency_code || prev.currency,
-        startTime: savedData?.startTime === undefined ? prev.startTime : savedData.startTime,
-        endTime: savedData?.endTime === undefined ? prev.endTime : savedData.endTime,
-        timezone: savedData?.timezone === undefined ? prev.timezone : savedData.timezone,
-      }))
+    const loadBudgetFromBackend = async () => {
+      try {
+        logger.debug('BudgetContext', `Loading budget from backend for ad ${currentAd.id}`)
+        const response = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAd.id}/snapshot`)
+        
+        if (!response.ok) {
+          logger.warn('BudgetContext', 'Failed to load snapshot, using campaign-level budget')
+          // Fallback to campaign-level budget
+          const budgetCents = campaign.campaign_budget_cents
+          setBudgetState(prev => ({
+            ...prev,
+            dailyBudget: typeof budgetCents === 'number' ? budgetCents / 100 : prev.dailyBudget,
+            currency: campaign.currency_code || prev.currency
+          }))
+          setIsInitialized(true)
+          return
+        }
+        
+        const json = await response.json()
+        const snapshot = json.setup_snapshot
+        
+        if (snapshot?.budget) {
+          logger.info('BudgetContext', '✅ Loaded budget from backend')
+          setBudgetState(prev => ({
+            ...prev,
+            dailyBudget: snapshot.budget.dailyBudget ?? prev.dailyBudget,
+            currency: snapshot.budget.currency ?? prev.currency,
+            startTime: snapshot.budget.startTime ?? prev.startTime,
+            endTime: snapshot.budget.endTime ?? prev.endTime,
+            timezone: snapshot.budget.timezone ?? prev.timezone
+          }))
+        } else {
+          logger.debug('BudgetContext', 'No budget in backend, using defaults')
+        }
+        
+        setIsInitialized(true)
+      } catch (err) {
+        logger.error('BudgetContext', 'Error loading budget from backend', err)
+        setIsInitialized(true)
+      }
     }
     
-    setIsInitialized(true) // Mark initialized regardless of saved data
-  }, [campaign, isInitialized])
+    loadBudgetFromBackend()
+  }, [campaign?.id, currentAd?.id, isInitialized, campaign])
 
   // Sync budget state with Meta connection summary (localStorage) once initialized
   useEffect(() => {

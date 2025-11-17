@@ -1,10 +1,8 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from "react"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useCurrentAd } from "@/lib/context/current-ad-context"
-import { useAutoSave } from "@/lib/hooks/use-auto-save"
-import { AUTO_SAVE_CONFIGS } from "@/lib/types/auto-save"
 import { logger } from "@/lib/utils/logger"
 
 interface AdCopyVariation {
@@ -51,10 +49,7 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
   })
   const [isInitialized, setIsInitialized] = useState(false)
 
-  // Memoize state to prevent unnecessary recreations
-  const memoizedAdCopyState = useMemo(() => adCopyState, [adCopyState])
-
-  // Load initial state from current ad's setup_snapshot
+  // Load initial state from backend (single source of truth)
   useEffect(() => {
     if (!currentAd) {
       // No ad selected - reset to empty state
@@ -69,39 +64,52 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
       return
     }
     
-    logger.debug('AdCopyContext', `Loading state from ad ${currentAd.id}`)
+    const loadCopyFromBackend = async () => {
+      try {
+        logger.debug('AdCopyContext', `Loading copy from backend for ad ${currentAd.id}`)
+        const response = await fetch(`/api/campaigns/${campaign?.id}/ads/${currentAd.id}/snapshot`)
+        
+        if (!response.ok) {
+          logger.warn('AdCopyContext', 'Failed to load snapshot, starting empty')
+          setAdCopyState({ selectedCopyIndex: null, status: "idle", customCopyVariations: null, isGeneratingCopy: false })
+          setIsInitialized(true)
+          return
+        }
+        
+        const json = await response.json()
+        const snapshot = json.setup_snapshot
+        
+        if (snapshot?.copy?.variations && snapshot.copy.variations.length > 0) {
+          logger.info('AdCopyContext', `✅ Loaded ${snapshot.copy.variations.length} copy variations from backend`)
+          const variations = snapshot.copy.variations.map((v: { headline: string; primaryText: string; description: string; overlay?: unknown }, idx: number) => ({
+            id: `variation-${idx}`,
+            headline: v.headline,
+            primaryText: v.primaryText,
+            description: v.description || '',
+            overlay: v.overlay
+          }))
+          
+          setAdCopyState({
+            selectedCopyIndex: snapshot.copy.selectedCopyIndex ?? 0,
+            status: "completed",
+            customCopyVariations: variations,
+            isGeneratingCopy: false,
+          })
+        } else {
+          logger.debug('AdCopyContext', 'No copy in backend, starting empty (new ad)')
+          setAdCopyState({ selectedCopyIndex: null, status: "idle", customCopyVariations: null, isGeneratingCopy: false })
+        }
+        
+        setIsInitialized(true)
+      } catch (err) {
+        logger.error('AdCopyContext', 'Error loading copy from backend', err)
+        setAdCopyState({ selectedCopyIndex: null, status: "idle", customCopyVariations: null, isGeneratingCopy: false })
+        setIsInitialized(true)
+      }
+    }
     
-    // Load from normalized ad_copy_variations table
-    // Note: setup_snapshot column was removed - data is now in ad_copy_variations table
-    // The use-draft-auto-save hook handles saving, this context just manages UI state
-    
-    // For now, start with empty state - copy will be loaded/generated via chat
-    // TODO: Fetch from ad_copy_variations table via API if needed for restoration
-    setAdCopyState({
-      selectedCopyIndex: null,
-      status: "idle",
-      customCopyVariations: null,
-      isGeneratingCopy: false,
-    })
-    
-    setIsInitialized(true)
+    loadCopyFromBackend()
   }, [currentAd?.id, campaign?.id])
-
-  // Save function - DEPRECATED: Auto-save hook handles persistence
-  // This context manages UI state only, actual database saves handled by use-draft-auto-save
-  const saveFn = useCallback(async (state: AdCopyState) => {
-    if (!isInitialized) return
-    
-    // No-op: Saving is handled by use-draft-auto-save hook which uses /save endpoint
-    // This prevents the context from trying to save to deprecated setup_snapshot column
-    logger.debug('AdCopyContext', 'State updated (auto-save hook handles persistence)', {
-      hasVariations: !!state.customCopyVariations,
-      selectedIndex: state.selectedCopyIndex
-    })
-  }, [isInitialized])
-
-  // Auto-save with NORMAL config (300ms debounce)
-  useAutoSave(memoizedAdCopyState, saveFn, AUTO_SAVE_CONFIGS.NORMAL)
 
   const setSelectedCopyIndex = (index: number | null) => {
     setAdCopyState(prev => ({

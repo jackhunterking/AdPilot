@@ -9,8 +9,7 @@
 
 import { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from "react"
 import { useCurrentAd } from "@/lib/context/current-ad-context"
-import { useAutoSave } from "@/lib/hooks/use-auto-save"
-import { AUTO_SAVE_CONFIGS } from "@/lib/types/auto-save"
+import { useCampaignContext } from "@/lib/context/campaign-context"
 import { logger } from "@/lib/utils/logger"
 
 interface GeoJSONGeometry {
@@ -52,16 +51,14 @@ const LocationContext = createContext<LocationContextType | undefined>(undefined
 
 export function LocationProvider({ children }: { children: ReactNode }) {
   const { currentAd } = useCurrentAd()
+  const { campaign } = useCampaignContext()
   const [locationState, setLocationState] = useState<LocationState>({
     locations: [],
     status: "idle",
   })
   const [isInitialized, setIsInitialized] = useState(false)
 
-  // Memoize state to prevent unnecessary recreations
-  const memoizedLocationState = useMemo(() => locationState, [locationState])
-
-  // SINGLE SOURCE: Load from ad snapshot only
+  // Load from backend (single source of truth)
   useEffect(() => {
     if (!currentAd) {
       // No ad selected - reset to empty state
@@ -75,35 +72,43 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       return
     }
     
-    logger.debug('LocationContext', `Loading location state for ad ${currentAd.id}`)
+    const loadLocationsFromBackend = async () => {
+      try {
+        logger.debug('LocationContext', `Loading locations from backend for ad ${currentAd.id}`)
+        const response = await fetch(`/api/campaigns/${campaign?.id}/ads/${currentAd.id}/snapshot`)
+        
+        if (!response.ok) {
+          logger.warn('LocationContext', 'Failed to load snapshot, starting empty')
+          setLocationState({ locations: [], status: "idle", errorMessage: undefined })
+          setIsInitialized(true)
+          return
+        }
+        
+        const json = await response.json()
+        const snapshot = json.setup_snapshot
+        
+        if (snapshot?.location?.locations && snapshot.location.locations.length > 0) {
+          logger.info('LocationContext', `✅ Loaded ${snapshot.location.locations.length} locations from backend`)
+          setLocationState({
+            locations: snapshot.location.locations,
+            status: "completed",
+            errorMessage: undefined
+          })
+        } else {
+          logger.debug('LocationContext', 'No locations in backend, starting empty (new ad)')
+          setLocationState({ locations: [], status: "idle", errorMessage: undefined })
+        }
+        
+        setIsInitialized(true)
+      } catch (err) {
+        logger.error('LocationContext', 'Error loading locations from backend', err)
+        setLocationState({ locations: [], status: "idle", errorMessage: undefined })
+        setIsInitialized(true)
+      }
+    }
     
-    // Load from normalized ad_target_locations table instead of setup_snapshot
-    // Note: setup_snapshot column was removed - data is now in ad_target_locations table
-    // For now, start with empty state - locations will be loaded via API if needed
-    // TODO: Fetch from ad_target_locations table via API for restoration if needed
-    
-    logger.debug('LocationContext', 'Starting with empty state (normalized schema)')
-    setLocationState({
-      locations: [],
-      status: "idle",
-      errorMessage: undefined,
-    })
-    
-    setIsInitialized(true)
-  }, [currentAd?.id])
-
-  // Save function - DEPRECATED: Auto-save hook handles persistence
-  // This context manages UI state only, actual database saves handled by use-draft-auto-save
-  const saveFn = useCallback(async (state: LocationState) => {
-    if (!isInitialized) return
-    
-    // No-op: Saving is handled by use-draft-auto-save hook which uses /save endpoint
-    logger.debug('LocationContext', 'State updated (auto-save hook handles persistence)', {
-      locationsCount: state.locations.length
-    })
-  }, [isInitialized])
-
-  // Note: useAutoSave removed - using immediate database writes instead
+    loadLocationsFromBackend()
+  }, [currentAd?.id, campaign?.id])
 
   const addLocations = useCallback(async (newLocations: Location[], shouldMerge: boolean = true) => {
     if (!newLocations || newLocations.length === 0) {

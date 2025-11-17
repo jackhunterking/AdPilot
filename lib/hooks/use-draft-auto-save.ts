@@ -85,102 +85,75 @@ export function useDraftAutoSave(
     const contexts = contextsRef.current
     
     try {
-      // Build snapshot from ref values in DRAFT mode (lenient validation)
-      const { buildAdSnapshot } = await import('@/lib/services/ad-snapshot-builder')
-      const snapshot = buildAdSnapshot({
-        adPreview: { 
-          adContent: contexts.adContent, 
-          selectedImageIndex: contexts.selectedImageIndex,
-          selectedCreativeVariation: contexts.selectedCreativeVariation
-        },
-        adCopy: contexts.adCopyState,
-        destination: contexts.destinationState,
-        location: contexts.locationState,
-        goal: contexts.goalState,
-        budget: contexts.budgetState,
-      }, { mode: 'draft' }) // Use draft mode for autosave - allows missing destination/goal
+      const sections: Record<string, unknown> = {}
       
-      // Debug logging: Track what fields are being saved
-      console.log('[DraftAutoSave] Snapshot fields:', {
-        hasCreative: !!snapshot.creative,
-        hasCopy: !!snapshot.copy,
-        hasDestination: !!snapshot.destination,
-        hasGoal: !!snapshot.goal,
-        hasLocation: snapshot.location.locations.length > 0,
-        hasBudget: !!snapshot.budget,
-      })
-      
-      // Create stable snapshot signature by omitting volatile fields
-      const stableSnapshot = {
-        creative: snapshot.creative,
-        copy: snapshot.copy,
-        destination: snapshot.destination,
-        location: snapshot.location,
-        goal: snapshot.goal,
-        budget: snapshot.budget,
-      }
-      
-      // Check if anything changed by comparing stable fields only
-      const currentSignature = JSON.stringify(stableSnapshot)
-      if (currentSignature === lastSaveRef.current) {
-        return
-      }
-      
-      // Prepare ad data for normalized schema (using /save endpoint)
-      const selectedCopy = contexts.getSelectedCopy?.()
-      const selectedImageIndex = contexts.selectedImageIndex ?? 0
-      
-      // Build payload for normalized save endpoint
-      const savePayload = {
-        copy: {
-          variations: contexts.adCopyState.customCopyVariations?.map((v) => ({
-            headline: v.headline,
-            primaryText: v.primaryText,
-            description: v.description || ''
-          })) || [],
-          selectedCopyIndex: contexts.adCopyState.selectedCopyIndex ?? 0
-        },
-        creative: {
-          imageVariations: contexts.adContent?.imageVariations || [],
-          selectedImageIndex,
+      // Only include sections with data
+      if (contexts.adContent?.imageVariations && contexts.adContent.imageVariations.length > 0) {
+        sections.creative = {
+          imageVariations: contexts.adContent.imageVariations,
+          selectedImageIndex: contexts.selectedImageIndex ?? 0,
           format: 'feed'
-        },
-        destination: {
-          type: contexts.destinationState.data?.type || 'website',
-          url: contexts.destinationState.data?.websiteUrl || null,
-          phoneNumber: contexts.destinationState.data?.phoneNumber || null,
-          normalizedPhone: contexts.destinationState.data?.phoneFormatted || null,
-          cta: contexts.adContent?.cta || 'Learn More'
         }
       }
       
-      // Save to server using normalized save endpoint
-      const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/save`, {
-        method: 'PUT',
+      if (contexts.adCopyState.customCopyVariations && contexts.adCopyState.customCopyVariations.length > 0) {
+        sections.copy = {
+          variations: contexts.adCopyState.customCopyVariations.map((v) => ({
+            headline: v.headline,
+            primaryText: v.primaryText,
+            description: v.description || '',
+            cta: contexts.adContent?.cta || 'Learn More'
+          })),
+          selectedCopyIndex: contexts.adCopyState.selectedCopyIndex ?? 0
+        }
+      }
+      
+      if (contexts.destinationState.data?.type) {
+        sections.destination = {
+          type: contexts.destinationState.data.type,
+          data: contexts.destinationState.data
+        }
+      }
+      
+      if (contexts.locationState.locations.length > 0) {
+        sections.location = {
+          locations: contexts.locationState.locations
+        }
+      }
+      
+      if (contexts.budgetState.dailyBudget && contexts.budgetState.dailyBudget > 0) {
+        sections.budget = {
+          dailyBudget: contexts.budgetState.dailyBudget,
+          currency: contexts.budgetState.currency,
+          startTime: contexts.budgetState.startTime,
+          endTime: contexts.budgetState.endTime,
+          timezone: contexts.budgetState.timezone
+        }
+      }
+      
+      if (Object.keys(sections).length === 0) {
+        return // Nothing to save
+      }
+      
+      const currentSignature = JSON.stringify(sections)
+      if (currentSignature === lastSaveRef.current) {
+        return // No changes
+      }
+      
+      const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/snapshot`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(savePayload),
+        body: JSON.stringify(sections),
       })
       
       if (response.ok) {
-        // ONLY update lastSaveRef on successful save to prevent re-save on failure
         lastSaveRef.current = currentSignature
-        console.log('[DraftAutoSave] ✅ Draft saved successfully')
+        console.log('[DraftAutoSave] ✅ Saved')
       } else {
-        console.error('[DraftAutoSave] Failed to save draft:', await response.text())
+        console.error('[DraftAutoSave] Failed:', await response.text())
       }
     } catch (error) {
-      // Since we're using draft mode, errors should be rare
-      // Log them prominently for debugging
-      console.error('[DraftAutoSave] ⚠️ Unexpected error saving draft:', {
-        error: error instanceof Error ? error.message : String(error),
-        campaignId,
-        adId,
-        contextStates: {
-          hasAdContent: !!contexts.adContent,
-          hasDestination: !!contexts.destinationState.data,
-          hasGoal: !!contexts.goalState.selectedGoal,
-        }
-      })
+      console.error('[DraftAutoSave] Error:', error)
     }
   }, [campaignId, adId]) // ONLY campaignId and adId - stable dependencies!
   

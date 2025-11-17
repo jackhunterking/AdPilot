@@ -134,29 +134,27 @@ export function AdCopySelectionCanvas() {
       const detail = (e as CustomEvent).detail as { stepId?: string } | undefined
       if (detail?.stepId !== 'copy') return
 
-      // Check if generation has already been initiated
-      if (generationInitiatedRef.current) {
-        console.log('[AdCopyCanvas] Skipping generation: already initiated')
-        return
-      }
-
-      // Check if we already have custom variations
+      // Check backend state (already loaded from backend hydration)
       const hasCustom = Boolean(adCopyState.customCopyVariations && adCopyState.customCopyVariations.length)
       if (hasCustom) {
-        console.log('[AdCopyCanvas] Skipping generation: custom variations already exist')
+        console.log('[AdCopyCanvas] Copy exists in backend, skipping generation')
         return
       }
 
-      // Check if we have valid images
+      if (generationInitiatedRef.current) {
+        console.log('[AdCopyCanvas] Generation in progress')
+        return
+      }
+
       const imageUrls = adContent?.imageVariations
       const hasValidImages = imageUrls && imageUrls.length > 0 && imageUrls.every(url => url && typeof url === 'string' && url.trim().length > 0)
       
       if (!hasValidImages) {
-        console.log('[AdCopyCanvas] Skipping generation: no valid images')
+        console.log('[AdCopyCanvas] No images, skipping generation')
         return
       }
 
-      console.log('[AdCopyCanvas] Starting ad copy generation on step entry')
+      console.log('[AdCopyCanvas] Starting generation')
       
       // Mark generation as initiated
       generationInitiatedRef.current = true
@@ -202,7 +200,7 @@ export function AdCopySelectionCanvas() {
 
     window.addEventListener('stepChanged', handler as EventListener)
     return () => window.removeEventListener('stepChanged', handler as EventListener)
-  }, [campaign?.id, campaign?.metadata?.initialPrompt, goalState?.selectedGoal, selectedImageIndex, setCustomCopyVariations, setGenerationMessage, setIsGenerating, setIsGeneratingCopy])
+  }, [adCopyState.customCopyVariations, adContent?.imageVariations, campaign?.id, campaign?.metadata?.initialPrompt, goalState?.selectedGoal, selectedImageIndex, setCustomCopyVariations, setGenerationMessage, setIsGenerating, setIsGeneratingCopy])
 
   // (removed unused GeneratingOverlay)
 
