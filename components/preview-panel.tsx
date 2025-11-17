@@ -243,19 +243,15 @@ export function PreviewPanel() {
     }
   }, [campaign?.id, budgetState.selectedAdAccount])
 
-  // Check if all steps are complete (will be computed inside useMemo)
-  const allStepsComplete = useMemo(() => {
-    const completedSteps = (currentAd?.completed_steps as string[]) || []
-    return (
-      completedSteps.includes("ads") &&
-      completedSteps.includes("copy") &&
-      completedSteps.includes("destination") &&
-      completedSteps.includes("location") &&
-      isMetaConnectionComplete &&
-      hasPaymentMethod &&
-      isComplete()
-    )
-  }, [currentAd?.completed_steps, isMetaConnectionComplete, hasPaymentMethod, isComplete])
+  // Check if all steps are complete (using local state for immediate response)
+  const allStepsComplete = 
+    selectedImageIndex !== null &&
+    adCopyState.selectedCopyIndex !== null &&
+    destinationState.status === "completed" &&
+    locationState.locations.length > 0 &&
+    isMetaConnectionComplete &&
+    hasPaymentMethod &&
+    isComplete()
 
   /**
    * Handles save draft action - saves ad without publishing
@@ -1193,72 +1189,57 @@ export function PreviewPanel() {
     </div>
   )
 
-  // Conditionally filter steps based on whether creating a variant
-  const steps = useMemo(() => {
-    // Compute completedSteps INSIDE useMemo for proper dependency tracking
-    const completedSteps = (currentAd?.completed_steps as string[]) || []
-    
-    logger.debug('PreviewPanel', 'Computing steps array', {
-      completedSteps,
-      currentAdId: currentAd?.id,
-      hasCompletedAds: completedSteps.includes("ads"),
-      hasCompletedCopy: completedSteps.includes("copy")
-    })
-    
-    const allSteps = [
-      {
-        id: "ads",
-        number: 1,
-        title: "Ad Creative",
-        description: "Select your ad creative design",
-        completed: completedSteps.includes("ads"),
-        content: adsContent,
-        icon: Palette,
-      },
-      {
-        id: "copy",
-        number: 2,
-        title: "Ad Copy",
-        description: "Choose your ad copy with headline and description",
-        completed: completedSteps.includes("copy"),
-        content: <AdCopySelectionCanvas />,
-        icon: Type,
-      },
-      {
-        id: "location",
-        number: 3,
-        title: "Target Location",
-        description: "Choose where you want your ads to be shown",
-        completed: completedSteps.includes("location"),
-        content: <LocationSelectionCanvas />,
-        icon: MapPin,
-      },
-      {
-        id: "destination",
-        number: 4,
-        title: "Destination",
-        description: "Configure where users will be directed",
-        completed: completedSteps.includes("destination"),
-        content: <DestinationSetupCanvas />,
-        icon: Link2,
-      },
-      {
-        id: "budget",
-        number: 5,
-        title: "Ad Preview",
-        description: "Review details and publish your ad",
-        completed: allStepsComplete,
-        content: launchContent,
-        icon: Rocket,
-      },
-    ]
-    
-    // Renumber steps after filtering
-    return allSteps.map((step, index) => ({
-      ...step,
-      number: index + 1,
-    }))
-  }, [currentAd, allStepsComplete, adsContent, launchContent])
+  // Simple step definitions (no useMemo - always fresh, always correct)
+  const steps = [
+    {
+      id: "ads",
+      number: 1,
+      title: "Ad Creative",
+      description: "Select your ad creative design",
+      completed: selectedImageIndex !== null,  // Local state - enables Next button instantly
+      content: adsContent,
+      icon: Palette,
+    },
+    {
+      id: "copy",
+      number: 2,
+      title: "Ad Copy",
+      description: "Choose your ad copy with headline and description",
+      completed: adCopyState.selectedCopyIndex !== null,  // Local state - instant
+      content: <AdCopySelectionCanvas />,
+      icon: Type,
+    },
+    {
+      id: "location",
+      number: 3,
+      title: "Target Location",
+      description: "Choose where you want your ads to be shown",
+      completed: locationState.locations.length > 0,  // Local state - instant
+      content: <LocationSelectionCanvas />,
+      icon: MapPin,
+    },
+    {
+      id: "destination",
+      number: 4,
+      title: "Destination",
+      description: "Configure where users will be directed",
+      completed: destinationState.status === "completed",  // Local state - instant
+      content: <DestinationSetupCanvas />,
+      icon: Link2,
+    },
+    {
+      id: "budget",
+      number: 5,
+      title: "Ad Preview",
+      description: "Review details and publish your ad",
+      completed: allStepsComplete,
+      content: launchContent,
+      icon: Rocket,
+    },
+  ].map((step, index) => ({
+    ...step,
+    number: index + 1,
+  }))
 
   // Extract completedSteps for passing to CampaignStepper
   const completedSteps = (currentAd?.completed_steps as string[]) || []

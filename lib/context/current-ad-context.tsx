@@ -141,7 +141,8 @@ export function CurrentAdProvider({ children }: { children: ReactNode }) {
         selectedCopyId: data.ad.selected_copy_id
       })
       
-      setCurrentAd(data.ad)
+      // Force new object reference to ensure React detects change
+      setCurrentAd({...data.ad})
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load ad'
       logger.error('CurrentAdContext', `Error loading ad: ${errorMessage}`)
