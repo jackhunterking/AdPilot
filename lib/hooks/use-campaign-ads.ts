@@ -16,8 +16,6 @@ export interface CampaignAd {
   meta_ad_id: string | null
   name: string
   status: "active" | "learning" | "paused" | "draft" | "archived"
-  creative_data: Record<string, unknown> | null
-  copy_data: Record<string, unknown> | null
   metrics_snapshot: {
     leads?: number
     cpa?: number
@@ -26,7 +24,38 @@ export interface CampaignAd {
     reach?: number
     results?: number
   } | null
-  setup_snapshot: Record<string, unknown> | null // NEW: Complete wizard snapshot
+  // Snapshot built from normalized tables (ad_creatives, ad_copy_variations, etc.)
+  setup_snapshot: {
+    creative?: {
+      imageUrl?: string
+      imageVariations?: string[]
+      baseImageUrl?: string
+      selectedImageIndex?: number | null
+      format?: string
+    }
+    copy?: {
+      headline?: string
+      primaryText?: string
+      description?: string
+      cta?: string
+      variations?: unknown[]
+      selectedCopyIndex?: number | null
+    }
+    location?: {
+      locations?: unknown[]
+    }
+    destination?: {
+      type?: string
+      data?: Record<string, unknown>
+    } | null
+    budget?: {
+      dailyBudget?: number
+      currency?: string
+      startTime?: string | null
+      endTime?: string | null
+      timezone?: string | null
+    } | null
+  } | null
   created_at: string
   updated_at: string
 }

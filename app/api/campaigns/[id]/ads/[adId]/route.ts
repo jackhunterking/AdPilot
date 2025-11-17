@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseServer } from "@/lib/supabase/server"
+import { adDataService } from "@/lib/services/ad-data-service"
 
 export async function PATCH(
   request: NextRequest,
@@ -78,34 +79,50 @@ export async function GET(
   try {
     const { id: campaignId, adId } = await context.params
 
-    console.log(`[${traceId}] Fetching ad:`, { campaignId, adId })
+    console.log(`[${traceId}] Fetching ad with normalized data:`, { campaignId, adId })
 
-    // Fetch single ad
-    const { data: ad, error } = await supabaseServer
-      .from("ads")
-      .select("*")
-      .eq("id", adId)
-      .eq("campaign_id", campaignId)
-      .single()
+    // Fetch complete ad data from normalized tables
+    const adData = await adDataService.getCompleteAdData(adId)
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        console.log(`[${traceId}] Ad not found:`, { adId, campaignId })
-        return NextResponse.json(
-          { error: "Ad not found" },
-          { status: 404 }
-        )
-      }
-      
-      console.error(`[${traceId}] Error fetching ad:`, error)
+    if (!adData) {
+      console.log(`[${traceId}] Ad not found:`, { adId, campaignId })
       return NextResponse.json(
-        { error: "Failed to fetch ad" },
-        { status: 500 }
+        { error: "Ad not found" },
+        { status: 404 }
       )
     }
 
-    console.log(`[${traceId}] Ad fetched successfully:`, { adId })
-    return NextResponse.json({ ad })
+    // Verify ad belongs to campaign
+    if (adData.ad.campaign_id !== campaignId) {
+      console.log(`[${traceId}] Ad belongs to different campaign:`, { 
+        adId, 
+        expectedCampaign: campaignId,
+        actualCampaign: adData.ad.campaign_id
+      })
+      return NextResponse.json(
+        { error: "Ad not found" },
+        { status: 404 }
+      )
+    }
+
+    // Build snapshot from normalized data
+    const snapshot = adDataService.buildSnapshot(adData)
+
+    const enrichedAd = {
+      id: adData.ad.id,
+      campaign_id: adData.ad.campaign_id,
+      name: adData.ad.name,
+      status: adData.ad.status,
+      meta_ad_id: adData.ad.meta_ad_id,
+      metrics_snapshot: adData.ad.metrics_snapshot,
+      created_at: adData.ad.created_at,
+      updated_at: adData.ad.updated_at,
+      // Provide snapshot built from normalized tables
+      setup_snapshot: snapshot
+    }
+
+    console.log(`[${traceId}] Ad fetched successfully with normalized data:`, { adId })
+    return NextResponse.json({ ad: enrichedAd })
     
   } catch (error) {
     console.error(`[${traceId}] Unexpected error:`, error)

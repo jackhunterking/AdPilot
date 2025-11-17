@@ -560,10 +560,6 @@ export interface SaveAdResponse {
     campaign_id: string
     name: string
     status: string
-    copy_data: unknown
-    creative_data: unknown
-    destination_data: unknown
-    setup_snapshot: unknown
     updated_at: string
   }
   error?: string

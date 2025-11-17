@@ -41,6 +41,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { PublishFlowDialog } from "@/components/launch/publish-flow-dialog"
 import { LaunchCampaignView } from "@/components/launch/launch-campaign-view"
 import { logger } from "@/lib/utils/logger"
+import { useSaveAd } from "@/lib/hooks/use-save-ad"
 
 export function PreviewPanel() {
   const searchParams = useSearchParams()
@@ -63,6 +64,7 @@ export function PreviewPanel() {
   const { adCopyState, getActiveVariations, getSelectedCopy } = useAdCopy()
   const [showReelMessage, setShowReelMessage] = useState(false)
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false)
+  const { saveAd, isSaving: isSavingHook } = useSaveAd()
   
   // Modal state management for section editing
   const [locationModalOpen, setLocationModalOpen] = useState(false)
@@ -70,7 +72,6 @@ export function PreviewPanel() {
   // Publish flow dialog state
   const [publishDialogOpen, setPublishDialogOpen] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
   
   // Track current step
   const [currentStepId, setCurrentStepId] = useState<string>('ads')
@@ -256,69 +257,33 @@ export function PreviewPanel() {
    * Handles save draft action - saves ad without publishing
    */
   const handleSaveDraft = useCallback(async () => {
-    if (!campaign?.id || !currentAdId || isSaving) return
-    
-    setIsSaving(true)
+    if (!campaign?.id || !currentAdId || isSavingHook) return
     
     try {
-      const { buildAdSnapshot } = await import('@/lib/services/ad-snapshot-builder')
+      logger.info('PreviewPanel', 'Saving draft to normalized tables')
       
-      const snapshot = buildAdSnapshot({
-        adPreview: {
-          adContent,
-          selectedImageIndex,
-          selectedCreativeVariation,
-        },
-        adCopy: adCopyState,
-        destination: destinationState,
-        location: locationState,
-        goal: goalState,
-        budget: budgetState,
+      const result = await saveAd({
+        campaignId: campaign.id,
+        adId: currentAdId,
+        adContent,
+        selectedImageIndex,
+        adCopyState,
+        destinationState,
+        locationState,
+        budgetState
       })
       
-      const selectedCopy = getSelectedCopy()
-      const selectedImageUrl = selectedImageIndex !== null && adContent?.imageVariations?.[selectedImageIndex]
-        ? adContent.imageVariations[selectedImageIndex]
-        : adContent?.imageUrl || adContent?.imageVariations?.[0]
-      
-      const adData = {
-        name: `${campaign.name} - Draft ${new Date().toLocaleDateString()}`,
-        creative_data: {
-          imageUrl: selectedImageUrl,
-          imageVariations: adContent?.imageVariations,
-          baseImageUrl: adContent?.baseImageUrl,
-        },
-        copy_data: {
-          headline: selectedCopy?.headline || adContent?.headline,
-          primaryText: selectedCopy?.primaryText || adContent?.body,
-          description: selectedCopy?.description || adContent?.body,
-          cta: adContent?.cta || 'Learn More',
-        },
-        setup_snapshot: snapshot,
+      if (result.success) {
+        toast.success('Draft saved successfully!')
+        logger.info('PreviewPanel', '✅ Draft saved successfully')
+      } else {
+        throw new Error(result.error || 'Failed to save draft')
       }
-      
-      const response = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAdId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(adData),
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to save draft')
-      }
-      
-      const { toast } = await import('sonner')
-      toast.success('Draft saved successfully!')
-      
-      logger.info('PreviewPanel', '✅ Draft saved successfully')
     } catch (error) {
       logger.error('PreviewPanel', 'Error saving draft', error)
-      const { toast } = await import('sonner')
       toast.error('Failed to save draft')
-    } finally {
-      setIsSaving(false)
     }
-  }, [campaign?.id, campaign?.name, currentAdId, isSaving, adContent, selectedImageIndex, selectedCreativeVariation, adCopyState, destinationState, locationState, goalState, budgetState, getSelectedCopy])
+  }, [campaign?.id, currentAdId, isSavingHook, saveAd, adContent, selectedImageIndex, adCopyState, destinationState, locationState, budgetState])
   
   /**
    * Handles ad publish action - opens confirmation dialog
@@ -340,88 +305,26 @@ export function PreviewPanel() {
     setIsPublishing(true)
     
     try {
-      // Import the snapshot builder dynamically
-      const { buildAdSnapshot, validateAdSnapshot } = await import('@/lib/services/ad-snapshot-builder')
+      logger.info('PreviewPanel', '📦 Step 1: Saving ad to normalized tables...')
       
-      // Build complete snapshot from wizard contexts
-      const snapshot = buildAdSnapshot({
-        adPreview: {
-          adContent,
-          selectedImageIndex,
-          selectedCreativeVariation,
-        },
-        adCopy: adCopyState,
-        destination: destinationState,
-        location: locationState,
-        goal: goalState,
-        budget: budgetState,
+      // Step 1: Save the ad data using unified save hook
+      const saveResult = await saveAd({
+        campaignId: campaign.id,
+        adId: currentAdId,
+        adContent,
+        selectedImageIndex,
+        adCopyState,
+        destinationState,
+        locationState,
+        budgetState
       })
       
-      // Validate snapshot before submitting
-      const validation = validateAdSnapshot(snapshot)
-      if (!validation.isValid) {
-        logger.error('PreviewPanel', 'Snapshot validation failed', validation.errors)
-        throw new Error(`Cannot publish: ${validation.errors.join(', ')}`)
+      if (!saveResult.success) {
+        logger.error('PreviewPanel', 'Failed to save ad', saveResult.error)
+        throw new Error(saveResult.error || 'Failed to save ad data')
       }
       
-      if (validation.warnings.length > 0) {
-        logger.warn('PreviewPanel', 'Snapshot warnings', validation.warnings)
-      }
-      
-      // Gather the finalized ad data from snapshot - use canonical copy source
-      const selectedCopy = getSelectedCopy()
-      
-      const selectedImageUrl = selectedImageIndex !== null && adContent?.imageVariations?.[selectedImageIndex]
-        ? adContent.imageVariations[selectedImageIndex]
-        : adContent?.imageUrl || adContent?.imageVariations?.[0]
-      
-      // Prepare the ad data for persistence
-      const adData = {
-        name: `${campaign.name} - Ad ${new Date().toLocaleDateString()}`,
-        creative_data: {
-          imageUrl: selectedImageUrl,
-          imageVariations: adContent?.imageVariations,
-          baseImageUrl: adContent?.baseImageUrl,
-        },
-        copy_data: {
-          headline: selectedCopy?.headline || adContent?.headline,
-          primaryText: selectedCopy?.primaryText || adContent?.body,
-          description: selectedCopy?.description || adContent?.body,
-          cta: adContent?.cta || 'Learn More',
-        },
-        setup_snapshot: snapshot, // Include complete wizard snapshot
-      }
-      
-      console.log('📸 Validated snapshot (will be persisted):', {
-        hasSnapshot: !!snapshot,
-        creative: snapshot.creative.selectedImageIndex,
-        copy: {
-          headline: snapshot.copy.headline,
-          primaryText: snapshot.copy.primaryText?.substring(0, 50) + '...',
-          description: snapshot.copy.description?.substring(0, 30) + '...',
-          cta: snapshot.copy.cta,
-        },
-        locations: snapshot.location.locations.length,
-        goal: snapshot.goal?.type,
-      })
-      
-      console.log('📦 Step 1: Saving ad snapshot to database...')
-      
-      // Step 1: Save the ad snapshot
-      const saveResponse = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAdId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(adData),
-      })
-      
-      if (!saveResponse.ok) {
-        const errorText = await saveResponse.text()
-        logger.error('PreviewPanel', 'Failed to save ad', errorText)
-        throw new Error('Failed to save ad data')
-      }
-      
-      const { ad } = await saveResponse.json()
-      logger.info('PreviewPanel', `✅ Step 1 complete: Ad saved (${ad.id})`)
+      logger.info('PreviewPanel', `✅ Step 1 complete: Ad saved to normalized tables`)
       
       // Step 2: Publish the ad
       logger.info('PreviewPanel', '📦 Step 2: Publishing ad to Meta...')

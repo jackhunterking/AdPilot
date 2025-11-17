@@ -39,6 +39,7 @@ import { toast } from "sonner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle } from "lucide-react"
+import { useSaveAd } from "@/lib/hooks/use-save-ad"
 
 export function CampaignWorkspace() {
   const { campaign, updateBudget } = useCampaignContext()
@@ -56,6 +57,7 @@ export function CampaignWorkspace() {
   const campaignId = campaign?.id ?? ""
   const { ads, refreshAds, updateAdStatus, deleteAd } = useCampaignAds(campaignId)
   const { publishAd, isPublishing: isPublishingHook } = usePublishAd()
+  const { saveAd, isSaving: isSavingHook } = useSaveAd()
   
   // Subscribe to real-time status updates for all ads in campaign
   useMultipleAdsStatusSubscription({
@@ -70,7 +72,6 @@ export function CampaignWorkspace() {
   // Removed saveSuccessState - now using toast notifications instead
   
   const [hasPaymentMethod, setHasPaymentMethod] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
   
   // State for publish flow from All Ads
   const [publishingAdId, setPublishingAdId] = useState<string | null>(null)
@@ -263,79 +264,41 @@ export function CampaignWorkspace() {
         id: ad.id,
         name: ad.name,
         hasSnapshot: !!ad.setup_snapshot,
-        hasCreativeData: !!ad.creative_data,
-        hasCopyData: !!ad.copy_data,
       })
       
-      // Try to use setup_snapshot first, fall back to copy_data, then creative_data
-      const snapshot = ad.setup_snapshot as Record<string, unknown> | null
-      const copyData = ad.copy_data as Record<string, unknown> | null
-      const creativeData = ad.creative_data as Record<string, unknown> | null
+      // Use setup_snapshot built from normalized tables (single source of truth)
+      const snapshot = ad.setup_snapshot
       
       let creative_data: AdVariant['creative_data']
       
-      // First, try snapshot
+      // Build creative_data from snapshot (always available from API)
       if (snapshot?.creative && snapshot?.copy) {
-        const creativeSnapshot = snapshot.creative as {
-          imageUrl?: string
-          imageVariations?: string[]
-          selectedImageIndex?: number | null
-        }
-        const copySnapshot = snapshot.copy as {
-          headline: string
-          primaryText: string
-          description: string
-          cta: string
-        }
-        
-        // Build creative_data from snapshot - snapshot is the source of truth
-        const selectedIndex = creativeSnapshot.selectedImageIndex ?? 0
+        const selectedIndex = snapshot.creative.selectedImageIndex ?? 0
         creative_data = {
-          imageUrl: creativeSnapshot.imageVariations?.[selectedIndex] || creativeSnapshot.imageUrl,
-          imageVariations: creativeSnapshot.imageVariations,
-          headline: copySnapshot.headline,
-          body: copySnapshot.primaryText,
-          primaryText: copySnapshot.primaryText,
-          description: copySnapshot.description,
-          cta: copySnapshot.cta,
+          imageUrl: snapshot.creative.imageVariations?.[selectedIndex] || snapshot.creative.imageUrl,
+          imageVariations: snapshot.creative.imageVariations,
+          headline: snapshot.copy.headline || '',
+          body: snapshot.copy.primaryText || '',
+          primaryText: snapshot.copy.primaryText || '',
+          description: snapshot.copy.description || '',
+          cta: snapshot.copy.cta || 'Learn More',
           format: 'feed' as const,
         }
         
-        console.log('[CampaignWorkspace] ✅ Using snapshot data:', {
+        console.log('[CampaignWorkspace] ✅ Using snapshot from normalized tables:', {
           adId: ad.id,
-          headline: copySnapshot.headline,
-          primaryText: copySnapshot.primaryText?.substring(0, 50) + '...',
-          description: copySnapshot.description?.substring(0, 30) + '...',
+          headline: snapshot.copy.headline,
+          primaryText: snapshot.copy.primaryText?.substring(0, 50) + '...',
         })
-      } 
-      // Second, try copy_data field (saved separately)
-      else if (copyData && (copyData.headline || copyData.primaryText)) {
+      } else {
+        // Fallback for ads without data yet
         creative_data = {
-          imageUrl: creativeData?.imageUrl as string | undefined,
-          imageVariations: creativeData?.imageVariations as string[] | undefined,
-          headline: (copyData.headline as string) || '',
-          body: (copyData.primaryText as string) || '',
-          primaryText: (copyData.primaryText as string) || '',
-          description: (copyData.description as string) || '',
-          cta: (copyData.cta as string) || 'Learn More',
-          format: 'feed' as const,
-        }
-        
-        console.log('[CampaignWorkspace] ✅ Using copy_data field:', {
-          adId: ad.id,
-          headline: copyData.headline,
-          primaryText: (copyData.primaryText as string)?.substring(0, 50) + '...',
-        })
-      }
-      // Finally, fallback to legacy creative_data
-      else {
-        creative_data = (ad.creative_data as AdVariant['creative_data']) || {
           headline: '',
           body: '',
           cta: '',
         }
         
-        console.warn('[CampaignWorkspace] ⚠️ Using legacy fallback data for ad:', ad.id)
+        console.log('[CampaignWorkspace] ℹ️ No data yet for ad:', ad.id)
       }
       
       const metaAdId = typeof ad.meta_ad_id === 'string' && ad.meta_ad_id.trim().length > 0
@@ -700,7 +663,7 @@ export function CampaignWorkspace() {
         return
       }
       
-      // Check if ad has a setup_snapshot
+      // Load snapshot from API (built from normalized tables)
       const snapshot = adToEdit.setup_snapshot as Record<string, unknown> | null
       
       if (snapshot) {
@@ -717,60 +680,42 @@ export function CampaignWorkspace() {
         
         // Validate snapshot structure
         if (!isValidSnapshot(snapshot)) {
-          console.warn(`[${traceId}] Invalid snapshot structure, using legacy fallback`)
-        } else {
-          // Hydrate ad preview context
-          const adPreviewData = hydrateAdPreviewFromSnapshot(snapshot)
-          setAdContent(adPreviewData.adContent)
-          setSelectedImageIndex(adPreviewData.selectedImageIndex)
-          setSelectedCreativeVariation(adPreviewData.selectedCreativeVariation)
-          console.log(`[${traceId}] ✅ Hydrated ad preview from snapshot`)
-          
-          // Hydrate ad copy context
-          const adCopyData = hydrateAdCopyFromSnapshot(snapshot)
-          if (adCopyData.customCopyVariations) {
-            setCustomCopyVariations(adCopyData.customCopyVariations)
-          }
-          setSelectedCopyIndex(adCopyData.selectedCopyIndex)
-          console.log(`[${traceId}] ✅ Hydrated ad copy from snapshot`)
-          
-          // Hydrate location context
-          const locationData = hydrateLocationFromSnapshot(snapshot)
-          if (locationData.locations.length > 0) {
-            addLocations(locationData.locations, false) // Replace, don't merge
-          }
-          console.log(`[${traceId}] ✅ Hydrated locations from snapshot`)
-          
-          // Hydrate destination context
-          const destinationData = hydrateDestinationFromSnapshot(snapshot)
-          if (destinationData.data) {
-            setDestination(destinationData.data)
-          }
-          console.log(`[${traceId}] ✅ Hydrated destination from snapshot`)
+          console.warn(`[${traceId}] Invalid snapshot structure`)
+          toast.error('Unable to load ad data')
+          return
         }
+        
+        // Hydrate ad preview context
+        const adPreviewData = hydrateAdPreviewFromSnapshot(snapshot)
+        setAdContent(adPreviewData.adContent)
+        setSelectedImageIndex(adPreviewData.selectedImageIndex)
+        setSelectedCreativeVariation(adPreviewData.selectedCreativeVariation)
+        console.log(`[${traceId}] ✅ Hydrated ad preview from snapshot`)
+        
+        // Hydrate ad copy context
+        const adCopyData = hydrateAdCopyFromSnapshot(snapshot)
+        if (adCopyData.customCopyVariations) {
+          setCustomCopyVariations(adCopyData.customCopyVariations)
+        }
+        setSelectedCopyIndex(adCopyData.selectedCopyIndex)
+        console.log(`[${traceId}] ✅ Hydrated ad copy from snapshot`)
+        
+        // Hydrate location context
+        const locationData = hydrateLocationFromSnapshot(snapshot)
+        if (locationData.locations.length > 0) {
+          addLocations(locationData.locations, false) // Replace, don't merge
+        }
+        console.log(`[${traceId}] ✅ Hydrated locations from snapshot`)
+        
+        // Hydrate destination context
+        const destinationData = hydrateDestinationFromSnapshot(snapshot)
+        if (destinationData.data) {
+          setDestination(destinationData.data)
+        }
+        console.log(`[${traceId}] ✅ Hydrated destination from snapshot`)
       } else {
-        console.log(`[${traceId}] No snapshot found, using legacy data from creative_data and copy_data`)
-        
-        // Fallback: Use legacy creative_data and copy_data if available
-        const creativeData = adToEdit.creative_data as Record<string, unknown> | null
-        const copyData = adToEdit.copy_data as Record<string, unknown> | null
-        
-        if (creativeData) {
-          setAdContent({
-            imageUrl: creativeData.imageUrl as string | undefined,
-            imageVariations: (creativeData.imageVariations as string[]) || [],
-            baseImageUrl: creativeData.baseImageUrl as string | undefined,
-            headline: (copyData?.headline as string) || (creativeData.headline as string) || '',
-            body: (copyData?.primaryText as string) || (creativeData.body as string) || '',
-            cta: (copyData?.cta as string) || (creativeData.cta as string) || 'Learn More',
-          })
-          console.log(`[${traceId}] ✅ Loaded creative from legacy creative_data`)
-        }
-        
-        if (copyData && (copyData.headline || copyData.primaryText)) {
-          // Copy data exists, we've already set it above
-          console.log(`[${traceId}] ✅ Loaded copy from legacy copy_data`)
-        }
+        console.warn(`[${traceId}] No snapshot found for ad - may be empty draft`)
+        toast.info('Loading ad data...')
       }
       
       // Navigate to edit mode
@@ -1089,100 +1034,54 @@ export function CampaignWorkspace() {
 
   // Common save logic for both build and edit modes
   const handleSaveAdData = useCallback(async (adId: string, isEditMode: boolean = false) => {
-    if (!campaign?.id || isSaving) return false
-    
-    setIsSaving(true)
+    if (!campaign?.id || isSavingHook) return false
     
     try {
-      // Import the snapshot builder dynamically
-      const { buildAdSnapshot } = await import('@/lib/services/ad-snapshot-builder')
-      
-      // Build complete snapshot from wizard contexts
-      const snapshot = buildAdSnapshot({
-        adPreview: {
-          adContent,
-          selectedImageIndex,
-          selectedCreativeVariation,
-        },
-        adCopy: adCopyState,
-        destination: destinationState,
-        location: locationState,
-        goal: goalState,
-        budget: budgetState,
-      })
-      
-      // Gather the finalized ad data from snapshot - use canonical copy source
-      const selectedCopy = getSelectedCopy()
-      
-      const selectedImageUrl = selectedImageIndex !== null && adContent?.imageVariations?.[selectedImageIndex]
-        ? adContent.imageVariations[selectedImageIndex]
-        : adContent?.imageUrl || adContent?.imageVariations?.[0]
-      
-      // Prepare the ad data for persistence
-      const adData = {
-        name: `${campaign.name} - ${isEditMode ? 'Ad' : 'Draft'} ${new Date().toLocaleDateString()}`,
-        creative_data: {
-          imageUrl: selectedImageUrl,
-          imageVariations: adContent?.imageVariations,
-          baseImageUrl: adContent?.baseImageUrl,
-        },
-        copy_data: {
-          headline: selectedCopy?.headline || adContent?.headline,
-          primaryText: selectedCopy?.primaryText || adContent?.body,
-          description: selectedCopy?.description || adContent?.body,
-          cta: adContent?.cta || 'Learn More',
-        },
-        setup_snapshot: snapshot,
-      }
-      
-      console.log('📦 Ad data being sent to API:', {
+      console.log('📦 Saving ad data to normalized tables:', {
         adId,
-        name: adData.name,
+        campaignId: campaign.id,
         isEditMode,
       })
       
-      // Update the ad in Supabase (keeps status as draft or current status)
-      const response = await fetch(`/api/campaigns/${campaign.id}/ads/${adId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(adData),
+      const result = await saveAd({
+        campaignId: campaign.id,
+        adId,
+        adContent,
+        selectedImageIndex,
+        adCopyState,
+        destinationState,
+        locationState,
+        budgetState
       })
       
-      if (!response.ok) {
-        console.error('Failed to update ad:', await response.text())
+      if (!result.success) {
+        console.error('Failed to save ad:', result.error)
         toast.error('Failed to save ad')
         return false
       }
       
-      const { ad } = await response.json()
-      console.log(`✅ Ad saved:`, ad.id)
-      
+      console.log(`✅ Ad saved to normalized tables:`, adId)
       return true
     } catch (error) {
       console.error('Error in handleSaveAdData:', error)
       toast.error('Failed to save ad')
       return false
-    } finally {
-      setIsSaving(false)
     }
   }, [
     campaign?.id,
-    campaign?.name,
-    isSaving,
+    isSavingHook,
+    saveAd,
     adContent,
     selectedImageIndex,
-    selectedCreativeVariation,
     adCopyState,
     destinationState,
     locationState,
-    goalState,
     budgetState,
-    getSelectedCopy,
   ])
 
   // Handle Create Ad action from header (build mode)
   const handleCreateAd = useCallback(async () => {
-    if (!campaign?.id || isSaving) return
+    if (!campaign?.id || isSavingHook) return
     
     // Get the current ad ID from URL
     const adId = searchParams.get('adId')
@@ -1208,69 +1107,28 @@ export function CampaignWorkspace() {
       // Navigate to All Ads view and save preference
       setWorkspaceMode('all-ads')
     }
-  }, [campaign?.id, campaign?.name, isSaving, searchParams, handleSaveAdData, setIsPublished, refreshAds, setWorkspaceMode])
+  }, [campaign?.id, isSavingHook, searchParams, handleSaveAdData, setIsPublished, refreshAds, setWorkspaceMode])
 
   // Handle Save action from header (edit mode)
   const handleSave = useCallback(async () => {
-    if (!campaign?.id || !currentAdId || isSaving) return
-    
-    setIsSaving(true)
+    if (!campaign?.id || !currentAdId || isSavingHook) return
     
     try {
-      // Collect data from all contexts
-      const selectedCopy = getSelectedCopy()
-      const activeVariations = getActiveVariations()
+      console.log('📦 Saving ad changes to normalized tables')
       
-      // Build payload sections
-      const sections: Record<string, unknown> = {}
-      
-      // Creative section
-      if (adContent?.imageVariations && adContent.imageVariations.length > 0) {
-        sections.creative = {
-          imageVariations: adContent.imageVariations,
-          selectedImageIndex: selectedImageIndex ?? 0,
-          format: 'feed'
-        }
-      }
-      
-      // Copy section
-      if (activeVariations.length > 0) {
-        sections.copy = {
-          variations: activeVariations.map(v => ({
-            headline: v.headline,
-            primaryText: v.primaryText,
-            description: v.description || '',
-            cta: adContent?.cta || 'Learn More'
-          })),
-          selectedCopyIndex: adCopyState.selectedCopyIndex ?? 0
-        }
-      }
-      
-      // Destination section
-      if (destinationState.data?.type) {
-        sections.destination = {
-          type: destinationState.data.type,
-          data: destinationState.data
-        }
-      }
-      
-      // Location section
-      if (locationState.locations.length > 0) {
-        sections.location = {
-          locations: locationState.locations
-        }
-      }
-      
-      // Save via /snapshot endpoint
-      const response = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAdId}/snapshot`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sections),
+      const result = await saveAd({
+        campaignId: campaign.id,
+        adId: currentAdId,
+        adContent,
+        selectedImageIndex,
+        adCopyState,
+        destinationState,
+        locationState,
+        budgetState
       })
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to save ad')
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save ad')
       }
       
       // Show success toast
@@ -1288,10 +1146,8 @@ export function CampaignWorkspace() {
     } catch (error) {
       console.error('[handleSave] Failed to save ad:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to save ad changes')
-    } finally {
-      setIsSaving(false)
     }
-  }, [campaign?.id, currentAdId, isSaving, getSelectedCopy, getActiveVariations, adCopyState.selectedCopyIndex, adContent, selectedImageIndex, destinationState.data, locationState.locations, refreshAds, setWorkspaceMode])
+  }, [campaign?.id, currentAdId, isSavingHook, saveAd, adContent, selectedImageIndex, adCopyState, destinationState, locationState, budgetState, refreshAds, setWorkspaceMode])
 
   
   // Unsaved changes dialog handlers
@@ -1339,9 +1195,9 @@ export function CampaignWorkspace() {
         campaignBudget={campaign?.campaign_budget ?? null}
         onBudgetUpdate={updateBudget}
         onSave={effectiveMode === 'edit' ? handleSave : undefined}
-        isSaveDisabled={isSaving}
+        isSaveDisabled={isSavingHook}
         onCreateAd={effectiveMode === 'build' ? handleCreateAd : undefined}
-        isCreateAdDisabled={isSaving || !isAdReadyToCreate()}
+        isCreateAdDisabled={isSavingHook || !isAdReadyToCreate()}
         // NEW PROPS for step-aware publish
         currentStepId={currentStepId}
         isPublishReady={isPublishReady}

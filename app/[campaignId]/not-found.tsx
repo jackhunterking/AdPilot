@@ -33,7 +33,7 @@ export default function CampaignNotFound() {
             onClick={() => router.push('/')} 
             className="w-full"
           >
-            Back to Dashboard
+            Back to Campaigns
           </Button>
           
           <Button 

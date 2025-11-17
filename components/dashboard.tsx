@@ -208,7 +208,7 @@ export function Dashboard({
                     <DropdownMenuContent align="start" alignOffset={-140} className="w-72">
                       <DropdownMenuItem onClick={() => router.push('/')}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back to Dashboard
+                        Back to Campaigns
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <div className="px-2 py-3">

@@ -319,22 +319,9 @@ export function WorkspaceHeader({
         "flex items-center justify-between gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6 py-3 flex-shrink-0",
         className
       )}>
-        {/* Left: Back Button or "Back to Campaigns" */}
+        {/* Left: Back Button */}
         <div className="flex items-center gap-4">
-          {mode === 'all-ads' ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                // Navigate to homepage (campaigns dashboard)
-                window.location.href = '/'
-              }}
-              className="gap-2 hover:bg-muted"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Campaigns
-            </Button>
-          ) : shouldShowBack && onBack ? (
+          {shouldShowBack && onBack ? (
             <Button
               variant="outline"
               size="sm"
@@ -364,94 +351,52 @@ export function WorkspaceHeader({
             </Button>
           )}
           
-          {/* Build mode - Final step: Save Draft + Publish */}
-          {mode === 'build' && isOnFinalStep && onSaveDraft && onPublish && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onSaveDraft}
-                disabled={isSaveDisabled}
-                className="gap-2"
-              >
-                <Save className="h-4 w-4" />
-                Save as Draft
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={onPublish}
-                disabled={!isPublishReady || isPublishing}
-                className="gap-2"
-                title={!isPublishReady ? "Complete all requirements to publish" : ""}
-              >
-                {isPublishing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Publishing...
-                  </>
-                ) : (
-                  <>
-                    <Rocket className="h-4 w-4" />
-                    Publish
-                  </>
-                )}
-              </Button>
-            </>
-          )}
-          
-          {/* Build mode - Non-final steps: No action buttons (stepper handles Next) */}
-          {mode === 'build' && !isOnFinalStep && !showNewAdButton && (
+          {/* Build/Edit mode - Non-final steps: No action buttons (stepper handles Next) */}
+          {(mode === 'build' || mode === 'edit') && !isOnFinalStep && !showNewAdButton && (
             <div /> 
           )}
           
-          {/* Edit mode - Published ad: Save Changes + Republish */}
-          {mode === 'edit' && isEditingPublishedAd && onSave && onPublish && (
+          {/* Build/Edit mode - Final step: Unified Save + Publish buttons */}
+          {(mode === 'build' || mode === 'edit') && isOnFinalStep && (
             <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onSave}
-                disabled={isSaveDisabled}
-                className="gap-2"
-              >
-                <Save className="h-4 w-4" />
-                Save Changes
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={onPublish}
-                disabled={!isPublishReady || isPublishing}
-                className="gap-2"
-              >
-                {isPublishing ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Republishing...
-                  </>
-                ) : (
-                  <>
-                    <Rocket className="h-4 w-4" />
-                    Republish Changes
-                  </>
-                )}
-              </Button>
+              {/* Save button - always available on final step */}
+              {(onSaveDraft || onSave) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onSaveDraft || onSave}
+                  disabled={isSaveDisabled}
+                  className="gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  {isEditingPublishedAd ? 'Save Changes' : 'Save Draft'}
+                </Button>
+              )}
+              
+              {/* Publish button - only if ready */}
+              {onPublish && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={onPublish}
+                  disabled={!isPublishReady || isPublishing}
+                  className="gap-2"
+                  title={!isPublishReady ? "Complete all requirements to publish" : ""}
+                >
+                  {isPublishing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {isEditingPublishedAd ? 'Republishing...' : 'Publishing...'}
+                    </>
+                  ) : (
+                    <>
+                      <Rocket className="h-4 w-4" />
+                      {isEditingPublishedAd ? 'Republish' : 'Publish'}
+                    </>
+                  )}
+                </Button>
+              )}
             </>
-          )}
-          
-          {/* Edit mode - Draft ad: Save only */}
-          {mode === 'edit' && !isEditingPublishedAd && onSave && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={onSave}
-              disabled={isSaveDisabled}
-              className="gap-2"
-            >
-              <Save className="h-4 w-4" />
-              Save
-            </Button>
           )}
           
           {/* New Ad button (shown in all-ads and results modes) */}
