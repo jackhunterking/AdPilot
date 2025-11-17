@@ -98,10 +98,14 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
           
           // Hydrate selectedImageIndex (which variation user selected)
           const selectedIdx = snapshot.creative.selectedImageIndex
+          
+          logger.debug('AdPreviewContext', `Hydrating selection index: ${selectedIdx}`)
+          
+          // Always set the index from snapshot (even if -1 or null)
+          setSelectedImageIndex(selectedIdx)
+          
+          // Set variation object only if valid index
           if (typeof selectedIdx === 'number' && selectedIdx >= 0 && selectedIdx < 3) {
-            setSelectedImageIndex(selectedIdx)
-            
-            // Hydrate selectedCreativeVariation (for gradient display)
             const variations = [
               { gradient: "from-blue-600 via-blue-500 to-cyan-500", title: "Variation 1" },
               { gradient: "from-purple-600 via-purple-500 to-pink-500", title: "Variation 2" },
@@ -110,12 +114,12 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
             const selectedVariation = variations[selectedIdx]
             if (selectedVariation) {
               setSelectedCreativeVariation(selectedVariation)
-              logger.debug('AdPreviewContext', `Selected variation ${selectedIdx}`)
+              logger.info('AdPreviewContext', `✅ Selected variation ${selectedIdx}`)
             }
           } else {
-            // No selection yet - valid state
-            setSelectedImageIndex(null)
+            // No variation object for invalid index
             setSelectedCreativeVariation(null)
+            logger.debug('AdPreviewContext', 'No valid selection index yet')
           }
           
           logger.debug('AdPreviewContext', '✅ State hydrated from backend')

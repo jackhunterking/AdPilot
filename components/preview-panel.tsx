@@ -243,12 +243,15 @@ export function PreviewPanel() {
     }
   }, [campaign?.id, budgetState.selectedAdAccount])
 
+  // Get completed steps from current ad (database source of truth)
+  const completedSteps = (currentAd?.completed_steps as string[]) || []
+  
   // Check if all steps are complete
   const allStepsComplete = 
-    selectedImageIndex !== null &&
-    adCopyState.status === "completed" &&
-    destinationState.status === "completed" &&
-    locationState.status === "completed" &&
+    completedSteps.includes("ads") &&
+    completedSteps.includes("copy") &&
+    completedSteps.includes("destination") &&
+    completedSteps.includes("location") &&
     isMetaConnectionComplete &&
     hasPaymentMethod &&
     isComplete()
@@ -1191,7 +1194,7 @@ export function PreviewPanel() {
         number: 1,
         title: "Ad Creative",
         description: "Select your ad creative design",
-        completed: selectedImageIndex !== null,
+        completed: completedSteps.includes("ads"),
         content: adsContent,
         icon: Palette,
       },
@@ -1200,7 +1203,7 @@ export function PreviewPanel() {
         number: 2,
         title: "Ad Copy",
         description: "Choose your ad copy with headline and description",
-        completed: adCopyState.status === "completed",
+        completed: completedSteps.includes("copy"),
         content: <AdCopySelectionCanvas />,
         icon: Type,
       },
@@ -1209,7 +1212,7 @@ export function PreviewPanel() {
         number: 3,
         title: "Target Location",
         description: "Choose where you want your ads to be shown",
-        completed: locationState.status === "completed",
+        completed: completedSteps.includes("location"),
         content: <LocationSelectionCanvas />,
         icon: MapPin,
       },
@@ -1218,7 +1221,7 @@ export function PreviewPanel() {
         number: 4,
         title: "Destination",
         description: "Configure where users will be directed",
-        completed: destinationState.status === "completed",
+        completed: completedSteps.includes("destination"),
         content: <DestinationSetupCanvas />,
         icon: Link2,
       },
@@ -1238,10 +1241,7 @@ export function PreviewPanel() {
       ...step,
       number: index + 1,
     }))
-  }, [selectedImageIndex, adCopyState.status, destinationState.status, locationState.status, isMetaConnectionComplete, isComplete, adsContent, launchContent])
-
-  // Get completed steps from current ad
-  const completedSteps = (currentAd?.completed_steps as string[]) || []
+  }, [completedSteps, allStepsComplete, adsContent, launchContent])
 
   return (
     <div className="flex flex-1 h-full flex-col relative min-h-0">

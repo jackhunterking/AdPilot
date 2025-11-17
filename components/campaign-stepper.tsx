@@ -66,7 +66,7 @@ export function CampaignStepper({ steps, campaignId, completedSteps = [] }: Camp
   // During hydration many contexts may mark steps as completed at once. We treat
   // that as a restored session and jump to the first incomplete step exactly once.
 
-  // Auto-jump to first incomplete step on mount
+  // Auto-jump to first incomplete step or restore last viewed step on mount
   useEffect(() => {
     if (hasInitializedRef.current) return
 
@@ -78,20 +78,38 @@ export function CampaignStepper({ steps, campaignId, completedSteps = [] }: Camp
       return
     }
 
-    // Use backend completedSteps as source of truth
-    // Find first step that's NOT in completedSteps array
-    const firstIncomplete = steps.findIndex(s => !completedSteps.includes(s.id))
-    const targetIndex = firstIncomplete === -1 ? steps.length - 1 : firstIncomplete
+    // Try to restore last viewed step from session storage
+    let restoredIndex: number | null = null
+    if (campaignId) {
+      try {
+        const savedStepId = sessionStorage.getItem(`campaign:${campaignId}:currentStep`)
+        if (savedStepId) {
+          const savedIndex = steps.findIndex(s => s.id === savedStepId)
+          if (savedIndex >= 0) {
+            restoredIndex = savedIndex
+            console.log('[CampaignStepper] Restored last viewed step:', savedStepId)
+          }
+        }
+      } catch (error) {
+        console.warn('[CampaignStepper] Failed to restore step from sessionStorage')
+      }
+    }
 
-    console.log('[CampaignStepper] Restoring to first incomplete step', {
-      completedSteps,
-      firstIncompleteStep: steps[targetIndex]?.id,
-      targetIndex
-    })
+    // If no saved step, use backend completedSteps to find first incomplete
+    if (restoredIndex === null) {
+      const firstIncomplete = steps.findIndex(s => !completedSteps.includes(s.id))
+      restoredIndex = firstIncomplete === -1 ? steps.length - 1 : firstIncomplete
 
-    setCurrentStepIndex(targetIndex)
+      console.log('[CampaignStepper] No saved step, using first incomplete', {
+        completedSteps,
+        firstIncompleteStep: steps[restoredIndex]?.id,
+        targetIndex: restoredIndex
+      })
+    }
+
+    setCurrentStepIndex(restoredIndex)
     hasInitializedRef.current = true
-  }, [steps, isNewAd, completedSteps])
+  }, [steps, isNewAd, completedSteps, campaignId])
 
   // Clamp currentStepIndex whenever steps array size or ordering changes
   useEffect(() => {
@@ -183,9 +201,18 @@ export function CampaignStepper({ steps, campaignId, completedSteps = [] }: Camp
   const currentStepCompleted = Boolean(currentStep?.completed)
   const canGoNext = currentStepCompleted
   
-  // Emit stepChanged event when current step changes
+  // Emit stepChanged event when current step changes AND persist to session storage
   useEffect(() => {
     if (!currentStep || typeof window === 'undefined') return
+    
+    // Save current step to session storage for page refresh restore
+    if (campaignId) {
+      try {
+        sessionStorage.setItem(`campaign:${campaignId}:currentStep`, currentStep.id)
+      } catch (error) {
+        console.warn('[CampaignStepper] Failed to save current step to sessionStorage')
+      }
+    }
     
     // Only dispatch if step ID actually changed (prevent duplicate events)
     if (lastDispatchedStepRef.current === currentStep.id) {
@@ -202,7 +229,7 @@ export function CampaignStepper({ steps, campaignId, completedSteps = [] }: Camp
         isLastStep: currentStepIndex >= steps.length - 1
       }
     }))
-  }, [currentStepIndex, currentStep, steps.length])
+  }, [currentStepIndex, currentStep, steps.length, campaignId])
 
   const handleNext = () => {
     if (canGoNext && !isLastStep) {

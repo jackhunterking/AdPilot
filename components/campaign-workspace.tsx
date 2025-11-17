@@ -40,6 +40,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button"
 import { AlertTriangle } from "lucide-react"
 import { useSaveAd } from "@/lib/hooks/use-save-ad"
+import { useCurrentAd } from "@/lib/context/current-ad-context"
 
 export function CampaignWorkspace() {
   const { campaign, updateBudget } = useCampaignContext()
@@ -58,6 +59,7 @@ export function CampaignWorkspace() {
   const { ads, refreshAds, updateAdStatus, deleteAd } = useCampaignAds(campaignId)
   const { publishAd, isPublishing: isPublishingHook } = usePublishAd()
   const { saveAd, isSaving: isSavingHook } = useSaveAd()
+  const { reloadAd } = useCurrentAd()
   
   // Subscribe to real-time status updates for all ads in campaign
   useMultipleAdsStatusSubscription({
@@ -1052,6 +1054,7 @@ export function CampaignWorkspace() {
         destinationState,
         locationState,
         budgetState,
+        onSuccess: () => reloadAd()
       })
       
       if (!result.success) {
@@ -1125,6 +1128,7 @@ export function CampaignWorkspace() {
         destinationState,
         locationState,
         budgetState,
+        onSuccess: () => reloadAd()
       })
       
       if (!result.success) {

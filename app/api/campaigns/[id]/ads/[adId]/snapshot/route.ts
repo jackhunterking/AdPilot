@@ -163,6 +163,19 @@ export async function PATCH(
       }))
       
       await adDataService.saveCreatives(adId, creatives, creativeData.selectedImageIndex ?? 0)
+      
+      // Verify FK was updated
+      const { data: adCheck } = await supabaseServer
+        .from('ads')
+        .select('selected_creative_id')
+        .eq('id', adId)
+        .single()
+      
+      console.log('[PATCH snapshot] ✅ Creative saved and FK updated:', {
+        adId,
+        selectedIndex: creativeData.selectedImageIndex ?? 0,
+        fkId: adCheck?.selected_creative_id
+      })
     }
 
     if (body.copy) {
@@ -188,6 +201,19 @@ export async function PATCH(
         }))
         
         await adDataService.saveCopyVariations(adId, variations, copyData.selectedCopyIndex || 0)
+        
+        // Verify FK was updated
+        const { data: adCheck2 } = await supabaseServer
+          .from('ads')
+          .select('selected_copy_id')
+          .eq('id', adId)
+          .single()
+        
+        console.log('[PATCH snapshot] ✅ Copy saved and FK updated:', {
+          adId,
+          selectedIndex: copyData.selectedCopyIndex || 0,
+          fkId: adCheck2?.selected_copy_id
+        })
       }
     }
 
