@@ -242,6 +242,12 @@ export const adDataService = {
     selectedIndex?: number
   ): Promise<AdCreative[]> {
     try {
+      // Delete old creatives to avoid unique constraint violations
+      await supabaseServer
+        .from('ad_creatives')
+        .delete()
+        .eq('ad_id', adId)
+      
       const inserts = creatives.map((c) => ({ ...c, ad_id: adId }))
       
       const { data, error } = await supabaseServer
