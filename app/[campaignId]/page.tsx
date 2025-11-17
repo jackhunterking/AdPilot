@@ -164,31 +164,6 @@ export default async function CampaignPage({
   const messages: UIMessage[] = (dbMessages || []).map(dbToUIMessage);
   
   console.log(`[SERVER] Loaded ${messages.length} messages`);
-  console.log(`[SERVER] Messages being passed to Dashboard:`, JSON.stringify(messages.map(m => ({ 
-    id: m.id, 
-    role: m.role, 
-    partsCount: m.parts?.length || 0 
-  }))));
-
-  // DIAGNOSTIC: Log location tool parts specifically
-  messages.forEach((msg, idx) => {
-    if (msg.role === 'assistant' && msg.parts) {
-      const toolParts = (msg.parts as Array<{ type?: string }>).filter(p => {
-        const type = p.type;
-        return typeof type === 'string' && (
-          type.includes('location') || 
-          type.includes('Location') ||
-          type === 'tool-result'
-        );
-      });
-      if (toolParts.length > 0) {
-        console.log(`[SERVER] Message ${idx} has ${toolParts.length} location-related parts:`);
-        toolParts.forEach((part, partIdx) => {
-          console.log(`[SERVER]   Part ${partIdx}:`, JSON.stringify(part, null, 2));
-        });
-      }
-    }
-  });
 
   return (
     <Dashboard 

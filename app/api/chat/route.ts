@@ -1381,31 +1381,15 @@ Example: If previous setup had "Ontario, Toronto (excluded)" and user removed To
             }
             
             if (toolParts.length > 0) {
-              // DIAGNOSTIC: Log tool parts structure before filtering
-              toolParts.forEach((p, idx) => {
-                if (p.type?.includes?.('location') || p.type?.includes?.('Location')) {
-                  console.log(`[SAVE] Tool part ${idx} BEFORE filter:`, JSON.stringify(p, null, 2));
-                  console.log(`[SAVE]   - Has output?`, !!p.output, 'Type:', typeof p.output);
-                  console.log(`[SAVE]   - Has result?`, !!p.result);
-                  console.log(`[SAVE]   - Has state?`, !!(p as { state?: unknown }).state, 'Value:', (p as { state?: unknown }).state);
-                }
-              });
-              
-              // SIMPLIFIED FILTERING (Solution B):
-              // Only filter tool parts that are truly broken (missing toolCallId)
+              // Simplified: Only filter truly broken parts (no toolCallId)
               // Let all other tool parts through - they'll be filtered on load if needed
               // This handles async tool execution where parts may update after initial save
               const invalidTools = toolParts.filter((p) => !p.toolCallId);
               
               if (invalidTools.length > 0) {
                 console.log(`[SAVE] Filtering message with invalid tool parts (no toolCallId) ${msg.id}`);
-                invalidTools.forEach((t) => {
-                  console.log(`[SAVE]   - Invalid tool: ${t.type}`);
-                });
                 return false;
               }
-              
-              console.log(`[SAVE] ✅ Keeping message with ${toolParts.length} tool parts (load-side filtering will handle incomplete ones)`);
             }
             
             return true;

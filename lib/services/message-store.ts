@@ -38,18 +38,39 @@ type MessageRow = Database['public']['Tables']['messages']['Row'];
 function messageToStorage(msg: UIMessage, conversationId: string): Omit<MessageRow, 'seq' | 'created_at'> {
   // Extract text content for the content field (for querying)
   const textParts = (msg.parts as Array<{ type: string; text?: string }> | undefined)?.filter((part) => part.type === 'text') || [];
-  const content = textParts.map((p) => p.text || '').join('\n');
+  let content = textParts.map((p) => p.text || '').join('\n');
+  
+  // For messages with tool parts but no text, create descriptive content
+  // This satisfies the database constraint and improves searchability
+  if (!content || content.trim().length === 0) {
+    const toolParts = (msg.parts as Array<{ type?: string; toolCallId?: string }> | undefined)?.filter(
+      (part) => typeof part.type === 'string' && part.type.startsWith('tool-')
+    ) || [];
+    
+    if (toolParts.length > 0) {
+      // Create human-readable content from tool calls
+      const toolDescriptions = toolParts.map((p) => {
+        const toolType = (p.type as string).replace('tool-', '');
+        return `[Tool: ${toolType}]`;
+      }).join(', ');
+      
+      content = `Tool execution: ${toolDescriptions}`;
+    }
+  }
   
   // Enforce content size limit (50KB)
   const truncatedContent = content.length > 50000 
     ? content.substring(0, 50000) + '... [truncated]'
     : content;
   
+  // Final safety: ensure content is never empty string (use single space as minimum)
+  const finalContent = truncatedContent || ' ';
+  
   return {
     id: msg.id,
     conversation_id: conversationId,
     role: msg.role,
-    content: truncatedContent,
+    content: finalContent,
     parts: (msg.parts as unknown as Json) || [],
     tool_invocations: ((msg as unknown as { toolInvocations?: unknown }).toolInvocations as Json) || [],
     metadata: ((msg as unknown as { metadata?: Record<string, unknown> }).metadata as Json) || {},
