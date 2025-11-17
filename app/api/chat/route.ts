@@ -26,13 +26,15 @@ import {
   Tool,
 } from 'ai';
 import { sanitizeMessages, isSanitizerEnabled } from '@/lib/ai/schema';
-import { generateImageTool } from '@/lib/ai/tools/generate-image';
-import { editImageTool } from '@/lib/ai/tools/edit-image';
-import { regenerateImageTool } from '@/lib/ai/tools/regenerate-image';
-import { locationTargetingTool } from '@/lib/ai/tools/location-targeting-tool';
-import { setupGoalTool } from '@/lib/ai/tools/setup-goal-tool';
-import { editAdCopyTool } from '@/lib/ai/tools/edit-ad-copy';
-import { createAdTool } from '@/lib/ai/tools/create-ad';
+// Import granular tool categories
+import * as creativeTools from '@/lib/ai/tools/creative';
+import * as copyTools from '@/lib/ai/tools/copy';
+import * as targetingTools from '@/lib/ai/tools/targeting';
+import * as campaignTools from '@/lib/ai/tools/campaign';
+import * as goalTools from '@/lib/ai/tools/goal';
+
+// Backward compatibility imports (temporary during migration)
+import { generateImageTool, editImageTool, regenerateImageTool, editAdCopyTool, locationTargetingTool, createAdTool, setupGoalTool } from '@/lib/ai/tools';
 import { getCachedMetrics } from '@/lib/meta/insights';
 import { getModel } from '@/lib/ai/gateway-provider';
 import { messageStore } from '@/lib/services/message-store';
@@ -150,13 +152,43 @@ export async function POST(req: Request) {
   }
   
   const tools = {
-    createAd: createAdTool,
-    generateImage: generateImageTool,
-    editImage: editImageTool,
-    regenerateImage: regenerateImageTool,
-    locationTargeting: locationTargetingTool,
-    setupGoal: setupGoalTool,
-    editAdCopy: editAdCopyTool,
+    // NEW GRANULAR TOOLS (Preferred - Microservice Pattern)
+    // Creative operations
+    generateVariations: creativeTools.generateVariationsTool,
+    selectVariation: creativeTools.selectVariationTool,
+    editVariation: creativeTools.editVariationTool,
+    regenerateVariation: creativeTools.regenerateVariationTool,
+    deleteVariation: creativeTools.deleteVariationTool,
+    
+    // Copy operations  
+    generateCopyVariations: copyTools.generateCopyVariationsTool,
+    selectCopyVariation: copyTools.selectCopyVariationTool,
+    editCopy: copyTools.editCopyTool,
+    refineHeadline: copyTools.refineHeadlineTool,
+    refinePrimaryText: copyTools.refinePrimaryTextTool,
+    refineDescription: copyTools.refineDescriptionTool,
+    
+    // Targeting operations
+    addLocations: targetingTools.addLocationsTool,
+    removeLocation: targetingTools.removeLocationTool,
+    clearLocations: targetingTools.clearLocationsTool,
+    
+    // Campaign operations
+    createAd: campaignTools.createAdTool,
+    renameAd: campaignTools.renameAdTool,
+    duplicateAd: campaignTools.duplicateAdTool,
+    deleteAd: campaignTools.deleteAdTool,
+    
+    // Goal operations
+    setupGoal: goalTools.setupGoalTool,
+    
+    // DEPRECATED: Old monolithic tools (backward compatibility)
+    // These will be removed after migration is complete
+    generateImage: generateImageTool, // DEPRECATED: use generateVariations
+    editImage: editImageTool, // DEPRECATED: use editVariation
+    regenerateImage: regenerateImageTool, // DEPRECATED: use regenerateVariation
+    locationTargeting: locationTargetingTool, // DEPRECATED: use addLocations
+    editAdCopy: editAdCopyTool, // DEPRECATED: use editCopy
   };
 
   // Get or create conversation
