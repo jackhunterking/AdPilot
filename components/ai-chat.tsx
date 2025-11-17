@@ -386,16 +386,24 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
     toolCallId: string,
     input: LocationToolInput
   ) => {
+    console.log('[LocationProcessor] ========== START ==========');
+    console.log('[LocationProcessor] Tool Call ID:', toolCallId);
+    console.log('[LocationProcessor] Input:', JSON.stringify(input, null, 2));
+    console.log('[LocationProcessor] Already processed?', processedLocationCalls.current.has(toolCallId));
+    
     // Skip if already processed
     if (processedLocationCalls.current.has(toolCallId)) {
+      console.log('[LocationProcessor] Skipping - already processed');
       return;
     }
     
     // Mark as processing immediately
     processedLocationCalls.current.add(toolCallId);
+    console.log('[LocationProcessor] Marked as processing');
     
     try {
       updateLocationStatus('setup-in-progress');
+      console.log('[LocationProcessor] Status updated to: setup-in-progress');
       
       // Geocode all locations
       const processed = await Promise.all(
@@ -450,19 +458,62 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
       
       const validLocations = processed.filter((loc): loc is NonNullable<typeof loc> => loc !== null);
       
+      console.log('[LocationProcessor] Geocoding complete. Valid locations:', validLocations.length);
+      console.log('[LocationProcessor] Valid locations data:', JSON.stringify(validLocations.map(l => ({
+        name: l.name,
+        coordinates: l.coordinates,
+        type: l.type,
+        mode: l.mode,
+        hasGeometry: !!l.geometry,
+        hasBbox: !!l.bbox
+      })), null, 2));
+      
       if (validLocations.length === 0) {
         throw new Error('Failed to geocode locations');
       }
       
       // Update context (triggers map update via React state flow) with error handling
       try {
+        console.log('[LocationProcessor] Calling addLocations with', validLocations.length, 'locations...');
+        console.log('[LocationProcessor] Current locationState before add:', {
+          count: locationState.locations.length,
+          status: locationState.status
+        });
+        
         await addLocations(validLocations, true); // true = ADD mode (merge with existing)
+        
+        console.log('[LocationProcessor] addLocations completed');
+        console.log('[LocationProcessor] Current locationState after add:', {
+          count: locationState.locations.length,
+          status: locationState.status,
+          locations: locationState.locations.map(l => l.name)
+        });
+        
         updateLocationStatus('completed');
+        console.log('[LocationProcessor] Status updated to: completed');
         
         // Trigger immediate autosave after adding locations
         console.log('[LocationProcessor] Triggering autosave...');
         await triggerSave(true);
         console.log('[LocationProcessor] ✅ Autosave completed');
+        
+        // Verify database save
+        console.log('[LocationProcessor] Verifying database save...');
+        try {
+          const verifyResponse = await fetch(`/api/campaigns/${campaignId}/ads/${currentAdId}/snapshot`);
+          if (verifyResponse.ok) {
+            const verifyData = await verifyResponse.json();
+            console.log('[LocationProcessor] Database verification:', {
+              hasLocationSection: !!verifyData.setup_snapshot?.location,
+              locationCount: verifyData.setup_snapshot?.location?.locations?.length || 0,
+              locations: verifyData.setup_snapshot?.location?.locations || []
+            });
+          } else {
+            console.warn('[LocationProcessor] Could not verify database save:', verifyResponse.status);
+          }
+        } catch (verifyError) {
+          console.warn('[LocationProcessor] Database verification failed:', verifyError);
+        }
         
         // Show success toast
         const locationNames = validLocations.map(l => l.name).join(', ');
@@ -486,8 +537,12 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
             failedCount: input.locations.length - validLocations.length,
           },
         });
+        
+        console.log('[LocationProcessor] ========== SUCCESS ==========');
       } catch (error) {
+        console.error('[LocationProcessor] ========== ERROR ==========');
         console.error('[LocationProcessor] Failed to add locations:', error);
+        console.error('[LocationProcessor] Error stack:', error instanceof Error ? error.stack : 'N/A');
         updateLocationStatus('error');
         toast.error('Failed to save location data');
         throw error;
@@ -838,33 +893,6 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
     window.addEventListener('requestLocationSetup', handleLocationSetupRequest);
     return () => window.removeEventListener('requestLocationSetup', handleLocationSetupRequest);
   }, [status, startLocationSetup, stop, setMessages]);
-
-  // Process location tool calls (one-time processing with idempotency)
-  useEffect(() => {
-    messages.forEach((msg) => {
-      const parts = (msg as { parts?: MessagePart[] }).parts || [];
-
-      parts.forEach((part) => {
-        if (
-          part.type === 'tool-call' &&
-          (part as { toolName?: string }).toolName === 'locationTargeting'
-        ) {
-          const callId = (part as { toolCallId?: string }).toolCallId;
-          const input = (part as { input?: LocationToolInput }).input;
-
-          // RELAXED DETECTION: Process if has callId and input, regardless of state
-          // Only check idempotency via processedLocationCalls ref
-          if (
-            callId &&
-            input &&
-            !processedLocationCalls.current.has(callId)
-          ) {
-            processLocationToolCall(callId, input);
-          }
-        }
-      });
-    });
-  }, [messages, processLocationToolCall]);
 
   // Listen for ad edit events from preview panel
   useEffect(() => {

@@ -111,22 +111,30 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   }, [currentAd?.id, campaign?.id])
 
   const addLocations = useCallback(async (newLocations: Location[], shouldMerge: boolean = true) => {
+    console.log('[LocationContext] ========== addLocations START ==========');
+    console.log('[LocationContext] New locations count:', newLocations.length);
+    console.log('[LocationContext] New locations:', JSON.stringify(newLocations.map(l => ({
+      name: l.name,
+      coordinates: l.coordinates,
+      type: l.type,
+      mode: l.mode
+    })), null, 2));
+    console.log('[LocationContext] Should merge:', shouldMerge);
+    console.log('[LocationContext] Current state:', {
+      currentCount: locationState.locations.length,
+      status: locationState.status
+    });
+    console.log('[LocationContext] CurrentAd ID:', currentAd?.id);
+    
     if (!newLocations || newLocations.length === 0) {
-      console.error('[LocationContext] Empty locations array');
-      return;
+      console.error('[LocationContext] ❌ Empty locations array');
+      throw new Error('Cannot add empty locations');
     }
     
     if (!currentAd?.id) {
-      console.error('[LocationContext] No current ad - cannot save');
-      return;
+      console.error('[LocationContext] ❌ No current ad');
+      throw new Error('No current ad selected');
     }
-    
-    console.log('[LocationContext] Adding locations (DB-first):', {
-      adId: currentAd.id,
-      newCount: newLocations.length,
-      mode: shouldMerge ? 'ADD/merge' : 'REPLACE',
-      currentCount: locationState.locations.length
-    });
     
     try {
       // Calculate final locations OUTSIDE setState
@@ -148,16 +156,32 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         finalLocations = newLocations;
       }
       
-      console.log('[LocationContext] Final location count:', finalLocations.length);
+      console.log('[LocationContext] Final locations calculated:', finalLocations.length);
+      console.log('[LocationContext] Final locations:', finalLocations.map(l => ({
+        name: l.name,
+        coordinates: l.coordinates,
+        mode: l.mode
+      })));
       
-      // Update local state (autosave triggered by caller)
-      setLocationState({
-        locations: finalLocations,
+      // Create new state object with deep copy to force React re-render
+      const newState: LocationState = {
+        locations: finalLocations.map(loc => ({ ...loc })), // Deep copy
         status: 'completed',
         errorMessage: undefined
+      };
+      
+      console.log('[LocationContext] Setting new state...');
+      setLocationState(newState);
+      
+      // Force synchronous state flush
+      await new Promise(resolve => {
+        setTimeout(() => {
+          console.log('[LocationContext] State should be updated now');
+          resolve(true);
+        }, 100);
       });
       
-      console.log('[LocationContext] ✅ Local state synchronized with database');
+      console.log('[LocationContext] ========== addLocations SUCCESS ==========');
       
     } catch (error) {
       console.error('[LocationContext] ❌ Database write failed:', error);

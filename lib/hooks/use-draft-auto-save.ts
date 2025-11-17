@@ -66,7 +66,22 @@ export function useDraftAutoSave(
     }
     
     const doSave = async () => {
+      console.log('[DraftAutoSave] ========== doSave START ==========');
+      console.log('[DraftAutoSave] Campaign ID:', campaignId);
+      console.log('[DraftAutoSave] Ad ID:', adId);
+      console.log('[DraftAutoSave] Enabled:', enabled);
+      
       const contexts = contextsRef.current
+      
+      console.log('[DraftAutoSave] Location state from ref:', {
+        count: contexts.locationState.locations.length,
+        locations: contexts.locationState.locations.map(l => ({
+          name: l.name,
+          coordinates: l.coordinates,
+          type: l.type,
+          mode: l.mode
+        }))
+      });
       
       try {
         const sections: Record<string, unknown> = {}
@@ -100,9 +115,13 @@ export function useDraftAutoSave(
         }
         
         if (contexts.locationState.locations.length > 0) {
+          console.log('[DraftAutoSave] Adding location section with', contexts.locationState.locations.length, 'locations');
           sections.location = {
             locations: contexts.locationState.locations
           }
+          console.log('[DraftAutoSave] Location data to save:', JSON.stringify(sections.location, null, 2));
+        } else {
+          console.warn('[DraftAutoSave] ⚠️ No locations to save - locationState.locations is empty');
         }
         
         if (contexts.budgetState.dailyBudget && contexts.budgetState.dailyBudget > 0) {
@@ -125,7 +144,9 @@ export function useDraftAutoSave(
           return // No changes
         }
         
-        console.log('[DraftAutoSave] Saving sections:', Object.keys(sections))
+        console.log('[DraftAutoSave] Sections to save:', Object.keys(sections))
+        console.log('[DraftAutoSave] Making PATCH request to:', `/api/campaigns/${campaignId}/ads/${adId}/snapshot`);
+        console.log('[DraftAutoSave] Request body:', JSON.stringify(sections, null, 2));
         
         const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/snapshot`, {
           method: 'PATCH',
@@ -133,19 +154,28 @@ export function useDraftAutoSave(
           body: JSON.stringify(sections),
         })
         
+        console.log('[DraftAutoSave] Response status:', response.status);
+        
         if (response.ok) {
+          const responseData = await response.json();
+          console.log('[DraftAutoSave] Response data:', JSON.stringify(responseData, null, 2));
+          
           lastSaveRef.current = currentSignature
-          console.log('[DraftAutoSave] ✅ Saved successfully')
+          console.log('[DraftAutoSave] ✅ Saved successfully');
           
           // Reload currentAd to refresh completed_steps
           await reloadAd()
+          console.log('[DraftAutoSave] ✅ Reloaded ad');
         } else {
           const errorText = await response.text()
-          console.error('[DraftAutoSave] Failed:', response.status, errorText)
+          console.error('[DraftAutoSave] ❌ Failed:', response.status, errorText)
         }
       } catch (error) {
-        console.error('[DraftAutoSave] Error:', error)
+        console.error('[DraftAutoSave] ❌ Error:', error)
+        console.error('[DraftAutoSave] Error stack:', error instanceof Error ? error.stack : 'N/A')
       }
+      
+      console.log('[DraftAutoSave] ========== doSave END ==========');
     }
     
     if (immediate) {
