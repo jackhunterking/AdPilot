@@ -108,15 +108,17 @@ function storageToMessage(stored: MessageRow): UIMessage {
       
       // For tool-specific parts (tool-addLocations, tool-generateImage, etc.)
       // Keep them if they have EITHER:
-      // 1. An output property (where results are stored)
-      // 2. A result property (legacy/alternative storage)
-      // 3. A state indicating completion (output-available, output-error)
+      // 1. An output property (client-executed, result data)
+      // 2. A result property (server-executed, result data)
+      // 3. An input property (tool call with input data - can render from input)
+      // 4. A state indicating completion (output-available, output-error)
       const hasOutput = (part as { output?: unknown }).output !== undefined;
       const hasResult = (part as { result?: unknown }).result !== undefined;
+      const hasInput = (part as { input?: unknown }).input !== undefined;
       const state = (part as { state?: unknown }).state;
       const hasCompletionState = state === 'output-available' || state === 'output-error';
       
-      if (hasOutput || hasResult || hasCompletionState) {
+      if (hasOutput || hasResult || hasInput || hasCompletionState) {
         return true;
       }
       
