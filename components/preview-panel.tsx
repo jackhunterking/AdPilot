@@ -29,8 +29,10 @@ import { newEditSession } from "@/lib/utils/edit-session"
 // Removed two-step Meta connect flow; using single summary card
 import { MetaConnectCard } from "@/components/meta/MetaConnectCard"
 import { useCampaignContext } from "@/lib/context/campaign-context"
+import { useCurrentAd } from "@/lib/context/current-ad-context"
 import type { Database } from "@/lib/supabase/database.types"
 import { metaStorage } from "@/lib/meta/storage"
+import { toast } from "sonner"
 import { CollapsibleSection } from "@/components/launch/collapsible-section"
 import { SectionEditModal } from "@/components/launch/section-edit-modal"
 import { PublishBudgetCard } from "@/components/launch/publish-budget-card"
@@ -54,6 +56,7 @@ export function PreviewPanel() {
   const { adContent, setAdContent, isPublished, setIsPublished, selectedImageIndex, selectedCreativeVariation, setSelectedCreativeVariation, setSelectedImageIndex } = useAdPreview()
   const { budgetState, isComplete, setDailyBudget } = useBudget()
   const { campaign } = useCampaignContext()
+  const { currentAd } = useCurrentAd()
   const { locationState } = useLocation()
   const { goalState } = useGoal()
   const { destinationState } = useDestination()
@@ -496,7 +499,7 @@ export function PreviewPanel() {
     }
   }, [handleSaveDraft, handlePublish])
 
-  const handleSelectAd = (index: number) => {
+  const handleSelectAd = async (index: number) => {
     // Toggle selection against persisted selectedImageIndex
     if (selectedImageIndex === index) {
       setSelectedCreativeVariation(null)
@@ -506,8 +509,44 @@ export function PreviewPanel() {
     const variation = adVariations[index]
     if (!variation) return
     
+    // Update local state first (immediate UI feedback)
     setSelectedCreativeVariation(variation)
     setSelectedImageIndex(index)
+    
+    // Save to backend immediately (don't wait for auto-save)
+    if (campaign?.id && currentAd?.id) {
+      try {
+        const response = await fetch(
+          `/api/campaigns/${campaign.id}/ads/${currentAd.id}/snapshot`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              creative: {
+                imageVariations: adContent?.imageVariations || [],
+                selectedImageIndex: index,
+                format: 'feed'
+              }
+            })
+          }
+        )
+
+        if (!response.ok) {
+          console.error('[Creative] Failed to save selection:', await response.text())
+          toast.error('Failed to save creative selection')
+          return
+        }
+
+        const data = await response.json()
+        console.log('[Creative] ✅ Saved selection immediately', {
+          selectedIndex: index,
+          completedSteps: data.completed_steps
+        })
+      } catch (error) {
+        console.error('[Creative] Error saving selection:', error)
+        toast.error('Network error - selection not saved')
+      }
+    }
   }
 
   const handleEditAd = (index: number) => {
@@ -1293,10 +1332,13 @@ export function PreviewPanel() {
     }))
   }, [selectedImageIndex, adCopyState.status, destinationState.status, locationState.status, isMetaConnectionComplete, isComplete, adsContent, launchContent])
 
+  // Get completed steps from current ad
+  const completedSteps = (currentAd?.completed_steps as string[]) || []
+
   return (
     <div className="flex flex-1 h-full flex-col relative min-h-0">
       <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
-        <CampaignStepper steps={steps} campaignId={campaign?.id} />
+        <CampaignStepper steps={steps} campaignId={campaign?.id} completedSteps={completedSteps} />
       </div>
       
       {/* Publish Flow Dialog */}

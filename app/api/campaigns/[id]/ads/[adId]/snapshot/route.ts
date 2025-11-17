@@ -9,6 +9,55 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, supabaseServer } from '@/lib/supabase/server'
 import { adDataService } from '@/lib/services/ad-data-service'
 
+/**
+ * Calculate which wizard steps are complete based on snapshot data
+ * Returns array of completed step IDs: ["ads", "copy", "destination", "location"]
+ */
+function calculateCompletedSteps(snapshot: {
+  creative?: { imageVariations?: string[]; selectedImageIndex?: number | null };
+  copy?: { variations?: unknown[]; selectedCopyIndex?: number | null };
+  destination?: { type?: string } | null;
+  location?: { locations?: unknown[] };
+  budget?: { dailyBudget?: number } | null;
+}): string[] {
+  const completedSteps: string[] = [];
+
+  // Creative step complete if: has variations AND selected one
+  if (
+    Array.isArray(snapshot.creative?.imageVariations) &&
+    snapshot.creative.imageVariations.length > 0 &&
+    snapshot.creative.selectedImageIndex != null &&
+    snapshot.creative.selectedImageIndex >= 0
+  ) {
+    completedSteps.push('ads');
+  }
+
+  // Copy step complete if: has variations AND selected one
+  if (
+    Array.isArray(snapshot.copy?.variations) &&
+    snapshot.copy.variations.length > 0 &&
+    snapshot.copy.selectedCopyIndex != null &&
+    snapshot.copy.selectedCopyIndex >= 0
+  ) {
+    completedSteps.push('copy');
+  }
+
+  // Destination step complete if: has destination type
+  if (snapshot.destination && snapshot.destination.type) {
+    completedSteps.push('destination');
+  }
+
+  // Location step complete if: has at least one location
+  if (
+    Array.isArray(snapshot.location?.locations) &&
+    snapshot.location.locations.length > 0
+  ) {
+    completedSteps.push('location');
+  }
+
+  return completedSteps;
+}
+
 // GET /api/campaigns/[id]/ads/[adId]/snapshot - Build snapshot from normalized tables
 export async function GET(
   request: NextRequest,
@@ -46,9 +95,13 @@ export async function GET(
     // Build snapshot from normalized data
     const snapshot = adDataService.buildSnapshot(adData)
 
+    // Calculate completed steps
+    const completedSteps = calculateCompletedSteps(snapshot)
+
     return NextResponse.json({ 
       success: true,
-      setup_snapshot: snapshot 
+      setup_snapshot: snapshot,
+      completed_steps: completedSteps // NEW: Return completed steps
     })
   } catch (error) {
     console.error('[GET snapshot] Unexpected error:', error)
@@ -239,25 +292,37 @@ export async function PATCH(
         }, { onConflict: 'ad_id' })
     }
 
-    // Update ad's updated_at timestamp
+    // Calculate completed steps from saved snapshot data
+    const adData = await adDataService.getCompleteAdData(adId)
+    const snapshot = adData ? adDataService.buildSnapshot(adData) : null
+    const completedSteps = snapshot ? calculateCompletedSteps(snapshot) : []
+
+    // Update ad's updated_at timestamp AND completed_steps
     await supabaseServer
       .from('ads')
-      .update({ updated_at: new Date().toISOString() })
+      .update({ 
+        updated_at: new Date().toISOString(),
+        completed_steps: completedSteps
+      })
       .eq('id', adId)
 
-    console.log('[PATCH snapshot] Snapshot updated successfully')
+    console.log('[PATCH snapshot] Snapshot updated successfully', {
+      completedSteps,
+      sectionsUpdated: Object.keys(body)
+    })
 
-    // Fetch and return updated snapshot
-    const adData = await adDataService.getCompleteAdData(adId)
-    if (!adData) {
+    // Fetch and return updated snapshot with completed steps
+    const updatedAdData = await adDataService.getCompleteAdData(adId)
+    if (!updatedAdData) {
       return NextResponse.json({ error: 'Failed to fetch updated ad' }, { status: 500 })
     }
 
-    const snapshot = adDataService.buildSnapshot(adData)
+    const updatedSnapshot = adDataService.buildSnapshot(updatedAdData)
 
     return NextResponse.json({
       success: true,
-      setup_snapshot: snapshot
+      setup_snapshot: updatedSnapshot,
+      completed_steps: completedSteps // NEW: Return completed steps to client
     })
   } catch (error) {
     console.error('[PATCH snapshot] Unexpected error:', error)

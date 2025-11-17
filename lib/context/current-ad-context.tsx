@@ -24,6 +24,7 @@ interface Ad {
   selected_copy_id: string | null
   meta_ad_id: string | null
   destination_type: string | null
+  completed_steps?: unknown // JSONB array of completed step IDs from database
   created_at: string
   updated_at: string
 }

@@ -10,7 +10,9 @@ import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { useGeneration } from "@/lib/context/generation-context"
 import { newEditSession } from "@/lib/utils/edit-session"
 import { useCampaignContext } from "@/lib/context/campaign-context"
+import { useCurrentAd } from "@/lib/context/current-ad-context"
 import { useGoal } from "@/lib/context/goal-context"
+import { toast } from "sonner"
 
 export function AdCopySelectionCanvas() {
   const { adCopyState, setSelectedCopyIndex, getActiveVariations, setCustomCopyVariations, setIsGeneratingCopy } = useAdCopy()
@@ -18,6 +20,7 @@ export function AdCopySelectionCanvas() {
   const { adContent, selectedCreativeVariation, loadingVariations, selectedImageIndex } = useAdPreview()
   const { isGenerating, setIsGenerating, setGenerationMessage } = useGeneration()
   const { campaign } = useCampaignContext()
+  const { currentAd } = useCurrentAd()
   const { goalState } = useGoal()
   const [activeFormat, setActiveFormat] = useState("feed")
   const [showReelMessage, setShowReelMessage] = useState(false)
@@ -57,13 +60,54 @@ export function AdCopySelectionCanvas() {
     setTimeout(() => setShowReelMessage(false), 2500)
   }
 
-  const handleSelectCopy = (index: number) => {
-    // Toggle selection identical to creative step
+  const handleSelectCopy = async (index: number) => {
+    // Toggle selection (same logic as before)
     if (adCopyState.selectedCopyIndex === index) {
       setSelectedCopyIndex(null)
       return
     }
+    
+    // Update local state first (immediate UI feedback)
     setSelectedCopyIndex(index)
+    
+    // Save to backend immediately
+    if (campaign?.id && currentAd?.id) {
+      try {
+        const activeVariations = getActiveVariations()
+        const response = await fetch(
+          `/api/campaigns/${campaign.id}/ads/${currentAd.id}/snapshot`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              copy: {
+                variations: activeVariations.map(v => ({
+                  headline: v.headline,
+                  primaryText: v.primaryText,
+                  description: v.description || '',
+                  cta: adContent?.cta || 'Learn More'
+                })),
+                selectedCopyIndex: index
+              }
+            })
+          }
+        )
+
+        if (response.ok) {
+          const data = await response.json()
+          console.log('[AdCopy] ✅ Saved selection immediately', {
+            selectedIndex: index,
+            completedSteps: data.completed_steps
+          })
+        } else {
+          console.error('[AdCopy] Failed to save:', await response.text())
+          toast.error('Failed to save copy selection')
+        }
+      } catch (error) {
+        console.error('[AdCopy] Error saving:', error)
+        toast.error('Network error - selection not saved')
+      }
+    }
   }
 
   const handleEditCopy = (index: number) => {

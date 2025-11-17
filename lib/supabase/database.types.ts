@@ -389,6 +389,7 @@ export type Database = {
         Row: {
           approved_at: string | null
           campaign_id: string
+          completed_steps: Json | null
           created_at: string
           destination_type: string | null
           id: string
@@ -407,6 +408,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           campaign_id: string
+          completed_steps?: Json | null
           created_at?: string
           destination_type?: string | null
           id?: string
@@ -425,6 +427,7 @@ export type Database = {
         Update: {
           approved_at?: string | null
           campaign_id?: string
+          completed_steps?: Json | null
           created_at?: string
           destination_type?: string | null
           id?: string

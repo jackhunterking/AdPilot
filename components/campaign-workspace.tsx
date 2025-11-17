@@ -647,8 +647,25 @@ export function CampaignWorkspace() {
   }, [campaignId, effectiveMode, pathname, router, resetAdPreview, resetAdCopy, clearDestination, clearLocations])
 
   const handleViewAllAds = useCallback(() => {
-    setWorkspaceMode('all-ads')
-  }, [setWorkspaceMode])
+    const navigateToAllAds = () => {
+      setWorkspaceMode('all-ads')
+    }
+    
+    // Check if in build/edit mode with unsaved changes
+    if ((effectiveMode === 'build' || effectiveMode === 'edit') && hasUnsavedChanges) {
+      setPendingNavigation(() => navigateToAllAds)
+      
+      // Use appropriate dialog based on mode
+      const isCreatingNewAd = searchParams.get('newAd') === 'true'
+      if (isCreatingNewAd && effectiveMode === 'build') {
+        setShowCancelNewAdDialog(true)
+      } else {
+        setShowUnsavedDialog(true)
+      }
+    } else {
+      navigateToAllAds()
+    }
+  }, [effectiveMode, hasUnsavedChanges, setWorkspaceMode, searchParams])
   
   // Handler for Save Draft (dispatches event to PreviewPanel)
   const handleSaveDraftRequest = useCallback(() => {

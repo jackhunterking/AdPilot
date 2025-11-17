@@ -53,9 +53,10 @@ const stepHeaders: Record<string, { title: string; subtitle: string; subtext: st
 interface CampaignStepperProps {
   steps: Step[]
   campaignId?: string
+  completedSteps?: string[] // NEW: Backend-driven completion state
 }
 
-export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
+export function CampaignStepper({ steps, campaignId, completedSteps = [] }: CampaignStepperProps) {
   const searchParams = useSearchParams()
   const isNewAd = searchParams.get('newAd') === 'true'
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
@@ -65,7 +66,7 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
   // During hydration many contexts may mark steps as completed at once. We treat
   // that as a restored session and jump to the first incomplete step exactly once.
 
-  // Auto-jump once only for restored sessions (not during live progression)
+  // Auto-jump to first incomplete step on mount
   useEffect(() => {
     if (hasInitializedRef.current) return
 
@@ -77,28 +78,20 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
       return
     }
 
-    const completedCount = steps.filter(s => s.completed).length
-    if (completedCount < 1) return // wait until at least one step reports completed
-
-    // Determine the first incomplete (or last if all done)
-    const firstIncomplete = steps.findIndex(s => !s.completed)
+    // Use backend completedSteps as source of truth
+    // Find first step that's NOT in completedSteps array
+    const firstIncomplete = steps.findIndex(s => !completedSteps.includes(s.id))
     const targetIndex = firstIncomplete === -1 ? steps.length - 1 : firstIncomplete
 
-    // Try sessionStorage fallback to restore exact last seen step for this campaign
-    let initialIndex = targetIndex
-    try {
-      const key = `campaign:${campaignId ?? 'global'}:lastStepId`
-      const savedId = typeof window !== 'undefined' ? window.sessionStorage.getItem(key) : null
-      const savedIndex = savedId ? steps.findIndex(s => s.id === savedId) : -1
-      // Never restore behind the first incomplete step (prefer first incomplete)
-      if (savedIndex >= 0) initialIndex = Math.max(savedIndex, targetIndex)
-    } catch {
-      // no-op: sessionStorage may be unavailable
-    }
+    console.log('[CampaignStepper] Restoring to first incomplete step', {
+      completedSteps,
+      firstIncompleteStep: steps[targetIndex]?.id,
+      targetIndex
+    })
 
-    setCurrentStepIndex(initialIndex)
+    setCurrentStepIndex(targetIndex)
     hasInitializedRef.current = true
-  }, [steps, campaignId, isNewAd])
+  }, [steps, isNewAd, completedSteps])
 
   // Clamp currentStepIndex whenever steps array size or ordering changes
   useEffect(() => {
@@ -107,16 +100,6 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
     }
   }, [steps.length, currentStepIndex])
 
-  // Persist last seen step id in sessionStorage for instant restore on refresh
-  useEffect(() => {
-    try {
-      const key = `campaign:${campaignId ?? 'global'}:lastStepId`
-      const step = steps[currentStepIndex]
-      if (step) window.sessionStorage.setItem(key, step.id)
-    } catch {
-      // ignore write failures (private mode, etc.)
-    }
-  }, [currentStepIndex, steps, campaignId])
 
   // Support external navigation requests (Edit links in summary cards)
   useEffect(() => {
@@ -336,14 +319,14 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
                         <div
                           className={cn(
                             "absolute inset-0 flex items-center justify-center rounded-full border transition-all",
-                            step.completed
+                            completedSteps.includes(step.id) // Use backend completedSteps prop
                               ? "border-green-500 bg-green-500 text-white"
                               : index === currentStepIndex
                               ? "border-yellow-500 bg-yellow-500 text-white"
                               : "border-muted-foreground/20 bg-muted text-muted-foreground"
                           )}
                         >
-                          {step.completed ? (
+                          {completedSteps.includes(step.id) ? ( // Use backend completedSteps prop
                             <Check className="h-4 w-4" />
                           ) : (
                             <AlertTriangle className="h-4 w-4" />
