@@ -23,6 +23,27 @@ export function AdCopySelectionCanvas() {
   const [showReelMessage, setShowReelMessage] = useState(false)
   // Track if generation has been initiated to prevent infinite loop
   const generationInitiatedRef = useRef(false)
+  
+  // Store latest values in refs to prevent listener re-registration
+  const latestValuesRef = useRef({
+    customCopyVariations: adCopyState.customCopyVariations,
+    imageVariations: adContent?.imageVariations,
+    campaignId: campaign?.id,
+    initialPrompt: campaign?.metadata?.initialPrompt,
+    selectedGoal: goalState?.selectedGoal,
+    selectedImageIndex: selectedImageIndex
+  })
+  
+  // Update refs on every render (no useEffect needed)
+  latestValuesRef.current = {
+    customCopyVariations: adCopyState.customCopyVariations,
+    imageVariations: adContent?.imageVariations,
+    campaignId: campaign?.id,
+    initialPrompt: campaign?.metadata?.initialPrompt,
+    selectedGoal: goalState?.selectedGoal,
+    selectedImageIndex: selectedImageIndex
+  }
+  
   // Removed regenerate feature: no regenerating state
 
   const previewFormats = [
@@ -126,7 +147,7 @@ export function AdCopySelectionCanvas() {
     };
     window.addEventListener('adCopyEdited', handler as EventListener);
     return () => window.removeEventListener('adCopyEdited', handler as EventListener);
-  }, [getActiveVariations, setCustomCopyVariations]);
+  }, []); // Empty deps - getActiveVariations and setCustomCopyVariations are stable
 
   // Trigger ad copy generation when entering the 'copy' step
   useEffect(() => {
@@ -134,8 +155,11 @@ export function AdCopySelectionCanvas() {
       const detail = (e as CustomEvent).detail as { stepId?: string } | undefined
       if (detail?.stepId !== 'copy') return
 
-      // Check backend state (already loaded from backend hydration)
-      const hasCustom = Boolean(adCopyState.customCopyVariations && adCopyState.customCopyVariations.length)
+      // Access latest values from ref (not closure)
+      const { customCopyVariations, imageVariations, campaignId, initialPrompt, selectedGoal, selectedImageIndex } = latestValuesRef.current
+
+      // Check backend state
+      const hasCustom = Boolean(customCopyVariations && customCopyVariations.length)
       if (hasCustom) {
         console.log('[AdCopyCanvas] Copy exists in backend, skipping generation')
         return
@@ -146,8 +170,8 @@ export function AdCopySelectionCanvas() {
         return
       }
 
-      const imageUrls = adContent?.imageVariations
-      const hasValidImages = imageUrls && imageUrls.length > 0 && imageUrls.every(url => url && typeof url === 'string' && url.trim().length > 0)
+      const hasValidImages = imageVariations && imageVariations.length > 0 && 
+        imageVariations.every(url => url && typeof url === 'string' && url.trim().length > 0)
       
       if (!hasValidImages) {
         console.log('[AdCopyCanvas] No images, skipping generation')
@@ -155,8 +179,6 @@ export function AdCopySelectionCanvas() {
       }
 
       console.log('[AdCopyCanvas] Starting generation')
-      
-      // Mark generation as initiated
       generationInitiatedRef.current = true
       
       let cancelled = false
@@ -166,23 +188,22 @@ export function AdCopySelectionCanvas() {
       
       ;(async () => {
         try {
-          const selectedImg = (selectedImageIndex != null && adContent?.imageVariations)
-            ? [adContent.imageVariations[selectedImageIndex]]
-            : (adContent?.imageUrl ? [adContent.imageUrl] : imageUrls)
+          const selectedImg = (selectedImageIndex != null && imageVariations)
+            ? [imageVariations[selectedImageIndex]]
+            : imageVariations
           const res = await fetch('/api/ad-copy/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              campaignId: campaign?.id,
-              goalType: goalState?.selectedGoal || null,
+              campaignId: campaignId,
+              goalType: selectedGoal || null,
               imageUrls: selectedImg,
-              businessContext: campaign?.metadata?.initialPrompt,
+              businessContext: initialPrompt,
             }),
           })
           if (!res.ok) throw new Error(await res.text())
           const data = await res.json()
           if (!cancelled && data?.variations?.length) {
-            // Only take the first 3 variations to ensure consistency
             setCustomCopyVariations(data.variations.slice(0, 3))
           }
         } catch (e) {
@@ -200,7 +221,7 @@ export function AdCopySelectionCanvas() {
 
     window.addEventListener('stepChanged', handler as EventListener)
     return () => window.removeEventListener('stepChanged', handler as EventListener)
-  }, [adCopyState.customCopyVariations, adContent?.imageVariations, campaign?.id, campaign?.metadata?.initialPrompt, goalState?.selectedGoal, selectedImageIndex, setCustomCopyVariations, setGenerationMessage, setIsGenerating, setIsGeneratingCopy])
+  }, [setCustomCopyVariations, setGenerationMessage, setIsGenerating, setIsGeneratingCopy])
 
   // (removed unused GeneratingOverlay)
 

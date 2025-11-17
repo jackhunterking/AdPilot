@@ -61,6 +61,7 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward')
   const hasInitializedRef = useRef(false)
+  const lastDispatchedStepRef = useRef<string | null>(null)
   // During hydration many contexts may mark steps as completed at once. We treat
   // that as a restored session and jump to the first incomplete step exactly once.
 
@@ -203,6 +204,14 @@ export function CampaignStepper({ steps, campaignId }: CampaignStepperProps) {
   useEffect(() => {
     if (!currentStep || typeof window === 'undefined') return
     
+    // Only dispatch if step ID actually changed (prevent duplicate events)
+    if (lastDispatchedStepRef.current === currentStep.id) {
+      return
+    }
+    
+    lastDispatchedStepRef.current = currentStep.id
+    
+    console.log('[CampaignStepper] Step changed to:', currentStep.id)
     window.dispatchEvent(new CustomEvent('stepChanged', {
       detail: { 
         stepId: currentStep.id, 
