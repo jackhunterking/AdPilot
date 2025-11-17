@@ -243,18 +243,19 @@ export function PreviewPanel() {
     }
   }, [campaign?.id, budgetState.selectedAdAccount])
 
-  // Get completed steps from current ad (database source of truth)
-  const completedSteps = (currentAd?.completed_steps as string[]) || []
-  
-  // Check if all steps are complete
-  const allStepsComplete = 
-    completedSteps.includes("ads") &&
-    completedSteps.includes("copy") &&
-    completedSteps.includes("destination") &&
-    completedSteps.includes("location") &&
-    isMetaConnectionComplete &&
-    hasPaymentMethod &&
-    isComplete()
+  // Check if all steps are complete (will be computed inside useMemo)
+  const allStepsComplete = useMemo(() => {
+    const completedSteps = (currentAd?.completed_steps as string[]) || []
+    return (
+      completedSteps.includes("ads") &&
+      completedSteps.includes("copy") &&
+      completedSteps.includes("destination") &&
+      completedSteps.includes("location") &&
+      isMetaConnectionComplete &&
+      hasPaymentMethod &&
+      isComplete()
+    )
+  }, [currentAd?.completed_steps, isMetaConnectionComplete, hasPaymentMethod, isComplete])
 
   /**
    * Handles save draft action - saves ad without publishing
@@ -452,7 +453,13 @@ export function PreviewPanel() {
         })
         
         // Reload ad to update currentAd.completed_steps from backend
-        await reloadAd()
+        console.log('[Creative] Calling reloadAd()...', { currentAdId: currentAd?.id })
+        try {
+          await reloadAd()
+          console.log('[Creative] ✅ reloadAd() completed successfully')
+        } catch (error) {
+          console.error('[Creative] ❌ reloadAd() failed:', error)
+        }
       } catch (error) {
         console.error('[Creative] Error saving selection:', error)
         toast.error('Network error - selection not saved')
@@ -1188,6 +1195,16 @@ export function PreviewPanel() {
 
   // Conditionally filter steps based on whether creating a variant
   const steps = useMemo(() => {
+    // Compute completedSteps INSIDE useMemo for proper dependency tracking
+    const completedSteps = (currentAd?.completed_steps as string[]) || []
+    
+    logger.debug('PreviewPanel', 'Computing steps array', {
+      completedSteps,
+      currentAdId: currentAd?.id,
+      hasCompletedAds: completedSteps.includes("ads"),
+      hasCompletedCopy: completedSteps.includes("copy")
+    })
+    
     const allSteps = [
       {
         id: "ads",
@@ -1241,8 +1258,11 @@ export function PreviewPanel() {
       ...step,
       number: index + 1,
     }))
-  }, [completedSteps, allStepsComplete, adsContent, launchContent])
+  }, [currentAd, allStepsComplete, adsContent, launchContent])
 
+  // Extract completedSteps for passing to CampaignStepper
+  const completedSteps = (currentAd?.completed_steps as string[]) || []
+  
   return (
     <div className="flex flex-1 h-full flex-col relative min-h-0">
       <div className="flex-1 h-full overflow-hidden bg-muted border border-border rounded-tl-lg min-h-0">
