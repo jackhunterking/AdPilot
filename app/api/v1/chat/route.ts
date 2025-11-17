@@ -1234,13 +1234,29 @@ Example: If previous setup had "Ontario, Toronto (excluded)" and user removed To
               // Complete tools have either:
               // 1. result property (server-executed tools)
               // 2. output property (client-executed tools)
+              // 3. state indicating completion (AI SDK v5 pattern)
               // Incomplete tools only have toolCallId (pending execution)
-              const incompleteTools = toolParts.filter((p) => 
-                p.toolCallId &&
-                !p.result &&
-                !p.output &&
-                p.type !== 'tool-result'
-              );
+              const incompleteTools = toolParts.filter((p) => {
+                // Must have toolCallId
+                if (!p.toolCallId) return false;
+                
+                // tool-result parts are always complete
+                if (p.type === 'tool-result') return false;
+                
+                // Check if part has completion indicators:
+                // 1. Has result property (server-executed)
+                if (p.result !== undefined) return false;
+                
+                // 2. Has output property (client-executed)
+                if (p.output !== undefined) return false;
+                
+                // 3. Has completion state (AI SDK v5 pattern)
+                const state = (p as { state?: string }).state;
+                if (state === 'output-available' || state === 'output-error') return false;
+                
+                // If none of above, it's incomplete
+                return true;
+              });
               
               if (incompleteTools.length > 0) {
                 console.log(`[SAVE] Filtering message with incomplete tool invocations ${msg.id}`);
