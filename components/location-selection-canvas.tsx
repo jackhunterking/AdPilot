@@ -80,8 +80,22 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
         names: locations.map(l => l.name)
       });
       
+      // Add required 'id' field to each location and ensure proper types
+      const locationsWithIds = locations.map(loc => ({
+        id: `loc-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        name: loc.name,
+        coordinates: loc.coordinates,
+        radius: loc.radius,
+        type: loc.type as "radius" | "city" | "region" | "country",
+        mode: loc.mode as "include" | "exclude",
+        bbox: loc.bbox,
+        geometry: loc.geometry as { type: string; coordinates: number[] | number[][] | number[][][] | number[][][][] } | undefined,
+        key: loc.key,
+        country_code: loc.country_code
+      }));
+      
       // Update context (triggers autosave)
-      addLocations(locations, true);
+      addLocations(locationsWithIds, true);
     };
     
     window.addEventListener('locationUpdated', handleLocationUpdated);
