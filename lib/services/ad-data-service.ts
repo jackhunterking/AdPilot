@@ -512,7 +512,16 @@ export const adDataService = {
 
   /**
    * Build snapshot object for frontend compatibility
-   * Converts normalized data back to the old setup_snapshot format
+   * ARCHITECTURE NOTE: This builds a RUNTIME snapshot from normalized database tables.
+   * NO setup_snapshot column exists in database - this is an in-memory transformation.
+   * 
+   * Data Flow:
+   * 1. Database: Normalized tables (ad_creatives, ad_copy_variations, ad_target_locations, etc.)
+   * 2. This function: Reads normalized data → builds snapshot object
+   * 3. API returns: Ephemeral snapshot (not stored in database)
+   * 4. Frontend: Consumes snapshot, updates tables via PATCH /snapshot endpoint
+   * 
+   * Single Source of Truth: ad_target_locations TABLE (not JSON column)
    */
   buildSnapshot(adData: CompleteAdData) {
     const selectedCreative = adData.creatives.find(
@@ -547,17 +556,17 @@ export const adDataService = {
         })),
         selectedCopyIndex: selectedCopyIndex >= 0 ? selectedCopyIndex : 0,
       },
+      // ARCHITECTURE: Built from ad_target_locations TABLE (source of truth)
       location: {
         locations: adData.locations.map((l) => ({
           id: l.meta_location_key || `loc-${l.id}`,
           name: l.location_name,
           type: l.location_type,
-          coordinates: [l.longitude || 0, l.latitude || 0] as [number, number], // FIXED: [lng, lat] format
+          coordinates: [l.longitude || 0, l.latitude || 0] as [number, number],
           radius: l.radius_km ? l.radius_km / 1.60934 : undefined, // Convert km back to miles
           mode: l.inclusion_mode as 'include' | 'exclude',
           key: l.meta_location_key,
           // Note: bbox and geometry not stored in DB, will need re-geocoding on load
-          // This is acceptable as frontend will handle it
         })),
       },
       destination: adData.destination

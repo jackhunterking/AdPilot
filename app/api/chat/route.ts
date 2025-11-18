@@ -1357,25 +1357,18 @@ Example: If previous setup had "Ontario, Toronto (excluded)" and user removed To
             
             const parts = (msg.parts as Array<{ type: string; text?: string }>) || [];
             
-            // Keep messages that have:
-            // 1. At least one text part with content, OR
-            // 2. Metadata (like location confirmations), OR  
-            // 3. Tool parts (even empty text is OK if metadata exists)
-            
+            // Assistant messages MUST have at least one text part with actual content
+            // No empty text parts, no metadata-only messages
             const hasTextContent = parts.some((p) => 
               p.type === 'text' && p.text && p.text.trim().length > 0
             );
             
-            const hasMetadata = (msg as unknown as { metadata?: Record<string, unknown> }).metadata && 
-              Object.keys((msg as unknown as { metadata?: Record<string, unknown> }).metadata || {}).length > 0;
-            
-            if (hasTextContent || hasMetadata) {
-              return true;
+            if (!hasTextContent) {
+              console.log(`[SAVE] Filtering assistant message without text content: ${msg.id}`);
+              return false;
             }
             
-            // Filter only truly empty assistant messages
-            console.log(`[SAVE] Filtering empty assistant message ${msg.id}`);
-            return false;
+            return true;
           });
           
           console.log(`[SAVE] Filtered ${finalMessages.length} → ${validMessages.length} valid messages`);

@@ -15,18 +15,15 @@ function isValidUUID(str: string): boolean {
 }
 
 // Convert DB storage to UIMessage (following AI SDK docs)
-// Now restores complete UIMessage format from storage
-function dbToUIMessage(stored: MessageRow): UIMessage {
+// Restores complete UIMessage format from storage
+function dbToUIMessage(stored: MessageRow): UIMessage | null {
   let parts = sanitizeParts(stored.parts as unknown);
   
-  // Safety fallback: If parts is empty but we have content, create a text part
-  // This ensures messages always have displayable content
-  if (parts.length === 0 && stored.content) {
-    console.log(`[SERVER] Creating text part from content for message ${stored.id}`);
-    parts = [{
-      type: 'text',
-      text: stored.content
-    }];
+  // If parts is empty after sanitization, skip this message (data integrity issue)
+  // Don't create fallback text - let broken messages fail visibly
+  if (parts.length === 0) {
+    console.error(`[SERVER] Skipping message with empty parts: ${stored.id}`);
+    return null;
   }
   
   const toolInv: unknown = stored.tool_invocations as unknown;
@@ -38,14 +35,9 @@ function dbToUIMessage(stored: MessageRow): UIMessage {
     ...(hasToolInvocations ? { toolInvocations: toolInv } : {})
   } as UIMessage;
   
-  const toolPartsCount = Array.isArray(uiMessage.parts)
-    ? uiMessage.parts.filter((p) => typeof (p as { type?: unknown })?.type === 'string' && String((p as { type?: unknown }).type).startsWith('tool-')).length
-    : 0;
-
   console.log(`[SERVER] Converted message ${stored.id}:`, {
     role: uiMessage.role,
-    partsCount: uiMessage.parts?.length || 0,
-    toolPartsCount
+    partsCount: uiMessage.parts?.length || 0
   });
   
   return uiMessage;
@@ -161,7 +153,10 @@ export default async function CampaignPage({
     }
   }
 
-  const messages: UIMessage[] = (dbMessages || []).map(dbToUIMessage);
+  // Convert messages, filter out any broken ones (null return from dbToUIMessage)
+  const messages: UIMessage[] = (dbMessages || [])
+    .map(dbToUIMessage)
+    .filter((msg): msg is UIMessage => msg !== null);
   
   console.log(`[SERVER] Loaded ${messages.length} messages`);
 

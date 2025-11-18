@@ -88,63 +88,7 @@ export interface AdSpecificData {
   }
 }
 
-/**
- * Get campaign-level shared data from database
- */
-export async function getCampaignSharedData(
-  campaignId: string
-): Promise<CampaignSharedData | null> {
-  // DEPRECATED: campaign_states table removed - this function returns null
-  // Use specific campaign/ads APIs instead
-  console.log(`[${CONTEXT}] DEPRECATED - getCampaignSharedData no longer supported`)
-  return null
-}
-
-/**
- * Get ad-specific data from database
- */
-export async function getAdSpecificData(adId: string): Promise<AdSpecificData | null> {
-  // DEPRECATED: setup_snapshot column removed - this function returns null
-  // Use AdDataService instead
-  console.log(`[${CONTEXT}] DEPRECATED - getAdSpecificData no longer supported`)
-  return null
-}
-
-/**
- * Get complete data for an ad (campaign-level + ad-level)
- */
-export async function getCompleteAdData(adId: string): Promise<{
-  campaign: CampaignSharedData | null
-  ad: AdSpecificData | null
-} | null> {
-  try {
-    console.log(`[${CONTEXT}] Fetching complete ad data`, { adId })
-
-    // First get ad to know campaign ID
-    const adData = await getAdSpecificData(adId)
-
-    if (!adData) {
-      console.error(`[${CONTEXT}] Ad not found`, { adId })
-      return null
-    }
-
-    // Then get campaign shared data
-    const campaignData = await getCampaignSharedData(adData.campaignId)
-
-    console.log(`[${CONTEXT}] ✅ Complete ad data loaded`, {
-      adId,
-      campaignId: adData.campaignId,
-    })
-
-    return {
-      campaign: campaignData,
-      ad: adData,
-    }
-  } catch (err) {
-    console.error(`[${CONTEXT}] Exception loading complete ad data`, err)
-    return null
-  }
-}
+// Deprecated functions removed - use AdDataService.getCompleteAdData() instead
 
 /**
  * Validate data hierarchy (ensure proper separation)
@@ -185,31 +129,5 @@ export function validateDataHierarchy(data: {
   }
 }
 
-/**
- * Update campaign-level shared data
- */
-export async function updateCampaignSharedData(
-  campaignId: string,
-  updates: {
-    goal?: Partial<CampaignSharedData['goal']>
-    budget?: Partial<CampaignSharedData['budget']>
-    aiConversationId?: string
-  }
-): Promise<boolean> {
-  // DEPRECATED: campaign_states table removed - use specific APIs instead
-  console.log(`[${CONTEXT}] DEPRECATED - updateCampaignSharedData no longer supported`)
-  return false
-}
-
-/**
- * Update ad-specific data (via setup_snapshot)
- */
-export async function updateAdSpecificData(
-  adId: string,
-  updates: Partial<SetupSnapshot>
-): Promise<boolean> {
-  // DEPRECATED: setup_snapshot column removed - use specific ad APIs instead
-  console.log(`[${CONTEXT}] DEPRECATED - updateAdSpecificData no longer supported`)
-  return false
-}
+// Deprecated update functions removed - use /api/campaigns/[id]/ads/[adId]/snapshot PATCH endpoint
 

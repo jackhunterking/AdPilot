@@ -217,6 +217,8 @@ export async function PATCH(
       }
     }
 
+    // ARCHITECTURE: Save to ad_target_locations TABLE (single source of truth)
+    // NO setup_snapshot column - locations stored in normalized table
     if (body.location) {
       const locationData = body.location
       
@@ -224,7 +226,8 @@ export async function PATCH(
         return NextResponse.json({ error: 'Location data must include locations array' }, { status: 400 })
       }
       
-      console.log('[PATCH snapshot] Saving locations:', {
+      console.log('[PATCH snapshot] Saving to ad_target_locations table:', {
+        adId,
         count: locationData.locations.length,
         sample: locationData.locations[0]
       })
@@ -246,7 +249,7 @@ export async function PATCH(
         }
       }
       
-      // Transaction: delete old + insert new
+      // Transaction: delete old + insert new (ensures consistency)
       const { error: deleteError } = await supabaseServer
         .from('ad_target_locations')
         .delete()
@@ -261,18 +264,16 @@ export async function PATCH(
         const locationInserts = locationData.locations.map((loc: {
           name: string
           type: string
-          coordinates?: [number, number] // [lng, lat] format
+          coordinates?: [number, number]
           radius?: number
           mode?: string
           key?: string
-          bbox?: [number, number, number, number]
-          geometry?: unknown
         }) => ({
           ad_id: adId,
           location_name: loc.name,
           location_type: loc.type,
-          longitude: loc.coordinates?.[0] || null, // FIXED: lng is [0]
-          latitude: loc.coordinates?.[1] || null,  // FIXED: lat is [1]
+          longitude: loc.coordinates?.[0] || null,
+          latitude: loc.coordinates?.[1] || null,
           radius_km: loc.radius ? loc.radius * 1.60934 : null, // Convert miles to km
           inclusion_mode: loc.mode || 'include',
           meta_location_key: loc.key || null
@@ -286,12 +287,12 @@ export async function PATCH(
         if (insertError) {
           console.error('[PATCH snapshot] Insert error:', insertError)
           return NextResponse.json({ 
-            error: 'Failed to save locations',
+            error: 'Failed to save locations to ad_target_locations table',
             details: insertError.message 
           }, { status: 500 })
         }
         
-        console.log('[PATCH snapshot] ✅ Saved locations:', inserted?.length)
+        console.log('[PATCH snapshot] ✅ Saved locations to ad_target_locations table:', inserted?.length)
       }
     }
 

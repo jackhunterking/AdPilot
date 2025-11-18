@@ -59,6 +59,9 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false)
 
   // Load from backend (single source of truth)
+  // ARCHITECTURE NOTE: Locations are stored in ad_target_locations TABLE (not a JSON column)
+  // The /snapshot API reads from ad_target_locations and builds a runtime snapshot object
+  // See: lib/services/ad-data-service.ts buildSnapshot() - line 550
   useEffect(() => {
     if (!currentAd) {
       // No ad selected - reset to empty state
@@ -75,6 +78,9 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     const loadLocationsFromBackend = async () => {
       try {
         logger.debug('LocationContext', `Loading locations from backend for ad ${currentAd.id}`)
+        
+        // Fetch locations from ad_target_locations table via snapshot API
+        // API reads from database table and builds snapshot.location object dynamically
         const response = await fetch(`/api/campaigns/${campaign?.id}/ads/${currentAd.id}/snapshot`)
         
         if (!response.ok) {
@@ -84,18 +90,20 @@ export function LocationProvider({ children }: { children: ReactNode }) {
           return
         }
         
-        const json = await response.json()
-        const snapshot = json.setup_snapshot
+        const apiResponse = await response.json()
+        // NOTE: setup_snapshot.location.locations is built from ad_target_locations table
+        // It's NOT a database column - it's a runtime transformation
+        const locationsFromDB = apiResponse.setup_snapshot?.location?.locations || []
         
-        if (snapshot?.location?.locations && snapshot.location.locations.length > 0) {
-          logger.info('LocationContext', `✅ Loaded ${snapshot.location.locations.length} locations from backend`)
+        if (locationsFromDB.length > 0) {
+          logger.info('LocationContext', `✅ Loaded ${locationsFromDB.length} locations from ad_target_locations table`)
           setLocationState({
-            locations: snapshot.location.locations,
+            locations: locationsFromDB,
             status: "completed",
             errorMessage: undefined
           })
         } else {
-          logger.debug('LocationContext', 'No locations in backend, starting empty (new ad)')
+          logger.debug('LocationContext', 'No locations in ad_target_locations table, starting empty')
           setLocationState({ locations: [], status: "idle", errorMessage: undefined })
         }
         
@@ -110,22 +118,10 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     loadLocationsFromBackend()
   }, [currentAd?.id, campaign?.id])
 
+  // Add locations to local state (triggers autosave which writes to ad_target_locations table)
+  // ARCHITECTURE: This updates React state only. Actual database write happens via autosave.
+  // See: lib/hooks/use-draft-auto-save.ts (reads locationState, writes to table)
   const addLocations = useCallback(async (newLocations: Location[], shouldMerge: boolean = true) => {
-    console.log('[LocationContext] ========== addLocations START ==========');
-    console.log('[LocationContext] New locations count:', newLocations.length);
-    console.log('[LocationContext] New locations:', JSON.stringify(newLocations.map(l => ({
-      name: l.name,
-      coordinates: l.coordinates,
-      type: l.type,
-      mode: l.mode
-    })), null, 2));
-    console.log('[LocationContext] Should merge:', shouldMerge);
-    console.log('[LocationContext] Current state:', {
-      currentCount: locationState.locations.length,
-      status: locationState.status
-    });
-    console.log('[LocationContext] CurrentAd ID:', currentAd?.id);
-    
     if (!newLocations || newLocations.length === 0) {
       console.error('[LocationContext] ❌ Empty locations array');
       throw new Error('Cannot add empty locations');
@@ -137,11 +133,11 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     }
     
     try {
-      // Calculate final locations OUTSIDE setState
+      // Calculate final locations
       let finalLocations: Location[];
       
       if (shouldMerge) {
-        // ADD mode: Merge with existing locations, deduplicate by name+mode
+        // ADD mode: Merge with existing, deduplicate by name+mode
         const existingMap = new Map(
           locationState.locations.map(loc => [`${loc.name}-${loc.mode}`, loc])
         );
@@ -156,35 +152,20 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         finalLocations = newLocations;
       }
       
-      console.log('[LocationContext] Final locations calculated:', finalLocations.length);
-      console.log('[LocationContext] Final locations:', finalLocations.map(l => ({
-        name: l.name,
-        coordinates: l.coordinates,
-        mode: l.mode
-      })));
-      
-      // Create new state object with deep copy to force React re-render
+      // Update React state (triggers re-render and autosave)
       const newState: LocationState = {
-        locations: finalLocations.map(loc => ({ ...loc })), // Deep copy
+        locations: finalLocations.map(loc => ({ ...loc })),
         status: 'completed',
         errorMessage: undefined
       };
       
-      console.log('[LocationContext] Setting new state...');
       setLocationState(newState);
       
-      // Force synchronous state flush
-      await new Promise(resolve => {
-        setTimeout(() => {
-          console.log('[LocationContext] State should be updated now');
-          resolve(true);
-        }, 100);
-      });
-      
-      console.log('[LocationContext] ========== addLocations SUCCESS ==========');
+      // Small delay to ensure state update completes
+      await new Promise(resolve => setTimeout(resolve, 100));
       
     } catch (error) {
-      console.error('[LocationContext] ❌ Database write failed:', error);
+      console.error('[LocationContext] ❌ Failed to update location state:', error);
       setLocationState(prev => ({
         ...prev,
         status: 'error',
@@ -200,15 +181,11 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       return;
     }
     
-    console.log('[LocationContext] Removing location:', id);
-    
     try {
       // Calculate updated locations
       const updatedLocations = locationState.locations.filter(loc => loc.id !== id);
       
-      console.log('[LocationContext] Remaining locations:', updatedLocations.length);
-      
-      // Update local state (autosave triggered by caller)
+      // Update local state (autosave will write to ad_target_locations table)
       setLocationState({
         locations: updatedLocations,
         status: updatedLocations.length > 0 ? 'completed' : 'idle',

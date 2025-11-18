@@ -74,7 +74,6 @@ import { useGeneration } from "@/lib/context/generation-context";
 import { emitBrowserEvent } from "@/lib/utils/browser-events";
 import { useCampaignContext } from "@/lib/context/campaign-context";
 import { toZeroBasedIndex } from "@/lib/utils/variation";
-import { createLocationConfirmationMessage, type LocationCardData } from '@/lib/utils/location-messages';
 
 // Type definitions
 interface MessagePart {
@@ -464,7 +463,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
         // Trigger immediate autosave after adding locations
         await triggerSave(true);
         
-        // Show success toast
+        // Show success toast (locations are now in locationState and will save via autosave)
         const locationNames = validLocations.map(l => l.name).join(', ');
         toast.success(
           validLocations.length === 1 
@@ -472,25 +471,14 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
             : `Locations set to ${locationNames}`
         );
         
-        // Create confirmation message with metadata for persistent rendering
-        const confirmationMessage = createLocationConfirmationMessage(
-          validLocations.map(loc => ({
-            id: loc.id,
-            name: loc.name,
-            type: loc.type,
-            mode: loc.mode,
-            radius: loc.radius
-          }))
-        );
-        
-        // Add confirmation message to chat
-        setMessages(prev => [...prev, confirmationMessage]);
-        
-        // Report simple success to AI (no complex output needed)
+        // Report success to AI
+        // NOTE: Location data is in ad_target_locations table (single source of truth)
+        // Map displays from LocationContext which loads from table
+        // No chat message needed - locations persist in database
         addToolResult({
           tool: input.locations.length > 1 ? 'addLocations' : 'locationTargeting',
           toolCallId,
-          output: { success: true }  // Simple success flag only
+          output: { success: true }
         });
       } catch (error) {
         console.error('[LocationProcessor] Failed to add locations:', error);
@@ -978,56 +966,9 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
               const isLiked = likedMessages.has(message.id);
               const isDisliked = dislikedMessages.has(message.id);
               
-              // RENDER LOCATION CONFIRMATION CARDS from metadata
-              const metadata = message.metadata as { type?: string; locations?: unknown } | undefined;
-              if (metadata?.type === 'location_confirmation' && 
-                  Array.isArray(metadata?.locations)) {
-                
-                const locations = metadata.locations as LocationCardData[]
-
-                return (
-                  <Message key={message.id} from={message.role}>
-                    <MessageContent>
-                      <div className="w-full space-y-2">
-                        {/* Render INDIVIDUAL cards */}
-                        {locations.map((loc) => {
-                          const isExcluded = loc.mode === 'exclude'
-                          const typeLabel = loc.type === 'radius' && loc.radius 
-                            ? `${loc.radius} mile radius` 
-                            : loc.type === 'city' ? 'City'
-                            : loc.type === 'region' ? 'Province/Region'
-                            : loc.type === 'country' ? 'Country'
-                            : loc.type
-
-                          return (
-                            <div
-                              key={loc.id}
-                              className="flex items-center justify-between p-3 rounded-lg border panel-surface"
-                            >
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <div className="icon-tile-muted">
-                                  {isExcluded ? (
-                                    <X className="h-4 w-4 text-red-600" />
-                                  ) : (
-                                    <Check className="h-4 w-4 text-status-green" />
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    <p className="text-sm font-medium truncate">{loc.name}</p>
-                                    {isExcluded && <span className="status-muted flex-shrink-0">Excluded</span>}
-                                  </div>
-                                  <p className="text-xs text-muted-foreground">{typeLabel}</p>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </MessageContent>
-                  </Message>
-                )
-              }
+              // Location confirmations removed - locations display in LocationSelectionCanvas map
+              // Database source of truth: ad_target_locations table
+              // No need for chat history duplication
               
               return (
                 <Fragment key={message.id}>
