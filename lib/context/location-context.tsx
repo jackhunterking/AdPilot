@@ -189,7 +189,8 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     }
     
     try {
-      // Calculate updated locations
+      // Find location to get its database ID
+      const locationToRemove = locationState.locations.find(loc => loc.id === id);
       const updatedLocations = locationState.locations.filter(loc => loc.id !== id);
       
       // Update local state first (immediate UI feedback)
@@ -199,15 +200,16 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         errorMessage: undefined
       });
       
-      // Emit event for PreviewPanel to save
+      // Emit event with database ID for PreviewPanel to save
       window.dispatchEvent(new CustomEvent('locationRemoved', {
         detail: {
           locationId: id,
-          remainingLocations: updatedLocations
+          databaseId: id,  // ID is the database ID from ad_target_locations
+          locationName: locationToRemove?.name
         }
       }));
       
-      console.log('[LocationContext] ✅ Location removed, event emitted');
+      console.log('[LocationContext] ✅ Location removed, event emitted', { databaseId: id });
     } catch (error) {
       console.error('[LocationContext] ❌ Failed to remove location:', error);
       throw error;

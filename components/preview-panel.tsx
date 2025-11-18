@@ -296,64 +296,43 @@ export function PreviewPanel() {
         country_code: loc.country_code
       }));
       
-      // MERGE with existing locations (do merge HERE, not in context)
-      const existingLocations = locationState.locations;
-      const existingMap = new Map(
-        existingLocations.map(loc => [`${loc.name}-${loc.mode}`, loc])
-      );
+      // Update context (merge happens in context)
+      addLocations(locationsWithIds, true);
       
-      // Add new locations to map (deduplicates by name+mode)
-      locationsWithIds.forEach(newLoc => {
-        existingMap.set(`${newLoc.name}-${newLoc.mode}`, newLoc);
-      });
-      
-      const mergedLocations = Array.from(existingMap.values());
-      
-      logger.debug('PreviewPanel', '🔀 Merged locations', {
-        existing: existingLocations.length,
-        new: locationsWithIds.length,
-        merged: mergedLocations.length
-      });
-      
-      // Update context with merged list (use replace mode to avoid double-merge)
-      addLocations(mergedLocations, false);
-      
-      // IMMEDIATELY save ALL locations to database
+      // Save ONLY new locations to database (granular operation)
       if (campaign?.id && currentAd?.id) {
         try {
-          logger.debug('PreviewPanel', '💾 Saving ALL locations to database', {
-            count: mergedLocations.length,
-            names: mergedLocations.map(l => `${l.name} (${l.mode})`)
-          });
+          // Determine endpoint based on mode
+          const isExclude = locationsWithIds.every(loc => loc.mode === 'exclude');
+          const endpoint = isExclude
+            ? `/api/campaigns/${campaign.id}/ads/${currentAd.id}/locations/exclude`
+            : `/api/campaigns/${campaign.id}/ads/${currentAd.id}/locations`;
           
-          const response = await fetch(
-            `/api/campaigns/${campaign.id}/ads/${currentAd.id}/snapshot`,
-            {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: {
-                  locations: mergedLocations  // ✅ ALL locations (existing + new)
-                }
-              })
-            }
-          );
+          logger.debug('PreviewPanel', `💾 Saving ${locationsWithIds.length} ${isExclude ? 'exclude' : 'include'} location(s)`);
+          
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              locations: locationsWithIds  // Only NEW locations, not merged
+            })
+          });
           
           if (response.ok) {
             const data = await response.json();
-            logger.info('PreviewPanel', '✅ All locations saved to database', {
-              count: mergedLocations.length,
-              completedSteps: data.completed_steps
+            logger.info('PreviewPanel', `✅ ${isExclude ? 'Exclude' : 'Include'} locations saved`, {
+              count: data.count
             });
-            await reloadAd();
+            // Fire and forget reload (no await for speed)
+            reloadAd();
           } else {
             const errorText = await response.text();
             logger.error('PreviewPanel', '❌ Failed to save locations:', errorText);
-            toast.error('Failed to save locations - please try again');
+            toast.error('Failed to save location - please try again');
           }
         } catch (error) {
           logger.error('PreviewPanel', '❌ Error saving locations:', error);
-          toast.error('Network error - locations not saved');
+          toast.error('Network error - location not saved');
         }
       } else {
         logger.warn('PreviewPanel', '⚠️ Cannot save - missing campaign or ad ID');
@@ -367,57 +346,41 @@ export function PreviewPanel() {
     };
   }, [addLocations, campaign?.id, currentAd?.id, reloadAd, locationState]);
   
-  // Listen for location removal (save after delete)
+  // Listen for location removal (delete specific location)
   useEffect(() => {
     const handleLocationRemoved = async (event: Event) => {
       const customEvent = event as CustomEvent<{
         locationId: string;
-        remainingLocations: Array<{
-          id: string;
-          name: string;
-          coordinates: [number, number];
-          type: string;
-          mode: string;
-          radius?: number;
-          bbox?: [number, number, number, number];
-          geometry?: { type: string; coordinates: number[] | number[][] | number[][][] | number[][][][] };
-          key?: string;
-          country_code?: string;
-        }>;
+        databaseId?: string;
+        locationName?: string;
       }>;
       
-      const { remainingLocations } = customEvent.detail;
+      const { locationId, databaseId } = customEvent.detail;
       
-      logger.debug('PreviewPanel', '🗑️ Location removed, saving remaining to DB', {
-        count: remainingLocations.length
-      });
+      if (!databaseId || !campaign?.id || !currentAd?.id) {
+        logger.warn('PreviewPanel', 'Cannot remove - missing database ID');
+        return;
+      }
       
-      // Save remaining locations to database
-      if (campaign?.id && currentAd?.id) {
-        try {
-          const response = await fetch(
-            `/api/campaigns/${campaign.id}/ads/${currentAd.id}/snapshot`,
-            {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: {
-                  locations: remainingLocations  // Save what's left
-                }
-              })
-            }
-          );
-          
-          if (response.ok) {
-            logger.info('PreviewPanel', '✅ Remaining locations saved after removal');
-            await reloadAd();
-          } else {
-            toast.error('Failed to save after removal');
-          }
-        } catch (error) {
-          logger.error('PreviewPanel', '❌ Error saving after removal:', error);
-          toast.error('Network error - removal not saved');
+      logger.debug('PreviewPanel', '🗑️ Removing location from DB', { databaseId });
+      
+      try {
+        const response = await fetch(
+          `/api/campaigns/${campaign.id}/ads/${currentAd.id}/locations/${databaseId}`,
+          { method: 'DELETE' }
+        );
+        
+        if (response.ok) {
+          logger.info('PreviewPanel', '✅ Location removed from database');
+          reloadAd();  // Fire and forget
+        } else {
+          const errorText = await response.text();
+          logger.error('PreviewPanel', '❌ Failed to remove location:', errorText);
+          toast.error('Failed to remove location');
         }
+      } catch (error) {
+        logger.error('PreviewPanel', '❌ Error removing location:', error);
+        toast.error('Network error - removal not saved');
       }
     };
     
@@ -428,34 +391,29 @@ export function PreviewPanel() {
     };
   }, [campaign?.id, currentAd?.id, reloadAd]);
   
-  // Listen for clear all locations (save empty state)
+  // Listen for clear all locations (delete all from DB)
   useEffect(() => {
     const handleLocationsCleared = async (event: Event) => {
-      logger.debug('PreviewPanel', '🗑️ All locations cleared, saving to DB');
+      logger.debug('PreviewPanel', '🗑️ All locations cleared, deleting from DB');
       
       if (campaign?.id && currentAd?.id) {
         try {
           const response = await fetch(
-            `/api/campaigns/${campaign.id}/ads/${currentAd.id}/snapshot`,
-            {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: {
-                  locations: []  // Empty array = delete all from DB
-                }
-              })
-            }
+            `/api/campaigns/${campaign.id}/ads/${currentAd.id}/locations`,
+            { method: 'DELETE' }
           );
           
           if (response.ok) {
             logger.info('PreviewPanel', '✅ All locations cleared from database');
-            await reloadAd();
+            reloadAd();  // Fire and forget
           } else {
+            const errorText = await response.text();
+            logger.error('PreviewPanel', '❌ Failed to clear locations:', errorText);
             toast.error('Failed to clear locations');
           }
         } catch (error) {
           logger.error('PreviewPanel', '❌ Error clearing locations:', error);
+          toast.error('Network error');
         }
       }
     };

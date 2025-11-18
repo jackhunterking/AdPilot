@@ -1657,16 +1657,19 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                     const eventKey = `${callId}-location`;
                                     if (!dispatchedEvents.current.has(eventKey)) {
                                       dispatchedEvents.current.add(eventKey);
+                                      // Determine mode from first location (all should have same mode in one call)
+                                      const locationMode = output.locations[0]?.mode || 'include';
                                       console.log('[AI Chat] 📡 Emitting locationUpdated event:', {
                                         callId,
                                         count: output.locations.length,
+                                        mode: locationMode,
                                         locations: output.locations.map(l => ({ name: l.name, mode: l.mode }))
                                       });
                                       setTimeout(() => {
                                         emitBrowserEvent('locationUpdated', {
                                           sessionId: callId,
                                           locations: output.locations,
-                                          mode: 'add'
+                                          mode: locationMode  // Pass actual mode from locations
                                         });
                                       }, 0);
                                     }
