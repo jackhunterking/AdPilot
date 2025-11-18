@@ -173,7 +173,7 @@ export function Dashboard({
               <>
                 {/* Collapsed state: smaller logo + collapse button stacked vertically */}
                 <div className="relative h-6 w-6">
-                  <img src="/AdPilot-Logomark.svg" alt="AdPilot" className="h-6 w-6" />
+                  <img src="/adpilot-newlogo.png" alt="AdPilot" className="h-6 w-6" />
                 </div>
                 <Button 
                   variant="ghost" 
@@ -191,7 +191,7 @@ export function Dashboard({
                 {/* Expanded state: full header */}
                 <div className="flex items-center gap-2">
                   <div className="relative h-8 w-8">
-                    <img src="/AdPilot-Logomark.svg" alt="AdPilot" className="h-8 w-8" />
+                    <img src="/adpilot-newlogo.png" alt="AdPilot" className="h-8 w-8" />
                   </div>
                   <div className="flex flex-col leading-none">
                     <span className="text-sm font-semibold truncate max-w-[160px]">{campaign?.name ?? COMPANY_NAME}</span>

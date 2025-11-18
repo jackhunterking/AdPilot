@@ -14,7 +14,7 @@ export function HomepageHeader({ onSignInClick, onSignUpClick }: HomepageHeaderP
     <header className="flex h-16 items-center justify-between px-6 border-b border-border bg-background">
       <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
         <div className="relative h-10 w-10">
-          <img src="/AdPilot-Logomark.svg" alt="AdPilot" className="h-10 w-10" />
+          <img src="/adpilot-newlogo.png" alt="AdPilot" className="h-10 w-10" />
         </div>
         <span className="text-2xl font-semibold">{COMPANY_NAME}</span>
       </Link>
