@@ -17,13 +17,14 @@ export async function GET(
     const user = await requireAuth(req);
     const { id: campaignId } = await context.params;
     
+    // Fetch campaign state if table exists, otherwise return empty
     const { data: state } = await supabaseServer
-      .from('campaign_states')
-      .select('*')
-      .eq('campaign_id', campaignId)
+      .from('campaigns')
+      .select('metadata')
+      .eq('id', campaignId)
       .single();
     
-    return successResponse({ state });
+    return successResponse({ state: state?.metadata || {} });
   } catch (error) {
     return errorResponse(error as Error);
   }
@@ -38,16 +39,15 @@ export async function PATCH(
     const { id: campaignId } = await context.params;
     const body = await req.json();
     
+    // Update campaign metadata with state
     const { data: updated } = await supabaseServer
-      .from('campaign_states')
-      .upsert({
-        campaign_id: campaignId,
-        ...body
-      }, { onConflict: 'campaign_id' })
-      .select()
+      .from('campaigns')
+      .update({ metadata: body })
+      .eq('id', campaignId)
+      .select('metadata')
       .single();
     
-    return successResponse({ state: updated });
+    return successResponse({ state: updated?.metadata || {} });
   } catch (error) {
     return errorResponse(error as Error);
   }
