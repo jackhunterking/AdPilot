@@ -224,14 +224,14 @@ export async function validatePrePublish(params: PrePublishValidationParams): Pr
   }
 
   // Check ad creative from normalized tables
-  const copyVariations = ad.ad_copy_variations as Array<{
+  const copyVariations = ad.ad_copy_variations as unknown as Array<{
     headline?: string
     primary_text?: string
     description?: string
     is_selected?: boolean
   }> | undefined
   
-  const creatives = ad.ad_creatives as Array<{
+  const creatives = ad.ad_creatives as unknown as Array<{
     image_url?: string
     is_selected?: boolean
   }> | undefined

@@ -66,8 +66,8 @@ export async function GET(
 
     // Transform to AdVariant format
     const variants: AdVariant[] = (ads || []).map((ad) => {
-      const adCopy = (ad.ad_copy_variations as Array<{headline?: string; primary_text?: string; cta_text?: string}> | undefined)?.[0];
-      const adCreative = (ad.ad_creatives as Array<{image_url?: string; format?: string}> | undefined)?.[0];
+      const adCopy = (ad.ad_copy_variations as unknown as Array<{headline?: string; primary_text?: string; cta_text?: string}> | undefined)?.[0];
+      const adCreative = (ad.ad_creatives as unknown as Array<{image_url?: string; format?: string}> | undefined)?.[0];
       
       return {
         id: ad.id,

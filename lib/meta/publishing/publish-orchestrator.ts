@@ -369,10 +369,10 @@ export class PublishOrchestrator {
       .eq('campaign_id', campaignId);
     
     const allCopyVariations = (ads || []).flatMap(ad => 
-      (ad.ad_copy_variations as Array<{primary_text?: string; headline?: string; description?: string}> || [])
+      (ad.ad_copy_variations as unknown as Array<{primary_text?: string; headline?: string; description?: string}> || [])
     );
     const allCreatives = (ads || []).flatMap(ad =>
-      (ad.ad_creatives as Array<{image_url?: string}> || [])
+      (ad.ad_creatives as unknown as Array<{image_url?: string}> || [])
     );
     
     const adCopyData = {

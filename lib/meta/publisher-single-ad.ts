@@ -74,10 +74,10 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
       id: ad.id,
       name: ad.name,
       status: ad.status,
-      hasCopyVariations: !!(ad.ad_copy_variations as Array<unknown>)?.length,
-      hasCreatives: !!(ad.ad_creatives as Array<unknown>)?.length,
+      hasCopyVariations: !!(ad.ad_copy_variations as unknown as Array<unknown>)?.length,
+      hasCreatives: !!(ad.ad_creatives as unknown as Array<unknown>)?.length,
       hasDestination: !!(ad.ad_destinations as Record<string, unknown> | null),
-      hasTargetLocations: !!(ad.ad_target_locations as Array<unknown>)?.length
+      hasTargetLocations: !!(ad.ad_target_locations as unknown as Array<unknown>)?.length
     })
 
     // ====================================================================
@@ -160,7 +160,7 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
     // STEP 4: EXTRACT AD DATA FROM NORMALIZED TABLES
     // ====================================================================
     // Data now comes from normalized tables instead of JSON columns
-    const copyVariations = ad.ad_copy_variations as Array<{
+    const copyVariations = ad.ad_copy_variations as unknown as Array<{
       headline?: string
       primary_text?: string
       description?: string
@@ -168,7 +168,7 @@ export async function publishSingleAd(params: PublishSingleAdParams): Promise<Pu
       is_selected?: boolean
     }> | undefined
     
-    const creatives = ad.ad_creatives as Array<{
+    const creatives = ad.ad_creatives as unknown as Array<{
       image_url?: string
       format?: string
       is_selected?: boolean
