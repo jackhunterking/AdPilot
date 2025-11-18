@@ -28,6 +28,147 @@ Guarantee every feature is designed and implemented using the official reference
 6. This project must use **Vercel AI SDK V5 versioning ONLY. DO NOT USE LOWER VERSIONS.
 7. This will be build in vercel se pay attention to potential typescripts errors and eslint errors.
 
+## Microservices Architecture Philosophy
+
+**Core Principle:** This project follows a **microservices mindset**, not a monolithic approach. Every feature must be designed with modularity, separation of concerns, and independent deployability in mind.
+
+### Before You Build: Think & Plan
+
+Before implementing any feature, you MUST:
+
+1. **Decompose the feature** into independent, bounded services/modules
+2. **Identify clear boundaries** between services (data ownership, responsibilities)
+3. **Define contracts** (API interfaces, types, events) between services
+4. **Plan for independence** - each service should be deployable, testable, and maintainable separately
+
+### Microservices Architecture Patterns
+
+#### 1. API Route Services
+- Each API route (`app/api/*`) should be a self-contained service
+- Services communicate via well-defined REST/GraphQL endpoints
+- No direct imports of business logic across service boundaries
+- Use shared types/interfaces in `lib/types/` for contracts
+
+```typescript
+// ✅ Good: Independent service with clear contract
+// app/api/campaigns/create/route.ts
+export async function POST(req: NextRequest) {
+  // Self-contained campaign creation logic
+  // Calls other services via fetch/HTTP
+}
+
+// ❌ Bad: Monolithic approach
+// app/api/campaigns/create/route.ts
+import { adLogic } from '../../ads/logic' // Direct coupling
+```
+
+#### 2. Supabase Edge Functions as Services
+- Complex business logic should live in Supabase Edge Functions
+- Frontend/API routes orchestrate, Edge Functions execute domain logic
+- Each Edge Function is an independent microservice
+- Use RPC calls or REST to communicate between functions
+
+#### 3. Service Layer Pattern
+- Organize `lib/` into service modules: `lib/services/campaign-service.ts`, `lib/services/ad-service.ts`
+- Each service module owns its domain logic
+- Services can depend on other services via dependency injection, not direct imports
+
+```typescript
+// ✅ Good: Service with injected dependencies
+export class CampaignService {
+  constructor(
+    private readonly adService: AdService,
+    private readonly analyticsService: AnalyticsService
+  ) {}
+  
+  async createCampaign(data: CampaignInput) {
+    // Campaign-specific logic only
+    const ads = await this.adService.generateAds(data);
+    await this.analyticsService.track('campaign_created');
+  }
+}
+```
+
+#### 4. Event-Driven Communication
+- Use Supabase Realtime/Webhooks for async service communication
+- Prefer events over direct calls when services don't need immediate response
+- Define event schemas in `lib/types/events.ts`
+
+#### 5. Shared Kernel (Minimal)
+- Only share: types, interfaces, utility functions, constants
+- Shared code lives in: `lib/types/`, `lib/utils/`, `lib/constants.ts`
+- NO shared business logic or state
+
+### Module Boundaries
+
+```
+app/api/
+  ├── campaigns/          # Campaign Management Service
+  ├── ads/                # Ad Creation/Management Service
+  ├── analytics/          # Analytics Service
+  ├── meta/               # Meta Platform Integration Service
+  └── images/             # Image Generation Service
+
+lib/services/
+  ├── campaign-service.ts # Campaign domain logic
+  ├── ad-service.ts       # Ad domain logic
+  └── meta-api-client.ts  # Meta API client (shared infrastructure)
+
+supabase/functions/
+  ├── process-campaign/   # Campaign processing microservice
+  ├── generate-copy/      # AI copy generation microservice
+  └── sync-meta-data/     # Meta data sync microservice
+```
+
+### Anti-Patterns to Avoid
+
+❌ **Don't:**
+- Create god objects or services that do everything
+- Import business logic directly across service boundaries
+- Share database models/schemas between services (use API contracts)
+- Build tightly coupled components that can't be tested independently
+- Mix UI concerns with business logic
+- Create circular dependencies between services
+
+✅ **Do:**
+- Think "How would this work if it were deployed separately?"
+- Define explicit interfaces/contracts between services
+- Keep services small, focused on single responsibility
+- Use composition over inheritance
+- Design for horizontal scalability
+- Write integration tests that mock external services
+
+### Planning Checklist (Before Coding)
+
+For every new feature or major change, document:
+
+- [ ] **Service Boundaries:** What services are involved? What's each responsible for?
+- [ ] **Contracts:** What are the input/output types? API endpoints? Events?
+- [ ] **Dependencies:** Which services depend on which? How do they communicate?
+- [ ] **Data Ownership:** Which service owns what data? How is it accessed?
+- [ ] **Deployment:** Can this service be deployed independently? What breaks if it's down?
+- [ ] **Testing:** Can I test this service in isolation with mocked dependencies?
+
+### Example: Creating a New Feature
+
+**Feature:** "Automated A/B Test Campaign Creation"
+
+**❌ Monolithic Thinking:**
+"I'll add a big function in `campaign-workspace.tsx` that handles campaign creation, ad generation, Meta API calls, analytics tracking, and UI updates all in one file."
+
+**✅ Microservices Thinking:**
+1. **Campaign Service** (`lib/services/campaign-service.ts`): Orchestrates campaign creation workflow
+2. **Ad Variation Service** (`lib/services/ad-variation-service.ts`): Generates A/B test variations
+3. **Meta Publishing Service** (`lib/services/meta-publishing-service.ts`): Handles Meta API interactions
+4. **Analytics Service** (`lib/services/analytics-service.ts`): Tracks campaign events
+5. **API Route** (`app/api/campaigns/ab-test/route.ts`): Thin controller, delegates to services
+6. **UI Component** (`components/ab-test/ab-test-builder.tsx`): Pure presentation, calls API
+
+Each service is:
+- Independently testable
+- Has clear responsibilities
+- Can be moved to Edge Function if needed
+- Communicates via defined contracts
 
 Vercel builds must never fail due to ESLint.
 
@@ -217,11 +358,14 @@ public
 
 ## Definition of Done (per task)
 
+* [ ] **Microservices Planning:** Service boundaries identified, contracts defined, dependencies documented (see Planning Checklist)
+* [ ] **Service Independence:** Each service can be tested/deployed independently with clear responsibilities
 * [ ] **Design note** links to the exact doc sections used.
 * [ ] **API client** created/updated using AI SDK Core examples.
 * [ ] **UI** built with AI Elements where applicable.
 * [ ] **AI Gateway** config added (routes/keys/observability) as per docs.
 * [ ] **Supabase**: schema, RLS, auth flow, and queries implemented by copying/adapting official examples.
+* [ ] **No tight coupling:** Services communicate via APIs/events, not direct imports of business logic
 * [ ] **References** block in PR (copy/paste template below).
 * [ ] **Smoke test** steps included.
 
@@ -244,6 +388,12 @@ public
 ```
 ### What & Why
 <1–3 sentences>
+
+### Architecture (Microservices)
+- **Services involved:** <list services/modules created or modified>
+- **Service boundaries:** <how responsibilities are separated>
+- **Communication pattern:** <API calls, events, RPC, etc.>
+- **Independence:** <can be deployed/tested separately? any dependencies?>
 
 ### Implementation Notes
 - Followed AI SDK Core pattern for <streaming/tool calling/etc>.
