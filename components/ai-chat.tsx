@@ -383,20 +383,6 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
     sendMessageRef.current = sendMessage;
   }, [sendMessage]);
 
-  // DEPRECATED: Client-side location processing
-  // Location tool now executes server-side (Phase 1 of location refactor)
-  // This function is no longer used but kept for reference during transition
-  /*
-  const processLocationToolCall = useCallback(async (
-    toolCallId: string,
-    input: LocationToolInput
-  ) => {
-    // This logic has been moved to lib/ai/tools/targeting/add-locations-tool.ts
-    // Tool now executes server-side, matching the pattern used in editVariationTool
-  }, [addLocations, updateLocationStatus, addToolResult, triggerSave]);
-
-  const handleLocationTargetingCall = processLocationToolCall;
-  */
 
   // AUTO-SUBMIT INITIAL PROMPT (AI SDK Native Pattern)
   useEffect(() => {
@@ -1197,8 +1183,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                   return null;
                               }
                             }
-                            case "tool-generateVariations":   // NEW granular tool name
-                            case "tool-generateImage": {      // OLD name (backward compat)
+                            case "tool-generateVariations": {
                               const callId = part.toolCallId;
                               const isGenerating = generatingImages.has(callId);
                               const input = part.input as { prompt: string; brandName?: string; caption?: string };
@@ -1292,8 +1277,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                   return null;
                               }
                             }
-                            case "tool-editVariation":     // NEW granular tool name
-                            case "tool-editImage": {       // OLD name (backward compat)
+                            case "tool-editVariation": {
                               const callId = part.toolCallId;
                               const input = part.input as { imageUrl?: string; variationIndex?: number; prompt?: string };
                               
@@ -1392,8 +1376,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                   return null;
                               }
                             }
-                            case "tool-regenerateVariation":  // NEW granular tool name
-                            case "tool-regenerateImage": {    // OLD name (backward compat)
+                            case "tool-regenerateVariation": {
                               const callId = part.toolCallId;
                               const input = part.input as { variationIndex?: number };
                               
@@ -1516,8 +1499,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                   return null;
                               }
                             }
-                          case "tool-editCopy":       // NEW granular tool name
-                          case "tool-editAdCopy": {   // OLD name (backward compat)
+                          case "tool-editCopy": {
                             const callId = part.toolCallId;
                             const input = part.input as { prompt?: string; current?: { primaryText?: string; headline?: string; description?: string } };
 
@@ -1606,8 +1588,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                 return null;
                             }
                           }
-                            case "tool-addLocations":      // NEW granular tool name
-                            case "tool-locationTargeting": {  // OLD name (backward compat)
+                            case "tool-addLocations": {
                               const callId = part.toolCallId;
                               const input = part.input as LocationToolInput;
                               
