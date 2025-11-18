@@ -62,7 +62,7 @@ import { LocationProcessingCard } from "@/components/ai-elements/location-proces
 import { LocationSuccessCard } from "@/components/ai-elements/location-success-card";
 // Removed legacy FormSelectionUI in favor of unified canvas in Goal step
 import { ImageEditProgressLoader } from "@/components/ai-elements/image-edit-progress-loader";
-import { renderEditImageResult, renderRegenerateImageResult, renderEditAdCopyResult } from "@/components/ai-elements/tool-renderers";
+import { renderEditImageResult, renderRegenerateImageResult, renderEditAdCopyResult, renderLocationUpdateResult } from "@/components/ai-elements/tool-renderers";
 import { useAdPreview } from "@/lib/context/ad-preview-context";
 import { searchLocations, getLocationBoundary } from "@/app/actions/geocoding";
 import { searchMetaLocation } from "@/app/actions/meta-location-search";
@@ -381,139 +381,20 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
     sendMessageRef.current = sendMessage;
   }, [sendMessage]);
 
-  // Process location tool call (stable function with proper dependencies)
+  // DEPRECATED: Client-side location processing
+  // Location tool now executes server-side (Phase 1 of location refactor)
+  // This function is no longer used but kept for reference during transition
+  /*
   const processLocationToolCall = useCallback(async (
     toolCallId: string,
     input: LocationToolInput
   ) => {
-    // Skip if already processed
-    if (processedLocationCalls.current.has(toolCallId)) {
-      return;
-    }
-    
-    // Mark as processing immediately
-    processedLocationCalls.current.add(toolCallId);
-    
-    try {
-      updateLocationStatus('setup-in-progress');
-      
-      // Geocode all locations
-      const processed = await Promise.all(
-        input.locations.map(async (loc) => {
-          // Step 1: Geocoding
-          const geoResult = await searchLocations(loc.name);
-          
-          if (!geoResult.success || !geoResult.data) {
-            console.error(`Failed to geocode: ${loc.name}`, geoResult.error);
-            return null;
-          }
-          
-          const { place_name, center, bbox } = geoResult.data as {
-            place_name: string;
-            center: [number, number];
-            bbox?: [number, number, number, number];
-          };
-          
-          // Step 2: Boundary fetching
-          let geometry = undefined;
-          if (loc.type !== 'radius') {
-            try {
-              const boundaryData = await getLocationBoundary(center, place_name);
-              
-              if (boundaryData && boundaryData.geometry) {
-                geometry = boundaryData.geometry;
-              }
-            } catch (error) {
-              console.error(`Error fetching boundary for: ${place_name}`, error);
-            }
-          }
-          
-          // Step 3: Meta key lookup
-          const metaType = loc.type === 'radius' ? 'city' : loc.type;
-          const metaResult = await searchMetaLocation(place_name, center, metaType);
-          
-          // Step 4: Build final location object
-          return {
-            id: `loc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            name: place_name,
-            coordinates: center,
-            radius: loc.radius || 30,
-            type: loc.type,
-            mode: loc.mode,
-            bbox: bbox || undefined,
-            geometry,
-            key: metaResult?.key,
-            country_code: metaResult?.country_code,
-          };
-        })
-      );
-      
-      const validLocations = processed.filter((loc): loc is NonNullable<typeof loc> => loc !== null);
-      
-      if (validLocations.length === 0) {
-        throw new Error('Failed to geocode locations');
-      }
-      
-      // Update context (triggers map update via React state flow) with error handling
-      try {
-        console.log('[LocationProcessor] 💾 Saving locations to ad:', {
-          adId: currentAdId,
-          campaignId,
-          locationCount: validLocations.length,
-          locations: validLocations.map(l => ({ name: l.name, type: l.type, hasGeometry: !!l.geometry, hasBbox: !!l.bbox }))
-        });
-        
-        await addLocations(validLocations, true); // true = ADD mode (merge with existing)
-        
-        updateLocationStatus('completed');
-        
-        // Trigger immediate autosave after adding locations
-        console.log('[LocationProcessor] Triggering autosave for ad:', currentAdId);
-        await triggerSave(true);
-        
-        // Show success toast (locations are now in locationState and will save via autosave)
-        const locationNames = validLocations.map(l => l.name).join(', ');
-        toast.success(
-          validLocations.length === 1 
-            ? `Location set to ${locationNames}` 
-            : `Locations set to ${locationNames}`
-        );
-        
-        // Report success to AI
-        // NOTE: Location data is in ad_target_locations table (single source of truth)
-        // Map displays from LocationContext which loads from table
-        // AI will respond with confirmation message per prompt rules
-        addToolResult({
-          tool: input.locations.length > 1 ? 'addLocations' : 'locationTargeting',
-          toolCallId,
-          output: { success: true }
-        });
-      } catch (error) {
-        console.error('[LocationProcessor] Failed to add locations:', error);
-        updateLocationStatus('error');
-        toast.error('Failed to save location data');
-        throw error;
-      }
-      
-    } catch (error) {
-      console.error('[LocationProcessor] Error:', error);
-      
-      updateLocationStatus('error');
-      
-      const errorMessage = error instanceof Error ? error.message : 'Failed to set location';
-      toast.error(errorMessage);
-      
-      addToolResult({
-        tool: 'addLocations',
-        toolCallId,
-        output: undefined,
-        errorText: errorMessage,
-      } as ToolResult);
-    }
+    // This logic has been moved to lib/ai/tools/targeting/add-locations-tool.ts
+    // Tool now executes server-side, matching the pattern used in editVariationTool
   }, [addLocations, updateLocationStatus, addToolResult, triggerSave]);
 
-  // Alias for backward compatibility with confirmation flow
   const handleLocationTargetingCall = processLocationToolCall;
+  */
 
   // AUTO-SUBMIT INITIAL PROMPT (AI SDK Native Pattern)
   useEffect(() => {
@@ -1721,30 +1602,82 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                             case "tool-locationTargeting": {  // OLD name (backward compat)
                               const callId = part.toolCallId;
                               const input = part.input as LocationToolInput;
-                              const isProcessing = !processedLocationCalls.current.has(callId);
                               
-                              // ONLY handle states we care about
-                              if (part.state === 'input-streaming') {
-                                return null;  // Don't render anything during streaming
-                              }
-                              
-                              if (part.state === 'input-available' && isProcessing) {
-                                // Auto-process immediately (no confirmation per user requirements)
-                                // DON'T mark as processed here - let the handler do it
-                                void handleLocationTargetingCall(callId, input);
+                              switch (part.state) {
+                                case 'input-streaming':
+                                  return null;
                                 
-                                return (
-                                  <LocationProcessingCard
-                                    key={callId}
-                                    locationCount={input.locations.length}
-                                  />
-                                );
+                                case 'input-available':
+                                  // Show processing card during server-side execution
+                                  return (
+                                    <LocationProcessingCard
+                                      key={callId}
+                                      locationCount={input.locations.length}
+                                    />
+                                  );
+                                
+                                case 'output-available': {
+                                  // Parse output (server-executed tool returns result)
+                                  const output = ((part as unknown as { output?: unknown; result?: unknown }).output || 
+                                                 (part as unknown as { output?: unknown; result?: unknown }).result) as {
+                                    success?: boolean;
+                                    count?: number;
+                                    locations?: Array<{
+                                      name: string;
+                                      coordinates: [number, number];
+                                      radius?: number;
+                                      type: string;
+                                      mode: string;
+                                      bbox?: [number, number, number, number];
+                                      geometry?: unknown;
+                                      key?: string;
+                                      country_code?: string;
+                                    }>;
+                                    error?: string;
+                                  };
+                                  
+                                  if (!output.success || output.error) {
+                                    return (
+                                      <div key={callId} className="text-sm text-destructive p-3 border border-destructive/50 rounded-lg my-2">
+                                        Error: {output.error || 'Failed to update location'}
+                                      </div>
+                                    );
+                                  }
+                                  
+                                  // Emit browser event for canvas update (matching image pattern)
+                                  if (output.locations && output.locations.length > 0) {
+                                    const eventKey = `${callId}-location`;
+                                    if (!dispatchedEvents.current.has(eventKey)) {
+                                      dispatchedEvents.current.add(eventKey);
+                                      setTimeout(() => {
+                                        emitBrowserEvent('locationUpdated', {
+                                          sessionId: callId,
+                                          locations: output.locations,
+                                          mode: 'add'
+                                        });
+                                      }, 0);
+                                    }
+                                  }
+                                  
+                                  // Render success card (matching image pattern)
+                                  return renderLocationUpdateResult({
+                                    callId,
+                                    keyId: `${callId}-output-available`,
+                                    input,
+                                    output
+                                  });
+                                }
+                                
+                                case 'output-error':
+                                  return (
+                                    <div key={callId} className="text-sm text-destructive p-3 border border-destructive/50 rounded-lg my-2">
+                                      Error: {part.errorText || 'Failed to update location'}
+                                    </div>
+                                  );
+                                
+                                default:
+                                  return null;
                               }
-                              
-                              // Location confirmations now render from metadata (see above in message loop)
-                              // No need for output-available or output-error rendering here
-                              
-                              return null;
                             }
                             
                             case "tool-setupGoal": {

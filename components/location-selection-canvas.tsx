@@ -6,6 +6,7 @@
  */
 "use client"
 
+import { useEffect } from "react"
 import { Plus, X, Check, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -35,7 +36,7 @@ interface LocationSelectionCanvasProps {
 }
 
 export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionCanvasProps = {}) {
-  const { locationState, removeLocation, resetLocations, clearLocations, startLocationSetup } = useLocation()
+  const { locationState, removeLocation, resetLocations, clearLocations, startLocationSetup, addLocations } = useLocation()
   const { isPublished } = useAdPreview()
   const isSummary = variant === "summary"
 
@@ -51,6 +52,44 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       toast.error(error instanceof Error ? error.message : 'Please select an ad first')
     }
   }
+
+  // Listen for location updates from AI chat (matching PreviewPanel pattern)
+  useEffect(() => {
+    const handleLocationUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ 
+        sessionId?: string;
+        locations: Array<{
+          name: string;
+          coordinates: [number, number];
+          radius?: number;
+          type: string;
+          mode: string;
+          bbox?: [number, number, number, number];
+          geometry?: unknown;
+          key?: string;
+          country_code?: string;
+        }>;
+        mode: string;
+      }>;
+      const { sessionId, locations } = customEvent.detail;
+      
+      if (!sessionId || !locations) return;
+      
+      console.log('[LocationCanvas] Received locationUpdated event', {
+        count: locations.length,
+        names: locations.map(l => l.name)
+      });
+      
+      // Update context (triggers autosave)
+      addLocations(locations, true);
+    };
+    
+    window.addEventListener('locationUpdated', handleLocationUpdated);
+    
+    return () => {
+      window.removeEventListener('locationUpdated', handleLocationUpdated);
+    };
+  }, [addLocations]);
 
   // Initial state - no locations selected
   if (locationState.status === "idle" || locationState.locations.length === 0) {
