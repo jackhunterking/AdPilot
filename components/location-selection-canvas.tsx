@@ -6,6 +6,7 @@
  */
 "use client"
 
+import { useState } from "react"
 import { Plus, X, Check, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -14,6 +15,7 @@ import { useAdPreview } from "@/lib/context/ad-preview-context"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { LocationMap } from "@/components/location-map"
+import { LocationRemovalDialog } from "@/components/dialogs/location-removal-dialog"
 
 interface LocationData {
   id: string
@@ -38,6 +40,10 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
   const { locationState, removeLocation, resetLocations, clearLocations, startLocationSetup } = useLocation()
   const { isPublished } = useAdPreview()
   const isSummary = variant === "summary"
+  
+  // Dialog state for location removal confirmation
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false)
+  const [locationToRemove, setLocationToRemove] = useState<LocationData | null>(null)
 
   const handleAddMore = () => {
     try {
@@ -66,6 +72,20 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Please select an ad first')
+    }
+  }
+
+  const handleRemoveClick = (location: LocationData) => {
+    setLocationToRemove(location)
+    setShowRemoveDialog(true)
+  }
+
+  const handleConfirmRemove = () => {
+    if (locationToRemove) {
+      removeLocation(locationToRemove.id)
+      setShowRemoveDialog(false)
+      setLocationToRemove(null)
+      toast.success('You have removed location')
     }
   }
 
@@ -182,7 +202,10 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
                   <LocationCard
                     key={location.id}
                     location={location as LocationData}
-                    onRemove={isSummary ? undefined : removeLocation}
+                    onRemove={isSummary ? undefined : (id) => {
+                      const loc = includedLocations.find(l => l.id === id)
+                      if (loc) handleRemoveClick(loc as LocationData)
+                    }}
                     readonly={isSummary}
                   />
                 ))}
@@ -202,7 +225,10 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
                   <LocationCard
                     key={location.id}
                     location={location as LocationData}
-                    onRemove={isSummary ? undefined : removeLocation}
+                    onRemove={isSummary ? undefined : (id) => {
+                      const loc = excludedLocations.find(l => l.id === id)
+                      if (loc) handleRemoveClick(loc as LocationData)
+                    }}
                     isExcluded
                     readonly={isSummary}
                   />
@@ -247,6 +273,14 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
           </div>
         )}
       </div>
+
+      {/* Location Removal Confirmation Dialog */}
+      <LocationRemovalDialog
+        open={showRemoveDialog}
+        onOpenChange={setShowRemoveDialog}
+        location={locationToRemove}
+        onConfirm={handleConfirmRemove}
+      />
     </div>
   )
 }

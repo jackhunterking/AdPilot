@@ -1,6 +1,6 @@
 /**
- * Feature: Delete Campaign Dialog
- * Purpose: Confirmation dialog for deleting campaigns
+ * Feature: Delete Ad Dialog
+ * Purpose: Confirmation dialog for deleting ads
  * Microservices: Thin wrapper around generic ConfirmationDialog
  * References:
  *  - ConfirmationDialog: components/ui/confirmation-dialog.tsx
@@ -8,36 +8,31 @@
 
 "use client"
 
-import { Tables } from '@/lib/supabase/database.types'
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 
-type Campaign = Tables<'campaigns'>
-
-interface DeleteCampaignDialogProps {
+interface DeleteAdDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  campaign: Campaign | null
+  adName: string
   onConfirm: () => void
   isDeleting?: boolean
 }
 
-export function DeleteCampaignDialog({
+export function DeleteAdDialog({
   open,
   onOpenChange,
-  campaign,
+  adName,
   onConfirm,
   isDeleting = false,
-}: DeleteCampaignDialogProps) {
-  if (!campaign) return null
-
+}: DeleteAdDialogProps) {
   return (
     <ConfirmationDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Delete Campaign?"
+      title="Delete Ad?"
       description={
         <>
-          Are you sure you want to delete <strong>{campaign.name}</strong>? This action cannot be undone.
+          Are you sure you want to delete <strong>{adName}</strong>? This action cannot be undone.
         </>
       }
       actionLabel="Delete"
