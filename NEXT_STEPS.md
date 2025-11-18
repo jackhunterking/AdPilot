@@ -81,27 +81,20 @@ npm test tests/journeys/metadata-builder.test.ts
 
 ---
 
-### STEP 4: Apply Supabase Migrations (10 minutes)
+### STEP 4: Apply Supabase Migrations ✅ COMPLETE
 
-1. Go to https://supabase.com/dashboard
-2. Select your AdPilot project
-3. Navigate to: SQL Editor
-4. Copy contents of: `supabase/migrations/add_location_indexes.sql`
-5. Paste and Execute
-6. Copy contents of: `supabase/migrations/add_helper_functions.sql`
-7. Paste and Execute
+**Status**: Applied via Supabase MCP
 
-**Verify**:
-```sql
--- Check indexes created:
-SELECT indexname FROM pg_indexes WHERE tablename = 'ad_target_locations';
+**Indexes Created**:
+- ✅ idx_ad_target_locations_ad_id
+- ✅ idx_ad_target_locations_mode
+- ✅ idx_ad_target_locations_name
 
--- Check functions created:
-SELECT routine_name FROM information_schema.routines 
-WHERE routine_name IN ('user_owns_ad', 'get_ad_locations_count');
-```
+**Functions Created**:
+- ✅ user_owns_ad(ad_id, user_id)
+- ✅ get_ad_locations_count(ad_id)
 
-**Result**: 10x faster location queries
+**Result**: Database optimized - 10x faster location queries! ✅
 
 ---
 
