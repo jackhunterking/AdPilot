@@ -979,10 +979,11 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
               const isDisliked = dislikedMessages.has(message.id);
               
               // RENDER LOCATION CONFIRMATION CARDS from metadata
-              if (message.metadata?.type === 'location_confirmation' && 
-                  Array.isArray(message.metadata?.locations)) {
+              const metadata = message.metadata as { type?: string; locations?: unknown } | undefined;
+              if (metadata?.type === 'location_confirmation' && 
+                  Array.isArray(metadata?.locations)) {
                 
-                const locations = message.metadata.locations as LocationCardData[]
+                const locations = metadata.locations as LocationCardData[]
 
                 return (
                   <Message key={message.id} from={message.role}>
