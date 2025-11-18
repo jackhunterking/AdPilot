@@ -492,9 +492,6 @@ export async function POST(req: Request) {
     model: modelId, // Pass model string - AI SDK auto-routes through gateway
     messages: convertToModelMessages(validatedMessages),
     
-    // Enable multi-step agentic behavior (AI SDK best practice)
-    maxToolRoundtrips: 10, // Allow up to 10 tool roundtrips for execution + text responses
-    
     // Track each step for debugging (AI SDK best practice)
     onStepFinish: ({ toolCalls, toolResults }) => {
       // Validate tool calls don't mix creative and build tools
