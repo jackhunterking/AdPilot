@@ -27,7 +27,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: `${COMPANY_NAME} - Create Meta Ads with AI`,
   description: "Create Facebook and Instagram ads with AI-generated content",
-  icons: "/adpilot-newlogo.png",
+  icons: "/AdPilot-NewLogo.svg",
 };
 
 export default function RootLayout({
