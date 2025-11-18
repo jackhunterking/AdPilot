@@ -192,13 +192,22 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       // Calculate updated locations
       const updatedLocations = locationState.locations.filter(loc => loc.id !== id);
       
-      // Update local state (autosave will write to ad_target_locations table)
+      // Update local state first (immediate UI feedback)
       setLocationState({
         locations: updatedLocations,
         status: updatedLocations.length > 0 ? 'completed' : 'idle',
         errorMessage: undefined
       });
       
+      // Emit event for PreviewPanel to save
+      window.dispatchEvent(new CustomEvent('locationRemoved', {
+        detail: {
+          locationId: id,
+          remainingLocations: updatedLocations
+        }
+      }));
+      
+      console.log('[LocationContext] ✅ Location removed, event emitted');
     } catch (error) {
       console.error('[LocationContext] ❌ Failed to remove location:', error);
       throw error;
@@ -221,11 +230,19 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   }
 
   const clearLocations = () => {
+    // Update local state
     setLocationState({
       locations: [],
       status: "idle",
       errorMessage: undefined,
     })
+    
+    // Emit event to save empty state to database
+    window.dispatchEvent(new CustomEvent('locationsCleared', {
+      detail: { clearedBy: 'user' }
+    }));
+    
+    console.log('[LocationContext] ✅ All locations cleared, event emitted');
   }
 
   // NEW: Direct method to start location setup (replaces event-based trigger)

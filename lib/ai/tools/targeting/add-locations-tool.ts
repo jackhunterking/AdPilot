@@ -78,9 +78,9 @@ export const addLocationsTool = tool({
               metaType as 'city' | 'region' | 'country'
             );
 
-            // Build complete location object
+            // Build complete location object with proper place name from geocoding
             return {
-              name: loc.name,
+              name: geoResult.data.place_name,  // Use proper geocoded name, not user input
               coordinates: [lng, lat] as [number, number],
               radius: loc.radius || 30,
               type: loc.type,
