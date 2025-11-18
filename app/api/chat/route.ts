@@ -32,9 +32,6 @@ import * as copyTools from '@/lib/ai/tools/copy';
 import * as targetingTools from '@/lib/ai/tools/targeting';
 import * as campaignTools from '@/lib/ai/tools/campaign';
 import * as goalTools from '@/lib/ai/tools/goal';
-
-// Backward compatibility imports (temporary during migration)
-import { generateImageTool, editImageTool, regenerateImageTool, editAdCopyTool, locationTargetingTool, createAdTool, setupGoalTool } from '@/lib/ai/tools';
 import { getCachedMetrics } from '@/lib/meta/insights';
 import { getModel } from '@/lib/ai/gateway-provider';
 import { messageStore } from '@/lib/services/message-store';
@@ -181,14 +178,6 @@ export async function POST(req: Request) {
     
     // Goal operations
     setupGoal: goalTools.setupGoalTool,
-    
-    // DEPRECATED: Old monolithic tools (backward compatibility)
-    // These will be removed after migration is complete
-    generateImage: generateImageTool, // DEPRECATED: use generateVariations
-    editImage: editImageTool, // DEPRECATED: use editVariation
-    regenerateImage: regenerateImageTool, // DEPRECATED: use regenerateVariation
-    locationTargeting: locationTargetingTool, // DEPRECATED: use addLocations
-    editAdCopy: editAdCopyTool, // DEPRECATED: use editCopy
   };
 
   // Get or create conversation
@@ -314,7 +303,7 @@ export async function POST(req: Request) {
     
     if (!offerText) {
       // Stricter ask-one-offer-question branch
-      offerAskContext = `\n[OFFER REQUIRED - INITIAL SETUP]\nAsk ONE concise question to capture the user's concrete offer/value (e.g., "Free quote", "% off", "Consultation", "Download").\n\n**When Asking:**\n- Ask ONLY this one question, no extra text.\n- Do NOT call any tools yet.\n- Do NOT ask about location, audience, or targeting.\n- Wait for user's response.\n\n**CRITICAL - After User Answers:**\n- Provide brief acknowledgment (1 sentence): "Perfect! Creating your ${effectiveGoal || 'campaign'} ads with that offer..."\n- IMMEDIATELY call generateImage tool ONLY with the offer incorporated\n- Use appropriate format based on offer type:\n  * Discounts/percentages (e.g., "20% off") → Include text overlay in prompt\n  * "Free" offers → Text overlay or notes-style aesthetic\n  * Product/service names → Clean professional imagery\n- Do NOT ask any follow-up questions\n- Do NOT call setupGoal tool (goal is already set)\n- Do NOT call locationTargeting tool (location comes later in build phase)\n- Do NOT call any other tools besides generateImage\n- Generate creative immediately with generateImage ONLY`;
+      offerAskContext = `\n[OFFER REQUIRED - INITIAL SETUP]\nAsk ONE concise question to capture the user's concrete offer/value (e.g., "Free quote", "% off", "Consultation", "Download").\n\n**When Asking:**\n- Ask ONLY this one question, no extra text.\n- Do NOT call any tools yet.\n- Do NOT ask about location, audience, or targeting.\n- Wait for user's response.\n\n**CRITICAL - After User Answers:**\n- Provide brief acknowledgment (1 sentence): "Perfect! Creating your ${effectiveGoal || 'campaign'} ads with that offer..."\n- IMMEDIATELY call generateVariations tool ONLY with the offer incorporated\n- Use appropriate format based on offer type:\n  * Discounts/percentages (e.g., "20% off") → Include text overlay in prompt\n  * "Free" offers → Text overlay or notes-style aesthetic\n  * Product/service names → Clean professional imagery\n- Do NOT ask any follow-up questions\n- Do NOT call setupGoal tool (goal is already set)\n- Do NOT call addLocations tool (location comes later in build phase)\n- Do NOT call any other tools besides generateVariations\n- Generate creative immediately with generateVariations ONLY`;
     } else {
       // Store offer in conversation metadata for future reference
       try {
@@ -434,16 +423,16 @@ export async function POST(req: Request) {
 
       if (isCopyEdit) {
         referenceContext += `\n**You MUST call this tool:**\n`;
-        referenceContext += `- editAdCopy: Rewrite primaryText/headline/description based on the user's instruction.\n`;
+        referenceContext += `- editCopy: Rewrite primaryText/headline/description based on the user's instruction.\n`;
         referenceContext += `\n**Required parameters:**\n`;
         referenceContext += `- variationIndex: ${ref.variationIndex}\n`;
         referenceContext += `- current: {primaryText, headline, description} from context above\n`;
         referenceContext += `- prompt: The user's instruction\n`;
-        referenceContext += `\nAfter calling editAdCopy, do not output any other text.\n`;
+        referenceContext += `\nAfter calling editCopy, do not output any other text.\n`;
       } else {
         referenceContext += `\n**You MUST use one of these tools:**\n`;
-        referenceContext += `- editImage: If user wants to MODIFY this image (change colors, adjust brightness, remove/add elements)\n`;
-        referenceContext += `- regenerateImage: If user wants a COMPLETELY NEW VERSION of this variation\n`;
+        referenceContext += `- editVariation: If user wants to MODIFY this image (change colors, adjust brightness, remove/add elements)\n`;
+        referenceContext += `- regenerateVariation: If user wants a COMPLETELY NEW VERSION of this variation\n`;
         referenceContext += `\n**Required parameters:**\n`;
         referenceContext += `- imageUrl: ${ref.imageUrl}\n`;
         referenceContext += `- variationIndex: ${ref.variationIndex}\n`;
@@ -459,34 +448,34 @@ export async function POST(req: Request) {
       };
       if (typeof locked.variationIndex === 'number') {
         // Override execute while preserving types via unknown casts at the edge
-        (tools as unknown as Record<string, unknown>).editImage = {
-          ...editImageTool,
+        (tools as unknown as Record<string, unknown>).editVariation = {
+          ...creativeTools.editVariationTool,
           execute: async (input: unknown, ctx: unknown) => {
             const provided = input as { variationIndex?: number; imageUrl?: string };
             const enforced = { ...provided, variationIndex: locked.variationIndex, imageUrl: locked.imageUrl };
-            console.log('[LOCK] editImage enforced index/url:', { locked, provided });
-            const exec = (editImageTool as unknown as { execute: (i: unknown, c: unknown) => Promise<unknown> }).execute;
+            console.log('[LOCK] editVariation enforced index/url:', { locked, provided });
+            const exec = (creativeTools.editVariationTool as unknown as { execute: (i: unknown, c: unknown) => Promise<unknown> }).execute;
             const result = await exec(enforced, ctx);
             return { ...(result as object), variationIndex: locked.variationIndex, sessionId: locked.sessionId };
           }
         } as unknown;
-        (tools as unknown as Record<string, unknown>).regenerateImage = {
-          ...regenerateImageTool,
+        (tools as unknown as Record<string, unknown>).regenerateVariation = {
+          ...creativeTools.regenerateVariationTool,
           execute: async (input: unknown, ctx: unknown) => {
             const provided = input as { variationIndex?: number };
             const enforced = { ...provided, variationIndex: locked.variationIndex };
-            console.log('[LOCK] regenerateImage enforced index:', { lockedIndex: locked.variationIndex, provided: provided.variationIndex });
-            const exec = (regenerateImageTool as unknown as { execute: (i: unknown, c: unknown) => Promise<unknown> }).execute;
+            console.log('[LOCK] regenerateVariation enforced index:', { lockedIndex: locked.variationIndex, provided: provided.variationIndex });
+            const exec = (creativeTools.regenerateVariationTool as unknown as { execute: (i: unknown, c: unknown) => Promise<unknown> }).execute;
             const result = await exec(enforced, ctx);
             return { ...(result as object), variationIndex: locked.variationIndex, sessionId: locked.sessionId };
           }
         } as unknown;
-        (tools as unknown as Record<string, unknown>).editAdCopy = {
-          ...editAdCopyTool,
+        (tools as unknown as Record<string, unknown>).editCopy = {
+          ...copyTools.editCopyTool,
           execute: async (input: unknown, ctx: unknown) => {
             const provided = input as { variationIndex?: number; current?: { primaryText?: string; headline?: string; description?: string } };
             const enforced = { ...provided, variationIndex: locked.variationIndex };
-            const exec = (editAdCopyTool as unknown as { execute: (i: unknown, c: unknown) => Promise<unknown> }).execute;
+            const exec = (copyTools.editCopyTool as unknown as { execute: (i: unknown, c: unknown) => Promise<unknown> }).execute;
             const result = await exec(enforced, ctx);
             return { ...(result as object), variationIndex: locked.variationIndex, sessionId: locked.sessionId };
           }
@@ -509,11 +498,11 @@ export async function POST(req: Request) {
     // Track each step for debugging (AI SDK best practice)
     onStepFinish: ({ toolCalls, toolResults }) => {
       // Validate tool calls don't mix creative and build tools
-      const creativeTools = ['generateImage', 'editImage', 'regenerateImage', 'editAdCopy'];
-      const buildTools = ['locationTargeting', 'setupGoal'];
+      const creativeToolNames = ['generateVariations', 'editVariation', 'regenerateVariation', 'editCopy', 'selectVariation', 'deleteVariation', 'generateCopyVariations', 'selectCopyVariation', 'refineHeadline', 'refinePrimaryText', 'refineDescription'];
+      const buildToolNames = ['addLocations', 'removeLocation', 'clearLocations', 'setupGoal'];
       
-      const hasCreativeTool = toolCalls.some(tc => creativeTools.includes(tc.toolName));
-      const hasBuildTool = toolCalls.some(tc => buildTools.includes(tc.toolName));
+      const hasCreativeTool = toolCalls.some(tc => creativeToolNames.includes(tc.toolName));
+      const hasBuildTool = toolCalls.some(tc => buildToolNames.includes(tc.toolName));
       
       // Log validation error if mixed tools detected
       if (hasCreativeTool && hasBuildTool) {
@@ -528,7 +517,7 @@ export async function POST(req: Request) {
       if (toolCalls.length > 0) {
         console.log(`[STEP] Tool calls:`, toolCalls.map(tc => ({ 
           name: tc.toolName, 
-          hasExecute: tc.toolName === 'generateImage' ? 'NO (client-side)' : 'varies' 
+          hasExecute: tc.toolName === 'generateVariations' ? 'NO (client-side)' : 'varies' 
         })));
       }
       if (toolResults.length > 0) {
@@ -590,23 +579,23 @@ ${referenceContext}
 
 **MANDATORY RULES - READ CAREFULLY:**
 
-1. ❌ **NEVER CALL generateImage** - User is editing ONE variation, not creating 6 new ones
-2. ✅ **For MODIFICATIONS** → Call editImage immediately (change colors, brightness, remove/add elements)
-3. ✅ **For NEW VERSION** → Call regenerateImage immediately (completely different take)
+1. ❌ **NEVER CALL generateVariations** - User is editing ONE variation, not creating 6 new ones
+2. ✅ **For MODIFICATIONS** → Call editVariation immediately (change colors, brightness, remove/add elements)
+3. ✅ **For NEW VERSION** → Call regenerateVariation immediately (completely different take)
 4. ✅ **Use variationIndex** from context above - REQUIRED for canvas update
 
 **How to Decide Which Tool:**
 
-- "make car black" → **editImage** (modify existing)
-- "change background white" → **editImage** (modify existing)
-- "remove text" → **editImage** (modify existing)
-- "make it brighter" → **editImage** (modify existing)
-- "regenerate this ad" → **regenerateImage** (new version)
-- "try different style" → **regenerateImage** (new version)
-- "create new version" → **regenerateImage** (new version)
+- "make car black" → **editVariation** (modify existing)
+- "change background white" → **editVariation** (modify existing)
+- "remove text" → **editVariation** (modify existing)
+- "make it brighter" → **editVariation** (modify existing)
+- "regenerate this ad" → **regenerateVariation** (new version)
+- "try different style" → **regenerateVariation** (new version)
+- "create new version" → **regenerateVariation** (new version)
 
 **Response Behavior (CRITICAL):**
-- After calling editImage or regenerateImage, DO NOT output any text.
+- After calling editVariation or regenerateVariation, DO NOT output any text.
 - Return ONLY the tool call/result. Do not write confirmations like "Done.", explanations, or markdown images.
 
 **Examples with Parameter Extraction:**
@@ -615,7 +604,7 @@ User: "make the car colour black"
 AI must extract from EDITING CONTEXT above:
   - imageUrl: [from "Image URL:" line]
   - variationIndex: [from "Variation Index:" line]
-→ Call: editImage({
+→ Call: editVariation({
     imageUrl: "[EXTRACTED_IMAGE_URL]",
     variationIndex: [EXTRACTED_VARIATION_INDEX],
     prompt: "make car black",
@@ -626,7 +615,7 @@ AI must extract from EDITING CONTEXT above:
 User: "regenerate this ad"
 AI must extract from EDITING CONTEXT above:
   - variationIndex: [from "Variation Index:" line]
-→ Call: regenerateImage({
+→ Call: regenerateVariation({
     variationIndex: [EXTRACTED_VARIATION_INDEX],
     originalPrompt: "[CONSTRUCT_FROM_CAMPAIGN_CONTEXT]",
     campaignId: "[FROM_CAMPAIGN_CONTEXT]"
@@ -634,7 +623,7 @@ AI must extract from EDITING CONTEXT above:
 → Do NOT output any text after the tool call
 
 User: "make background darker"
-→ Call: editImage with extracted parameters
+→ Call: editVariation with extracted parameters
 → Do NOT output any text after the tool call
 
 ---
@@ -730,13 +719,6 @@ You have access to 21+ specialized tools organized into categories. Each tool do
 - "remove Toronto" → removeLocation (not addLocations with empty array)
 - "change car to red" → editVariation (not regenerateVariation)
 
-**OLD DEPRECATED TOOLS** (still work but avoid):
-- generateImage → use generateVariations
-- editImage → use editVariation
-- regenerateImage → use regenerateVariation
-- editAdCopy → use editCopy
-- locationTargeting → use addLocations
-
 ## 🚨 CRITICAL: Step-Aware Tool Usage
 
 **Current Step:** ${currentStep || 'ads'}
@@ -755,28 +737,28 @@ ${currentStep === 'location' ? `
 Setting up location targeting for the ad campaign. User can add cities, regions, countries, or radius-based targeting.
 
 **Tool Usage:**
-- ✅ **Call locationTargeting tool** when user requests location setup
+- ✅ **Call addLocations tool** when user requests location setup
 - ✅ The tool shows a confirmation dialog where user enters location names
 - ✅ After user confirms in the dialog, locations are geocoded and added to the map
-- ❌ **DO NOT call generateImage, setupGoal, or any creative tools** - this is ONLY for location targeting
+- ❌ **DO NOT call generateVariations, setupGoal, or any creative tools** - this is ONLY for location targeting
 
 **How It Works:**
 1. User clicks "Add Location" button → You receive message "Set up location targeting"
-2. You call locationTargeting tool immediately
+2. You call addLocations tool immediately
 3. Client shows confirmation dialog asking for location names
 4. User enters locations and confirms
 5. Locations are processed, geocoded, and shown on map
 6. You receive the result and can confirm with a brief message
 
 **Simple Rules:**
-- When user says "set up location targeting" or similar → Call locationTargeting tool
+- When user says "set up location targeting" or similar → Call addLocations tool
 - When user asks questions about targeting → Answer helpfully
 - DO NOT ask the user for location names in chat - the confirmation dialog handles that
 - DO NOT call creative generation tools on this step
 
 **Example:**
 User: "Set up location targeting"
-AI: [Calls locationTargeting tool]
+AI: [Calls addLocations tool]
 → Dialog appears, user enters "Vancouver, Toronto"
 → Locations are processed
 AI: "Great! I've set up targeting for Vancouver and Toronto"
@@ -784,9 +766,9 @@ AI: "Great! I've set up targeting for Vancouver and Toronto"
 
 ${currentStep === 'copy' ? `
 **COPY STEP - TEXT EDITING ONLY:**
-- ❌ **NEVER call generateImage** on the copy step unless user EXPLICITLY says "generate new ads from scratch"
-- ❌ **NEVER call locationTargeting** or setupGoal
-- ✅ Use editAdCopy tool to help with ad copy modifications
+- ❌ **NEVER call generateVariations** on the copy step unless user EXPLICITLY says "generate new ads from scratch"
+- ❌ **NEVER call addLocations** or setupGoal
+- ✅ Use editCopy tool to help with ad copy modifications
 - ✅ Answer questions about copywriting
 - ✅ Focus ONLY on text content modifications
 ` : ''}
@@ -883,10 +865,10 @@ For all other requests (location targeting, copy edits, destination setup, quest
 - DO NOT ask multiple questions
 
 **Step 2 - Generate Immediately After Offer:**
-- User provides offer → You provide 1-sentence acknowledgment → IMMEDIATELY call generateImage tool ONLY
+- User provides offer → You provide 1-sentence acknowledgment → IMMEDIATELY call generateVariations tool ONLY
 - Example flow:
   * User: "20% off first cleaning"
-  * You: "Perfect! Creating your lead generation ads with that discount offer..." [CALLS generateImage ONLY]
+  * You: "Perfect! Creating your lead generation ads with that discount offer..." [CALLS generateVariations ONLY]
 - Include the offer in image generation prompt using appropriate format:
   * Discounts → Text overlay: "bold text overlay displaying '20% OFF FIRST CLEANING'"
   * Free offers → Text overlay or notes-style
@@ -894,17 +876,17 @@ For all other requests (location targeting, copy edits, destination setup, quest
 
 **🚨 WHAT NOT TO DO:**
 - ❌ Do NOT call setupGoal tool (goal is already set from homepage)
-- ❌ Do NOT call locationTargeting tool (location comes later in separate build step)
-- ❌ Do NOT call any other tools besides generateImage
+- ❌ Do NOT call addLocations tool (location comes later in separate build step)
+- ❌ Do NOT call any other tools besides generateVariations
 - ❌ Do NOT ask follow-up questions after receiving the offer
 - ❌ Do NOT show "Goal Setup Complete" message
 - ❌ Do NOT wait for additional information
 - ❌ Do NOT explain the plan - just generate
-- ❌ NEVER mix generateImage with locationTargeting or other build tools
+- ❌ NEVER mix generateVariations with addLocations or other build tools
 
 **✅ CORRECT BEHAVIOR:**
   User: [Describes business with offer]
-  AI: Brief acknowledgment + CALL generateImage tool ONLY (not locationTargeting, not setupGoal, ONLY generateImage)
+  AI: Brief acknowledgment + CALL generateVariations tool ONLY (not addLocations, not setupGoal, ONLY generateVariations)
   Result: Creative generation starts (3 variations appear)
 
 ## Smart Questioning Framework
@@ -1048,17 +1030,17 @@ Otherwise, make intelligent style AND FORMAT assumptions based on:
 - Offer type (discount → bold text overlay, product → clean photography)
 - Goal type (calls → approachable with contact info, leads → value prop emphasis)
 
-## When to Ask vs. When to CALL generateImage Tool
+## When to Ask vs. When to CALL generateVariations Tool
 
-**❌ NEVER CALL generateImage when:**
+**❌ NEVER CALL generateVariations when:**
 - User is in EDITING MODE (editingReference exists in context)
 - User has selected a specific variation to edit or regenerate
 - User says "regenerate THIS" or "edit THIS" or "change THIS"
 - Context shows an imageUrl to modify
 - **Instead use:**
-  - editImage → for modifications to existing image
-  - regenerateImage → for creating new version of ONE specific variation
-  - generateImage → ONLY for creating initial 3 variations from scratch
+  - editVariation → for modifications to existing image
+  - regenerateVariation → for creating new version of ONE specific variation
+  - generateVariations → ONLY for creating initial 3 variations from scratch
 
 **ASK (max 1 question) when:**
 - User provides only generic business name without offer/context
@@ -1066,7 +1048,7 @@ Otherwise, make intelligent style AND FORMAT assumptions based on:
 - No goal type set yet
 - Example: "create an ad for my business" → ASK about offer first
 
-**CALL generateImage TOOL when:**
+**CALL generateVariations TOOL when:**
 - NO editing context active (user is NOT editing a specific variation)
 - User wants to create 3 NEW variations from scratch
 - Has OFFER + business context (even without style specification)
@@ -1077,19 +1059,19 @@ Otherwise, make intelligent style AND FORMAT assumptions based on:
 **Creative Execution Examples:**
 
 User: "generate leads for my marketing company - offering free marketing audit"
-AI: [Acknowledge] → CALL generateImage with prompt including:
+AI: [Acknowledge] → CALL generateVariations with prompt including:
   - Professional marketing agency setting OR
   - iOS notes-style with "Free Marketing Audit - Get Your Custom Strategy"
   - Text overlay: "Free Marketing Audit" prominently displayed
 
 User: "create ad for pet spa - 20% off first grooming"
-AI: [Acknowledge] → CALL generateImage with prompt including:
+AI: [Acknowledge] → CALL generateVariations with prompt including:
   - Cute, professional pet grooming imagery
   - Bold text overlay: "20% OFF First Grooming"
   - Warm, inviting aesthetic
 
 User: "insurance leads - free life insurance quote for families"
-AI: [Acknowledge] → CALL generateImage with prompt including:
+AI: [Acknowledge] → CALL generateVariations with prompt including:
   - Happy family in professional/trust-building setting
   - Text overlay or notes-style: "Free Life Insurance Quote"
   - Professional, trustworthy aesthetic
@@ -1105,7 +1087,7 @@ Result: Generic question, no offer captured
 User: "generate leads for my marketing company"  
 AI: "What's the main offer or value you're promoting to generate leads? For example, 'Free marketing audit', 'Download our guide', or 'Get a custom strategy'. What makes your agency different from others?"
 User: "Free marketing audit for small businesses"
-AI: [Acknowledge] → CALL generateImage with:
+AI: [Acknowledge] → CALL generateVariations with:
   - Prompt: "Professional marketing agency office, modern aesthetic, bold text overlay displaying 'FREE MARKETING AUDIT' for small businesses, trustworthy professional setting"
   - Creative format: Text overlay on professional imagery
 
@@ -1120,7 +1102,7 @@ Result: No offer, no format strategy
 User: "create an ad for my pet spa for calls"
 AI: "What specific service or offer would make pet owners want to call you right now? (For example: 'New client discount', 'Luxury grooming package', 'Same-day appointments'). Also, what makes your spa special?"
 User: "20% off first grooming, we specialize in anxious pets"
-AI: [Acknowledge] → CALL generateImage with:
+AI: [Acknowledge] → CALL generateVariations with:
   - Prompt: "Calm, happy dog being groomed in professional pet spa, warm friendly atmosphere, gentle care, bold text overlay '20% OFF FIRST GROOMING', inviting and approachable aesthetic"
   - Creative format: Offer-focused with text overlay
 
@@ -1128,7 +1110,7 @@ AI: [Acknowledge] → CALL generateImage with:
 
 ✅ COMPLETE CONTEXT (Generate with Smart Format):
 User: "create leads ad for insurance - offering free life insurance quote for families"
-AI: [Acknowledge] → CALL generateImage with:
+AI: [Acknowledge] → CALL generateVariations with:
   - Prompt: "Happy diverse family outdoors, professional trustworthy atmosphere, text overlay 'Free Life Insurance Quote', warm natural lighting, secure and caring aesthetic"
   - Creative format: Trust-building imagery + clear offer text
   - Variations automatically include: professional photography, notes-style version, family-focused scenes
@@ -1137,11 +1119,11 @@ AI: [Acknowledge] → CALL generateImage with:
 
 **Cookie Shop Example (E-commerce):**
 User: "website visits for my cookie shop - promoting our new holiday collection"
-AI: [Acknowledge] → CALL generateImage with:
+AI: [Acknowledge] → CALL generateVariations with:
   - Prompt: "Beautiful assortment of decorated holiday cookies, professional food photography, festive colors, appetizing close-up, 'New Holiday Collection' text overlay OR clean product shot"
   - Creative format: Product-focused photography with optional text
 
-**CRITICAL**: When you see "generate", "create", or "make" + enough context (especially with OFFER), you MUST CALL the generateImage tool with the offer incorporated into the prompt. Do NOT just explain what you're going to do - ACTUALLY USE THE TOOL!
+**CRITICAL**: When you see "generate", "create", or "make" + enough context (especially with OFFER), you MUST CALL the generateVariations tool with the offer incorporated into the prompt. Do NOT just explain what you're going to do - ACTUALLY USE THE TOOL!
 
 ## Tool Cancellation Handling
 When a tool is cancelled by the user (tool result contains "cancelled: true"):
@@ -1186,20 +1168,20 @@ ${effectiveGoal === 'website-visits' ? `- Include browsing, discovery, and onlin
 When user provides enough context (business type + style), you MUST do BOTH in ONE response:
 
 **Step 1:** Provide brief contextual explanation (1-2 sentences)
-**Step 2:** CALL THE generateImage TOOL (not just explain - actually invoke the tool!)
+**Step 2:** CALL THE generateVariations TOOL (not just explain - actually invoke the tool!)
 
 **Correct Examples That CALL THE TOOL:**
 
 Example 1:
 - User: "modern shisha lounge"
 - You provide text: "Great! Setting up a modern shisha lounge ad with sleek, contemporary vibes."
-- You CALL TOOL: generateImage with prompt: "Modern upscale shisha lounge interior, sleek contemporary design..."
+- You CALL TOOL: generateVariations with prompt: "Modern upscale shisha lounge interior, sleek contemporary design..."
 - Result: User sees your text + confirmation dialog appears
 
 Example 2:
 - User: "life insurance modern"
 - You provide text: "Perfect! Creating a modern, trustworthy life insurance ad."
-- You CALL TOOL: generateImage with prompt: "Modern professional life insurance ad showing diverse happy family..."
+- You CALL TOOL: generateVariations with prompt: "Modern professional life insurance ad showing diverse happy family..."
 - Result: User sees your text + confirmation dialog appears
 
 **What Happens After You Call The Tool:**
@@ -1209,7 +1191,7 @@ Example 2:
 - DO NOT generate additional text after calling the tool
 - Only respond with text if user sends a NEW message
 
-**REMEMBER**: You must ACTUALLY INVOKE the generateImage tool in your response, not just say you're setting it up! The tool call triggers the confirmation dialog.
+**REMEMBER**: You must ACTUALLY INVOKE the generateVariations tool in your response, not just say you're setting it up! The tool call triggers the confirmation dialog.
 
 **Smart Defaults**: When generating, use context to make intelligent choices:
 - "Hair salon" → assume professional, modern aesthetic with salon setting
@@ -1241,21 +1223,21 @@ When user wants to edit images after variations already exist:
 **🚨 CRITICAL AUTO-PROCESSING RULE:**
 
 When you ask "What location would you like to target?" and the user responds with location names:
-- **IMMEDIATELY call the locationTargeting tool** with the provided locations
+- **IMMEDIATELY call the addLocations tool** with the provided locations
 - **DO NOT ask for confirmation** - auto-process the request
 - **DO NOT ask follow-up questions** about location type or radius (the tool handles geocoding automatically)
 - The user response is the green light to proceed
 
 **Examples of Auto-Processing:**
 User: "New York, Los Angeles"
-AI: [IMMEDIATELY calls locationTargeting tool with locations: ["New York", "Los Angeles"]]
+AI: [IMMEDIATELY calls addLocations tool with locations: ["New York", "Los Angeles"]]
 → Tool geocodes, adds to map, shows confirmation card & toast
 
 User: "Toronto with 25 mile radius"
-AI: [IMMEDIATELY calls locationTargeting with location "Toronto" and radius: 25]
+AI: [IMMEDIATELY calls addLocations with location "Toronto" and radius: 25]
 
 User: "San Francisco"
-AI: [IMMEDIATELY calls locationTargeting with location: "San Francisco"]
+AI: [IMMEDIATELY calls addLocations with location: "San Francisco"]
 
 **Edge Cases:**
 - User says "I don't know" or provides unclear input → Ask for clarification with examples
@@ -1279,7 +1261,7 @@ Example: If previous setup had "Ontario, Toronto (excluded)" and user removed To
 
 **CRITICAL: After location tool completes successfully, you MUST respond with a confirmation message.**
 
-When addLocations or locationTargeting returns { success: true }:
+When addLocations returns { success: true }:
 - Generate a brief, friendly confirmation (1-2 sentences)
 - Mention the location names that were added
 - Use enthusiastic but professional tone
@@ -1365,7 +1347,7 @@ Example responses:
         try {
           // Filter messages to ensure complete tool executions
           // Per AI SDK docs: https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#response-messages
-          // AI SDK uses tool-specific types like "tool-generateImage", "tool-editImage", etc.
+          // AI SDK uses tool-specific types like "tool-generateVariations", "tool-editVariation", etc.
           // NOT generic "tool-call" type. We need to check for incomplete tool invocations.
           const validMessages = finalMessages.filter(msg => {
             // User and system messages are always valid
