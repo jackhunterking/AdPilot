@@ -1343,3 +1343,89 @@ This architecture provides:
 
 *AdPilot Master Project Architecture*  
 *Version 1.0 - November 15, 2025*
+
+---
+
+## 14. Journey-Based Microservices Architecture (Current Implementation)
+
+### Overview
+
+AdPilot AI chat uses journey-based microservices where each user workflow is an independent service module.
+
+### Journey Module Structure
+
+```
+components/chat/
+├── chat-container.tsx (104 lines)     # Lean orchestrator
+├── message-renderer.tsx (48 lines)    # Routing layer
+├── journeys/                          # Independent services
+│   ├── location/ (3 files, 163 lines)
+│   │   ├── location-journey.tsx       # Rendering
+│   │   ├── use-location-mode.ts       # Mode state (fixes exclude bug)
+│   │   └── location-metadata.ts       # Metadata builder
+│   ├── creative/ (135 lines)
+│   ├── copy/ (70 lines)
+│   ├── goal/ (95 lines)
+│   └── campaign/ (45 lines)
+├── hooks/
+│   ├── use-journey-router.ts (52 lines)
+│   └── use-metadata-builder.ts (46 lines)
+└── types/
+    ├── journey-types.ts (40 lines)
+    ├── chat-types.ts (46 lines)
+    └── metadata-types.ts (54 lines)
+```
+
+### Journey Interface Contract
+
+```typescript
+export interface Journey {
+  renderTool: (part: ToolPart) => React.ReactNode;
+  buildMetadata?: (input: string) => Record<string, unknown>;
+  reset?: () => void;
+  mode?: 'include' | 'exclude';
+  isActive?: boolean;
+}
+```
+
+### Location Journey (Reference Implementation)
+
+**Excludemode fix**: The `useLocationMode` hook stores mode state independently, preventing loss in monolithic code.
+
+**Flow**:
+```
+Click "Exclude Location"
+    ↓
+useLocationMode receives event { mode: 'exclude' }
+    ↓
+Hook stores mode = 'exclude'
+    ↓
+User types "toronto"
+    ↓
+createLocationMetadata('exclude', 'toronto')
+    ↓
+Metadata: { locationMode: 'exclude', locationInput: 'toronto' }
+    ↓
+AI checks metadata.locationMode FIRST
+    ↓
+AI calls addLocations with mode='exclude'
+    ↓
+POST /api/v1/ads/[id]/locations/exclude
+    ↓
+Database: inclusion_mode='exclude'
+    ↓
+UI: RED card, RED map, "Excluded" section
+```
+
+### Testing Journey Modules
+
+Test suite: `tests/journeys/`
+- location-journey.test.ts (113 lines)
+- journey-router.test.ts (93 lines)
+- metadata-builder.test.ts (65 lines)
+
+Run: `npm test tests/journeys/`
+
+---
+
+*AdPilot Master Project Architecture - Updated November 18, 2025*
