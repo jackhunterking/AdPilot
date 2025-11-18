@@ -253,7 +253,7 @@ export function PreviewPanel() {
   
   // Listen for location updates from AI chat (matching imageEdited pattern)
   useEffect(() => {
-    const handleLocationUpdated = (event: Event) => {
+    const handleLocationUpdated = async (event: Event) => {
       const customEvent = event as CustomEvent<{
         sessionId?: string;
         locations: Array<{
@@ -282,7 +282,7 @@ export function PreviewPanel() {
         names: locations.map(l => l.name)
       });
       
-      // Transform and add to context (matching imageEdited pattern)
+      // Transform and add to context (immediate UI update)
       const locationsWithIds = locations.map(loc => ({
         id: `loc-${sessionId}-${Math.random().toString(36).substring(2, 9)}`,
         name: loc.name,
@@ -296,9 +296,48 @@ export function PreviewPanel() {
         country_code: loc.country_code
       }));
       
-      // Update context (triggers autosave)
+      // Update context (immediate UI update)
       addLocations(locationsWithIds, true);
-      logger.debug('PreviewPanel', '📤 Auto-save will trigger (context change)');
+      
+      // IMMEDIATELY save to database (matching ad copy pattern - event-triggered, not time-based)
+      if (campaign?.id && currentAd?.id) {
+        try {
+          logger.debug('PreviewPanel', '💾 Saving locations to database');
+          
+          const response = await fetch(
+            `/api/campaigns/${campaign.id}/ads/${currentAd.id}/snapshot`,
+            {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                location: {
+                  locations: locationsWithIds
+                }
+              })
+            }
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            logger.info('PreviewPanel', '✅ Locations saved to database', {
+              count: locationsWithIds.length,
+              completedSteps: data.completed_steps
+            });
+            
+            // Reload ad to update completed steps
+            await reloadAd();
+          } else {
+            const errorText = await response.text();
+            logger.error('PreviewPanel', '❌ Failed to save locations:', errorText);
+            toast.error('Failed to save location - please try again');
+          }
+        } catch (error) {
+          logger.error('PreviewPanel', '❌ Error saving locations:', error);
+          toast.error('Network error - location not saved');
+        }
+      } else {
+        logger.warn('PreviewPanel', '⚠️ Cannot save - missing campaign or ad ID');
+      }
     };
     
     window.addEventListener('locationUpdated', handleLocationUpdated);
@@ -306,7 +345,7 @@ export function PreviewPanel() {
     return () => {
       window.removeEventListener('locationUpdated', handleLocationUpdated);
     };
-  }, [addLocations]);
+  }, [addLocations, campaign?.id, currentAd?.id, reloadAd]);
   
   const previewFormats = [
     { id: "feed", label: "Feed", icon: ImageIcon },
