@@ -9,6 +9,9 @@
     "lint": "next lint",
     "lint:strict": "next lint --max-warnings=0",
     "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
     "generate-homepage-images": "tsx scripts/generate-images-standalone.ts",
     "generate-homepage-images-auto": "tsx scripts/generate-images-auto.ts"
   },
