@@ -316,8 +316,8 @@ export function PreviewPanel() {
           const firstLocationMode = locationsWithIds[0]?.mode || 'include';
           const isExclude = firstLocationMode === 'exclude';
           const endpoint = isExclude
-            ? `/api/campaigns/${campaign.id}/ads/${currentAd.id}/locations/exclude`
-            : `/api/campaigns/${campaign.id}/ads/${currentAd.id}/locations`;
+            ? `/api/v1/ads/${currentAd.id}/locations/exclude`
+            : `/api/v1/ads/${currentAd.id}/locations`;
           
           logger.debug('PreviewPanel', `💾 Saving ${locationsWithIds.length} ${isExclude ? 'exclude' : 'include'} location(s)`);
           
@@ -390,7 +390,7 @@ export function PreviewPanel() {
       
       try {
         const response = await fetch(
-          `/api/campaigns/${campaign.id}/ads/${currentAd.id}/locations/${databaseId}`,
+          `/api/v1/ads/${currentAd.id}/locations/${databaseId}`,
           { method: 'DELETE' }
         );
         
@@ -434,7 +434,7 @@ export function PreviewPanel() {
       if (campaign?.id && currentAd?.id) {
         try {
           const response = await fetch(
-            `/api/campaigns/${campaign.id}/ads/${currentAd.id}/locations`,
+            `/api/v1/ads/${currentAd.id}/locations`,
             { method: 'DELETE' }
           );
           
