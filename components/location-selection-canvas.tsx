@@ -36,7 +36,7 @@ interface LocationSelectionCanvasProps {
 }
 
 export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionCanvasProps = {}) {
-  const { locationState, removeLocation, resetLocations, clearLocations, startLocationSetup, addLocations } = useLocation()
+  const { locationState, removeLocation, resetLocations, clearLocations, startLocationSetup } = useLocation()
   const { isPublished } = useAdPreview()
   const isSummary = variant === "summary"
 
@@ -46,7 +46,24 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       startLocationSetup()
       
       // Dispatch request event for AI chat to handle
-      window.dispatchEvent(new Event('requestLocationSetup'))
+      window.dispatchEvent(new CustomEvent('requestLocationSetup', { 
+        detail: { mode: 'include' }
+      }))
+      
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Please select an ad first')
+    }
+  }
+
+  const handleAddExcluded = () => {
+    try {
+      // Validate via context (will throw if no ad)
+      startLocationSetup()
+      
+      // Dispatch event with exclude mode
+      window.dispatchEvent(new CustomEvent('requestLocationSetup', { 
+        detail: { mode: 'exclude' }
+      }))
       
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Please select an ad first')
@@ -118,9 +135,9 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
           {/* Empty Map Display */}
           <LocationMap locations={[]} />
 
-          {/* Add Location Button */}
+          {/* Add/Exclude Location Buttons */}
           {!isSummary && (
-            <div className="flex justify-center pt-4 pb-8">
+            <div className="flex justify-center gap-4 pt-4 pb-8">
               <Button
                 variant="outline"
                 size="lg"
@@ -129,6 +146,16 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
               >
                 <Plus className="h-4 w-4" />
                 Add Location
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={handleAddExcluded}
+                className="gap-2 border-red-200 hover:bg-red-50 hover:border-red-300 dark:border-red-800 dark:hover:bg-red-950"
+              >
+                <X className="h-4 w-4" />
+                Exclude Location
               </Button>
             </div>
           )}
@@ -250,6 +277,17 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
               <Plus className="h-4 w-4" />
               Add Location
             </Button>
+            
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={handleAddExcluded}
+              className="gap-2 border-red-200 hover:bg-red-50 hover:border-red-300 dark:border-red-800 dark:hover:bg-red-950"
+            >
+              <X className="h-4 w-4" />
+              Exclude Location
+            </Button>
+            
             {locationState.locations.length > 0 && (
               <Button
                 variant="outline"

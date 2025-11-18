@@ -684,7 +684,10 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
 
   // NEW: Handle location setup requests from canvas
   useEffect(() => {
-    const handleLocationSetupRequest = () => {
+    const handleLocationSetupRequest = (event: Event) => {
+      const customEvent = event as CustomEvent<{ mode?: 'include' | 'exclude' }>
+      const mode = customEvent.detail?.mode || 'include'
+      
       try {
         // Validate via context (throws if no ad)
         startLocationSetup()
@@ -697,7 +700,11 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
         // Set flag to enforce tool calling
         setLocationSetupMode(true)
         
-        // Ask location question
+        // Ask different question based on mode
+        const questionText = mode === 'exclude'
+          ? 'What location would you like to exclude from targeting?'
+          : 'What location would you like to target?'
+        
         setMessages((prevMessages) => [
           ...prevMessages,
           {
@@ -706,7 +713,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
             parts: [
               {
                 type: 'text',
-                text: 'What location would you like to target?'
+                text: questionText
               }
             ]
           } as UIMessage

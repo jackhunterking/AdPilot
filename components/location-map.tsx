@@ -121,23 +121,26 @@ export function LocationMap({ locations }: { locations: Location[] }) {
         hasBbox: !!loc.bbox
       })
       
-      // Add center pin (white with colored border)
-      const marker = L.circleMarker([lat, lng], {
-        radius: 8,
-        fillColor: '#FFFFFF',
-        color,
-        weight: 3,
-        opacity: 1,
-        fillOpacity: 1,
-      }).addTo(map) as LeafletLayer & { bindPopup: (content: string) => LeafletLayer }
+      // ONLY show center pin for radius-based targeting
+      if (loc.type === 'radius') {
+        const marker = L.circleMarker([lat, lng], {
+          radius: 8,
+          fillColor: '#FFFFFF',
+          color,
+          weight: 3,
+          opacity: 1,
+          fillOpacity: 1,
+        }).addTo(map) as LeafletLayer & { bindPopup: (content: string) => LeafletLayer }
+        
+        marker.bindPopup(`<b>${loc.name}</b><br/>${loc.mode === 'include' ? '✓ Included' : '✗ Excluded'}`)
+        layersRef.current.push(marker)
+      }
       
-      marker.bindPopup(`<b>${loc.name}</b><br/>${loc.mode === 'include' ? '✓ Included' : '✗ Excluded'}`)
-      layersRef.current.push(marker)
       bounds.extend([lat, lng])
       
       // Add coverage visualization
       if (loc.geometry) {
-        // City/Region/Country - show full boundary coverage
+        // City/Region/Country - show full boundary coverage with clickable popup
         try {
           const geoLayer = L.geoJSON(loc.geometry, {
             style: {
@@ -147,14 +150,17 @@ export function LocationMap({ locations }: { locations: Location[] }) {
               weight: 2,
               opacity: 1,
             }
-          }).addTo(map)
+          }).addTo(map) as LeafletLayer & { bindPopup: (content: string) => LeafletLayer }
+          
+          // Add popup to the coverage area itself
+          geoLayer.bindPopup(`<b>${loc.name}</b><br/>${loc.mode === 'include' ? '✓ Included' : '✗ Excluded'}`)
           layersRef.current.push(geoLayer)
           console.log('[LocationMap] ✅ Added tile coverage for:', loc.name)
         } catch (error) {
           console.error('[LocationMap] Geometry error for', loc.name, error)
         }
       } else if (loc.type === 'radius' && loc.radius) {
-        // Radius - show circle coverage
+        // Radius - show circle coverage (pin already added above)
         const radiusInMeters = loc.radius * 1609.34
         const circle = L.circle([lat, lng], {
           radius: radiusInMeters,
@@ -167,26 +173,52 @@ export function LocationMap({ locations }: { locations: Location[] }) {
         layersRef.current.push(circle)
         console.log('[LocationMap] ✅ Added radius coverage for:', loc.name)
       } else if (loc.bbox) {
-        // Fallback - show bounding box
-        const bounds: [[number, number], [number, number]] = [
+        // Bbox fallback - show bounding box with clickable popup
+        const boundsRect: [[number, number], [number, number]] = [
           [loc.bbox[1], loc.bbox[0]],
           [loc.bbox[3], loc.bbox[2]]
         ]
-        const rectangle = (L as unknown as { rectangle: (bounds: [[number, number], [number, number]], options: unknown) => LeafletLayer }).rectangle(bounds, {
+        const rectangle = (L as unknown as { rectangle: (bounds: [[number, number], [number, number]], options: unknown) => LeafletLayer }).rectangle(boundsRect, {
           fillColor: color,
           fillOpacity: 0.25,
           color,
           weight: 2,
-        }).addTo(map)
+        }).addTo(map) as LeafletLayer & { bindPopup: (content: string) => LeafletLayer }
+        
+        // Add popup to bbox coverage area
+        rectangle.bindPopup(`<b>${loc.name}</b><br/>${loc.mode === 'include' ? '✓ Included' : '✗ Excluded'}`)
         layersRef.current.push(rectangle)
         console.log('[LocationMap] ✅ Added bbox coverage for:', loc.name)
       }
     })
     
-    // Fit bounds to show all locations
+    // Fit bounds to show all locations with geographical context
     if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 10 })
+      // Calculate padding based on number of locations
+      // More locations = less padding needed
+      // Fewer locations = more padding to show context
+      const paddingAmount = locations.length === 1 ? 150 : 100
+      
+      map.fitBounds(bounds, { 
+        padding: [paddingAmount, paddingAmount],
+        maxZoom: 6 // Shows more geographical context (reduced from 10)
+      })
+      
       console.log('[LocationMap] ✅ Fitted bounds to', locations.length, 'locations')
+      
+      // For single large areas (country/region), zoom out one more level
+      if (locations.length === 1) {
+        const firstLocation = locations[0]
+        if (firstLocation.type === 'country' || firstLocation.type === 'region') {
+          setTimeout(() => {
+            const currentZoom = (map as unknown as { getZoom: () => number; setZoom: (z: number) => void }).getZoom()
+            if (currentZoom > 4) {
+              (map as unknown as { setZoom: (z: number) => void }).setZoom(Math.max(currentZoom - 1, 3))
+              console.log('[LocationMap] Zoomed out for large area visibility')
+            }
+          }, 100)
+        }
+      }
     }
   }, [locations, isMapReady])
   
