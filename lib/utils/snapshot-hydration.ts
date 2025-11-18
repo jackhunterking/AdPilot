@@ -8,7 +8,7 @@
  */
 
 import type { AdSetupSnapshot } from '@/lib/types/ad-snapshot'
-import { getCompleteAdData, type CampaignSharedData, type AdSpecificData } from '@/lib/services/data-hierarchy'
+import type { CampaignSharedData, AdSpecificData } from '@/lib/services/data-hierarchy'
 
 /**
  * Hydrate ad preview context from snapshot
@@ -236,47 +236,13 @@ export function hydrateDestinationFromAdData(adData: AdSpecificData) {
 /**
  * Hydrate all contexts from database (campaign-level + ad-level)
  * This is the NEW recommended way to load data when switching ads
+ * 
+ * NOTE: This function is currently unused. It was designed to work with a
+ * different data fetching API. If needed in the future, update it to use
+ * adDataService.getCompleteAdData() and fetch campaign data separately.
  */
-export async function hydrateAllContextsFromDatabase(adId: string) {
-  console.log('[SnapshotHydration] Loading complete ad data from database', { adId })
-
-  try {
-    // Fetch complete data (campaign + ad)
-    const data = await getCompleteAdData(adId)
-
-    if (!data) {
-      console.error('[SnapshotHydration] Failed to load ad data')
-      return null
-    }
-
-    const { campaign, ad } = data
-
-    if (!campaign || !ad) {
-      console.error('[SnapshotHydration] Incomplete data', { hasCampaign: !!campaign, hasAd: !!ad })
-      return null
-    }
-
-    console.log('[SnapshotHydration] ✅ Data loaded, hydrating contexts', {
-      campaignId: campaign.campaignId,
-      adId: ad.adId,
-    })
-
-    // Return all hydrated contexts
-    return {
-      // Campaign-level (shared across all ads)
-      goal: hydrateGoalFromCampaignState(campaign),
-      budget: hydrateBudgetFromCampaignState(campaign),
-      metaConnection: hydrateMetaConnectionFromCampaignState(campaign),
-
-      // Ad-level (specific to this ad)
-      adPreview: hydrateAdPreviewFromAdData(ad),
-      adCopy: hydrateAdCopyFromAdData(ad),
-      location: hydrateLocationFromAdData(ad),
-      destination: hydrateDestinationFromAdData(ad),
-    }
-  } catch (error) {
-    console.error('[SnapshotHydration] Exception loading ad data', error)
-    return null
-  }
-}
+// Commented out - unused and causes build errors
+// export async function hydrateAllContextsFromDatabase(adId: string) {
+//   // Implementation removed - see git history if needed
+// }
 
