@@ -1651,16 +1651,33 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                     );
                                   }
                                   
-                                  // Emit browser event for canvas update (matching image pattern)
+                                  // NEW: Directly update context (matching image creative pattern)
+                                  // This triggers autosave which persists to database
                                   if (output.locations && output.locations.length > 0) {
+                                    const locationsWithIds = output.locations.map(loc => ({
+                                      id: `loc-${callId}-${Math.random().toString(36).substring(2, 9)}`,
+                                      name: loc.name,
+                                      coordinates: loc.coordinates,
+                                      radius: loc.radius || 30,
+                                      type: loc.type as "radius" | "city" | "region" | "country",
+                                      mode: loc.mode as "include" | "exclude",
+                                      bbox: loc.bbox,
+                                      geometry: loc.geometry as { type: string; coordinates: number[] | number[][] | number[][][] | number[][][][] } | undefined,
+                                      key: loc.key,
+                                      country_code: loc.country_code
+                                    }));
+                                    
+                                    // Update context directly (triggers autosave)
+                                    addLocations(locationsWithIds, true);
+                                    console.log('[AI Chat] ✅ Updated location context, autosave will trigger', {
+                                      count: locationsWithIds.length,
+                                      locations: locationsWithIds.map(l => ({ name: l.name, mode: l.mode }))
+                                    });
+                                    
+                                    // Keep event emission for any remaining UI listeners (will be removed in Phase 2)
                                     const eventKey = `${callId}-location`;
                                     if (!dispatchedEvents.current.has(eventKey)) {
                                       dispatchedEvents.current.add(eventKey);
-                                      console.log('[AI Chat] 📡 Emitting locationUpdated event:', {
-                                        callId,
-                                        count: output.locations.length,
-                                        locations: output.locations.map(l => ({ name: l.name, mode: l.mode }))
-                                      });
                                       setTimeout(() => {
                                         emitBrowserEvent('locationUpdated', {
                                           sessionId: callId,

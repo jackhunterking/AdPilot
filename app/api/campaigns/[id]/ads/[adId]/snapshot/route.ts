@@ -296,7 +296,11 @@ export async function PATCH(
           }, { status: 500 })
         }
         
-        console.log('[PATCH snapshot] ✅ Saved locations to ad_target_locations table:', inserted?.length)
+        console.log('[PATCH snapshot] ✅ Locations saved to ad_target_locations:', {
+          adId,
+          count: inserted?.length,
+          locationNames: inserted?.map(l => l.location_name)
+        });
       }
     }
 

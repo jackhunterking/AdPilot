@@ -115,7 +115,17 @@ export function useDraftAutoSave(
         }
         
         if (contexts.locationState.locations.length > 0) {
-          console.log('[DraftAutoSave] Adding location section with', contexts.locationState.locations.length, 'locations');
+          console.log('[DraftAutoSave] 🔍 Location autosave check:', {
+            count: contexts.locationState.locations.length,
+            adId: adId,
+            campaignId: campaignId,
+            locations: contexts.locationState.locations.map(l => ({
+              id: l.id,
+              name: l.name,
+              mode: l.mode,
+              hasCoordinates: !!l.coordinates
+            }))
+          });
           sections.location = {
             locations: contexts.locationState.locations
           }
