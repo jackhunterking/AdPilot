@@ -74,6 +74,8 @@ import { useGeneration } from "@/lib/context/generation-context";
 import { emitBrowserEvent } from "@/lib/utils/browser-events";
 import { useCampaignContext } from "@/lib/context/campaign-context";
 import { toZeroBasedIndex } from "@/lib/utils/variation";
+import { useLocationMode } from "@/components/chat/journeys/location/use-location-mode";
+import { createLocationMetadata } from "@/components/chat/journeys/location/location-metadata";
 
 // Type definitions
 interface MessagePart {
@@ -209,8 +211,8 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
   const dispatchedEvents = useRef<Set<string>>(new Set());
   const [dislikedMessages, setDislikedMessages] = useState<Set<string>>(new Set());
   
-  // NEW: Location setup mode flag for enforcing AI tool calling
-  const [locationSetupMode, setLocationSetupMode] = useState(false);
+  // NEW: Location setup mode using microservices hook
+  const { mode: locationMode, isActive: locationSetupMode, setIsActive: setLocationSetupMode, reset: resetLocationMode } = useLocationMode();
   
   // Track processed location tool calls to prevent re-processing
   const processedLocationCalls = useRef<Set<string>>(new Set());
@@ -453,9 +455,11 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
     
     // CRITICAL: Inject location setup mode metadata to enforce AI tool calling
     if (locationSetupMode && message.text) {
-      messageMetadata.locationSetupMode = true;
-      messageMetadata.locationInput = message.text;
-      setLocationSetupMode(false); // Clear flag after injecting metadata
+      // Use journey metadata builder for proper mode injection
+      const locationMeta = createLocationMetadata(locationMode, message.text);
+      Object.assign(messageMetadata, locationMeta);
+      // Reset mode after sending
+      resetLocationMode();
     }
     
     if (adEditReference) {
@@ -686,7 +690,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
   useEffect(() => {
     const handleLocationSetupRequest = (event: Event) => {
       const customEvent = event as CustomEvent<{ mode?: 'include' | 'exclude' }>
-      const mode = customEvent.detail?.mode || 'include'
+      // Mode is now handled by useLocationMode hook, we just need to show the question
       
       try {
         // Validate via context (throws if no ad)
@@ -697,11 +701,8 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
           stop()
         }
         
-        // Set flag to enforce tool calling
-        setLocationSetupMode(true)
-        
-        // Ask different question based on mode
-        const questionText = mode === 'exclude'
+        // Ask different question based on mode (mode is set by hook)
+        const questionText = locationMode === 'exclude'
           ? 'What location would you like to exclude from targeting?'
           : 'What location would you like to target?'
         
@@ -727,7 +728,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
 
     window.addEventListener('requestLocationSetup', handleLocationSetupRequest);
     return () => window.removeEventListener('requestLocationSetup', handleLocationSetupRequest);
-  }, [status, startLocationSetup, stop, setMessages]);
+  }, [status, startLocationSetup, stop, setMessages, locationMode]);
 
   // Listen for ad edit events from preview panel
   useEffect(() => {

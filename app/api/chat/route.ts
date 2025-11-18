@@ -1236,10 +1236,16 @@ AI: [IMMEDIATELY calls addLocations with location "Toronto" and radius: 25]
 User: "San Francisco"
 AI: [IMMEDIATELY calls addLocations with location: "San Francisco"]
 
+**Mode Detection (CRITICAL - FIX for Exclude Functionality):**
+1. FIRST check message.metadata.locationMode
+2. If metadata.locationMode === 'exclude' → use mode: "exclude" in ALL locations
+3. If metadata.locationMode === 'include' → use mode: "include" in ALL locations
+4. If no metadata.locationMode, check if user text contains "exclude" → mode: "exclude"
+5. Default: mode: "include"
+
 **Edge Cases:**
 - User says "I don't know" or provides unclear input → Ask for clarification with examples
 - User provides partial location info (e.g., "somewhere in California") → Ask for specific city/region names
-- User mentions excluding locations → Use mode: "exclude" in the tool call
 - User mentions radius (e.g., "10 miles around Chicago") → Include radius parameter
 
 **Parse natural language:**
