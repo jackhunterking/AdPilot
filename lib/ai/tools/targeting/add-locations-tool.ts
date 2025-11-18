@@ -39,6 +39,16 @@ export const addLocationsTool = tool({
     explanation: z.string().describe('Brief explanation of targeting strategy'),
   }),
   
-  // NO execute - requires geocoding (3 API calls per location), needs client confirmation
+  // Server-side execute keeps AI conversation active
+  // Client intercepts and handles geocoding + database save
+  execute: async (input) => {
+    // Return immediately - client will handle geocoding and saving
+    // This keeps the AI SDK conversation flow active so it can respond with text
+    return {
+      status: 'processing',
+      locationCount: input.locations.length,
+      message: 'Locations will be geocoded and added to the map'
+    };
+  },
 });
 

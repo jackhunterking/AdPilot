@@ -132,6 +132,13 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       throw new Error('No current ad selected');
     }
     
+    console.log('[LocationContext] 📍 Adding locations to ad:', {
+      adId: currentAd.id,
+      count: newLocations.length,
+      shouldMerge,
+      locations: newLocations.map(l => ({ name: l.name, type: l.type, hasGeometry: !!l.geometry }))
+    });
+    
     try {
       // Calculate final locations
       let finalLocations: Location[];

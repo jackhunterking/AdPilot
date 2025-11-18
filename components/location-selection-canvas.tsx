@@ -1,367 +1,43 @@
+/**
+ * Feature: Location Selection Canvas (Simplified)
+ * Purpose: Display location targeting interface with map
+ * References:
+ *  - React: https://react.dev/reference/react/useEffect
+ */
 "use client"
 
-import { MapPin, Loader2, Lock, Plus, X, Sparkles, Check, AlertCircle, CheckCircle2 } from "lucide-react"
+import { Plus, X, Check, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useLocation } from "@/lib/context/location-context"
 import { useAdPreview } from "@/lib/context/ad-preview-context"
-import { useEffect, useRef, useState, useCallback } from "react"
 import { cn } from "@/lib/utils"
-import { logger } from "@/lib/utils/logger"
-import { useLeafletReady } from "@/lib/hooks/use-leaflet-ready"
-import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
-
-interface LeafletBounds {
-  isValid(): boolean;
-  [key: string]: unknown;
-}
-
-interface LeafletMap {
-  remove(): void;
-  invalidateSize(options?: unknown): void;
-  fitBounds(bounds: LeafletBounds, options?: unknown): void;
-  setView(coords: [number, number], zoom: number): void;
-  [key: string]: unknown;
-}
-
-interface LeafletMarker {
-  remove(): void;
-  addTo(map: LeafletMap): LeafletMarker;
-  [key: string]: unknown;
-}
-
-interface LeafletShape {
-  remove(): void;
-  addTo(map: LeafletMap): LeafletShape;
-  [key: string]: unknown;
-}
+import { LocationMap } from "@/components/location-map"
 
 interface LocationData {
-  id: string;
-  name: string;
-  type: string;
-  mode?: string;
-  radius?: number;
-  coordinates: [number, number];
-  bbox?: [number, number, number, number];
+  id: string
+  name: string
+  type: string
+  mode?: string
+  radius?: number
+  coordinates: [number, number]
+  bbox?: [number, number, number, number]
   geometry?: {
-    type: string;
-    coordinates: number[] | number[][] | number[][][] | number[][][][];
-  };
-  [key: string]: unknown;
-}
-
-interface LeafletLib {
-  map(element: HTMLElement, options?: unknown): LeafletMap;
-  tileLayer(url: string, options?: unknown): { addTo(map: LeafletMap): void };
-  marker(coords: [number, number], options?: unknown): LeafletMarker;
-  circle(coords: [number, number], options?: unknown): LeafletShape;
-  circleMarker(coords: [number, number], options?: unknown): LeafletMarker;
-  geoJSON(data: unknown, options?: unknown): LeafletShape;
-  latLngBounds(): LeafletBounds;
-  rectangle(bounds: [[number, number], [number, number]], options?: unknown): LeafletShape;
-  [key: string]: unknown;
+    type: string
+    coordinates: number[] | number[][] | number[][][] | number[][][][]
+  }
+  [key: string]: unknown
 }
 
 interface LocationSelectionCanvasProps {
   variant?: "step" | "summary"
 }
 
-// Helper function to safely access Leaflet library
-function getLeaflet(): LeafletLib | null {
-  if (typeof window === "undefined") return null
-  return (window as unknown as { L?: LeafletLib }).L ?? null
-}
-
 export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionCanvasProps = {}) {
   const { locationState, removeLocation, resetLocations, clearLocations, startLocationSetup } = useLocation()
   const { isPublished } = useAdPreview()
-  const mapRef = useRef<LeafletMap | null>(null)
-  const mapContainerRef = useRef<HTMLDivElement>(null)
-  const markersRef = useRef<LeafletMarker[]>([])
-  const shapesRef = useRef<LeafletShape[]>([])
   const isSummary = variant === "summary"
-  const [isMapLoading, setIsMapLoading] = useState(true)
-  const [mapError, setMapError] = useState<string | null>(null)
-  
-  // Use hook to detect when Leaflet is ready
-  const { isReady: isLeafletReady, error: leafletError } = useLeafletReady()
-
-  // Initialize map once when Leaflet is ready and container is available
-  useEffect(() => {
-    console.log('[Map Init] Starting initialization check:', {
-      isLeafletReady,
-      hasMap: !!mapRef.current,
-      hasContainer: !!mapContainerRef.current
-    });
-    
-    // Wait for Leaflet to be ready
-    if (!isLeafletReady) {
-      console.log("[Map Init] Waiting for Leaflet to load...")
-      return
-    }
-
-    // Only initialize if we don't have a map yet
-    if (mapRef.current) {
-      console.log("[Map Init] Map already exists, skipping")
-      setIsMapLoading(false)
-      return
-    }
-    
-    if (!mapContainerRef.current) {
-      console.log("[Map Init] Container not ready yet")
-      return
-    }
-    
-    const L = getLeaflet()
-    if (!L) {
-      console.error("[Map Init] ❌ Leaflet not available despite ready signal")
-      setMapError("Map library not available")
-      setIsMapLoading(false)
-      return
-    }
-    
-    console.log('[Map Init] All checks passed, initializing map...');
-
-    // Defer map initialization to next frame for better perceived performance
-    const timeoutId = setTimeout(() => {
-      requestAnimationFrame(() => {
-        if (!mapContainerRef.current || mapRef.current) return
-
-        const L = getLeaflet()
-        if (!L) return
-
-        try {
-          console.log("[Map] Initializing map instance with Leaflet ready")
-          setIsMapLoading(true)
-
-          mapRef.current = L.map(mapContainerRef.current, {
-            center: [20, 0],
-            zoom: 2,
-            zoomControl: true,
-            minZoom: 1,
-            maxZoom: 19,
-            scrollWheelZoom: true,
-          })
-
-          const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 19,
-          });
-          
-          tileLayer.addTo(mapRef.current);
-          console.log('[Map Init] ✅ Tile layer added to map');
-
-          // Initial size calculation
-          mapRef.current.invalidateSize(true)
-          console.log('[Map Init] Invalidated size');
-          
-          // Retry size calculation after a short delay to handle any layout shifts
-          setTimeout(() => {
-            if (mapRef.current) {
-              mapRef.current.invalidateSize(true)
-              console.log("[Map Init] Size recalculated after delay")
-            }
-          }, 100)
-
-          setIsMapLoading(false)
-          setMapError(null)
-          console.log("[Map Init] ✅ Map initialized successfully with tiles")
-        } catch (error) {
-          console.error("[OpenStreetMap] Error initializing map:", error)
-          setMapError(error instanceof Error ? error.message : "Failed to initialize map")
-          setIsMapLoading(false)
-        }
-      })
-    }, 50) // Small delay to ensure container is fully rendered
-
-    // Cleanup only on unmount
-    return () => {
-      clearTimeout(timeoutId)
-      if (mapRef.current) {
-        console.log("[Map] Cleaning up map instance")
-        mapRef.current.remove()
-        mapRef.current = null
-      }
-    }
-  }, [isLeafletReady])
-
-  // Update map markers when locations change (purely reactive - no events)
-  // Use primitive values to prevent infinite loops
-  const locationCount = locationState.locations.length;
-  const locationStatus = locationState.status;
-  
-  useEffect(() => {
-    // Guard: Skip if no locations
-    if (locationCount === 0) {
-      return;
-    }
-    
-    const L = getLeaflet();
-    if (!mapRef.current || !L) {
-      console.log('[Map] Not ready - map:', !!mapRef.current, 'Leaflet:', !!L);
-      return;
-    }
-
-    const map = mapRef.current;
-    const locations = locationState.locations;
-
-    console.log('[Map] Updating map with', locations.length, 'locations');
-
-    // Clear existing markers and shapes
-    markersRef.current.forEach(marker => marker.remove());
-    markersRef.current = [];
-    shapesRef.current.forEach(shape => shape.remove());
-    shapesRef.current = [];
-
-    if (locations.length === 0) {
-      map.setView([20, 0], 2);
-      return;
-    }
-
-    // Filter valid locations
-    const validLocations = locations.filter(loc => 
-      loc.coordinates && 
-      Array.isArray(loc.coordinates) && 
-      loc.coordinates.length === 2 &&
-      typeof loc.coordinates[0] === 'number' &&
-      typeof loc.coordinates[1] === 'number' &&
-      !isNaN(loc.coordinates[0]) &&
-      !isNaN(loc.coordinates[1])
-    );
-
-    if (validLocations.length === 0) {
-      console.warn('[Map] No valid locations with coordinates');
-      map.setView([20, 0], 2);
-      return;
-    }
-
-    // Enhanced tile-based coverage visualization
-    validLocations.forEach((location) => {
-      const isIncluded = location.mode === "include";
-      const coverageColor = isIncluded ? "#16A34A" : "#DC2626"; // Green or Red
-      const markerColor = isIncluded ? "#16A34A" : "#DC2626";
-      
-      const lat = location.coordinates[1];
-      const lng = location.coordinates[0];
-      
-      // Validate coordinates
-      const isValid = lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-      
-      console.log('[Map] Processing location:', {
-        name: location.name,
-        coordinates: location.coordinates,
-        lat,
-        lng,
-        isValid,
-        hasGeometry: !!location.geometry,
-        hasBbox: !!location.bbox
-      });
-      
-      if (!isValid) {
-        console.error('[Map] ❌ Invalid coordinates for:', location.name);
-        return;
-      }
-      
-      // 1. Center marker (white pin with colored border)
-      const marker = L.circleMarker([lat, lng], {
-        radius: 8,
-        fillColor: "#FFFFFF",
-        color: markerColor,
-        weight: 3,
-        opacity: 1,
-        fillOpacity: 1,
-      }).addTo(map) as LeafletMarker & { bindPopup: (content: string) => void };
-      
-      const modeLabel = isIncluded ? "✓ Included" : "✗ Excluded";
-      marker.bindPopup(`<strong>${location.name}</strong><br/>${modeLabel}`);
-      markersRef.current.push(marker);
-      
-      // 2. Tile-based coverage highlighting
-      if (location.type === "radius" && location.radius) {
-        // RADIUS: Pin + circle coverage
-        const radiusInMeters = location.radius * 1609.34;
-        const circle = L.circle([lat, lng], {
-          radius: radiusInMeters,
-          fillColor: coverageColor,
-          fillOpacity: 0.25,
-          color: coverageColor,
-          weight: 2,
-          opacity: 0.8,
-        }).addTo(map);
-        shapesRef.current.push(circle);
-        console.log('[Map] Added radius coverage for:', location.name);
-        
-      } else if (location.geometry) {
-        // CITY/REGION/COUNTRY: Full boundary coverage (highlighted tiles)
-        try {
-          const geoJsonLayer = L.geoJSON(location.geometry, {
-            style: {
-              fillColor: coverageColor,
-              fillOpacity: 0.3,  // More visible coverage
-              color: coverageColor,
-              weight: 2,
-              opacity: 1,
-            }
-          }).addTo(map);
-          shapesRef.current.push(geoJsonLayer);
-          console.log('[Map] Added tile coverage for:', location.name);
-        } catch (error) {
-          console.error('[Map] Geometry error, falling back to bbox:', error);
-          // Fallback to bounding box
-          if (location.bbox) {
-            const bounds: [[number, number], [number, number]] = [
-              [location.bbox[1], location.bbox[0]],  // SW corner [lat, lng]
-              [location.bbox[3], location.bbox[2]]   // NE corner [lat, lng]
-            ];
-            const rectangle = L.rectangle(bounds, {
-              fillColor: coverageColor,
-              fillOpacity: 0.25,
-              color: coverageColor,
-              weight: 2,
-            }).addTo(map);
-            shapesRef.current.push(rectangle);
-            console.log('[Map] Added bbox fallback for:', location.name);
-          }
-        }
-        
-      } else if (location.bbox) {
-        // BBOX FALLBACK: Bounding box as tile coverage
-        const bounds: [[number, number], [number, number]] = [
-          [location.bbox[1], location.bbox[0]],  // SW corner [lat, lng]
-          [location.bbox[3], location.bbox[2]]   // NE corner [lat, lng]
-        ];
-        const rectangle = L.rectangle(bounds, {
-          fillColor: coverageColor,
-          fillOpacity: 0.25,
-          color: coverageColor,
-          weight: 2,
-        }).addTo(map);
-        shapesRef.current.push(rectangle);
-        console.log('[Map] Added bbox coverage for:', location.name);
-      }
-    });
-
-    // Fit bounds to show all locations
-    const bounds = L.latLngBounds() as LeafletBounds & { extend: (coords: [number, number]) => void };
-    validLocations.forEach(loc => {
-      if (loc.bbox) {
-        bounds.extend([loc.bbox[1], loc.bbox[0]]); // SW
-        bounds.extend([loc.bbox[3], loc.bbox[2]]); // NE
-      } else {
-        bounds.extend([loc.coordinates[1], loc.coordinates[0]]); // [lat, lng]
-      }
-    });
-    
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 10 });
-      console.log('[Map] ✅ Fitted bounds');
-    }
-
-    map.invalidateSize(true);
-    console.log('[Map] ✅ Map updated with', validLocations.length, 'locations');
-  }, [locationCount, locationStatus, locationState.locations])
 
   const handleAddMore = () => {
     try {
@@ -376,33 +52,6 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     }
   }
 
-  // Show error if Leaflet failed to load
-  if (leafletError || mapError) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full p-8">
-        <div className="max-w-xl w-full space-y-6 text-center">
-          <div className="h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto">
-            <AlertCircle className="h-8 w-8 text-red-600" />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold">Map Failed to Load</h2>
-            <p className="text-muted-foreground">
-              {mapError || leafletError?.message || "Couldn't load the map. Please refresh the page."}
-            </p>
-          </div>
-          
-          <Button
-            size="lg"
-            onClick={() => window.location.reload()}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            Refresh Page
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
   // Initial state - no locations selected
   if (locationState.status === "idle" || locationState.locations.length === 0) {
     return (
@@ -413,18 +62,8 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
         )}
       >
         <div className={cn("w-full space-y-6", "max-w-3xl mx-auto")}>
-          {/* Map Display */}
-          <div className="rounded-lg border-2 border-blue-600 bg-card overflow-hidden relative">
-            {isMapLoading && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-card">
-                <div className="flex flex-col items-center gap-3">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                  <p className="text-sm text-muted-foreground">Loading map...</p>
-                </div>
-              </div>
-            )}
-            <div ref={mapContainerRef} className="w-full h-[400px]" style={{ position: 'relative', isolation: 'isolate' }} />
-          </div>
+          {/* Empty Map Display */}
+          <LocationMap locations={[]} />
 
           {/* Add Location Button */}
           {!isSummary && (
@@ -438,211 +77,6 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
                 <Plus className="h-4 w-4" />
                 Add Location
               </Button>
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // Setup in progress - show map with loading overlay
-  if (locationState.status === "setup-in-progress") {
-    return (
-      <div
-        className={cn(
-          "flex flex-col",
-          isSummary ? "gap-6" : "h-full overflow-auto p-8"
-        )}
-      >
-        <div className={cn("w-full space-y-6", "max-w-3xl mx-auto")}>
-          {/* Map Display with Loading Overlay */}
-          <div className="rounded-lg border-2 border-blue-600 bg-card overflow-hidden relative">
-            {isMapLoading && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-card">
-                <div className="flex flex-col items-center gap-3">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                  <p className="text-sm text-muted-foreground">Loading map...</p>
-                </div>
-              </div>
-            )}
-            <div ref={mapContainerRef} className="w-full h-[400px]" style={{ position: 'relative', isolation: 'isolate' }} />
-            
-            {/* Status badge - show only when processing location */}
-            {!isMapLoading && locationState.locations.length === 0 && (
-              <div className="absolute top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-[1000]">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm font-medium">Geocoding location...</span>
-              </div>
-            )}
-            
-            {/* Success badge - briefly show after location added */}
-            {!isMapLoading && locationState.locations.length > 0 && (
-              <div className="absolute top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-[1000] animate-fade-in">
-                <CheckCircle2 className="h-4 w-4" />
-                <span className="text-sm font-medium">Location added</span>
-              </div>
-            )}
-          </div>
-
-          {/* Show existing locations if any */}
-          {locationState.locations.length > 0 && (
-            <div className="flex flex-col gap-4">
-              {locationState.locations.filter(loc => loc.mode === "include").length > 0 && (
-                <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3">
-                    <h3 className="text-base font-semibold">Included</h3>
-                    <Badge className="badge-muted">{locationState.locations.filter(loc => loc.mode === "include").length}</Badge>
-                  </div>
-                  <div className="space-y-2">
-                    {locationState.locations.filter(loc => loc.mode === "include").map((location) => (
-                      <LocationCard
-                        key={location.id}
-                        location={location as LocationData}
-                        readonly
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Buttons disabled during setup */}
-          {!isSummary && (
-            <div className="flex justify-center gap-4 pt-4 pb-8">
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handleAddMore}
-                disabled
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Add Location
-              </Button>
-              {locationState.locations.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={clearLocations}
-                  disabled
-                >
-                  Clear All
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // Show map and location cards whenever we have locations (regardless of status)
-  if (locationState.locations.length > 0) {
-    const includedLocations = locationState.locations.filter(loc => loc.mode === "include")
-    const excludedLocations = locationState.locations.filter(loc => loc.mode === "exclude")
-
-    return (
-      <div
-        className={cn(
-          "flex flex-col",
-          isSummary ? "gap-6" : "h-full overflow-auto p-8"
-        )}
-      >
-        <div className={cn("w-full space-y-6", "max-w-3xl mx-auto")}
-        >
-          {/* Published Warning Banner */}
-          {isPublished && !isSummary && (
-            <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
-                <div className="text-left text-sm space-y-1">
-                  <p className="font-medium text-orange-700 dark:text-orange-400">Live Campaign - Edit with Caution</p>
-                  <p className="text-orange-600 dark:text-orange-300 text-xs">
-                    This ad is currently published. Changes to location targeting will update your live campaign.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Map Display */}
-          <div className="rounded-lg border-2 border-blue-600 bg-card overflow-hidden relative">
-            {isMapLoading && (
-              <div className="absolute inset-0 z-10 flex items-center justify-center bg-card">
-                <div className="flex flex-col items-center gap-3">
-                  <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                  <p className="text-sm text-muted-foreground">Loading map...</p>
-                </div>
-              </div>
-            )}
-            <div ref={mapContainerRef} className="w-full h-[400px]" style={{ position: 'relative', isolation: 'isolate' }} />
-          </div>
-
-          {/* Location Summary */}
-          <div className="flex flex-col gap-4">
-            {/* Included Locations */}
-            {includedLocations.length > 0 && (
-              <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
-                <div className="flex items-center gap-2 mb-3">
-                  <h3 className="text-base font-semibold">Included</h3>
-                  <Badge className="badge-muted">{includedLocations.length}</Badge>
-                </div>
-                <div className="space-y-2">
-                  {includedLocations.map((location) => (
-                    <LocationCard
-                      key={location.id}
-                      location={location as LocationData}
-                      onRemove={isSummary ? undefined : removeLocation}
-                      readonly={isSummary}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Excluded Locations */}
-            {excludedLocations.length > 0 && (
-              <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
-                <div className="flex items-center gap-2 mb-3">
-                  <h3 className="text-base font-semibold">Excluded</h3>
-                  <Badge className="badge-muted">{excludedLocations.length}</Badge>
-                </div>
-                <div className="space-y-2">
-                  {excludedLocations.map((location) => (
-                    <LocationCard
-                      key={location.id}
-                      location={location as LocationData}
-                      onRemove={isSummary ? undefined : removeLocation}
-                      isExcluded
-                      readonly={isSummary}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {!isSummary && (
-            <div className="flex justify-center gap-4 pt-4 pb-8">
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handleAddMore}
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Add Location
-              </Button>
-              {locationState.locations.length > 0 && (
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={clearLocations}
-              >
-                Clear All
-              </Button>
-              )}
             </div>
           )}
         </div>
@@ -677,7 +111,106 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
     )
   }
 
-  return null
+  // Show map and location cards whenever we have locations
+  const includedLocations = locationState.locations.filter(loc => loc.mode === "include")
+  const excludedLocations = locationState.locations.filter(loc => loc.mode === "exclude")
+
+  return (
+    <div
+      className={cn(
+        "flex flex-col",
+        isSummary ? "gap-6" : "h-full overflow-auto p-8"
+      )}
+    >
+      <div className={cn("w-full space-y-6", "max-w-3xl mx-auto")}>
+        {/* Published Warning Banner */}
+        {isPublished && !isSummary && (
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+              <div className="text-left text-sm space-y-1">
+                <p className="font-medium text-orange-700 dark:text-orange-400">Live Campaign - Edit with Caution</p>
+                <p className="text-orange-600 dark:text-orange-300 text-xs">
+                  This ad is currently published. Changes to location targeting will update your live campaign.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Simple Map Display */}
+        <LocationMap locations={locationState.locations} />
+
+        {/* Location Summary Cards */}
+        <div className="flex flex-col gap-4">
+          {/* Included Locations */}
+          {includedLocations.length > 0 && (
+            <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-base font-semibold">Included</h3>
+                <Badge className="badge-muted">{includedLocations.length}</Badge>
+              </div>
+              <div className="space-y-2">
+                {includedLocations.map((location) => (
+                  <LocationCard
+                    key={location.id}
+                    location={location as LocationData}
+                    onRemove={isSummary ? undefined : removeLocation}
+                    readonly={isSummary}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Excluded Locations */}
+          {excludedLocations.length > 0 && (
+            <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-base font-semibold">Excluded</h3>
+                <Badge className="badge-muted">{excludedLocations.length}</Badge>
+              </div>
+              <div className="space-y-2">
+                {excludedLocations.map((location) => (
+                  <LocationCard
+                    key={location.id}
+                    location={location as LocationData}
+                    onRemove={isSummary ? undefined : removeLocation}
+                    isExcluded
+                    readonly={isSummary}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        {!isSummary && (
+          <div className="flex justify-center gap-4 pt-4 pb-8">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={handleAddMore}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Location
+            </Button>
+            {locationState.locations.length > 0 && (
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={clearLocations}
+              >
+                Clear All
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 // Location Card Component
@@ -733,4 +266,3 @@ function LocationCard({
     </div>
   )
 }
-

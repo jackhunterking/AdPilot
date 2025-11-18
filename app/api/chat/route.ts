@@ -493,7 +493,7 @@ export async function POST(req: Request) {
     messages: convertToModelMessages(validatedMessages),
     
     // Enable multi-step agentic behavior (AI SDK best practice)
-    stopWhen: stepCountIs(5), // Allow up to 5 steps for tool execution
+    maxSteps: 10, // Allow up to 10 steps for tool execution + text responses
     
     // Track each step for debugging (AI SDK best practice)
     onStepFinish: ({ toolCalls, toolResults }) => {

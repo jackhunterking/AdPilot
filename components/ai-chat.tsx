@@ -456,11 +456,19 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
       
       // Update context (triggers map update via React state flow) with error handling
       try {
+        console.log('[LocationProcessor] 💾 Saving locations to ad:', {
+          adId: currentAdId,
+          campaignId,
+          locationCount: validLocations.length,
+          locations: validLocations.map(l => ({ name: l.name, type: l.type, hasGeometry: !!l.geometry, hasBbox: !!l.bbox }))
+        });
+        
         await addLocations(validLocations, true); // true = ADD mode (merge with existing)
         
         updateLocationStatus('completed');
         
         // Trigger immediate autosave after adding locations
+        console.log('[LocationProcessor] Triggering autosave for ad:', currentAdId);
         await triggerSave(true);
         
         // Show success toast (locations are now in locationState and will save via autosave)
