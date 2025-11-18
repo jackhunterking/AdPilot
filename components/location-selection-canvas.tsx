@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { LocationMap } from "@/components/location-map"
 import { LocationRemovalDialog } from "@/components/dialogs/location-removal-dialog"
+import { ClearLocationsDialog } from "@/components/dialogs/clear-locations-dialog"
 
 interface LocationData {
   id: string
@@ -44,6 +45,9 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
   // Dialog state for location removal confirmation
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
   const [locationToRemove, setLocationToRemove] = useState<LocationData | null>(null)
+  
+  // Dialog state for clear all confirmation
+  const [showClearDialog, setShowClearDialog] = useState(false)
 
   const handleAddMore = () => {
     try {
@@ -87,6 +91,16 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       setLocationToRemove(null)
       toast.success('You have removed location')
     }
+  }
+
+  const handleClearClick = () => {
+    setShowClearDialog(true)
+  }
+
+  const handleConfirmClear = () => {
+    clearLocations()
+    setShowClearDialog(false)
+    toast.success('All locations removed')
   }
 
   // Initial state - no locations selected
@@ -265,7 +279,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
               <Button
                 variant="outline"
                 size="lg"
-                onClick={clearLocations}
+                onClick={handleClearClick}
               >
                 Clear All
               </Button>
@@ -280,6 +294,14 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
         onOpenChange={setShowRemoveDialog}
         location={locationToRemove}
         onConfirm={handleConfirmRemove}
+      />
+
+      {/* Clear All Locations Confirmation Dialog */}
+      <ClearLocationsDialog
+        open={showClearDialog}
+        onOpenChange={setShowClearDialog}
+        locationCount={locationState.locations.length}
+        onConfirm={handleConfirmClear}
       />
     </div>
   )

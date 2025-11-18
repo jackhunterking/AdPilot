@@ -253,7 +253,15 @@ export function PreviewPanel() {
   
   // Listen for location updates from AI chat (matching imageEdited pattern)
   useEffect(() => {
+    let isProcessing = false;
+    
     const handleLocationUpdated = async (event: Event) => {
+      // Guard against duplicate processing
+      if (isProcessing) {
+        logger.warn('PreviewPanel', 'Location update already in progress, skipping');
+        return;
+      }
+      
       const customEvent = event as CustomEvent<{
         sessionId?: string;
         locations: Array<{
@@ -276,6 +284,8 @@ export function PreviewPanel() {
         logger.warn('PreviewPanel', 'Invalid locationUpdated event', { sessionId, locations });
         return;
       }
+      
+      isProcessing = true;
       
       logger.debug('PreviewPanel', '✅ Received locationUpdated event', {
         count: locations.length,
@@ -302,8 +312,9 @@ export function PreviewPanel() {
       // Save ONLY new locations to database (granular operation)
       if (campaign?.id && currentAd?.id) {
         try {
-          // Determine endpoint based on mode
-          const isExclude = locationsWithIds.every(loc => loc.mode === 'exclude');
+          // Determine endpoint based on mode (check first location since all should have same mode)
+          const firstLocationMode = locationsWithIds[0]?.mode || 'include';
+          const isExclude = firstLocationMode === 'exclude';
           const endpoint = isExclude
             ? `/api/campaigns/${campaign.id}/ads/${currentAd.id}/locations/exclude`
             : `/api/campaigns/${campaign.id}/ads/${currentAd.id}/locations`;
@@ -333,9 +344,12 @@ export function PreviewPanel() {
         } catch (error) {
           logger.error('PreviewPanel', '❌ Error saving locations:', error);
           toast.error('Network error - location not saved');
+        } finally {
+          isProcessing = false;
         }
       } else {
         logger.warn('PreviewPanel', '⚠️ Cannot save - missing campaign or ad ID');
+        isProcessing = false;
       }
     };
     
@@ -348,7 +362,15 @@ export function PreviewPanel() {
   
   // Listen for location removal (delete specific location)
   useEffect(() => {
+    let isProcessing = false;
+    
     const handleLocationRemoved = async (event: Event) => {
+      // Guard against duplicate processing
+      if (isProcessing) {
+        logger.warn('PreviewPanel', 'Location removal already in progress, skipping');
+        return;
+      }
+      
       const customEvent = event as CustomEvent<{
         locationId: string;
         databaseId?: string;
@@ -361,6 +383,8 @@ export function PreviewPanel() {
         logger.warn('PreviewPanel', 'Cannot remove - missing database ID');
         return;
       }
+      
+      isProcessing = true;
       
       logger.debug('PreviewPanel', '🗑️ Removing location from DB', { databaseId });
       
@@ -381,6 +405,8 @@ export function PreviewPanel() {
       } catch (error) {
         logger.error('PreviewPanel', '❌ Error removing location:', error);
         toast.error('Network error - removal not saved');
+      } finally {
+        isProcessing = false;
       }
     };
     
@@ -393,7 +419,16 @@ export function PreviewPanel() {
   
   // Listen for clear all locations (delete all from DB)
   useEffect(() => {
+    let isProcessing = false;
+    
     const handleLocationsCleared = async (event: Event) => {
+      // Guard against duplicate processing
+      if (isProcessing) {
+        logger.warn('PreviewPanel', 'Clear already in progress, skipping');
+        return;
+      }
+      
+      isProcessing = true;
       logger.debug('PreviewPanel', '🗑️ All locations cleared, deleting from DB');
       
       if (campaign?.id && currentAd?.id) {
@@ -414,7 +449,11 @@ export function PreviewPanel() {
         } catch (error) {
           logger.error('PreviewPanel', '❌ Error clearing locations:', error);
           toast.error('Network error');
+        } finally {
+          isProcessing = false;
         }
+      } else {
+        isProcessing = false;
       }
     };
     

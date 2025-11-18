@@ -9,7 +9,7 @@
  */
 
 import React, { Fragment, useState } from "react";
-import { CheckCircle2, Sparkles, Target, User, Heart, Activity, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Sparkles, Target, User, Heart, Activity, Loader2 } from "lucide-react";
 import { AdMockup } from "@/components/ad-mockup";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -143,13 +143,20 @@ export function renderLocationUpdateResult(opts: {
     actionMessage = "Locations updated";
   }
   
+  // Determine colors based on action type
+  const isExcludeOnly = excludedCount > 0 && includedCount === 0;
+  const bgColor = isExcludeOnly ? "bg-red-500/5" : "bg-green-500/5";
+  const borderColor = isExcludeOnly ? "border-red-500/30" : "border-green-500/30";
+  const textColor = isExcludeOnly ? "text-red-600" : "text-green-600";
+  const Icon = isExcludeOnly ? XCircle : CheckCircle2;
+  
   return (
     <Fragment key={keyId || callId}>
-      <div key={(keyId || callId) + "-card"} className="border rounded-lg p-3 my-2 bg-green-500/5 border-green-500/30">
+      <div key={(keyId || callId) + "-card"} className={`border rounded-lg p-3 my-2 ${bgColor} ${borderColor}`}>
         <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+          <Icon className={`h-4 w-4 ${textColor} flex-shrink-0`} />
           <div className="flex-1">
-            <p className="text-sm font-medium text-green-600">{actionMessage}</p>
+            <p className={`text-sm font-medium ${textColor}`}>{actionMessage}</p>
             <p className="text-xs text-muted-foreground mt-0.5">
               {includedCount > 0 && `${includedCount} included`}
               {excludedCount > 0 && includedCount > 0 && ` · `}
