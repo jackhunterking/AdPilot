@@ -70,9 +70,9 @@ export async function GET(request: NextRequest) {
           name: string
           status: string
           ad_budgets: { daily_budget_cents: number; currency_code: string } | null
-          ad_creatives: Array<unknown>
-          ad_copy_variations: Array<unknown>
-          ad_target_locations: Array<unknown>
+          ad_creatives: { count: number } | null
+          ad_copy_variations: { count: number } | null
+          ad_target_locations: { count: number } | null
         }>
       }
 
