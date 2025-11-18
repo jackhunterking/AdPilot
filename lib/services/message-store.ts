@@ -36,35 +36,15 @@ type MessageRow = Database['public']['Tables']['messages']['Row'];
  * Extracts text content for searching while preserving full parts array
  */
 function messageToStorage(msg: UIMessage, conversationId: string): Omit<MessageRow, 'seq' | 'created_at'> {
-  // Extract text content for the content field (for querying)
   const textParts = (msg.parts as Array<{ type: string; text?: string }> | undefined)?.filter((part) => part.type === 'text') || [];
   let content = textParts.map((p) => p.text || '').join('\n');
   
-  // For messages with tool parts but no text, create descriptive content
-  // This satisfies the database constraint and improves searchability
-  if (!content || content.trim().length === 0) {
-    const toolParts = (msg.parts as Array<{ type?: string; toolCallId?: string }> | undefined)?.filter(
-      (part) => typeof part.type === 'string' && part.type.startsWith('tool-')
-    ) || [];
-    
-    if (toolParts.length > 0) {
-      // Create human-readable content from tool calls
-      const toolDescriptions = toolParts.map((p) => {
-        const toolType = (p.type as string).replace('tool-', '');
-        return `[Tool: ${toolType}]`;
-      }).join(', ');
-      
-      content = `Tool execution: ${toolDescriptions}`;
-    }
+  // For messages with metadata but no text (like location confirmations)
+  if (!content && (msg as unknown as { metadata?: { type?: string } }).metadata?.type) {
+    content = `[${(msg as unknown as { metadata?: { type?: string } }).metadata?.type}]`;  // Simple placeholder
   }
   
-  // Enforce content size limit (50KB)
-  const truncatedContent = content.length > 50000 
-    ? content.substring(0, 50000) + '... [truncated]'
-    : content;
-  
-  // Final safety: ensure content is never empty string (use single space as minimum)
-  const finalContent = truncatedContent || ' ';
+  const finalContent = content || ' ';  // Minimum: single space
   
   return {
     id: msg.id,
@@ -72,7 +52,7 @@ function messageToStorage(msg: UIMessage, conversationId: string): Omit<MessageR
     role: msg.role,
     content: finalContent,
     parts: (msg.parts as unknown as Json) || [],
-    tool_invocations: ((msg as unknown as { toolInvocations?: unknown }).toolInvocations as Json) || [],
+    tool_invocations: [],
     metadata: ((msg as unknown as { metadata?: Record<string, unknown> }).metadata as Json) || {},
   };
 }
@@ -86,51 +66,13 @@ function storageToMessage(stored: MessageRow): UIMessage {
   // Sanitize all parts from storage to guarantee invariants
   let parts = sanitizeParts(stored.parts);
   
-  // For assistant messages, filter incomplete tool invocations
-  // Per AI SDK docs: https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling#response-messages
+  // For assistant messages, just ensure basic validity
   if (stored.role === 'assistant' && parts.length > 0) {
+    // Only filter parts that are completely broken
     parts = parts.filter((part) => {
       const type = (part as { type?: unknown }).type;
       if (typeof type !== 'string') return false;
-      
-      // Keep all non-tool parts
-      if (!type.startsWith('tool-')) return true;
-      
-      // For tool parts, we need a toolCallId
-      const toolCallId = (part as { toolCallId?: unknown }).toolCallId;
-      if (typeof toolCallId !== 'string' || !toolCallId) {
-        console.log(`[MessageStore] Filtering tool part without toolCallId:`, { type });
-        return false;
-      }
-      
-      // Keep tool-result parts (they're complete by definition)
-      if (type === 'tool-result') return true;
-      
-      // For tool-specific parts (tool-addLocations, tool-generateImage, etc.)
-      // Keep them if they have EITHER:
-      // 1. An output property (client-executed, result data)
-      // 2. A result property (server-executed, result data)
-      // 3. An input property (tool call with input data - can render from input)
-      // 4. A state indicating completion (output-available, output-error)
-      const hasOutput = (part as { output?: unknown }).output !== undefined;
-      const hasResult = (part as { result?: unknown }).result !== undefined;
-      const hasInput = (part as { input?: unknown }).input !== undefined;
-      const state = (part as { state?: unknown }).state;
-      const hasCompletionState = state === 'output-available' || state === 'output-error';
-      
-      if (hasOutput || hasResult || hasInput || hasCompletionState) {
-        return true;
-      }
-      
-      // Filter out incomplete tool invocations (streaming, no output yet)
-      console.log(`[MessageStore] Filtering incomplete tool part:`, { 
-        type, 
-        toolCallId, 
-        state,
-        hasOutput, 
-        hasResult 
-      });
-      return false;
+      return true;  // Keep all valid parts
     });
   }
   
@@ -242,7 +184,6 @@ export const messageStore = {
     messages: UIMessage[]
   ): Promise<void> {
     if (messages.length === 0) {
-      console.log('[MessageStore] No messages to save');
       return;
     }
 
@@ -267,7 +208,6 @@ export const messageStore = {
       const newMessages = messages.filter(m => !existingIds.has(m.id));
 
       if (newMessages.length === 0) {
-        console.log('[MessageStore] All messages already exist, skipping save');
         return;
       }
 

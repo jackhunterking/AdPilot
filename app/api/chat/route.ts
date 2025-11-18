@@ -1355,44 +1355,27 @@ Example: If previous setup had "Ontario, Toronto (excluded)" and user removed To
             // User and system messages are always valid
             if (msg.role !== 'assistant') return true;
             
-            const parts = (msg.parts as Array<{ type: string; text?: string; toolCallId?: string; result?: unknown; output?: unknown }>) || [];
+            const parts = (msg.parts as Array<{ type: string; text?: string }>) || [];
             
-            // Don't save empty assistant messages
-            if (parts.length === 0) {
-              console.log(`[SAVE] Filtering empty assistant message ${msg.id}`);
-              return false;
-            }
+            // Keep messages that have:
+            // 1. At least one text part with content, OR
+            // 2. Metadata (like location confirmations), OR  
+            // 3. Tool parts (even empty text is OK if metadata exists)
             
-            // Check if there's at least one text part with content
             const hasTextContent = parts.some((p) => 
               p.type === 'text' && p.text && p.text.trim().length > 0
             );
             
-            // Check for tool invocation parts (any part with type starting with "tool-")
-            // AI SDK pattern: tool parts have types like "tool-generateImage", "tool-editImage", etc.
-            const toolParts = parts.filter((p) => 
-              typeof p.type === 'string' && p.type.startsWith('tool-')
-            );
+            const hasMetadata = (msg as unknown as { metadata?: Record<string, unknown> }).metadata && 
+              Object.keys((msg as unknown as { metadata?: Record<string, unknown> }).metadata || {}).length > 0;
             
-            // If message has NO text content and NO tool parts, filter it out
-            if (!hasTextContent && toolParts.length === 0) {
-              console.log(`[SAVE] Filtering assistant message with no text content and no tools ${msg.id}`);
-              return false;
+            if (hasTextContent || hasMetadata) {
+              return true;
             }
             
-            if (toolParts.length > 0) {
-              // Simplified: Only filter truly broken parts (no toolCallId)
-              // Let all other tool parts through - they'll be filtered on load if needed
-              // This handles async tool execution where parts may update after initial save
-              const invalidTools = toolParts.filter((p) => !p.toolCallId);
-              
-              if (invalidTools.length > 0) {
-                console.log(`[SAVE] Filtering message with invalid tool parts (no toolCallId) ${msg.id}`);
-                return false;
-              }
-            }
-            
-            return true;
+            // Filter only truly empty assistant messages
+            console.log(`[SAVE] Filtering empty assistant message ${msg.id}`);
+            return false;
           });
           
           console.log(`[SAVE] Filtered ${finalMessages.length} → ${validMessages.length} valid messages`);

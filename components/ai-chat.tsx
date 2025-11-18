@@ -74,6 +74,7 @@ import { useGeneration } from "@/lib/context/generation-context";
 import { emitBrowserEvent } from "@/lib/utils/browser-events";
 import { useCampaignContext } from "@/lib/context/campaign-context";
 import { toZeroBasedIndex } from "@/lib/utils/variation";
+import { createLocationConfirmationMessage, type LocationCardData } from '@/lib/utils/location-messages';
 
 // Type definitions
 interface MessagePart {
@@ -386,24 +387,16 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
     toolCallId: string,
     input: LocationToolInput
   ) => {
-    console.log('[LocationProcessor] ========== START ==========');
-    console.log('[LocationProcessor] Tool Call ID:', toolCallId);
-    console.log('[LocationProcessor] Input:', JSON.stringify(input, null, 2));
-    console.log('[LocationProcessor] Already processed?', processedLocationCalls.current.has(toolCallId));
-    
     // Skip if already processed
     if (processedLocationCalls.current.has(toolCallId)) {
-      console.log('[LocationProcessor] Skipping - already processed');
       return;
     }
     
     // Mark as processing immediately
     processedLocationCalls.current.add(toolCallId);
-    console.log('[LocationProcessor] Marked as processing');
     
     try {
       updateLocationStatus('setup-in-progress');
-      console.log('[LocationProcessor] Status updated to: setup-in-progress');
       
       // Geocode all locations
       const processed = await Promise.all(
@@ -458,62 +451,18 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
       
       const validLocations = processed.filter((loc): loc is NonNullable<typeof loc> => loc !== null);
       
-      console.log('[LocationProcessor] Geocoding complete. Valid locations:', validLocations.length);
-      console.log('[LocationProcessor] Valid locations data:', JSON.stringify(validLocations.map(l => ({
-        name: l.name,
-        coordinates: l.coordinates,
-        type: l.type,
-        mode: l.mode,
-        hasGeometry: !!l.geometry,
-        hasBbox: !!l.bbox
-      })), null, 2));
-      
       if (validLocations.length === 0) {
         throw new Error('Failed to geocode locations');
       }
       
       // Update context (triggers map update via React state flow) with error handling
       try {
-        console.log('[LocationProcessor] Calling addLocations with', validLocations.length, 'locations...');
-        console.log('[LocationProcessor] Current locationState before add:', {
-          count: locationState.locations.length,
-          status: locationState.status
-        });
-        
         await addLocations(validLocations, true); // true = ADD mode (merge with existing)
         
-        console.log('[LocationProcessor] addLocations completed');
-        console.log('[LocationProcessor] Current locationState after add:', {
-          count: locationState.locations.length,
-          status: locationState.status,
-          locations: locationState.locations.map(l => l.name)
-        });
-        
         updateLocationStatus('completed');
-        console.log('[LocationProcessor] Status updated to: completed');
         
         // Trigger immediate autosave after adding locations
-        console.log('[LocationProcessor] Triggering autosave...');
         await triggerSave(true);
-        console.log('[LocationProcessor] ✅ Autosave completed');
-        
-        // Verify database save
-        console.log('[LocationProcessor] Verifying database save...');
-        try {
-          const verifyResponse = await fetch(`/api/campaigns/${campaignId}/ads/${currentAdId}/snapshot`);
-          if (verifyResponse.ok) {
-            const verifyData = await verifyResponse.json();
-            console.log('[LocationProcessor] Database verification:', {
-              hasLocationSection: !!verifyData.setup_snapshot?.location,
-              locationCount: verifyData.setup_snapshot?.location?.locations?.length || 0,
-              locations: verifyData.setup_snapshot?.location?.locations || []
-            });
-          } else {
-            console.warn('[LocationProcessor] Could not verify database save:', verifyResponse.status);
-          }
-        } catch (verifyError) {
-          console.warn('[LocationProcessor] Database verification failed:', verifyError);
-        }
         
         // Show success toast
         const locationNames = validLocations.map(l => l.name).join(', ');
@@ -523,26 +472,28 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
             : `Locations set to ${locationNames}`
         );
         
-        // Report success to AI
-        addToolResult({
-          tool: 'addLocations',
-          toolCallId,
-          output: {
-            locations: validLocations.map(l => ({
-              id: l.id,
-              name: l.name,
-              type: l.type,
-              mode: l.mode,
-            })),
-            failedCount: input.locations.length - validLocations.length,
-          },
-        });
+        // Create confirmation message with metadata for persistent rendering
+        const confirmationMessage = createLocationConfirmationMessage(
+          validLocations.map(loc => ({
+            id: loc.id,
+            name: loc.name,
+            type: loc.type,
+            mode: loc.mode,
+            radius: loc.radius
+          }))
+        );
         
-        console.log('[LocationProcessor] ========== SUCCESS ==========');
+        // Add confirmation message to chat
+        setMessages(prev => [...prev, confirmationMessage]);
+        
+        // Report simple success to AI (no complex output needed)
+        addToolResult({
+          tool: input.locations.length > 1 ? 'addLocations' : 'locationTargeting',
+          toolCallId,
+          output: { success: true }  // Simple success flag only
+        });
       } catch (error) {
-        console.error('[LocationProcessor] ========== ERROR ==========');
         console.error('[LocationProcessor] Failed to add locations:', error);
-        console.error('[LocationProcessor] Error stack:', error instanceof Error ? error.stack : 'N/A');
         updateLocationStatus('error');
         toast.error('Failed to save location data');
         throw error;
@@ -1027,6 +978,56 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
               const isLiked = likedMessages.has(message.id);
               const isDisliked = dislikedMessages.has(message.id);
               
+              // RENDER LOCATION CONFIRMATION CARDS from metadata
+              if (message.metadata?.type === 'location_confirmation' && 
+                  Array.isArray(message.metadata?.locations)) {
+                
+                const locations = message.metadata.locations as LocationCardData[]
+
+                return (
+                  <Message key={message.id} from={message.role}>
+                    <MessageContent>
+                      <div className="w-full space-y-2">
+                        {/* Render INDIVIDUAL cards */}
+                        {locations.map((loc) => {
+                          const isExcluded = loc.mode === 'exclude'
+                          const typeLabel = loc.type === 'radius' && loc.radius 
+                            ? `${loc.radius} mile radius` 
+                            : loc.type === 'city' ? 'City'
+                            : loc.type === 'region' ? 'Province/Region'
+                            : loc.type === 'country' ? 'Country'
+                            : loc.type
+
+                          return (
+                            <div
+                              key={loc.id}
+                              className="flex items-center justify-between p-3 rounded-lg border panel-surface"
+                            >
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <div className="icon-tile-muted">
+                                  {isExcluded ? (
+                                    <X className="h-4 w-4 text-red-600" />
+                                  ) : (
+                                    <Check className="h-4 w-4 text-status-green" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <p className="text-sm font-medium truncate">{loc.name}</p>
+                                    {isExcluded && <span className="status-muted flex-shrink-0">Excluded</span>}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">{typeLabel}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </MessageContent>
+                  </Message>
+                )
+              }
+              
               return (
                 <Fragment key={message.id}>
                   <div>
@@ -1152,72 +1153,8 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                               const callId = (part as unknown as { toolCallId?: string }).toolCallId || `${message.id}-${i}`;
                               const toolName = (part as unknown as { toolName?: string; name?: string }).toolName || (part as unknown as { name?: string }).name || '';
 
-                              if (toolName === 'addLocations' || toolName === 'locationTargeting') {
-                                const output = (part as unknown as { output?: unknown }).output as { 
-                                  locations?: LocationOutput[]; 
-                                  explanation?: string;
-                                  cancelled?: boolean;
-                                } | undefined;
-                                
-                                console.log('[AI Chat] Rendering location tool result:', {
-                                  toolName,
-                                  hasOutput: !!output,
-                                  locationCount: output?.locations?.length || 0
-                                });
-                                
-                                // Don't show cancelled results
-                                if (output?.cancelled) return null;
-                                
-                                if (!output || !Array.isArray(output.locations) || output.locations.length === 0) {
-                                  return null;
-                                }
-
-                                return (
-                                  <div key={callId} className="w-full my-4">
-                                    <div className="flex items-center gap-2 mb-3">
-                                      <MapPin className="h-4 w-4 text-blue-600" />
-                                      <p className="text-sm font-medium">Target Locations</p>
-                                      <Badge variant="outline" className="text-xs">{output.locations.length}</Badge>
-                                    </div>
-                                    
-                                    <div className="space-y-2">
-                                      {output.locations.map((loc, idx: number) => {
-                                        const isExcluded = loc.mode === "exclude";
-                                        const typeLabel = loc.type === 'radius' && loc.radius 
-                                          ? `${loc.radius} mile radius` 
-                                          : loc.type === 'city' ? 'City'
-                                          : loc.type === 'region' ? 'Province/Region'
-                                          : loc.type === 'country' ? 'Country'
-                                          : loc.type;
-                                        
-                                        return (
-                                          <div
-                                            key={`${callId}-${idx}`}
-                                            className="flex items-center justify-between p-3 rounded-lg border panel-surface"
-                                          >
-                                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                                              <div className="icon-tile-muted">
-                                                {isExcluded ? (
-                                                  <X className="h-4 w-4 text-red-600" />
-                                                ) : (
-                                                  <Check className="h-4 w-4 text-status-green" />
-                                                )}
-                                              </div>
-                                              <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-1.5 min-w-0">
-                                                  <p className="text-sm font-medium truncate">{loc.name}</p>
-                                                  {isExcluded && <span className="status-muted flex-shrink-0">Excluded</span>}
-                                                </div>
-                                                <p className="text-xs text-muted-foreground">{typeLabel}</p>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                );
-                              }
+                              // Location confirmations now render from metadata (see above)
+                              // No need for tool-result rendering for addLocations/locationTargeting
                               
                               // NEW GRANULAR TOOL HANDLERS
                               
@@ -1854,84 +1791,8 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                 );
                               }
                               
-                              if (part.state === 'output-available') {
-                                const output = part.output as { 
-                                  locations?: Array<{ 
-                                    id?: string;
-                                    name: string; 
-                                    mode: string;
-                                    type: string;
-                                    radius?: number;
-                                  }>; 
-                                  cancelled?: boolean 
-                                };
-                                
-                                if (output?.cancelled) return null;
-                                
-                                if (!output?.locations || output.locations.length === 0) return null;
-                                
-                                return (
-                                  <div key={callId} className="w-full my-4">
-                                    <div className="flex items-center gap-2 mb-3">
-                                      <MapPin className="h-4 w-4 text-blue-600" />
-                                      <p className="text-sm font-medium">Target Locations</p>
-                                      <Badge variant="outline" className="text-xs">{output.locations.length}</Badge>
-                                    </div>
-                                    
-                                    <div className="space-y-2">
-                                      {output.locations.map((loc, idx: number) => {
-                                        const isExcluded = loc.mode === "exclude";
-                                        const typeLabel = loc.type === 'radius' && loc.radius 
-                                          ? `${loc.radius} mile radius` 
-                                          : loc.type === 'city' ? 'City'
-                                          : loc.type === 'region' ? 'Province/Region'
-                                          : loc.type === 'country' ? 'Country'
-                                          : loc.type;
-                                        
-                                        return (
-                                          <div
-                                            key={`${callId}-${idx}`}
-                                            className="flex items-center justify-between p-3 rounded-lg border panel-surface"
-                                          >
-                                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                                              <div className="icon-tile-muted">
-                                                {isExcluded ? (
-                                                  <X className="h-4 w-4 text-red-600" />
-                                                ) : (
-                                                  <Check className="h-4 w-4 text-status-green" />
-                                                )}
-                                              </div>
-                                              <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-1.5 min-w-0">
-                                                  <p className="text-sm font-medium truncate">{loc.name}</p>
-                                                  {isExcluded && <span className="status-muted flex-shrink-0">Excluded</span>}
-                                                </div>
-                                                <p className="text-xs text-muted-foreground">{typeLabel}</p>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                );
-                              }
-                              
-                              if (part.state === 'output-error') {
-                                return (
-                                  <div key={callId} className="border rounded-lg bg-red-500/5 border-red-500/20 p-4 my-3">
-                                    <div className="flex items-center gap-3">
-                                      <XCircle className="h-4 w-4 text-red-600" />
-                                      <div>
-                                        <p className="text-sm font-medium text-red-600">Failed to set location</p>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                          {part.errorText || 'Could not geocode location. Please try again.'}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              }
+                              // Location confirmations now render from metadata (see above in message loop)
+                              // No need for output-available or output-error rendering here
                               
                               return null;
                             }

@@ -507,7 +507,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
                     <h3 className="text-base font-semibold">Included</h3>
                     <Badge className="badge-muted">{locationState.locations.filter(loc => loc.mode === "include").length}</Badge>
                   </div>
-                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                  <div className="space-y-2">
                     {locationState.locations.filter(loc => loc.mode === "include").map((location) => (
                       <LocationCard
                         key={location.id}
@@ -602,7 +602,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
                   <h3 className="text-base font-semibold">Included</h3>
                   <Badge className="badge-muted">{includedLocations.length}</Badge>
                 </div>
-                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                <div className="space-y-2">
                   {includedLocations.map((location) => (
                     <LocationCard
                       key={location.id}
@@ -622,7 +622,7 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
                   <h3 className="text-base font-semibold">Excluded</h3>
                   <Badge className="badge-muted">{excludedLocations.length}</Badge>
                 </div>
-                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                <div className="space-y-2">
                   {excludedLocations.map((location) => (
                     <LocationCard
                       key={location.id}
