@@ -55,7 +55,8 @@ export async function GET(request: NextRequest) {
 
     // Calculate analytics for each campaign
     const analytics = (campaigns || []).map(campaign => {
-      const campaignData = campaign as {
+      // Cast to unknown first to avoid TypeScript comparison errors
+      const campaignData = campaign as unknown as {
         id: string
         name: string
         status: string | null
