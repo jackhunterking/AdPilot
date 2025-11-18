@@ -268,6 +268,8 @@ export async function PATCH(
           radius?: number
           mode?: string
           key?: string
+          bbox?: [number, number, number, number]
+          geometry?: object
         }) => ({
           ad_id: adId,
           location_name: loc.name,
@@ -276,7 +278,9 @@ export async function PATCH(
           latitude: loc.coordinates?.[1] || null,
           radius_km: loc.radius ? loc.radius * 1.60934 : null, // Convert miles to km
           inclusion_mode: loc.mode || 'include',
-          meta_location_key: loc.key || null
+          meta_location_key: loc.key || null,
+          bbox: loc.bbox || null,
+          geometry: loc.geometry || null
         }))
         
         const { data: inserted, error: insertError } = await supabaseServer

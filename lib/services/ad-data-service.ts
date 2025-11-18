@@ -566,7 +566,8 @@ export const adDataService = {
           radius: l.radius_km ? l.radius_km / 1.60934 : undefined, // Convert km back to miles
           mode: l.inclusion_mode as 'include' | 'exclude',
           key: l.meta_location_key,
-          // Note: bbox and geometry not stored in DB, will need re-geocoding on load
+          bbox: l.bbox as [number, number, number, number] | undefined,
+          geometry: l.geometry as { type: string; coordinates: unknown } | undefined,
         })),
       },
       destination: adData.destination

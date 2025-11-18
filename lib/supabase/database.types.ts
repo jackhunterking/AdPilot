@@ -341,7 +341,9 @@ export type Database = {
       ad_target_locations: {
         Row: {
           ad_id: string
+          bbox: Json | null
           created_at: string
+          geometry: Json | null
           id: string
           inclusion_mode: string
           latitude: number | null
@@ -353,7 +355,9 @@ export type Database = {
         }
         Insert: {
           ad_id: string
+          bbox?: Json | null
           created_at?: string
+          geometry?: Json | null
           id?: string
           inclusion_mode?: string
           latitude?: number | null
@@ -365,7 +369,9 @@ export type Database = {
         }
         Update: {
           ad_id?: string
+          bbox?: Json | null
           created_at?: string
+          geometry?: Json | null
           id?: string
           inclusion_mode?: string
           latitude?: number | null
@@ -449,6 +455,20 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ads_selected_copy_id_fkey"
+            columns: ["selected_copy_id"]
+            isOneToOne: false
+            referencedRelation: "ad_copy_variations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ads_selected_creative_id_fkey"
+            columns: ["selected_creative_id"]
+            isOneToOne: false
+            referencedRelation: "ad_creatives"
             referencedColumns: ["id"]
           },
         ]
@@ -1507,7 +1527,146 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      batch_update_ad_statuses: {
+        Args: { p_ad_ids: string[]; p_new_status: string; p_user_id: string }
+        Returns: {
+          failed_ids: string[]
+          updated_count: number
+        }[]
+      }
+      check_campaign_publishing_ready: {
+        Args: { p_campaign_id: string; p_user_id: string }
+        Returns: {
+          is_ready: boolean
+          missing_requirements: Json
+        }[]
+      }
+      count_campaign_ads: {
+        Args: { p_campaign_id: string; p_status_filter?: string }
+        Returns: number
+      }
+      delete_expired_temp_prompts: { Args: never; Returns: undefined }
+      export_campaign_data: {
+        Args: { p_campaign_id: string; p_user_id: string }
+        Returns: Json
+      }
+      get_ad_complete_data: {
+        Args: { p_ad_id: string; p_user_id: string }
+        Returns: {
+          ad_data: Json
+          campaign_data: Json
+          publishing_data: Json
+        }[]
+      }
+      get_campaign_ad_account_id: {
+        Args: { p_campaign_id: string }
+        Returns: string
+      }
+      get_campaign_ads_with_status: {
+        Args: {
+          p_campaign_id: string
+          p_status_filter?: string
+          p_user_id: string
+        }
+        Returns: {
+          ad_data: Json
+          error_message: string
+          publishing_status: string
+        }[]
+      }
+      get_campaign_lead_stats: {
+        Args: { p_campaign_id: string; p_user_id: string }
+        Returns: {
+          exported_count: number
+          latest_submission: string
+          new_leads_24h: number
+          total_leads: number
+        }[]
+      }
+      get_campaign_metrics_summary: {
+        Args: { p_campaign_id: string; p_range_key?: string; p_user_id: string }
+        Returns: {
+          last_sync_at: string
+          metrics_data: Json
+          publish_status: string
+        }[]
+      }
+      get_campaign_token: {
+        Args: { p_campaign_id: string; p_user_id: string }
+        Returns: string
+      }
+      get_campaign_with_state: {
+        Args: { p_campaign_id: string; p_user_id: string }
+        Returns: {
+          campaign_data: Json
+          state_data: Json
+        }[]
+      }
+      get_conversation_with_messages: {
+        Args: {
+          p_conversation_id: string
+          p_message_limit?: number
+          p_user_id: string
+        }
+        Returns: {
+          conversation_data: Json
+          messages_data: Json
+        }[]
+      }
+      get_latest_metrics: {
+        Args: { p_campaign_id: string; p_range_key: string }
+        Returns: Json
+      }
+      get_meta_connection_status: {
+        Args: { p_campaign_id: string; p_user_id: string }
+        Returns: {
+          ad_account_id: string
+          admin_connected: boolean
+          connection_status: string
+          payment_connected: boolean
+          user_app_connected: boolean
+        }[]
+      }
+      get_user_campaigns_summary: {
+        Args: { p_limit?: number; p_offset?: number; p_user_id: string }
+        Returns: {
+          ad_count: number
+          campaign_data: Json
+          state_data: Json
+        }[]
+      }
+      record_ad_status_transition: {
+        Args: {
+          p_ad_id: string
+          p_from_status: string
+          p_metadata?: Json
+          p_notes?: string
+          p_to_status: string
+          p_triggered_by: string
+        }
+        Returns: string
+      }
+      set_funding_status: {
+        Args: { p_has_funding: boolean; p_status: string }
+        Returns: undefined
+      }
+      update_ad_status: {
+        Args: {
+          p_ad_id: string
+          p_new_status: string
+          p_notes?: string
+          p_triggered_by?: string
+        }
+        Returns: boolean
+      }
+      user_owns_campaign: {
+        Args: { p_campaign_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      verify_campaign_ownership: {
+        Args: { p_campaign_id: string; p_user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       ad_status_enum:
@@ -1661,3 +1820,4 @@ export const Constants = {
     },
   },
 } as const
+

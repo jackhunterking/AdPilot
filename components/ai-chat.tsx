@@ -474,7 +474,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
         // Report success to AI
         // NOTE: Location data is in ad_target_locations table (single source of truth)
         // Map displays from LocationContext which loads from table
-        // No chat message needed - locations persist in database
+        // AI will respond with confirmation message per prompt rules
         addToolResult({
           tool: input.locations.length > 1 ? 'addLocations' : 'locationTargeting',
           toolCallId,
