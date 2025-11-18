@@ -76,12 +76,6 @@ import { useCampaignContext } from "@/lib/context/campaign-context";
 import { toZeroBasedIndex } from "@/lib/utils/variation";
 import { useLocationMode } from "@/components/chat/journeys/location/use-location-mode";
 import { createLocationMetadata } from "@/components/chat/journeys/location/location-metadata";
-import { LocationJourney } from "@/components/chat/journeys/location/location-journey";
-import { CreativeJourney } from "@/components/chat/journeys/creative/creative-journey";
-import { CopyJourney } from "@/components/chat/journeys/copy/copy-journey";
-import { GoalJourney } from "@/components/chat/journeys/goal/goal-journey";
-import { CampaignJourney } from "@/components/chat/journeys/campaign/campaign-journey";
-import { useJourneyRouter } from "@/components/chat/hooks/use-journey-router";
 
 // Type definitions
 interface MessagePart {
@@ -219,22 +213,6 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
   
   // NEW: Location setup mode using microservices hook
   const { mode: locationMode, isActive: locationSetupMode, setIsActive: setLocationSetupMode, reset: resetLocationMode } = useLocationMode();
-  
-  // Initialize all journey modules (microservices architecture)
-  const locationJourney = LocationJourney();
-  const creativeJourney = CreativeJourney();
-  const copyJourney = CopyJourney();
-  const goalJourney = GoalJourney();
-  const campaignJourney = CampaignJourney();
-  
-  // Create journey router
-  const { routeToJourney } = useJourneyRouter({
-    location: locationJourney,
-    creative: creativeJourney,
-    copy: copyJourney,
-    goal: goalJourney,
-    campaign: campaignJourney
-  });
   
   // Track processed location tool calls to prevent re-processing
   const processedLocationCalls = useRef<Set<string>>(new Set());
@@ -1205,19 +1183,12 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                   return null;
                               }
                             }
-                            case "tool-generateVariations":
-                            case "tool-editVariation":
-                            case "tool-regenerateVariation":
-                            case "tool-editCopy":
-                            case "tool-addLocations":
-                            case "tool-setupGoal":
-                            case "tool-createAd": {
-                              // Route to appropriate journey module (microservices architecture)
-                              return routeToJourney(part as { type: string; toolCallId: string; input?: unknown; output?: unknown; state?: string; errorText?: string });
-                            }
-                            
-                            case "tool-enableAIAdvantage": {
-                              console.log('[AI Chat] Handling AI advantage tool:', {
+                            case "tool-generateVariations": {
+                              const callId = part.toolCallId;
+                              const isGenerating = generatingImages.has(callId);
+                              const input = part.input as { prompt: string; brandName?: string; caption?: string };
+                              
+                              console.log('[AI Chat] Handling creative generation tool:', {
                                 type: part.type,
                                 callId,
                                 state: part.state,
