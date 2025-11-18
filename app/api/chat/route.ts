@@ -1273,7 +1273,23 @@ Use mode 'include' for targeting, 'exclude' for exclusions.
 IMPORTANT: Users can remove locations by clicking X. When they ask to add new locations, ONLY include:
 1. Locations they explicitly mentioned in current request
 2. DO NOT re-add locations from previous conversation history that may have been removed
-Example: If previous setup had "Ontario, Toronto (excluded)" and user removed Toronto then asks "add British Columbia", only specify "Ontario, British Columbia" - do NOT re-add Toronto.`,
+Example: If previous setup had "Ontario, Toronto (excluded)" and user removed Toronto then asks "add British Columbia", only specify "Ontario, British Columbia" - do NOT re-add Toronto.
+
+## Location Targeting Response Rules
+
+**CRITICAL: After location tool completes successfully, you MUST respond with a confirmation message.**
+
+When addLocations or locationTargeting returns { success: true }:
+- Generate a brief, friendly confirmation (1-2 sentences)
+- Mention the location names that were added
+- Use enthusiastic but professional tone
+
+Example responses:
+- "Perfect! Location targeting set to Houston, Edmonton, and California. Your map now shows the coverage areas in green."
+- "Great! I've updated your targeting to 5 locations."
+- "Done! Your ad will now target Toronto with city-wide coverage."
+
+**NEVER leave an empty response after location tool success.**`,
     tools,
     // Add provider options based on model capabilities
     ...(isGeminiImageModel && {

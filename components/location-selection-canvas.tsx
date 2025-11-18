@@ -237,14 +237,16 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
       return;
     }
 
-    // Add markers and shapes with enhanced styling
+    // Enhanced tile-based coverage visualization
     validLocations.forEach((location) => {
-      const color = location.mode === "include" ? "#16A34A" : "#DC2626";
-      const fillColor = location.mode === "include" ? "#16A34A" : "#DC2626";
+      const isIncluded = location.mode === "include";
+      const coverageColor = isIncluded ? "#16A34A" : "#DC2626"; // Green or Red
+      const markerColor = isIncluded ? "#16A34A" : "#DC2626";
       
-      // Validate coordinates
       const lat = location.coordinates[1];
       const lng = location.coordinates[0];
+      
+      // Validate coordinates
       const isValid = lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
       
       console.log('[Map] Processing location:', {
@@ -261,99 +263,83 @@ export function LocationSelectionCanvas({ variant = "step" }: LocationSelectionC
         console.error('[Map] ❌ Invalid coordinates for:', location.name);
         return;
       }
-
-      // Add marker with custom styling
-      const marker = L.circleMarker(
-        [lat, lng], // [lat, lng] for Leaflet
-        {
-          radius: 10,
-          fillColor: color,
-          color: "#fff",
-          weight: 3,
-          opacity: 1,
-          fillOpacity: 1,
-        }
-      ).addTo(map) as LeafletMarker & { bindPopup: (content: string) => void };
-
-      const modeLabel = location.mode === "include" ? "Included" : "Excluded";
+      
+      // 1. Center marker (white pin with colored border)
+      const marker = L.circleMarker([lat, lng], {
+        radius: 8,
+        fillColor: "#FFFFFF",
+        color: markerColor,
+        weight: 3,
+        opacity: 1,
+        fillOpacity: 1,
+      }).addTo(map) as LeafletMarker & { bindPopup: (content: string) => void };
+      
+      const modeLabel = isIncluded ? "✓ Included" : "✗ Excluded";
       marker.bindPopup(`<strong>${location.name}</strong><br/>${modeLabel}`);
       markersRef.current.push(marker);
-
-      // Add coverage area with proper styling
+      
+      // 2. Tile-based coverage highlighting
       if (location.type === "radius" && location.radius) {
-        // Radius circle
+        // RADIUS: Pin + circle coverage
         const radiusInMeters = location.radius * 1609.34;
-        const circle = L.circle(
-          [location.coordinates[1], location.coordinates[0]],
-          {
-            radius: radiusInMeters,
-            fillColor: fillColor,
-            fillOpacity: 0.2,
-            color: color,
-            weight: 2,
-            opacity: 0.8,
-          }
-        ).addTo(map);
+        const circle = L.circle([lat, lng], {
+          radius: radiusInMeters,
+          fillColor: coverageColor,
+          fillOpacity: 0.25,
+          color: coverageColor,
+          weight: 2,
+          opacity: 0.8,
+        }).addTo(map);
         shapesRef.current.push(circle);
-        console.log('[Map] Added radius circle for:', location.name);
+        console.log('[Map] Added radius coverage for:', location.name);
         
       } else if (location.geometry) {
-        // Full geometry (most accurate)
+        // CITY/REGION/COUNTRY: Full boundary coverage (highlighted tiles)
         try {
           const geoJsonLayer = L.geoJSON(location.geometry, {
             style: {
-              fillColor: fillColor,
-              fillOpacity: 0.25,
-              color: color,
-              weight: 3,
+              fillColor: coverageColor,
+              fillOpacity: 0.3,  // More visible coverage
+              color: coverageColor,
+              weight: 2,
               opacity: 1,
             }
           }).addTo(map);
           shapesRef.current.push(geoJsonLayer);
-          console.log('[Map] Added geometry for:', location.name);
+          console.log('[Map] Added tile coverage for:', location.name);
         } catch (error) {
-          console.error('[Map] Geometry error for', location.name, error);
-          // Fallback to bbox if geometry fails
+          console.error('[Map] Geometry error, falling back to bbox:', error);
+          // Fallback to bounding box
           if (location.bbox) {
-            try {
-              const bounds: [[number, number], [number, number]] = [
-                [location.bbox[1], location.bbox[0]],  // SW corner [lat, lng]
-                [location.bbox[3], location.bbox[2]]   // NE corner [lat, lng]
-              ];
-              const rectangle = L.rectangle(bounds, {
-                fillColor: fillColor,
-                fillOpacity: 0.2,
-                color: color,
-                weight: 2,
-                opacity: 0.8,
-              }).addTo(map);
-              shapesRef.current.push(rectangle);
-              console.log('[Map] Added bbox fallback for:', location.name);
-            } catch (bboxError) {
-              console.error('[Map] BBox fallback also failed:', bboxError);
-            }
+            const bounds: [[number, number], [number, number]] = [
+              [location.bbox[1], location.bbox[0]],  // SW corner [lat, lng]
+              [location.bbox[3], location.bbox[2]]   // NE corner [lat, lng]
+            ];
+            const rectangle = L.rectangle(bounds, {
+              fillColor: coverageColor,
+              fillOpacity: 0.25,
+              color: coverageColor,
+              weight: 2,
+            }).addTo(map);
+            shapesRef.current.push(rectangle);
+            console.log('[Map] Added bbox fallback for:', location.name);
           }
         }
         
       } else if (location.bbox) {
-        // Bounding box rectangle
-        try {
-          const bounds: [[number, number], [number, number]] = [
-            [location.bbox[1], location.bbox[0]],  // SW corner [lat, lng]
-            [location.bbox[3], location.bbox[2]]   // NE corner [lat, lng]
-          ];
-          const rectangle = L.rectangle(bounds, {
-            fillColor: fillColor,
-            fillOpacity: 0.2,
-            color: color,
-            weight: 2,
-            opacity: 0.8,
-          }).addTo(map);
-          shapesRef.current.push(rectangle);
-          console.log('[Map] Added bbox for:', location.name);
-        } catch (error) {
-          console.error('[Map] BBox error for', location.name, error);
-        }
+        // BBOX FALLBACK: Bounding box as tile coverage
+        const bounds: [[number, number], [number, number]] = [
+          [location.bbox[1], location.bbox[0]],  // SW corner [lat, lng]
+          [location.bbox[3], location.bbox[2]]   // NE corner [lat, lng]
+        ];
+        const rectangle = L.rectangle(bounds, {
+          fillColor: coverageColor,
+          fillOpacity: 0.25,
+          color: coverageColor,
+          weight: 2,
+        }).addTo(map);
+        shapesRef.current.push(rectangle);
+        console.log('[Map] Added bbox coverage for:', location.name);
       }
     });
 
