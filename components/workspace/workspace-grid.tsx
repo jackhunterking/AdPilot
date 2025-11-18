@@ -165,8 +165,8 @@ export function WorkspaceGrid() {
       // Success: 200-299 (including idempotent 200 for already-deleted)
       if (response.ok) {
         toast.success(`"${campaignName}" deleted successfully`)
-        router.refresh() // Invalidate Next.js cache
-        await fetchCampaigns() // Get fresh data
+        router.refresh() // Invalidate Next.js cache for future navigations
+        // No need to re-fetch - optimistic update already removed it from UI
         return
       }
 

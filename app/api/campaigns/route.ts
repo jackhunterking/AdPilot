@@ -72,13 +72,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Add Cache-Control headers for better performance
-    // Cache for 60 seconds, allow stale content for 5 minutes while revalidating
+    // No-cache headers to prevent stale data after mutations (create/delete/update)
+    // This ensures users always see fresh campaign list, especially after deletions
     return NextResponse.json(
       { campaigns },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         },
       }
     )
