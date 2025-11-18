@@ -209,7 +209,7 @@ export function LocationMap({ locations }: { locations: Location[] }) {
       // For single large areas (country/region), zoom out one more level
       if (locations.length === 1) {
         const firstLocation = locations[0]
-        if (firstLocation.type === 'country' || firstLocation.type === 'region') {
+        if (firstLocation && (firstLocation.type === 'country' || firstLocation.type === 'region')) {
           setTimeout(() => {
             const currentZoom = (map as unknown as { getZoom: () => number; setZoom: (z: number) => void }).getZoom()
             if (currentZoom > 4) {
