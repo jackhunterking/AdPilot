@@ -58,7 +58,7 @@ export function PreviewPanel() {
   const { budgetState, isComplete, setDailyBudget } = useBudget()
   const { campaign } = useCampaignContext()
   const { currentAd, reloadAd } = useCurrentAd()
-  const { locationState } = useLocation()
+  const { locationState, addLocations } = useLocation()
   const { goalState } = useGoal()
   const { destinationState } = useDestination()
   const { adCopyState, getActiveVariations, getSelectedCopy } = useAdCopy()
@@ -250,6 +250,63 @@ export function PreviewPanel() {
       window.removeEventListener('imageEdited', handleImageEdited);
     };
   }, [setAdContent]);
+  
+  // Listen for location updates from AI chat (matching imageEdited pattern)
+  useEffect(() => {
+    const handleLocationUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{
+        sessionId?: string;
+        locations: Array<{
+          name: string;
+          coordinates: [number, number];
+          radius?: number;
+          type: string;
+          mode: string;
+          bbox?: [number, number, number, number];
+          geometry?: unknown;
+          key?: string;
+          country_code?: string;
+        }>;
+        mode: string;
+      }>;
+      
+      const { sessionId, locations } = customEvent.detail;
+      
+      if (!sessionId || !locations) {
+        logger.warn('PreviewPanel', 'Invalid locationUpdated event', { sessionId, locations });
+        return;
+      }
+      
+      logger.debug('PreviewPanel', '✅ Received locationUpdated event', {
+        count: locations.length,
+        names: locations.map(l => l.name)
+      });
+      
+      // Transform and add to context (matching imageEdited pattern)
+      const locationsWithIds = locations.map(loc => ({
+        id: `loc-${sessionId}-${Math.random().toString(36).substring(2, 9)}`,
+        name: loc.name,
+        coordinates: loc.coordinates,
+        radius: loc.radius || 30,
+        type: loc.type as "radius" | "city" | "region" | "country",
+        mode: loc.mode as "include" | "exclude",
+        bbox: loc.bbox,
+        geometry: loc.geometry as { type: string; coordinates: number[] | number[][] | number[][][] | number[][][][] } | undefined,
+        key: loc.key,
+        country_code: loc.country_code
+      }));
+      
+      // Update context (triggers autosave)
+      addLocations(locationsWithIds, true);
+      logger.debug('PreviewPanel', '📤 Auto-save will trigger (context change)');
+    };
+    
+    window.addEventListener('locationUpdated', handleLocationUpdated);
+    
+    return () => {
+      window.removeEventListener('locationUpdated', handleLocationUpdated);
+    };
+  }, [addLocations]);
   
   const previewFormats = [
     { id: "feed", label: "Feed", icon: ImageIcon },
