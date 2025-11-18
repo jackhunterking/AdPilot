@@ -1350,17 +1350,27 @@ Example responses:
             // User and system messages are always valid
             if (msg.role !== 'assistant') return true;
             
-            const parts = (msg.parts as Array<{ type: string; text?: string }>) || [];
+            const parts = (msg.parts as Array<{ type: string; text?: string; toolCallId?: string }>) || [];
             
-            // Assistant messages MUST have at least one text part with actual content
-            // No empty text parts, no metadata-only messages
+            // Assistant messages MUST have at least one text part OR tool results
+            // Tool results are valid content per AI SDK v5 pattern
             const hasTextContent = parts.some((p) => 
               p.type === 'text' && p.text && p.text.trim().length > 0
             );
             
-            if (!hasTextContent) {
-              console.log(`[SAVE] Filtering assistant message without text content: ${msg.id}`);
+            const hasToolResults = parts.some((p) => 
+              p.type === 'tool-result' || p.type === 'tool-call'
+            );
+            
+            // Save messages that have either text or tool results
+            if (!hasTextContent && !hasToolResults) {
+              console.log(`[SAVE] Filtering assistant message without content or tools: ${msg.id}`);
               return false;
+            }
+            
+            // Log what we're keeping for debugging
+            if (hasToolResults && !hasTextContent) {
+              console.log(`[SAVE] ✅ Keeping tool-only message: ${msg.id} with ${parts.filter(p => p.type === 'tool-result').length} tool results`);
             }
             
             return true;

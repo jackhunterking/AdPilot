@@ -1656,6 +1656,11 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                     const eventKey = `${callId}-location`;
                                     if (!dispatchedEvents.current.has(eventKey)) {
                                       dispatchedEvents.current.add(eventKey);
+                                      console.log('[AI Chat] 📡 Emitting locationUpdated event:', {
+                                        callId,
+                                        count: output.locations.length,
+                                        locations: output.locations.map(l => ({ name: l.name, mode: l.mode }))
+                                      });
                                       setTimeout(() => {
                                         emitBrowserEvent('locationUpdated', {
                                           sessionId: callId,

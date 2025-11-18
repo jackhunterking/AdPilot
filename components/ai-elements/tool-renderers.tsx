@@ -129,15 +129,29 @@ export function renderLocationUpdateResult(opts: {
   const includedCount = input.locations.filter(l => l.mode === 'include' || !l.mode).length;
   const excludedCount = input.locations.filter(l => l.mode === 'exclude').length;
   
+  // Determine primary action for clear messaging
+  const isExcludeAction = excludedCount > 0 && includedCount === 0;
+  const isMixedAction = includedCount > 0 && excludedCount > 0;
+  
+  // Build clear, unambiguous message
+  let actionMessage = "Location updated on canvas";
+  if (isExcludeAction) {
+    actionMessage = excludedCount === 1 ? "Location excluded" : "Locations excluded";
+  } else if (includedCount > 0 && excludedCount === 0) {
+    actionMessage = includedCount === 1 ? "Location included" : "Locations included";
+  } else if (isMixedAction) {
+    actionMessage = "Locations updated";
+  }
+  
   return (
     <Fragment key={keyId || callId}>
       <div key={(keyId || callId) + "-card"} className="border rounded-lg p-3 my-2 bg-green-500/5 border-green-500/30">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-green-600">Location updated on canvas</p>
+            <p className="text-sm font-medium text-green-600">{actionMessage}</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {includedCount > 0 && `${includedCount} location${includedCount > 1 ? 's' : ''} included`}
+              {includedCount > 0 && `${includedCount} included`}
               {excludedCount > 0 && includedCount > 0 && ` · `}
               {excludedCount > 0 && `${excludedCount} excluded`}
             </p>
