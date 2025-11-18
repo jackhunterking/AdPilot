@@ -103,7 +103,9 @@ export function LocationJourney(): Journey {
   return {
     renderTool,
     buildMetadata,
-    reset
+    reset,
+    mode,
+    isActive
   };
 }
 

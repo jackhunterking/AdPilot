@@ -25,6 +25,8 @@ export interface Journey {
   renderTool: (part: ToolPart) => React.ReactNode;
   buildMetadata?: (input: string) => Record<string, unknown>;
   reset?: () => void;
+  mode?: 'include' | 'exclude';  // For location journey
+  isActive?: boolean;  // For location journey
 }
 
 // Journey context for orchestration
