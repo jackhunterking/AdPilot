@@ -1,6 +1,6 @@
 import { supabaseServer } from '@/lib/supabase/server';
 import { UIMessage } from 'ai';
-import { sanitizeParts } from '@/lib/ai/schema';
+// Sanitizer removed - AI SDK v5 manages message structure
 import { Dashboard } from '@/components/dashboard';
 import type { Database } from '@/lib/supabase/database.types';
 import { notFound } from 'next/navigation';
@@ -17,27 +17,27 @@ function isValidUUID(str: string): boolean {
 // Convert DB storage to UIMessage (following AI SDK docs)
 // Restores complete UIMessage format from storage
 function dbToUIMessage(stored: MessageRow): UIMessage | null {
-  let parts = sanitizeParts(stored.parts as unknown);
+  // Load parts directly from database - trust AI SDK structure
+  const parts = Array.isArray(stored.parts) 
+    ? (stored.parts as Array<{ type: string; [k: string]: unknown }>) 
+    : [];
   
-  // If parts is empty after sanitization, skip this message (data integrity issue)
-  // Don't create fallback text - let broken messages fail visibly
   if (parts.length === 0) {
     console.error(`[SERVER] Skipping message with empty parts: ${stored.id}`);
     return null;
   }
   
-  const toolInv: unknown = stored.tool_invocations as unknown;
-  const hasToolInvocations = Array.isArray(toolInv) && toolInv.length > 0;
   const uiMessage = {
     id: stored.id,
     role: stored.role,
     parts: parts,
-    ...(hasToolInvocations ? { toolInvocations: toolInv } : {})
+    metadata: stored.metadata || {},
   } as UIMessage;
   
-  console.log(`[SERVER] Converted message ${stored.id}:`, {
+  console.log(`[SERVER] Loaded message ${stored.id}:`, {
     role: uiMessage.role,
-    partsCount: uiMessage.parts?.length || 0
+    partsCount: uiMessage.parts?.length || 0,
+    partTypes: parts.map(p => p.type),
   });
   
   return uiMessage;

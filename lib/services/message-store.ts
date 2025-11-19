@@ -7,7 +7,7 @@
  */
 
 import { UIMessage } from 'ai';
-import { sanitizeParts } from '@/lib/ai/schema';
+// Sanitizer removed - AI SDK v5 manages message structure
 import { supabaseServer } from '@/lib/supabase/server';
 import type { Database, Json } from '@/lib/supabase/database.types';
 
@@ -70,57 +70,25 @@ function messageToStorage(msg: UIMessage, conversationId: string): Omit<MessageR
  * Filters incomplete tool invocations for data integrity
  */
 function storageToMessage(stored: MessageRow): UIMessage {
-  console.log('[MessageStore] Loading message from DB:', {
+  // Load parts directly - AI SDK v5 manages structure
+  const parts = Array.isArray(stored.parts) 
+    ? (stored.parts as Array<{ type: string; [k: string]: unknown }>) 
+    : [];
+  
+  console.log('[MessageStore] Loaded message:', {
     id: stored.id,
     role: stored.role,
-    rawPartsCount: Array.isArray(stored.parts) ? (stored.parts as unknown[]).length : 0,
-  });
-  
-  // Sanitize all parts from storage to guarantee invariants
-  let parts = sanitizeParts(stored.parts);
-  
-  console.log('[MessageStore] After sanitization:', {
-    id: stored.id,
-    sanitizedPartsCount: parts.length,
+    partsCount: parts.length,
     partTypes: parts.map(p => p.type),
-    toolParts: parts.filter(p => typeof p.type === 'string' && p.type.startsWith('tool-')).length,
   });
   
-  // For assistant messages, just ensure basic validity
-  if (stored.role === 'assistant' && parts.length > 0) {
-    // Only filter parts that are completely broken
-    parts = parts.filter((part) => {
-      const type = (part as { type?: unknown }).type;
-      if (typeof type !== 'string') return false;
-      return true;  // Keep all valid parts
-    });
-  }
-  
-  // Migrate legacy data field to metadata for backward compatibility
   const metadata: Record<string, unknown> = (stored.metadata as Record<string, unknown>) || {};
-  if ((stored as unknown as { data?: Record<string, unknown> }).data && !(metadata as { migratedFromData?: boolean }).migratedFromData) {
-    Object.assign(metadata, (stored as unknown as { data?: Record<string, unknown> }).data);
-    (metadata as { migratedFromData: boolean }).migratedFromData = true;
-  }
   
-  // Log tool parts restoration for debugging
-  const toolParts = parts.filter(p => (p as { type?: string }).type?.startsWith('tool-'));
-  if (toolParts.length > 0) {
-    console.log(`[MessageStore] Message ${stored.id} has ${toolParts.length} tool parts:`, 
-      toolParts.map(p => ({
-        type: (p as { type?: string }).type,
-        hasOutput: 'output' in p,
-        hasInput: 'input' in p,
-        state: (p as { state?: string }).state,
-      })));
-  }
-  
-  // AI SDK v5 doesn't use toolInvocations field - remove it
   return {
     id: stored.id,
     role: stored.role as 'user' | 'assistant' | 'system',
     parts: parts,
-    metadata, // Include metadata (AI SDK v5 pattern)
+    metadata,
   } as UIMessage;
 }
 

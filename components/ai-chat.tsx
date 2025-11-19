@@ -317,7 +317,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
-        api: '/api/chat',
+        api: '/api/v1/chat',
         headers: () => {
           const headers: Record<string, string> = {};
           if (authHeaderRef.current) headers.Authorization = authHeaderRef.current;

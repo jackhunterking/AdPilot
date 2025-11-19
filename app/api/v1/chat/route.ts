@@ -19,7 +19,7 @@ import {
   type UIMessage,
   type Tool,
 } from 'ai';
-import { sanitizeMessages, isSanitizerEnabled } from '@/lib/ai/schema';
+// Sanitizer removed - AI SDK v5 handles validation via safeValidateUIMessages
 import { getModel } from '@/lib/ai/gateway-provider';
 import { messageStore } from '@/lib/services/message-store';
 import { conversationManager } from '@/lib/services/conversation-manager';
@@ -193,9 +193,9 @@ export async function POST(req: Request) {
 
   let validatedMessages: UIMessage[];
   try {
-    const toValidate = isSanitizerEnabled() ? sanitizeMessages(allMessages) : allMessages;
+    // Use messages directly - AI SDK v5 validates structure
     const validationResult = await safeValidateUIMessages({
-      messages: toValidate,
+      messages: allMessages,
       tools: tools as unknown as Record<string, Tool<unknown, unknown>>,
     });
 
