@@ -136,9 +136,15 @@ export async function getOrCreateCampaignConversation(
       return campaign.ai_conversation_id
     }
 
-    // Create new conversation for campaign
-    const response = await fetch(`/api/campaigns/${campaignId}/conversation`, {
+    // Create new conversation for campaign (v1 API)
+    const response = await fetch(`/api/v1/conversations`, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ 
+        campaignId,
+        title: 'Campaign Chat',
+      }),
     })
 
     if (!response.ok) {
@@ -147,7 +153,7 @@ export async function getOrCreateCampaignConversation(
     }
 
     const data = await response.json()
-    const conversationId = data.conversation.id
+    const conversationId = data.data?.conversation?.id
 
     console.log(`[${CONTEXT}] ✅ Created new conversation`, {
       campaignId,

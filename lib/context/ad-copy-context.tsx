@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from "react"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useCurrentAd } from "@/lib/context/current-ad-context"
+import { useAdService } from "@/lib/services/service-provider"
 import { logger } from "@/lib/utils/logger"
 
 interface AdCopyVariation {
@@ -88,30 +89,32 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
     const loadCopyFromBackend = async () => {
       try {
         logger.debug('AdCopyContext', `Loading copy from backend for ad ${currentAd.id}`)
-        const response = await fetch(`/api/campaigns/${campaign?.id}/ads/${currentAd.id}/snapshot`)
         
-        if (!response.ok) {
+        // Use service layer instead of direct fetch (microservices pattern)
+        const adService = useAdService()
+        const result = await adService.getSnapshot.execute(currentAd.id)
+        
+        if (!result.success || !result.data) {
           logger.warn('AdCopyContext', 'Failed to load snapshot, starting empty')
           setAdCopyState({ selectedCopyIndex: null, status: "idle", customCopyVariations: null, isGeneratingCopy: false })
           setIsInitialized(true)
           return
         }
         
-        const json = await response.json()
-        const snapshot = json.setup_snapshot
+        const snapshot = result.data
         
         if (snapshot?.copy?.variations && snapshot.copy.variations.length > 0) {
           logger.info('AdCopyContext', `✅ Loaded ${snapshot.copy.variations.length} copy variations from backend`)
-          const variations = snapshot.copy.variations.map((v: { headline: string; primaryText: string; description: string; overlay?: unknown }, idx: number) => ({
+          const variations = snapshot.copy.variations.map((v, idx: number) => ({
             id: `variation-${idx}`,
             headline: v.headline,
             primaryText: v.primaryText,
             description: v.description || '',
-            overlay: v.overlay
+            overlay: undefined // AdSnapshot doesn't include overlay
           }))
           
           setAdCopyState({
-            selectedCopyIndex: snapshot.copy.selectedCopyIndex ?? 0,
+            selectedCopyIndex: snapshot.copy.selectedIndex ?? 0,
             status: "completed",
             customCopyVariations: variations,
             isGeneratingCopy: false,

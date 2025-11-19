@@ -1,28 +1,114 @@
 /**
- * DEPRECATED: This endpoint is deprecated as of November 17, 2025
- * Use: PATCH /api/campaigns/[id]/ads/[adId]/snapshot
- * 
- * This file will be removed in a future release.
- * All functionality has been moved to the /snapshot endpoint which uses
- * a cleaner architecture with the adDataService.
+ * Feature: Ad Snapshot Save/Load API
+ * Purpose: Save ad data to normalized tables and retrieve complete snapshots
  * 
  * References:
  *  - API v1 Middleware: app/api/v1/_middleware.ts
+ *  - adDataService: lib/services/ad-data-service.ts
  *  - Supabase: https://supabase.com/docs/reference/javascript/update
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { requireAuth, requireAdOwnership, errorResponse, ValidationError } from '@/app/api/v1/_middleware'
+import { requireAuth, requireAdOwnership, errorResponse, successResponse, NotFoundError, ValidationError } from '@/app/api/v1/_middleware'
 import { supabaseServer } from "@/lib/supabase/server"
+import { adDataService } from '@/lib/services/ad-data-service'
 import type { SaveAdPayload, SaveAdResponse } from "@/lib/types/workspace"
 import type { Json } from "@/lib/supabase/database.types"
 
+/**
+ * GET /api/v1/ads/[id]/save - Get ad snapshot
+ * 
+ * Returns complete ad snapshot built from normalized tables.
+ * Single source of truth: Supabase database
+ * 
+ * References:
+ *  - API v1: MASTER_API_DOCUMENTATION.mdc
+ *  - adDataService: lib/services/ad-data-service.ts
+ */
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await requireAuth(request)
+    const { id: adId } = await context.params
+    
+    // Verify ownership via middleware helper
+    await requireAdOwnership(adId, user.id)
+    
+    // Fetch complete ad data from normalized tables
+    const adData = await adDataService.getCompleteAdData(adId)
+    
+    if (!adData) {
+      throw new NotFoundError('Ad not found')
+    }
+    
+    // Build snapshot using service (single source of truth)
+    const snapshot = adDataService.buildSnapshot(adData)
+    
+    // Calculate completed steps for wizard
+    const completedSteps = calculateCompletedSteps(snapshot)
+    
+    return successResponse({ 
+      snapshot,
+      completedSteps 
+    })
+  } catch (error) {
+    console.error('[GET /api/v1/ads/:id/save] Error:', error)
+    return errorResponse(error as Error)
+  }
+}
+
+/**
+ * Calculate wizard steps from snapshot
+ * Determines which steps are complete based on snapshot data
+ */
+function calculateCompletedSteps(snapshot: unknown): string[] {
+  const steps: string[] = []
+  const s = snapshot as Record<string, unknown>
+  
+  // Creative complete if has variations and selection
+  const creative = s.creative as Record<string, unknown> | undefined
+  if (creative?.imageVariations && Array.isArray(creative.imageVariations) 
+      && creative.imageVariations.length > 0 
+      && typeof creative.selectedImageIndex === 'number') {
+    steps.push('ads')
+  }
+  
+  // Copy complete if has variations and selection
+  const copy = s.copy as Record<string, unknown> | undefined
+  if (copy?.variations && Array.isArray(copy.variations)
+      && copy.variations.length > 0
+      && typeof copy.selectedCopyIndex === 'number') {
+    steps.push('copy')
+  }
+  
+  // Destination complete if has type
+  const destination = s.destination as Record<string, unknown> | undefined | null
+  if (destination?.type) {
+    steps.push('destination')
+  }
+  
+  // Location complete if has locations
+  const location = s.location as Record<string, unknown> | undefined
+  if (location?.locations && Array.isArray(location.locations)
+      && location.locations.length > 0) {
+    steps.push('location')
+  }
+  
+  return steps
+}
+
+/**
+ * PUT /api/v1/ads/[id]/save - Save ad data
+ * 
+ * Saves ad creative, copy, destination, and location data to normalized tables.
+ * Single source of truth: Supabase database
+ */
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  console.warn('[DEPRECATED] /save endpoint called. Migrate to PATCH /api/campaigns/[id]/ads/[adId]/snapshot')
-  
   const traceId = `save_ad_${Date.now()}`
   
   try {

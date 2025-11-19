@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
 import { useCampaignContext } from "./campaign-context"
+import { useAdService } from "@/lib/services/service-provider"
 import { useSearchParams } from "next/navigation"
 
 export interface DestinationData {
@@ -80,24 +81,33 @@ export function DestinationProvider({ children }: { children: ReactNode }) {
     const loadDestinationFromBackend = async () => {
       try {
         logger.debug('DestinationContext', `Loading destination from backend for ad ${currentAdId}`)
-        const response = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAdId}/snapshot`)
         
-        if (!response.ok) {
+        // Use service layer instead of direct fetch (microservices pattern)
+        const adService = useAdService()
+        const result = await adService.getSnapshot.execute(currentAdId)
+        
+        if (!result.success || !result.data) {
           logger.warn('DestinationContext', 'Failed to load snapshot, starting empty')
           setDestinationState({ status: 'idle', data: null })
           return
         }
         
-        const json = await response.json()
-        const snapshot = json.setup_snapshot
+        const snapshot = result.data
         
         if (snapshot?.destination?.type) {
           logger.info('DestinationContext', `✅ Loaded destination from backend: ${snapshot.destination.type}`)
-          const isValid = validateDestinationData(snapshot.destination.data)
+          
+          // Transform snapshot destination to DestinationData
+          const destinationData: DestinationData = {
+            type: snapshot.destination.type === 'phone' ? 'phone_number' : snapshot.destination.type,
+            ...(snapshot.destination.data as Record<string, unknown>),
+          } as DestinationData
+          
+          const isValid = validateDestinationData(destinationData)
           
           setDestinationState({
             status: isValid ? 'completed' : 'in_progress',
-            data: snapshot.destination.data || null
+            data: destinationData
           })
         } else {
           logger.debug('DestinationContext', 'No destination in backend, starting empty (new ad)')

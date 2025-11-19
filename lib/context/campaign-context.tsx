@@ -72,13 +72,17 @@ export function CampaignProvider({
           budget: campaign.campaign_budget_cents
         })
         
-        // Fetch linked conversation (AI SDK pattern)
+        // Fetch linked conversation (AI SDK pattern - v1 API)
         try {
-          const convResponse = await fetch(`/api/campaigns/${id}/conversation`)
+          const convResponse = await fetch(`/api/v1/conversations?campaignId=${id}`)
           if (convResponse.ok) {
-            const convData = await convResponse.json()
-            campaign.conversationId = convData.conversation.id
-            logger.debug('CampaignContext', `Loaded conversation ${campaign.conversationId} for campaign ${id}`)
+            const data = await convResponse.json()
+            // v1 returns { success, data: { conversations: [...] } }
+            const conversations = data.data?.conversations || []
+            if (conversations.length > 0) {
+              campaign.conversationId = conversations[0].id
+              logger.debug('CampaignContext', `Loaded conversation ${campaign.conversationId} for campaign ${id}`)
+            }
           }
         } catch (convError) {
           console.warn('[CampaignContext] Failed to load conversation:', convError)
@@ -117,13 +121,17 @@ export function CampaignProvider({
         const data = await response.json()
         const campaign = data.campaign
         
-        // Fetch linked conversation (AI SDK pattern)
+        // Fetch linked conversation (AI SDK pattern - v1 API)
         try {
-          const convResponse = await fetch(`/api/campaigns/${campaign.id}/conversation`)
+          const convResponse = await fetch(`/api/v1/conversations?campaignId=${campaign.id}`)
           if (convResponse.ok) {
-            const convData = await convResponse.json()
-            campaign.conversationId = convData.conversation.id
-            logger.debug('CampaignContext', `Created conversation ${campaign.conversationId} for campaign ${campaign.id}`)
+            const data = await convResponse.json()
+            // v1 returns { success, data: { conversations: [...] } }
+            const conversations = data.data?.conversations || []
+            if (conversations.length > 0) {
+              campaign.conversationId = conversations[0].id
+              logger.debug('CampaignContext', `Found conversation ${campaign.conversationId} for campaign ${campaign.id}`)
+            }
           }
         } catch (convError) {
           console.warn('[CampaignContext] Failed to fetch conversation:', convError)
@@ -232,8 +240,14 @@ export function CampaignProvider({
         campaignId: campaign.id,
       })
 
-      const response = await fetch(`/api/campaigns/${campaign.id}/conversation`, {
+      const response = await fetch(`/api/v1/conversations`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          campaignId: campaign.id,
+          title: 'Campaign Chat',
+        }),
       })
 
       if (!response.ok) {
@@ -242,7 +256,7 @@ export function CampaignProvider({
       }
 
       const data = await response.json()
-      const conversationId = data.conversation.id
+      const conversationId = data.data?.conversation?.id
 
       // Update local state
       setCampaign(prev => prev ? { ...prev, ai_conversation_id: conversationId } : null)

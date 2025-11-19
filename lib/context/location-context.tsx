@@ -10,6 +10,7 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from "react"
 import { useCurrentAd } from "@/lib/context/current-ad-context"
 import { useCampaignContext } from "@/lib/context/campaign-context"
+import { useAdService } from "@/lib/services/service-provider"
 import { logger } from "@/lib/utils/logger"
 
 interface GeoJSONGeometry {
@@ -79,21 +80,21 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       try {
         logger.debug('LocationContext', `Loading locations from backend for ad ${currentAd.id}`)
         
-        // Fetch locations from ad_target_locations table via snapshot API
-        // API reads from database table and builds snapshot.location object dynamically
-        const response = await fetch(`/api/campaigns/${campaign?.id}/ads/${currentAd.id}/snapshot`)
+        // Use service layer instead of direct fetch (microservices pattern)
+        const adService = useAdService()
+        const result = await adService.getSnapshot.execute(currentAd.id)
         
-        if (!response.ok) {
+        if (!result.success || !result.data) {
           logger.warn('LocationContext', 'Failed to load snapshot, starting empty')
           setLocationState({ locations: [], status: "idle", errorMessage: undefined })
           setIsInitialized(true)
           return
         }
         
-        const apiResponse = await response.json()
-        // NOTE: setup_snapshot.location.locations is built from ad_target_locations table
+        const snapshot = result.data
+        // NOTE: snapshot.location.locations is built from ad_target_locations table
         // It's NOT a database column - it's a runtime transformation
-        const locationsFromDB = apiResponse.setup_snapshot?.location?.locations || []
+        const locationsFromDB = snapshot.location?.locations || []
         
         if (locationsFromDB.length > 0) {
           logger.info('LocationContext', `✅ Loaded ${locationsFromDB.length} locations from ad_target_locations table`)

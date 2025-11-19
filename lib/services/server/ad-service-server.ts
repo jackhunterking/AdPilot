@@ -9,6 +9,7 @@
 
 import { createServerClient } from '@/lib/supabase/server';
 import { publishSingleAd } from '@/lib/meta/publisher-single-ad';
+import { adDataService } from '@/lib/services/ad-data-service';
 import type {
   AdService,
   Ad,
@@ -279,27 +280,36 @@ class AdServiceServer implements AdService {
   };
 
   getSnapshot = {
-    async execute(_adId: string): Promise<ServiceResult<AdSnapshot>> {
+    async execute(adId: string): Promise<ServiceResult<AdSnapshot>> {
       try {
-        // NOTE: setup_snapshot column no longer exists
-        // Use adDataService.buildSnapshot() instead
+        // Use adDataService (single source of truth)
+        const adData = await adDataService.getCompleteAdData(adId)
         
-        console.warn('[ad-service-server] getSnapshot called but setup_snapshot column removed');
-        console.warn('[ad-service-server] Use adDataService.buildSnapshot() for complete snapshot');
+        if (!adData) {
+          return {
+            success: false,
+            error: {
+              code: 'not_found',
+              message: 'Ad not found',
+            },
+          }
+        }
         
-        // Return empty snapshot
+        // Build snapshot from normalized tables
+        const snapshot = adDataService.buildSnapshot(adData)
+        
         return {
           success: true,
-          data: {},
-        };
+          data: snapshot as AdSnapshot,
+        }
       } catch (error) {
         return {
           success: false,
           error: {
             code: 'fetch_failed',
-            message: error instanceof Error ? error.message : 'Unknown error',
+            message: error instanceof Error ? error.message : 'Failed to fetch snapshot',
           },
-        };
+        }
       }
     },
   };

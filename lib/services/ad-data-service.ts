@@ -569,6 +569,7 @@ export const adDataService = {
           bbox: l.bbox as [number, number, number, number] | undefined,
           geometry: l.geometry as { type: string; coordinates: unknown } | undefined,
         })),
+        status: adData.locations.length > 0 ? 'completed' : 'idle',
       },
       destination: adData.destination
         ? {
@@ -586,9 +587,11 @@ export const adDataService = {
         ? {
             dailyBudget: adData.budget.daily_budget_cents / 100,
             currency: adData.budget.currency_code,
-            startTime: adData.budget.start_date,
-            endTime: adData.budget.end_date,
-            timezone: adData.budget.timezone,
+            schedule: {
+              startTime: adData.budget.start_date ?? undefined,
+              endTime: adData.budget.end_date ?? undefined,
+              timezone: adData.budget.timezone ?? undefined,
+            },
           }
         : null,
     }

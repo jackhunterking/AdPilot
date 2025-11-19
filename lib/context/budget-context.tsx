@@ -13,6 +13,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useCurrentAd } from "@/lib/context/current-ad-context"
+import { useAdService } from "@/lib/services/service-provider"
 import { logger } from "@/lib/utils/logger"
 import { metaStorage } from "@/lib/meta/storage"
 
@@ -60,9 +61,12 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     const loadBudgetFromBackend = async () => {
       try {
         logger.debug('BudgetContext', `Loading budget from backend for ad ${currentAd.id}`)
-        const response = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAd.id}/snapshot`)
         
-        if (!response.ok) {
+        // Use service layer instead of direct fetch (microservices pattern)
+        const adService = useAdService()
+        const result = await adService.getSnapshot.execute(currentAd.id)
+        
+        if (!result.success || !result.data) {
           logger.warn('BudgetContext', 'Failed to load snapshot, using campaign-level budget')
           // Fallback to campaign-level budget
           const budgetCents = campaign.campaign_budget_cents
@@ -75,18 +79,17 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
           return
         }
         
-        const json = await response.json()
-        const snapshot = json.setup_snapshot
+        const snapshot = result.data
         
         if (snapshot?.budget) {
           logger.info('BudgetContext', '✅ Loaded budget from backend')
           setBudgetState(prev => ({
             ...prev,
-            dailyBudget: snapshot.budget.dailyBudget ?? prev.dailyBudget,
-            currency: snapshot.budget.currency ?? prev.currency,
-            startTime: snapshot.budget.startTime ?? prev.startTime,
-            endTime: snapshot.budget.endTime ?? prev.endTime,
-            timezone: snapshot.budget.timezone ?? prev.timezone
+            dailyBudget: snapshot.budget?.dailyBudget ?? prev.dailyBudget,
+            currency: snapshot.budget?.currency ?? prev.currency,
+            startTime: snapshot.budget?.schedule?.startTime ?? prev.startTime,
+            endTime: snapshot.budget?.schedule?.endTime ?? prev.endTime,
+            timezone: snapshot.budget?.schedule?.timezone ?? prev.timezone
           }))
         } else {
           logger.debug('BudgetContext', 'No budget in backend, using defaults')
