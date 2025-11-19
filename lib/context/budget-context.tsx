@@ -53,6 +53,7 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     timezone: null,
   })
   const [isInitialized, setIsInitialized] = useState(false)
+  const adService = useAdService()
 
   // Load from backend (single source of truth)
   useEffect(() => {
@@ -63,7 +64,6 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
         logger.debug('BudgetContext', `Loading budget from backend for ad ${currentAd.id}`)
         
         // Use service layer instead of direct fetch (microservices pattern)
-        const adService = useAdService()
         const result = await adService.getSnapshot.execute(currentAd.id)
         
         if (!result.success || !result.data) {

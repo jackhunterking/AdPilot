@@ -58,6 +58,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     status: "idle",
   })
   const [isInitialized, setIsInitialized] = useState(false)
+  const adService = useAdService()
 
   // Load from backend (single source of truth)
   // ARCHITECTURE NOTE: Locations are stored in ad_target_locations TABLE (not a JSON column)
@@ -81,7 +82,6 @@ export function LocationProvider({ children }: { children: ReactNode }) {
         logger.debug('LocationContext', `Loading locations from backend for ad ${currentAd.id}`)
         
         // Use service layer instead of direct fetch (microservices pattern)
-        const adService = useAdService()
         const result = await adService.getSnapshot.execute(currentAd.id)
         
         if (!result.success || !result.data) {

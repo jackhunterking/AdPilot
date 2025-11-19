@@ -70,6 +70,7 @@ export function DestinationProvider({ children }: { children: ReactNode }) {
     status: 'idle',
     data: null,
   })
+  const adService = useAdService()
   
   // Load destination from backend (single source of truth)
   useEffect(() => {
@@ -83,7 +84,6 @@ export function DestinationProvider({ children }: { children: ReactNode }) {
         logger.debug('DestinationContext', `Loading destination from backend for ad ${currentAdId}`)
         
         // Use service layer instead of direct fetch (microservices pattern)
-        const adService = useAdService()
         const result = await adService.getSnapshot.execute(currentAdId)
         
         if (!result.success || !result.data) {

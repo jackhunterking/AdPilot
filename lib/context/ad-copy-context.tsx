@@ -50,6 +50,7 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
   })
   const [isInitialized, setIsInitialized] = useState(false)
   const [contextAdId, setContextAdId] = useState<string | null>(null)  // Track which ad this context serves
+  const adService = useAdService()
 
   // Load initial state from backend (single source of truth)
   useEffect(() => {
@@ -91,7 +92,6 @@ export function AdCopyProvider({ children }: { children: ReactNode }) {
         logger.debug('AdCopyContext', `Loading copy from backend for ad ${currentAd.id}`)
         
         // Use service layer instead of direct fetch (microservices pattern)
-        const adService = useAdService()
         const result = await adService.getSnapshot.execute(currentAd.id)
         
         if (!result.success || !result.data) {
