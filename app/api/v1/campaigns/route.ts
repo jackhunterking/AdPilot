@@ -1,32 +1,23 @@
 /**
- * Feature: Campaigns API
+ * Feature: Campaigns API (v1)
  * Purpose: List and create campaigns with linked conversations
  * References:
+ *  - API v1 Middleware: app/api/v1/_middleware.ts
  *  - AI SDK Core: https://ai-sdk.dev/docs/ai-sdk-core/conversation-history
  *  - Supabase: https://supabase.com/docs/guides/database
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth, errorResponse, successResponse, ValidationError } from '@/app/api/v1/_middleware'
 import { createServerClient, supabaseServer } from '@/lib/supabase/server'
 import type { Tables } from '@/lib/supabase/database.types'
 import { conversationManager } from '@/lib/services/conversation-manager'
 import { generateCampaignNameAI } from '@/lib/ai/campaign-namer'
 
-// GET /api/campaigns - List user's campaigns
+// GET /api/v1/campaigns - List user's campaigns
 export async function GET(request: NextRequest) {
   try {
-    // Create client that reads user session from cookies
-    const supabase = await createServerClient()
-    
-    // Get user from auth
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
+    const user = await requireAuth(request)
 
     // Get limit parameter from query string
     const { searchParams } = new URL(request.url)
@@ -34,6 +25,7 @@ export async function GET(request: NextRequest) {
     const limit = limitParam ? parseInt(limitParam, 10) : undefined
 
     // Fetch campaigns with their ads using authenticated client for RLS
+    const supabase = await createServerClient()
     let query = supabase
       .from('campaigns')
       .select(`
@@ -68,48 +60,38 @@ export async function GET(request: NextRequest) {
     const { data: campaigns, error } = await query
 
     if (error) {
-      console.error('Error fetching campaigns:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('[GET /api/v1/campaigns] Error fetching campaigns:', error)
+      throw new Error(error.message)
     }
 
-    // No-cache headers to prevent stale data after mutations (create/delete/update)
-    // This ensures users always see fresh campaign list, especially after deletions
-    return NextResponse.json(
-      { campaigns },
-      {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-        },
-      }
-    )
+    // Return with no-cache headers to prevent stale data
+    const response = successResponse({ campaigns: campaigns || [] })
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
   } catch (error) {
-    console.error('Unexpected error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch campaigns' },
-      { status: 500 }
-    )
+    console.error('[GET /api/v1/campaigns] Error:', error)
+    return errorResponse(error as Error)
   }
 }
 
-// POST /api/campaigns - Create new campaign
+// POST /api/v1/campaigns - Create new campaign
 export async function POST(request: NextRequest) {
   try {
-    // Create client that reads user session from cookies
-    const supabase = await createServerClient()
+    const user = await requireAuth(request)
     
-    // Get user from auth
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
+    // Apply rate limiting (50 req/min for campaign creation)
+    const { checkRateLimit } = await import('@/app/api/v1/_middleware');
+    await checkRateLimit(user.id, 'POST /api/v1/campaigns', 50)
 
-    const body = await request.json()
+    const body: unknown = await request.json()
+    
+    if (typeof body !== 'object' || body === null) {
+      throw new ValidationError('Invalid request body')
+    }
+    
     const { name, tempPromptId, prompt, goalType } = body as { name?: string; tempPromptId?: string; prompt?: string; goalType?: string }
 
     // Normalize provided name; treat empty/whitespace as missing to trigger auto-naming
@@ -226,7 +208,7 @@ export async function POST(request: NextRequest) {
             // Continue - campaign is still valid without initial draft
           }
 
-          return NextResponse.json({ campaign, draftAdId }, { status: 201 })
+          return successResponse({ campaign, draftAdId }, undefined, 201)
         }
 
         const code = (insert.error as unknown as { code?: string }).code
@@ -238,11 +220,11 @@ export async function POST(request: NextRequest) {
         }
 
         console.error('Error creating campaign:', insert.error)
-        return NextResponse.json({ error: insert.error.message }, { status: 500 })
+        throw new Error(insert.error.message)
       }
 
       // If all attempts failed due to uniqueness churn
-      return NextResponse.json({ error: 'Could not generate a unique campaign name. Please try again.' }, { status: 409 })
+      throw new ValidationError('Could not generate a unique campaign name. Please try again.')
     }
 
     // If a manual name is provided, fall through to single insert path
@@ -260,7 +242,7 @@ export async function POST(request: NextRequest) {
 
     if (manualErr) {
       const status = (manualErr as unknown as { code?: string }).code === '23505' ? 409 : 500
-      return NextResponse.json({ error: manualErr.message }, { status })
+      throw new Error(manualErr.message)
     }
 
     try {
@@ -306,12 +288,9 @@ export async function POST(request: NextRequest) {
       // Continue - campaign is still valid without initial draft
     }
 
-    return NextResponse.json({ campaign: manualCampaign, draftAdId }, { status: 201 })
+    return successResponse({ campaign: manualCampaign, draftAdId }, undefined, 201)
   } catch (error) {
-    console.error('Unexpected error:', error)
-    return NextResponse.json(
-      { error: 'Failed to create campaign' },
-      { status: 500 }
-    )
+    console.error('[POST /api/v1/campaigns] Error:', error)
+    return errorResponse(error as Error)
   }
 }

@@ -1,21 +1,32 @@
 /**
- * Feature: Campaign Ads API - List & Create
- * Purpose: Fetch all ads for a campaign and create new ad drafts
+ * Feature: Ads API (v1)
+ * Purpose: List ads for campaign and create new ad drafts
  * References:
+ *  - API v1 Middleware: app/api/v1/_middleware.ts
+ *  - API v1 Docs: MASTER_API_DOCUMENTATION.mdc
  *  - Supabase: https://supabase.com/docs/reference/javascript/select
- *  - Next.js Route Handlers: https://nextjs.org/docs/app/building-your-application/routing/route-handlers
  */
 
 import { NextRequest, NextResponse } from "next/server"
+import { requireAuth, requireCampaignOwnership, errorResponse, successResponse, ValidationError } from '@/app/api/v1/_middleware'
 import { supabaseServer } from "@/lib/supabase/server"
 import { adDataService } from "@/lib/services/ad-data-service"
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+// GET /api/v1/ads?campaignId=xxx - List ads for campaign
+export async function GET(request: NextRequest) {
   try {
-    const { id: campaignId } = await context.params
+    const user = await requireAuth(request)
+    
+    // Get campaignId from query params
+    const { searchParams } = new URL(request.url)
+    const campaignId = searchParams.get('campaignId')
+    
+    if (!campaignId) {
+      throw new ValidationError('campaignId query parameter is required')
+    }
+    
+    // Verify campaign ownership
+    await requireCampaignOwnership(campaignId, user.id)
 
     // Fetch all ads with normalized data
     const completeAds = await adDataService.getCampaignAds(campaignId)
@@ -33,51 +44,58 @@ export async function GET(
         metrics_snapshot: adData.ad.metrics_snapshot,
         created_at: adData.ad.created_at,
         updated_at: adData.ad.updated_at,
-        // Provide snapshot built from normalized tables
         setup_snapshot: snapshot
       }
     })
 
-    return NextResponse.json({ ads: adsWithSnapshots })
+    return successResponse({ ads: adsWithSnapshots })
   } catch (error) {
-    console.error("[GET /api/campaigns/[id]/ads] Unexpected error:", error)
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
+    console.error('[GET /api/v1/ads] Error:', error)
+    return errorResponse(error as Error)
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+// POST /api/v1/ads - Create new ad
+export async function POST(request: NextRequest) {
   try {
-    const { id: campaignId } = await context.params
-    const body = await request.json()
+    const user = await requireAuth(request)
+    
+    const body: unknown = await request.json()
+    
+    if (typeof body !== 'object' || body === null) {
+      throw new ValidationError('Invalid request body')
+    }
 
     const {
+      campaignId,
       name,
       status = "draft",
       meta_ad_id = null,
-    } = body
-
-    if (!name) {
-      return NextResponse.json(
-        { error: "Ad name is required" },
-        { status: 400 }
-      )
+    } = body as {
+      campaignId?: string
+      name?: string
+      status?: string
+      meta_ad_id?: string | null
     }
 
-    // Create new ad (data will be added via snapshot API)
-    // Note: creative_data, copy_data, setup_snapshot are deprecated
-    // Use /snapshot endpoint to save ad data to normalized tables
+    if (!campaignId) {
+      throw new ValidationError('campaignId is required')
+    }
+    
+    if (!name) {
+      throw new ValidationError('Ad name is required')
+    }
+    
+    // Verify campaign ownership
+    await requireCampaignOwnership(campaignId, user.id)
+
+    // Create new ad
     const { data: ad, error } = await supabaseServer
       .from("ads")
       .insert({
         campaign_id: campaignId,
         name,
-        status,
+        status: status as 'draft' | 'active' | 'paused',
         meta_ad_id,
         metrics_snapshot: null,
       })
@@ -85,22 +103,15 @@ export async function POST(
       .single()
 
     if (error) {
-      console.error("[POST /api/campaigns/[id]/ads] Error:", error)
-      return NextResponse.json(
-        { error: "Failed to create ad" },
-        { status: 500 }
-      )
+      console.error('[POST /api/v1/ads] Error:', error)
+      throw new Error('Failed to create ad')
     }
 
-    console.log("[POST /api/campaigns/[id]/ads] Created ad:", ad.id)
+    console.log('[POST /api/v1/ads] ✅ Created ad:', ad.id)
 
-    return NextResponse.json({ ad }, { status: 201 })
+    return successResponse({ ad }, undefined, 201)
   } catch (error) {
-    console.error("[POST /api/campaigns/[id]/ads] Unexpected error:", error)
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    )
+    console.error('[POST /api/v1/ads] Error:', error)
+    return errorResponse(error as Error)
   }
 }
-

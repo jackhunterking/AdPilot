@@ -14,7 +14,7 @@ import { LocationProcessingCard } from '@/components/ai-elements/location-proces
 import { renderLocationUpdateResult } from '@/components/ai-elements/tool-renderers';
 import { useLocationMode } from './use-location-mode';
 import { createLocationMetadata } from './location-metadata';
-import type { Journey, ToolPart } from '@/components/chat/types/journey-types';
+import type { Journey, ToolPart, JourneyState } from '@/lib/journeys/types/journey-contracts';
 
 interface LocationToolInput {
   locations: Array<{
@@ -26,7 +26,12 @@ interface LocationToolInput {
   explanation?: string;
 }
 
-export function LocationJourney(): Journey {
+interface LocationState extends JourneyState {
+  mode: 'include' | 'exclude';
+  isActive: boolean;
+}
+
+export function LocationJourney(): Journey<LocationState> {
   const { mode, isActive, reset } = useLocationMode();
   
   const renderTool = (part: ToolPart): React.ReactNode => {
@@ -100,12 +105,39 @@ export function LocationJourney(): Journey {
     return createLocationMetadata(mode, input);
   };
   
+  const getState = (): LocationState => {
+    return {
+      status: 'idle',
+      mode,
+      isActive
+    };
+  };
+  
+  const setState = (partial: Partial<LocationState>) => {
+    // Location state is managed by useLocationMode hook
+    // This is here for interface compliance
+    console.log('[LocationJourney] setState called with:', partial);
+  };
+  
   return {
+    id: 'location',
     renderTool,
     buildMetadata,
     reset,
+    getState,
+    setState,
     mode,
-    isActive
+    isActive,
+    onActivate: () => {
+      if (typeof window !== 'undefined') {
+        import('@/lib/monitoring/journey-monitor').then(m => m.journeyMonitor.trackActivation?.('location'));
+      }
+    },
+    onDeactivate: () => {
+      if (typeof window !== 'undefined') {
+        import('@/lib/monitoring/journey-monitor').then(m => m.journeyMonitor.trackCompletion?.('location'));
+      }
+    },
   };
 }
 

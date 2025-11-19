@@ -12,6 +12,7 @@ import type React from 'react';
 export interface ToolPart {
   type: string;
   toolCallId: string;
+  toolName: string;
   input?: unknown;
   output?: unknown;
   result?: unknown;

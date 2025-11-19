@@ -10,6 +10,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { CampaignProvider } from "@/lib/context/campaign-context";
+import { ServiceProvider } from "@/lib/services/service-provider";
 import { SonnerToaster } from "@/components/sonner-toaster";
 import Script from "next/script";
 import { COMPANY_NAME } from "@/lib/constants";
@@ -81,12 +82,14 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
-            <CampaignProvider>
-              {children}
-              <SonnerToaster />
-            </CampaignProvider>
-          </AuthProvider>
+          <ServiceProvider>
+            <AuthProvider>
+              <CampaignProvider>
+                {children}
+                <SonnerToaster />
+              </CampaignProvider>
+            </AuthProvider>
+          </ServiceProvider>
         </ThemeProvider>
       </body>
     </html>

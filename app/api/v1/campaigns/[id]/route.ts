@@ -1,30 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth, requireCampaignOwnership, errorResponse, successResponse, ValidationError, NotFoundError } from '@/app/api/v1/_middleware'
 import { createServerClient, supabaseServer } from '@/lib/supabase/server'
 import { generateNameCandidates, pickUniqueFromCandidates } from '@/lib/utils/campaign-naming'
 import type { Database } from '@/lib/supabase/database.types'
 
-// GET /api/campaigns/[id] - Get a specific campaign
+// GET /api/v1/campaigns/[id] - Get a specific campaign
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireAuth(request)
     const { id } = await params
     
-    // Create client that reads user session from cookies
-    const supabase = await createServerClient()
-    
-    // Get user from auth
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
+    // Verify ownership
+    await requireCampaignOwnership(id, user.id)
 
-    // Use authenticated client for RLS to work correctly
+    // Use authenticated client for RLS
+    const supabase = await createServerClient()
     const { data: campaign, error } = await supabase
       .from('campaigns')
       .select(`
@@ -45,64 +38,61 @@ export async function GET(
         )
       `)
       .eq('id', id)
-      .eq('user_id', user.id)
       .single()
 
     if (error || !campaign) {
-      console.error(`[API] Campaign fetch error:`, error);
-      return NextResponse.json(
-        { error: 'Campaign not found' },
-        { status: 404 }
-      )
+      console.error('[GET /api/v1/campaigns/:id] Campaign fetch error:', error)
+      throw new NotFoundError('Campaign not found')
     }
 
-    // DEBUG: Log what Supabase returned
-    console.log(`[API] Campaign loaded:`, {
+    console.log('[GET /api/v1/campaigns/:id] Campaign loaded:', {
       id: campaign.id,
       name: campaign.name,
-      adsCount: campaign.ads?.length || 0,
-      hasAds: !!campaign.ads
-    });
+      adsCount: campaign.ads?.length || 0
+    })
 
-    return NextResponse.json({ campaign })
+    return successResponse({ campaign })
   } catch (error) {
-    console.error('Unexpected error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch campaign' },
-      { status: 500 }
-    )
+    console.error('[GET /api/v1/campaigns/:id] Error:', error)
+    return errorResponse(error as Error)
   }
 }
 
-// PATCH /api/campaigns/[id] - Rename campaign with uniqueness per user
+// PATCH /api/v1/campaigns/[id] - Rename campaign with uniqueness per user
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireAuth(request)
     const { id } = await params
     const campaignId = id
+    
+    // Verify ownership
+    await requireCampaignOwnership(campaignId, user.id)
 
+    // Verify campaign exists and get metadata
     const supabase = await createServerClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Verify ownership using authenticated client
     const { data: campaign, error: fetchErr } = await supabase
       .from('campaigns')
       .select('id,user_id,name,metadata')
       .eq('id', campaignId)
       .single()
-    if (fetchErr || !campaign || campaign.user_id !== user.id) {
-      return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
+      
+    if (fetchErr || !campaign) {
+      throw new NotFoundError('Campaign not found')
     }
 
-    const body = (await request.json()) as { name?: string }
-    const nextNameRaw = (body.name || '').trim()
+    const body: unknown = await request.json()
+    if (typeof body !== 'object' || body === null) {
+      throw new ValidationError('Invalid request body')
+    }
+    
+    const { name } = body as { name?: string }
+    const nextNameRaw = (name || '').trim()
+    
     if (!nextNameRaw) {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+      throw new ValidationError('Name is required')
     }
 
     // If client provides a manual name, we respect it but must be unique
@@ -137,126 +127,57 @@ export async function PATCH(
     if (result.error) {
       // If still failing due to uniqueness and no prompt to derive a variant, return conflict
       const status = (result.error as unknown as { code?: string }).code === '23505' ? 409 : 500
-      return NextResponse.json({ error: result.error.message }, { status })
+      throw new Error(result.error.message)
     }
 
-    return NextResponse.json({ campaign: result.data })
+    return successResponse({ campaign: result.data })
   } catch (error) {
-    console.error('Unexpected error:', error)
-    return NextResponse.json({ error: 'Failed to rename campaign' }, { status: 500 })
+    console.error('[PATCH /api/v1/campaigns/:id] Error:', error)
+    return errorResponse(error as Error)
   }
 }
 
-// DELETE /api/campaigns/[id] - Delete campaign and all related data
+// DELETE /api/v1/campaigns/[id] - Delete campaign and all related data
 // Idempotent: Returns success even if campaign doesn't exist (REST best practice)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // No-cache headers to prevent stale data
-  const noCacheHeaders = {
-    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0',
-  }
-
   try {
+    const user = await requireAuth(request)
     const { id } = await params
     const campaignId = id
 
-    console.log('[DELETE Campaign] Starting deletion for campaign:', campaignId)
+    console.log('[DELETE /api/v1/campaigns/:id] Starting deletion:', campaignId)
 
+    // Verify ownership (will throw if not found or unauthorized)
+    await requireCampaignOwnership(campaignId, user.id)
+
+    // Delete campaign (cascade will handle ads, conversations, and related data)
     const supabase = await createServerClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      console.error('[DELETE Campaign] Auth error:', authError)
-      return NextResponse.json(
-        { error: 'Unauthorized' }, 
-        { status: 401, headers: noCacheHeaders }
-      )
-    }
-
-    console.log('[DELETE Campaign] User authenticated:', user.id)
-
-    // Verify ownership using authenticated client
-    const { data: campaign, error: fetchErr } = await supabase
-      .from('campaigns')
-      .select('id,user_id')
-      .eq('id', campaignId)
-      .single()
-    
-    console.log('[DELETE Campaign] Campaign lookup result:', { campaign, fetchErr })
-    
-    // Idempotent behavior: If campaign doesn't exist, deletion succeeded (desired state achieved)
-    if (fetchErr || !campaign) {
-      console.log('[DELETE Campaign] Campaign already deleted or never existed:', campaignId)
-      return NextResponse.json(
-        { success: true, message: 'Campaign deleted' }, 
-        { status: 200, headers: noCacheHeaders }
-      )
-    }
-    
-    // Check ownership - only case where we return error
-    if (campaign.user_id !== user.id) {
-      console.error('[DELETE Campaign] Ownership mismatch:', { campaignUserId: campaign.user_id, requestUserId: user.id })
-      return NextResponse.json(
-        { error: 'Unauthorized - not campaign owner' }, 
-        { status: 403, headers: noCacheHeaders }
-      )
-    }
-
-    console.log('[DELETE Campaign] Ownership verified, proceeding with deletion')
-
-    // Delete ads associated with this campaign (cascade will handle ad_creatives, ad_copy_variations, etc.)
-    const { error: adsError } = await supabase
-      .from('ads')
-      .delete()
-      .eq('campaign_id', campaignId)
-    
-    if (adsError) {
-      console.error('[DELETE Campaign] Error deleting ads:', adsError)
-    } else {
-      console.log('[DELETE Campaign] Ads deleted successfully')
-    }
-
-    // Delete conversations (if conversation table has campaign_id)
-    const { error: convError } = await supabase
-      .from('conversations')
-      .delete()
-      .eq('campaign_id', campaignId)
-    
-    if (convError) {
-      console.error('[DELETE Campaign] Error deleting conversations:', convError)
-    } else {
-      console.log('[DELETE Campaign] Conversations deleted successfully')
-    }
-
-    // Finally, delete the campaign itself
     const { error: deleteError } = await supabase
       .from('campaigns')
       .delete()
       .eq('id', campaignId)
     
     if (deleteError) {
-      console.error('[DELETE Campaign] Error deleting campaign:', deleteError)
-      return NextResponse.json(
-        { error: `Failed to delete campaign: ${deleteError.message}` }, 
-        { status: 500, headers: noCacheHeaders }
-      )
+      console.error('[DELETE /api/v1/campaigns/:id] Delete error:', deleteError)
+      throw new Error('Failed to delete campaign')
     }
 
-    console.log('[DELETE Campaign] ✅ Campaign deleted successfully:', campaignId)
-    return NextResponse.json(
-      { success: true, message: 'Campaign deleted successfully' }, 
-      { status: 200, headers: noCacheHeaders }
-    )
+    console.log('[DELETE /api/v1/campaigns/:id] ✅ Campaign deleted:', campaignId)
+
+    // Return success with no-cache headers
+    const response = successResponse({ 
+      message: 'Campaign deleted successfully' 
+    })
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
   } catch (error) {
-    console.error('[DELETE Campaign] Unexpected error:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Failed to delete campaign'
-    return NextResponse.json(
-      { error: errorMessage }, 
-      { status: 500, headers: noCacheHeaders }
-    )
+    console.error('[DELETE /api/v1/campaigns/:id] Error:', error)
+    return errorResponse(error as Error)
   }
 }

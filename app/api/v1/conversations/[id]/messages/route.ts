@@ -1,51 +1,35 @@
 /**
- * Feature: Conversation Messages API
+ * Feature: Conversation Messages API (v1)
  * Purpose: Get message history for a conversation
  * References:
+ *  - API v1 Middleware: app/api/v1/_middleware.ts
  *  - AI SDK Core: https://ai-sdk.dev/docs/ai-sdk-core/conversation-history
- *  - Supabase: https://supabase.com/docs/guides/database
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { requireAuth, errorResponse, successResponse, NotFoundError, ForbiddenError } from '@/app/api/v1/_middleware';
 import { conversationManager } from '@/lib/services/conversation-manager';
 import { messageStore } from '@/lib/services/message-store';
 
-// GET /api/conversations/[id]/messages - Get message history
+// GET /api/v1/conversations/[id]/messages - Get message history
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireAuth(req);
     const { id } = await params;
-    
-    // Authenticate user
-    const supabase = await createServerClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
 
     // Get conversation to verify ownership
     const conversation = await conversationManager.getConversation(id);
     
     if (!conversation) {
-      return NextResponse.json(
-        { error: 'Conversation not found' },
-        { status: 404 }
-      );
+      throw new NotFoundError('Conversation not found');
     }
 
     // Verify ownership
     if (conversation.user_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      );
+      throw new ForbiddenError('You do not have access to this conversation');
     }
 
     // Get query parameters for pagination
@@ -59,17 +43,13 @@ export async function GET(
       before,
     });
 
-    return NextResponse.json({
+    return successResponse({
       messages,
       count: messages.length,
       conversation_id: id,
     });
   } catch (error) {
-    console.error('[Messages API] Get error:', error);
-    return NextResponse.json(
-      { error: 'Failed to get messages' },
-      { status: 500 }
-    );
+    console.error('[GET /api/v1/conversations/:id/messages] Error:', error);
+    return errorResponse(error as Error);
   }
 }
-

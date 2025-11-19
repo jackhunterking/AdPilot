@@ -1,13 +1,14 @@
 /**
- * Feature: Meta Instant Forms (List & Create)
+ * Feature: Meta Instant Forms (List & Create) (v1)
  * Purpose: List existing Instant Forms for the selected Page and create new ones
  * References:
- *  - Facebook Graph API leadgen_forms (Page): https://developers.facebook.com/docs/marketing-api/reference/page/leadgen_forms/
- *  - Facebook Graph API leadgen_form (Create): https://developers.facebook.com/docs/marketing-api/reference/leadgen-form/
- *  - Supabase (server): https://supabase.com/docs/reference/javascript/installing#server-environments
+ *  - API v1 Middleware: app/api/v1/_middleware.ts
+ *  - Facebook Graph API leadgen_forms: https://developers.facebook.com/docs/marketing-api/reference/page/leadgen_forms/
+ *  - Facebook Graph API leadgen_form: https://developers.facebook.com/docs/marketing-api/reference/leadgen-form/
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth, errorResponse, successResponse } from '@/app/api/v1/_middleware'
 import { createServerClient, supabaseServer } from '@/lib/supabase/server'
 import { getConnectionWithToken, fetchPagesWithTokens, getGraphVersion } from '@/lib/meta/service'
 
@@ -49,8 +50,10 @@ async function getAuthorizedContext(
     return { error: NextResponse.json({ error: 'campaignId required' }, { status: 400 }) }
   }
 
+  // User is already authenticated by the calling route (GET/POST)
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
+  
   if (!user) {
     console.error('[MetaForms getAuthorizedContext] Not authenticated')
     return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
@@ -175,9 +178,12 @@ async function getAuthorizedContext(
 }
 
 export async function GET(req: NextRequest) {
-  console.log('[MetaForms GET] Request received')
+  console.log('[GET /api/v1/meta/forms] Request received')
 
   try {
+    // Authenticate first
+    await requireAuth(req)
+    
     // Extract optional client tokens from query params (fallback for localStorage)
     const { searchParams } = new URL(req.url)
     const clientPageId = searchParams.get('pageId')
@@ -231,19 +237,21 @@ export async function GET(req: NextRequest) {
       .filter((f) => typeof f.id === 'string')
       .map((f) => ({ id: f.id as string, name: f.name, created_time: f.created_time }))
 
-    return NextResponse.json({ forms })
+    return successResponse({ forms })
   } catch (error) {
-    console.error('[MetaForms] GET error:', {
+    console.error('[GET /api/v1/meta/forms] Error:', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     })
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    return errorResponse(error as Error)
   }
 }
 
 export async function POST(req: NextRequest) {
-  console.log('[MetaForms POST] Request received')
+  console.log('[POST /api/v1/meta/forms] Request received')
   try {
+    // Authenticate first
+    await requireAuth(req)
     const bodyUnknown: unknown = await req.json().catch(() => ({}))
     console.log('[MetaForms POST] Body parsed:', {
       hasBody: !!bodyUnknown,
@@ -372,13 +380,13 @@ export async function POST(req: NextRequest) {
       : ''
     if (!id) return NextResponse.json({ error: 'No id returned from Graph' }, { status: 502 })
 
-    return NextResponse.json({ id })
+    return successResponse({ id })
   } catch (error) {
-    console.error('[MetaForms] POST error:', {
+    console.error('[POST /api/v1/meta/forms] Error:', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     })
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    return errorResponse(error as Error)
   }
 }
 

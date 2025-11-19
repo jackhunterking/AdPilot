@@ -11,6 +11,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -156,10 +157,12 @@ export function AdCard({
               const imageUrl = ad.creative_data.imageVariations?.[0] || ad.creative_data.imageUrl
               
               return imageUrl ? (
-                <img
+                <Image
                   src={imageUrl}
                   alt={ad.name}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
+                  loading="lazy"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground">

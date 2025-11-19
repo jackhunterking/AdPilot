@@ -4,18 +4,26 @@
  * Microservices: Pure function, no side effects
  * References:
  *  - AI SDK v5: https://ai-sdk.dev/docs/ai-sdk-core/conversation-history
+ *  - Journey Contracts: lib/journeys/types/journey-contracts.ts
  */
+
+import type { JourneyMetadata } from '@/lib/journeys/types/journey-contracts';
 
 export function createLocationMetadata(
   mode: 'include' | 'exclude',
   input: string
-): Record<string, unknown> {
+): JourneyMetadata {
   return {
-    timestamp: new Date().toISOString(),
-    source: 'chat_input',
-    locationSetupMode: true,
-    locationMode: mode,  // FIX: Mode included in metadata
-    locationInput: input
+    journeyId: 'location',
+    mode,
+    input,
+    context: {
+      timestamp: new Date().toISOString(),
+      source: 'chat_input',
+      locationSetupMode: true,
+      locationMode: mode,
+      locationInput: input
+    }
   };
 }
 

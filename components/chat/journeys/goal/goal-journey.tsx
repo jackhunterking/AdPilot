@@ -1,18 +1,30 @@
 /**
- * Feature: Goal Journey
+ * Feature: Goal Journey (Enhanced)
  * Purpose: Handle goal setup workflow
- * Microservices: Self-contained goal service
+ * Microservices: Self-contained goal service with full Journey interface
  * References:
  *  - AI SDK v5: https://ai-sdk.dev/docs/ai-sdk-core/tools-and-tool-calling
+ *  - Journey Contracts: lib/journeys/types/journey-contracts.ts
  */
 
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { CheckCircle2 } from 'lucide-react';
-import type { Journey, ToolPart } from '@/components/chat/types/journey-types';
+import type { Journey, ToolPart, JourneyState, JourneyMetadata } from '@/lib/journeys/types/journey-contracts';
 
-export function GoalJourney(): Journey {
+interface GoalState extends JourneyState {
+  goalType: 'leads' | 'calls' | 'website-visits' | null;
+  formData: Record<string, unknown> | null;
+}
+
+export function GoalJourney(): Journey<GoalState> {
+  const [state, setState] = useState<GoalState>({
+    status: 'idle',
+    goalType: null,
+    formData: null,
+  });
+
   const renderTool = (part: ToolPart): React.ReactNode => {
     if (part.type !== 'tool-setupGoal') {
       return null;
@@ -31,8 +43,8 @@ export function GoalJourney(): Journey {
       
       case 'input-available':
         return (
-          <div key={callId} className="w-full my-4 space-y-3">
-            <div className="flex items-start gap-3 p-4 rounded-lg bg-blue-500/5 border border-blue-500/20">
+          <div key={callId} className="w-full my-2 space-y-3">
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
               <div className="flex-shrink-0 mt-0.5">
                 <div className="h-8 w-8 rounded-full bg-blue-500/10 flex items-center justify-center">
                   <CheckCircle2 className="h-4 w-4 text-blue-600" />
@@ -86,7 +98,42 @@ export function GoalJourney(): Journey {
         return null;
     }
   };
+
+  const buildMetadata = (input: string): JourneyMetadata => {
+    return {
+      journeyId: 'goal',
+      input,
+      context: {
+        setupMode: 'goal',
+      },
+    };
+  };
+
+  const reset = () => {
+    setState({
+      status: 'idle',
+      goalType: null,
+      formData: null,
+    });
+  };
   
-  return { renderTool };
+  return {
+    id: 'goal',
+    renderTool,
+    buildMetadata,
+    reset,
+    getState: () => state,
+    setState: (partial) => setState(prev => ({ ...prev, ...partial })),
+    onActivate: () => {
+      if (typeof window !== 'undefined') {
+        import('@/lib/monitoring/journey-monitor').then(m => m.journeyMonitor.trackActivation?.('goal'));
+      }
+    },
+    onDeactivate: () => {
+      if (typeof window !== 'undefined') {
+        import('@/lib/monitoring/journey-monitor').then(m => m.journeyMonitor.trackCompletion?.('goal'));
+      }
+    },
+  };
 }
 

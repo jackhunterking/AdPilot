@@ -1,62 +1,44 @@
 /**
- * Feature: Single Location Removal API
+ * Feature: Single Location Removal API (v1)
  * Purpose: Delete specific location by database ID
  * References:
+ *  - API v1 Middleware: app/api/v1/_middleware.ts
  *  - Supabase: https://supabase.com/docs/guides/database
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient, supabaseServer } from '@/lib/supabase/server'
+import { requireAuth, requireAdOwnership, errorResponse, successResponse } from '@/app/api/v1/_middleware'
+import { supabaseServer } from '@/lib/supabase/server'
 
-// DELETE /locations/[locationId] - Remove specific location
+// DELETE /api/v1/ads/[id]/locations/[locationId] - Remove specific location
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string; adId: string; locationId: string }> }
+  context: { params: Promise<{ id: string; locationId: string }> }
 ) {
   try {
-    const { id: campaignId, adId, locationId } = await context.params;
-
-    // Authenticate
-    const supabase = await createServerClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify ownership
-    const { data: campaign } = await supabaseServer
-      .from('campaigns')
-      .select('user_id')
-      .eq('id', campaignId)
-      .single();
-
-    if (!campaign || campaign.user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const user = await requireAuth(request)
+    const { id: adId, locationId } = await context.params
+    
+    // Verify ad ownership
+    await requireAdOwnership(adId, user.id)
 
     // Delete specific location by database ID
     const { error: deleteError } = await supabaseServer
       .from('ad_target_locations')
       .delete()
       .eq('id', locationId)
-      .eq('ad_id', adId);  // Extra safety - ensure belongs to this ad
+      .eq('ad_id', adId)  // Extra safety - ensure belongs to this ad
 
     if (deleteError) {
-      console.error('[DELETE location] Delete error:', deleteError);
-      return NextResponse.json({ 
-        error: 'Failed to remove location',
-        details: deleteError.message 
-      }, { status: 500 });
+      console.error('[DELETE /api/v1/ads/:id/locations/:locationId] Delete error:', deleteError)
+      throw new Error('Failed to remove location')
     }
 
-    console.log('[DELETE location] ✅ Removed location:', locationId);
+    console.log('[DELETE /api/v1/ads/:id/locations/:locationId] ✅ Removed location:', locationId)
 
-    return NextResponse.json({ success: true });
+    return successResponse({ message: 'Location removed' })
   } catch (error) {
-    console.error('[DELETE location] Unexpected error:', error);
-    return NextResponse.json({ 
-      error: 'Internal server error' 
-    }, { status: 500 });
+    console.error('[DELETE /api/v1/ads/:id/locations/:locationId] Error:', error)
+    return errorResponse(error as Error)
   }
 }
-

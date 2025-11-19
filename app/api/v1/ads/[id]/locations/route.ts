@@ -1,54 +1,50 @@
 /**
- * Feature: Location Operations API
+ * Feature: Location Operations API (v1)
  * Purpose: Granular endpoints for location targeting operations
  * References:
+ *  - API v1 Middleware: app/api/v1/_middleware.ts
  *  - Supabase: https://supabase.com/docs/guides/database
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient, supabaseServer } from '@/lib/supabase/server'
+import { requireAuth, requireAdOwnership, errorResponse, successResponse, ValidationError } from '@/app/api/v1/_middleware'
+import { supabaseServer } from '@/lib/supabase/server'
+import type { Json } from '@/lib/supabase/database.types'
 
-// POST /locations - Add/Include location(s)
+// POST /api/v1/ads/[id]/locations - Add/Include location(s)
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ id: string; adId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: campaignId, adId } = await context.params;
-    const body = await request.json();
-
-    // Authenticate
-    const supabase = await createServerClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await requireAuth(request)
+    const { id: adId } = await context.params
+    
+    // Verify ad ownership
+    await requireAdOwnership(adId, user.id)
+    
+    const body: unknown = await request.json()
+    
+    if (typeof body !== 'object' || body === null) {
+      throw new ValidationError('Invalid request body')
     }
-
-    // Verify ownership
-    const { data: campaign } = await supabaseServer
-      .from('campaigns')
-      .select('user_id')
-      .eq('id', campaignId)
-      .single();
-
-    if (!campaign || campaign.user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    
+    const { locations } = body as { locations?: unknown }
 
     // Validate input - only NEW locations
-    if (!body.locations || !Array.isArray(body.locations) || body.locations.length === 0) {
-      return NextResponse.json({ error: 'locations array required' }, { status: 400 });
+    if (!locations || !Array.isArray(locations) || locations.length === 0) {
+      throw new ValidationError('locations array required')
     }
 
     // Insert new locations (DO NOT delete existing - this is ADD operation)
-    const locationInserts = body.locations.map((loc: {
-      name: string;
-      type: string;
-      coordinates: [number, number];
-      radius?: number;
-      key?: string;
-      bbox?: [number, number, number, number];
-      geometry?: object;
+    const locationInserts = locations.map((loc: {
+      name: string
+      type: string
+      coordinates: [number, number]
+      radius?: number
+      key?: string
+      bbox?: [number, number, number, number]
+      geometry?: object
     }) => ({
       ad_id: adId,
       location_name: loc.name,
@@ -58,89 +54,64 @@ export async function POST(
       radius_km: loc.radius ? loc.radius * 1.60934 : null,
       inclusion_mode: 'include',  // Always include for this endpoint
       meta_location_key: loc.key || null,
-      bbox: loc.bbox || null,
-      geometry: loc.geometry || null
-    }));
+      bbox: loc.bbox as unknown as Json || null,
+      geometry: loc.geometry as unknown as Json || null
+    }))
 
     const { data: inserted, error: insertError } = await supabaseServer
       .from('ad_target_locations')
       .insert(locationInserts)
-      .select();
+      .select()
 
     if (insertError) {
-      console.error('[POST locations] Insert error:', insertError);
-      return NextResponse.json({ 
-        error: 'Failed to add locations',
-        details: insertError.message 
-      }, { status: 500 });
+      console.error('[POST /api/v1/ads/:id/locations] Insert error:', insertError)
+      throw new Error('Failed to add locations')
     }
 
-    console.log('[POST locations] ✅ Added locations:', {
+    console.log('[POST /api/v1/ads/:id/locations] ✅ Added locations:', {
       adId,
       count: inserted?.length,
       names: inserted?.map(l => l.location_name)
-    });
+    })
 
-    return NextResponse.json({ 
-      success: true,
+    return successResponse({ 
       count: inserted?.length,
       locations: inserted
-    });
+    })
   } catch (error) {
-    console.error('[POST locations] Unexpected error:', error);
-    return NextResponse.json({ 
-      error: 'Internal server error' 
-    }, { status: 500 });
+    console.error('[POST /api/v1/ads/:id/locations] Error:', error)
+    return errorResponse(error as Error)
   }
 }
 
-// DELETE /locations - Clear all locations
+// DELETE /api/v1/ads/[id]/locations - Clear all locations
 export async function DELETE(
   request: NextRequest,
-  context: { params: Promise<{ id: string; adId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: campaignId, adId } = await context.params;
+    const user = await requireAuth(request)
+    const { id: adId } = await context.params
+    
+    // Verify ad ownership
+    await requireAdOwnership(adId, user.id)
 
-    // Authenticate
-    const supabase = await createServerClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Verify ownership
-    const { data: campaign } = await supabaseServer
-      .from('campaigns')
-      .select('user_id')
-      .eq('id', campaignId)
-      .single();
-
-    if (!campaign || campaign.user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    // Delete ALL locations for this ad
+    // Delete all locations for this ad
     const { error: deleteError } = await supabaseServer
       .from('ad_target_locations')
       .delete()
-      .eq('ad_id', adId);
+      .eq('ad_id', adId)
 
     if (deleteError) {
-      return NextResponse.json({ 
-        error: 'Failed to clear locations',
-        details: deleteError.message 
-      }, { status: 500 });
+      console.error('[DELETE /api/v1/ads/:id/locations] Delete error:', deleteError)
+      throw new Error('Failed to clear locations')
     }
 
-    console.log('[DELETE locations] ✅ Cleared all locations for ad:', adId);
+    console.log('[DELETE /api/v1/ads/:id/locations] ✅ Cleared all locations:', adId)
 
-    return NextResponse.json({ success: true });
+    return successResponse({ message: 'All locations cleared' })
   } catch (error) {
-    console.error('[DELETE locations] Unexpected error:', error);
-    return NextResponse.json({ 
-      error: 'Internal server error' 
-    }, { status: 500 });
+    console.error('[DELETE /api/v1/ads/:id/locations] Error:', error)
+    return errorResponse(error as Error)
   }
 }
-

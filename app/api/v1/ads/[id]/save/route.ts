@@ -7,65 +7,32 @@
  * a cleaner architecture with the adDataService.
  * 
  * References:
+ *  - API v1 Middleware: app/api/v1/_middleware.ts
  *  - Supabase: https://supabase.com/docs/reference/javascript/update
- *  - Next.js Route Handlers: https://nextjs.org/docs/app/building-your-application/routing/route-handlers
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { createServerClient, supabaseServer } from "@/lib/supabase/server"
+import { requireAuth, requireAdOwnership, errorResponse, ValidationError } from '@/app/api/v1/_middleware'
+import { supabaseServer } from "@/lib/supabase/server"
 import type { SaveAdPayload, SaveAdResponse } from "@/lib/types/workspace"
 import type { Json } from "@/lib/supabase/database.types"
 
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string; adId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   console.warn('[DEPRECATED] /save endpoint called. Migrate to PATCH /api/campaigns/[id]/ads/[adId]/snapshot')
   
   const traceId = `save_ad_${Date.now()}`
   
   try {
-    const { id: campaignId, adId } = await context.params
+    const user = await requireAuth(request)
+    const { id: adId } = await context.params
     
-    console.log(`[${traceId}] Save ad changes request:`, { campaignId, adId })
+    console.log(`[${traceId}] Save ad changes request:`, { adId })
 
-    // Authenticate user
-    const supabase = await createServerClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      console.error(`[${traceId}] Authentication failed:`, authError)
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' } as SaveAdResponse,
-        { status: 401 }
-      )
-    }
-
-    // Verify campaign ownership
-    const { data: campaign, error: campaignError } = await supabaseServer
-      .from('campaigns')
-      .select('user_id')
-      .eq('id', campaignId)
-      .single()
-
-    if (campaignError || !campaign) {
-      console.error(`[${traceId}] Campaign not found:`, campaignError)
-      return NextResponse.json(
-        { success: false, error: 'Campaign not found' } as SaveAdResponse,
-        { status: 404 }
-      )
-    }
-
-    if (campaign.user_id !== user.id) {
-      console.error(`[${traceId}] User doesn't own campaign:`, {
-        userId: user.id,
-        campaignUserId: campaign.user_id
-      })
-      return NextResponse.json(
-        { success: false, error: 'Forbidden - You do not own this campaign' } as SaveAdResponse,
-        { status: 403 }
-      )
-    }
+    // Verify ad ownership
+    await requireAdOwnership(adId, user.id)
 
     // Parse and validate request body
     const body = await request.json() as SaveAdPayload

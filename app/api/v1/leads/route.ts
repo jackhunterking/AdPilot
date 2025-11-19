@@ -1,15 +1,15 @@
 /**
- * Feature: Lead Listing with Pagination, Sorting, and Filtering
- * Purpose: Return stored Meta lead form submissions for the campaign owner with advanced table features.
+ * Feature: Lead Listing with Pagination, Sorting, and Filtering (v1)
+ * Purpose: Return stored Meta lead form submissions for the campaign owner
  * References:
+ *  - API v1 Middleware: app/api/v1/_middleware.ts
  *  - Meta Lead Retrieval: https://developers.facebook.com/docs/marketing-api/guides/lead-ads/retrieving
- *  - Supabase Auth (Server): https://supabase.com/docs/reference/javascript/auth-getuser
  *  - Supabase Pagination: https://supabase.com/docs/reference/javascript/using-pagination
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-
-import { createServerClient, supabaseServer } from '@/lib/supabase/server'
+import { requireAuth, requireCampaignOwnership, errorResponse, successResponse, ValidationError } from '@/app/api/v1/_middleware'
+import { supabaseServer } from '@/lib/supabase/server'
 import type { LeadRecord } from '@/lib/meta/leads'
 import type { Json } from '@/lib/supabase/database.types'
 
@@ -25,10 +25,13 @@ function parseSortOrder(param: string | null): 'asc' | 'desc' {
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await requireAuth(req)
+    
     const url = new URL(req.url)
     const campaignId = url.searchParams.get('campaignId')
+    
     if (!campaignId) {
-      return NextResponse.json({ error: 'campaignId required' }, { status: 400 })
+      throw new ValidationError('campaignId query parameter required')
     }
 
     // Parse pagination parameters
@@ -44,26 +47,8 @@ export async function GET(req: NextRequest) {
     const dateFrom = url.searchParams.get('dateFrom')
     const dateTo = url.searchParams.get('dateTo')
 
-    const supabase = await createServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { data: campaign, error: campaignError } = await supabaseServer
-      .from('campaigns')
-      .select('id,user_id')
-      .eq('id', campaignId)
-      .maybeSingle()
-
-    if (campaignError) {
-      console.error('[MetaLeads] Campaign lookup failed:', campaignError)
-      return NextResponse.json({ error: 'Failed to load campaign' }, { status: 500 })
-    }
-
-    if (!campaign || campaign.user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    // Verify campaign ownership
+    await requireCampaignOwnership(campaignId, user.id)
 
     // Build query with filters
     let query = supabaseServer
@@ -79,15 +64,14 @@ export async function GET(req: NextRequest) {
       query = query.lte('submitted_at', dateTo)
     }
 
-    // Apply sorting (only on top-level columns, not form_data)
+    // Apply sorting
     if (['submitted_at', 'created_at', 'meta_lead_id'].includes(sortBy)) {
       query = query.order(sortBy, { ascending: sortOrder === 'asc' })
     } else {
-      // Default sort by submitted_at if trying to sort by form_data field
       query = query.order('submitted_at', { ascending: false })
     }
 
-    // Get total count first
+    // Get total count
     const { count: totalCount } = await query
 
     // Apply pagination
@@ -97,72 +81,36 @@ export async function GET(req: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      console.error('[MetaLeads] Query error:', error)
-      return NextResponse.json({ error: 'Failed to load leads' }, { status: 500 })
+      console.error('[GET /api/v1/leads] Query error:', error)
+      throw new Error('Failed to load leads')
     }
 
-    const leads: LeadRecord[] = (data ?? []).map((row) => ({
-      id: row.id,
-      campaign_id: row.campaign_id,
-      meta_lead_id: row.meta_lead_id,
-      meta_form_id: row.meta_form_id,
-      submitted_at: row.submitted_at,
-      created_at: row.created_at,
-      exported_at: row.exported_at,
-      webhook_sent: row.webhook_sent,
-      webhook_sent_at: row.webhook_sent_at,
-      form_data:
-        row.form_data && typeof row.form_data === 'object' && !Array.isArray(row.form_data)
-          ? (row.form_data as Record<string, Json>)
-          : null,
-    }))
+    const leads = (data ?? []) as LeadRecord[]
 
-    // Client-side search filter (since we can't easily search JSONB fields in query)
+    // Apply client-side search filtering (on form_data)
     let filteredLeads = leads
-    if (search && search.trim().length > 0) {
-      const searchLower = search.toLowerCase()
-      filteredLeads = leads.filter((lead) => {
-        // Search in meta_lead_id
-        if (lead.meta_lead_id.toLowerCase().includes(searchLower)) {
-          return true
-        }
-        // Search in form_data values
-        if (lead.form_data) {
-          return Object.values(lead.form_data).some((value) => {
-            if (typeof value === 'string') {
-              return value.toLowerCase().includes(searchLower)
-            }
-            return false
-          })
-        }
-        return false
+    if (search) {
+      const lowerSearch = search.toLowerCase()
+      filteredLeads = leads.filter(lead => {
+        const formDataStr = JSON.stringify(lead.form_data).toLowerCase()
+        return formDataStr.includes(lowerSearch) || 
+               lead.meta_lead_id?.toLowerCase().includes(lowerSearch)
       })
     }
 
-    // Extract dynamic columns from form_data
-    const columnSet = new Set<string>()
-    filteredLeads.forEach((lead) => {
-      if (lead.form_data) {
-        Object.keys(lead.form_data).forEach((key) => columnSet.add(key))
+    return successResponse(
+      { leads: filteredLeads },
+      {
+        pagination: {
+          page,
+          pageSize,
+          totalItems: totalCount || 0,
+          totalPages: Math.ceil((totalCount || 0) / pageSize)
+        }
       }
-    })
-    const columns = Array.from(columnSet)
-
-    const totalPages = Math.ceil((totalCount ?? 0) / pageSize)
-
-    return NextResponse.json({
-      data: filteredLeads,
-      pagination: {
-        currentPage: page,
-        pageSize,
-        totalItems: totalCount ?? 0,
-        totalPages,
-      },
-      columns,
-    })
+    )
   } catch (error) {
-    console.error('[MetaLeads] GET error:', error)
-    const message = error instanceof Error ? error.message : 'Failed to load leads'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('[GET /api/v1/leads] Error:', error)
+    return errorResponse(error as Error)
   }
 }

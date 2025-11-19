@@ -1,54 +1,50 @@
 /**
- * Feature: Location Exclude API
+ * Feature: Location Exclude API (v1)
  * Purpose: Add locations with exclude mode
  * References:
+ *  - API v1 Middleware: app/api/v1/_middleware.ts
  *  - Supabase: https://supabase.com/docs/guides/database
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient, supabaseServer } from '@/lib/supabase/server'
+import { requireAuth, requireAdOwnership, errorResponse, successResponse, ValidationError } from '@/app/api/v1/_middleware'
+import { supabaseServer } from '@/lib/supabase/server'
+import type { Json } from '@/lib/supabase/database.types'
 
-// POST /locations/exclude - Exclude location(s)
+// POST /api/v1/ads/[id]/locations/exclude - Exclude location(s)
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ id: string; adId: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: campaignId, adId } = await context.params;
-    const body = await request.json();
-
-    // Authenticate
-    const supabase = await createServerClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const user = await requireAuth(request)
+    const { id: adId } = await context.params
+    
+    // Verify ad ownership
+    await requireAdOwnership(adId, user.id)
+    
+    const body: unknown = await request.json()
+    
+    if (typeof body !== 'object' || body === null) {
+      throw new ValidationError('Invalid request body')
     }
-
-    // Verify ownership
-    const { data: campaign } = await supabaseServer
-      .from('campaigns')
-      .select('user_id')
-      .eq('id', campaignId)
-      .single();
-
-    if (!campaign || campaign.user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    
+    const { locations } = body as { locations?: unknown }
 
     // Validate input
-    if (!body.locations || !Array.isArray(body.locations) || body.locations.length === 0) {
-      return NextResponse.json({ error: 'locations array required' }, { status: 400 });
+    if (!locations || !Array.isArray(locations) || locations.length === 0) {
+      throw new ValidationError('locations array required')
     }
 
     // Insert with exclude mode
-    const locationInserts = body.locations.map((loc: {
-      name: string;
-      type: string;
-      coordinates: [number, number];
-      radius?: number;
-      key?: string;
-      bbox?: [number, number, number, number];
-      geometry?: object;
+    const locationInserts = locations.map((loc: {
+      name: string
+      type: string
+      coordinates: [number, number]
+      radius?: number
+      key?: string
+      bbox?: [number, number, number, number]
+      geometry?: object
     }) => ({
       ad_id: adId,
       location_name: loc.name,
@@ -58,39 +54,32 @@ export async function POST(
       radius_km: loc.radius ? loc.radius * 1.60934 : null,
       inclusion_mode: 'exclude',  // Always exclude for this endpoint
       meta_location_key: loc.key || null,
-      bbox: loc.bbox || null,
-      geometry: loc.geometry || null
-    }));
+      bbox: loc.bbox as unknown as Json || null,
+      geometry: loc.geometry as unknown as Json || null
+    }))
 
     const { data: inserted, error: insertError } = await supabaseServer
       .from('ad_target_locations')
       .insert(locationInserts)
-      .select();
+      .select()
 
     if (insertError) {
-      console.error('[POST locations/exclude] Insert error:', insertError);
-      return NextResponse.json({ 
-        error: 'Failed to exclude locations',
-        details: insertError.message 
-      }, { status: 500 });
+      console.error('[POST /api/v1/ads/:id/locations/exclude] Insert error:', insertError)
+      throw new Error('Failed to exclude locations')
     }
 
-    console.log('[POST locations/exclude] ✅ Excluded locations:', {
+    console.log('[POST /api/v1/ads/:id/locations/exclude] ✅ Excluded locations:', {
       adId,
       count: inserted?.length,
       names: inserted?.map(l => l.location_name)
-    });
+    })
 
-    return NextResponse.json({ 
-      success: true,
+    return successResponse({ 
       count: inserted?.length,
       locations: inserted
-    });
+    })
   } catch (error) {
-    console.error('[POST locations/exclude] Unexpected error:', error);
-    return NextResponse.json({ 
-      error: 'Internal server error' 
-    }, { status: 500 });
+    console.error('[POST /api/v1/ads/:id/locations/exclude] Error:', error)
+    return errorResponse(error as Error)
   }
 }
-

@@ -9,7 +9,7 @@
 
 "use client";
 
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import {
   Conversation,
   ConversationContent,
@@ -28,14 +28,22 @@ import {
   PromptInputTools,
 } from "@/components/ai-elements/prompt-input";
 import { MessageRenderer } from './message-renderer';
+import { useJourneyRouter } from './hooks/use-journey-router';
+import { useMetadataBuilder } from './hooks/use-metadata-builder';
+import type { ChatProps } from './types/chat-types';
+
+// Journey modules (loaded synchronously for now due to factory pattern)
+// Future optimization: Convert journeys to async modules
 import { LocationJourney } from './journeys/location/location-journey';
 import { CreativeJourney } from './journeys/creative/creative-journey';
 import { CopyJourney } from './journeys/copy/copy-journey';
 import { GoalJourney } from './journeys/goal/goal-journey';
 import { CampaignJourney } from './journeys/campaign/campaign-journey';
-import { useJourneyRouter } from './hooks/use-journey-router';
-import { useMetadataBuilder } from './hooks/use-metadata-builder';
-import type { ChatProps } from './types/chat-types';
+import { DestinationJourney } from './journeys/destination/destination-journey';
+import { BudgetJourney } from './journeys/budget/budget-journey';
+import { AnalyticsJourney } from './journeys/analytics/analytics-journey';
+import { ResultsJourney } from './journeys/results/results-journey';
+import { MetaJourney } from './journeys/meta/meta-journey';
 
 /**
  * Chat Container - Microservices Orchestrator
@@ -64,14 +72,27 @@ export function ChatContainer({
   const copyJourney = CopyJourney();
   const goalJourney = GoalJourney();
   const campaignJourney = CampaignJourney();
+  const destinationJourney = DestinationJourney();
+  const budgetJourney = BudgetJourney();
+  const analyticsJourney = AnalyticsJourney();
+  const resultsJourney = ResultsJourney();
+  const metaJourney = MetaJourney();
   
-  // Create journey router
+  // Create journey router with state persistence
   const { routeToJourney } = useJourneyRouter({
-    location: locationJourney,
-    creative: creativeJourney,
-    copy: copyJourney,
-    goal: goalJourney,
-    campaign: campaignJourney
+    location: locationJourney as unknown as import('@/lib/journeys/types/journey-contracts').Journey,
+    creative: creativeJourney as unknown as import('@/lib/journeys/types/journey-contracts').Journey,
+    copy: copyJourney as unknown as import('@/lib/journeys/types/journey-contracts').Journey,
+    goal: goalJourney as unknown as import('@/lib/journeys/types/journey-contracts').Journey,
+    campaign: campaignJourney as unknown as import('@/lib/journeys/types/journey-contracts').Journey,
+    destination: destinationJourney as unknown as import('@/lib/journeys/types/journey-contracts').Journey,
+    budget: budgetJourney as unknown as import('@/lib/journeys/types/journey-contracts').Journey,
+    analytics: analyticsJourney as unknown as import('@/lib/journeys/types/journey-contracts').Journey,
+    results: resultsJourney as unknown as import('@/lib/journeys/types/journey-contracts').Journey,
+    meta: metaJourney as unknown as import('@/lib/journeys/types/journey-contracts').Journey,
+  }, {
+    persistState: true,
+    enableEvents: true,
   });
   
   // Note: This is a simplified orchestrator demonstrating journey architecture
@@ -79,25 +100,34 @@ export function ChatContainer({
   // For now, this shows the microservices pattern
   
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-auto">
-        {messages.map((message) => (
-          <MessageRenderer
-            key={message.id}
-            message={message}
-            routeToJourney={routeToJourney}
-          />
-        ))}
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-full">
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+          <p className="text-sm text-muted-foreground">Loading chat...</p>
+        </div>
       </div>
-      
-      <div className="border-t bg-background px-4 py-3">
-        <div className="max-w-3xl mx-auto">
-          <div className="text-sm text-muted-foreground">
-            Chat Container (Orchestrator) - Journey modules initialized
+    }>
+      <div className="flex flex-col h-full">
+        <div className="flex-1 overflow-auto">
+          {messages.map((message) => (
+            <MessageRenderer
+              key={message.id}
+              message={message}
+              routeToJourney={routeToJourney}
+            />
+          ))}
+        </div>
+        
+        <div className="border-t bg-background px-4 py-3">
+          <div className="max-w-3xl mx-auto">
+            <div className="text-sm text-muted-foreground">
+              Chat Container (Orchestrator) - Journey modules initialized
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </Suspense>
   );
 }
 

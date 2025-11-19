@@ -12,6 +12,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Play, ImageIcon, Video, Layers, Sparkles, Building2, Check, Facebook, Loader2, Edit2, Palette, Type, MapPin, Target, Rocket, Flag, Link2, MoreVertical, Globe, Heart, ThumbsUp, MessageCircle, Share2, ChevronDown, AlertTriangle, ChevronUp } from "lucide-react"
 import { LocationSelectionCanvas } from "./location-selection-canvas"
@@ -915,10 +916,12 @@ export function PreviewPanel() {
         {/* Media Section - Square (1:1) aspect ratio - 1080x1080 */}
         {adContent?.imageVariations?.[index] ? (
           <div className="relative overflow-hidden" style={{ aspectRatio: '1/1' }}>
-            <img
+            <Image
               src={adContent.imageVariations[index]}
               alt={adContent.headline}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
+              loading="lazy"
             />
           </div>
         ) : (
@@ -1127,10 +1130,12 @@ export function PreviewPanel() {
         <div className="absolute inset-0" style={{ top: '60px' }}>
           {adContent?.imageVariations?.[index] ? (
             <div className="relative w-full h-full">
-              <img 
+              <Image 
                 src={adContent.imageVariations[index]} 
                 alt={adContent.headline} 
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
+                loading="lazy"
               />
             </div>
           ) : (

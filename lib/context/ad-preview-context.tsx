@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react"
 import { useCampaignContext } from "@/lib/context/campaign-context"
 import { useCurrentAd } from "@/lib/context/current-ad-context"
+import { useAdService, useCreativeService } from "@/lib/services/service-provider"
 import { logger } from "@/lib/utils/logger"
 
 interface AdContent {
@@ -38,6 +39,8 @@ const AdPreviewContext = createContext<AdPreviewContextType | undefined>(undefin
 export function AdPreviewProvider({ children }: { children: ReactNode }) {
   const { campaign } = useCampaignContext()
   const { currentAd } = useCurrentAd()
+  const adService = useAdService() // Service layer integration
+  const creativeService = useCreativeService() // Service layer integration
   const [adContent, setAdContent] = useState<AdContent | null>(null)
   const [isPublished, setIsPublished] = useState(false)
   const [selectedCreativeVariation, setSelectedCreativeVariation] = useState<CreativeVariation | null>(null)
@@ -79,24 +82,24 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
     logger.debug('AdPreviewContext', `Loading state from ad ${currentAd.id}`)
     setContextAdId(currentAd.id)  // Mark context as serving this ad
     
-    // Fetch ad snapshot from normalized tables
+    // Fetch ad snapshot from normalized tables using service layer
     const loadSnapshot = async () => {
       try {
         logger.debug('AdPreviewContext', `Fetching snapshot for ad ${currentAd.id}`)
         
-        const response = await fetch(`/api/campaigns/${campaign?.id}/ads/${currentAd.id}/snapshot`)
+        // Use adService instead of direct fetch
+        const result = await adService.getSnapshot.execute(currentAd.id)
         
-        if (!response.ok) {
+        if (!result.success || !result.data) {
           logger.warn('AdPreviewContext', 'Failed to load snapshot, starting empty')
           setIsInitialized(true)
           return
         }
         
-        const json = await response.json()
-        const snapshot = json.setup_snapshot
+        const snapshot = result.data
         
         // CRITICAL: Hydrate from backend (single source of truth)
-        if (snapshot?.creative?.imageVariations?.length > 0) {
+        if (snapshot?.creative?.imageVariations && snapshot.creative.imageVariations.length > 0) {
           logger.info('AdPreviewContext', `✅ Loaded ${snapshot.creative.imageVariations.length} creatives from backend`)
           
           // Get copy data for initial display (headline, body, CTA)
@@ -118,7 +121,7 @@ export function AdPreviewProvider({ children }: { children: ReactNode }) {
           logger.debug('AdPreviewContext', `Hydrating selection index: ${selectedIdx}`)
           
           // Always set the index from snapshot (even if -1 or null)
-          setSelectedImageIndex(selectedIdx)
+          setSelectedImageIndex(typeof selectedIdx === 'number' ? selectedIdx : null)
           
           // Set variation object only if valid index
           if (typeof selectedIdx === 'number' && selectedIdx >= 0 && selectedIdx < 3) {

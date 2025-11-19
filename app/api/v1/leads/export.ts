@@ -1,15 +1,15 @@
 /**
- * Feature: Lead Export with Filtering and Sorting
- * Purpose: Download stored lead submissions in CSV or JSON with support for filtered/sorted data.
+ * Feature: Lead Export with Filtering and Sorting (v1)
+ * Purpose: Download stored lead submissions in CSV or JSON
  * References:
+ *  - API v1 Middleware: app/api/v1/_middleware.ts
  *  - Meta Lead Retrieval: https://developers.facebook.com/docs/marketing-api/guides/lead-ads/retrieving
- *  - Supabase Auth (Server): https://supabase.com/docs/reference/javascript/auth-getuser
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-
+import { requireAuth, requireCampaignOwnership, errorResponse, ValidationError } from '@/app/api/v1/_middleware'
 import { formatLeadsAsCsv, type LeadRecord } from '@/lib/meta/leads'
-import { createServerClient, supabaseServer } from '@/lib/supabase/server'
+import { supabaseServer } from '@/lib/supabase/server'
 import type { Json } from '@/lib/supabase/database.types'
 
 function buildFilename(format: 'csv' | 'json', campaignId: string) {
@@ -23,45 +23,29 @@ function parseSortOrder(param: string | null): 'asc' | 'desc' {
 
 export async function GET(req: NextRequest) {
   try {
+    const user = await requireAuth(req)
+    
     const url = new URL(req.url)
     const campaignId = url.searchParams.get('campaignId')
     const formatParam = (url.searchParams.get('format') || 'csv').toLowerCase()
 
     if (!campaignId) {
-      return NextResponse.json({ error: 'campaignId required' }, { status: 400 })
+      throw new ValidationError('campaignId query parameter required')
     }
 
     const format = formatParam === 'json' ? 'json' : 'csv'
     
-    // Parse filtering parameters (same as list endpoint)
+    // Parse filtering parameters
     const search = url.searchParams.get('search') || ''
     const dateFrom = url.searchParams.get('dateFrom')
     const dateTo = url.searchParams.get('dateTo')
     const sortBy = url.searchParams.get('sortBy') || 'submitted_at'
     const sortOrder = parseSortOrder(url.searchParams.get('sortOrder'))
 
-    const supabase = await createServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // Verify campaign ownership
+    await requireCampaignOwnership(campaignId, user.id)
 
-    const { data: campaign, error: campaignError } = await supabaseServer
-      .from('campaigns')
-      .select('id,user_id')
-      .eq('id', campaignId)
-      .maybeSingle()
-
-    if (campaignError) {
-      console.error('[MetaLeadsExport] Campaign lookup failed:', campaignError)
-      return NextResponse.json({ error: 'Failed to load campaign' }, { status: 500 })
-    }
-
-    if (!campaign || campaign.user_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    // Build query with filters (same logic as list endpoint)
+    // Build query with filters
     let query = supabaseServer
       .from('lead_form_submissions')
       .select('*')
@@ -85,66 +69,53 @@ export async function GET(req: NextRequest) {
     const { data, error } = await query
 
     if (error) {
-      console.error('[MetaLeadsExport] Query error:', error)
-      return NextResponse.json({ error: 'Failed to load leads' }, { status: 500 })
+      console.error('[GET /api/v1/leads/export] Query error:', error)
+      throw new Error('Failed to load leads')
     }
 
-    const leads: LeadRecord[] = (data ?? []).map((row) => ({
-      id: row.id,
-      campaign_id: row.campaign_id,
-      meta_lead_id: row.meta_lead_id,
-      meta_form_id: row.meta_form_id,
-      submitted_at: row.submitted_at,
-      created_at: row.created_at,
-      exported_at: row.exported_at,
-      webhook_sent: row.webhook_sent,
-      webhook_sent_at: row.webhook_sent_at,
-      form_data:
-        row.form_data && typeof row.form_data === 'object' && !Array.isArray(row.form_data)
-          ? (row.form_data as Record<string, Json>)
-          : null,
-    }))
+    const leads = (data ?? []) as LeadRecord[]
 
-    // Client-side search filter
+    // Apply client-side search filtering
     let filteredLeads = leads
-    if (search && search.trim().length > 0) {
-      const searchLower = search.toLowerCase()
-      filteredLeads = leads.filter((lead) => {
-        if (lead.meta_lead_id.toLowerCase().includes(searchLower)) {
-          return true
-        }
-        if (lead.form_data) {
-          return Object.values(lead.form_data).some((value) => {
-            if (typeof value === 'string') {
-              return value.toLowerCase().includes(searchLower)
-            }
-            return false
-          })
-        }
-        return false
+    if (search) {
+      const lowerSearch = search.toLowerCase()
+      filteredLeads = leads.filter(lead => {
+        const formDataStr = JSON.stringify(lead.form_data).toLowerCase()
+        return formDataStr.includes(lowerSearch) || 
+               lead.meta_lead_id?.toLowerCase().includes(lowerSearch)
       })
     }
 
-    if (format === 'json') {
-      const body = JSON.stringify({ leads: filteredLeads }, null, 2)
-      return new NextResponse(body, {
+    // Mark as exported
+    if (filteredLeads.length > 0) {
+      await supabaseServer
+        .from('lead_form_submissions')
+        .update({ exported_at: new Date().toISOString() })
+        .in('id', filteredLeads.map(l => l.id))
+    }
+
+    const filename = buildFilename(format, campaignId)
+
+    if (format === 'csv') {
+      const csv = formatLeadsAsCsv(filteredLeads)
+      return new NextResponse(csv, {
+        status: 200,
         headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          'Content-Disposition': `attachment; filename="${buildFilename('json', campaignId)}"`,
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="${filename}"`,
+        },
+      })
+    } else {
+      return new NextResponse(JSON.stringify(filteredLeads, null, 2), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Disposition': `attachment; filename="${filename}"`,
         },
       })
     }
-
-    const csv = formatLeadsAsCsv(filteredLeads)
-    return new NextResponse(csv, {
-      headers: {
-        'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="${buildFilename('csv', campaignId)}"`,
-      },
-    })
   } catch (error) {
-    console.error('[MetaLeadsExport] GET error:', error)
-    const message = error instanceof Error ? error.message : 'Failed to export leads'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('[GET /api/v1/leads/export] Error:', error)
+    return errorResponse(error as Error)
   }
 }

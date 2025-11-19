@@ -1,14 +1,15 @@
 /**
- * Feature: Creative Plan API
+ * Feature: Creative Plan API (v1)
  * Purpose: Generate and persist a CreativePlan for a campaign
  * References:
+ *  - API v1 Middleware: app/api/v1/_middleware.ts
  *  - AI SDK Core: https://ai-sdk.dev/docs/ai-sdk-core/structured-output
  *  - Vercel AI Gateway: https://vercel.com/docs/ai-gateway/getting-started
- *  - Supabase: https://supabase.com/docs/guides/auth/server-side/creating-a-client
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { requireAuth, requireCampaignOwnership, errorResponse, successResponse, ValidationError } from '@/app/api/v1/_middleware'
 import { createServerClient } from '@/lib/supabase/server'
 import { createCreativePlan } from '@/lib/ai/system/creative-guardrails'
 
@@ -23,11 +24,16 @@ const BodySchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = await requireAuth(req)
 
-    const body = BodySchema.parse(await req.json())
+    const bodyUnknown: unknown = await req.json()
+    const body = BodySchema.parse(bodyUnknown)
+
+    // If campaignId provided, verify ownership
+    if (body.campaignId) {
+      await requireCampaignOwnership(body.campaignId, user.id)
+    }
+
     const plan = await createCreativePlan({
       goal: body.goal,
       inferredCategory: body.inferredCategory,
@@ -35,8 +41,8 @@ export async function POST(req: NextRequest) {
     })
 
     // Store plan in campaign metadata if campaignId provided
-    // (creative_plans table has been removed - using metadata instead)
     if (body.campaignId) {
+      const supabase = await createServerClient()
       const { data: campaign } = await supabase
         .from('campaigns')
         .select('metadata')
@@ -56,15 +62,15 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', body.campaignId)
         
-      if (error) throw error
+      if (error) {
+        console.error('[POST /api/v1/creative/plan] Metadata update error:', error)
+        throw error
+      }
     }
 
-    return NextResponse.json({ plan })
+    return successResponse({ plan })
   } catch (err) {
-    console.error('[creative-plan] error', err)
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    console.error('[POST /api/v1/creative/plan] Error:', err)
+    return errorResponse(err as Error)
   }
 }
-
-

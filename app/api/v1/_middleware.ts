@@ -222,3 +222,176 @@ export function logRequest(req: NextRequest, userId?: string): void {
   });
 }
 
+// ============================================
+// Type Definitions & Type Guards
+// ============================================
+
+// Campaign Types
+export interface CreateCampaignRequest {
+  name?: string;
+  tempPromptId?: string;
+  prompt?: string;
+  goalType?: 'leads' | 'calls' | 'website-visits';
+}
+
+export interface UpdateCampaignRequest {
+  name?: string;
+  status?: 'draft' | 'active' | 'paused' | 'completed';
+  currentStep?: number;
+  metadata?: Record<string, unknown>;
+}
+
+// Ad Types
+export interface CreateAdRequest {
+  campaignId: string;
+  name: string;
+  status?: 'draft' | 'active' | 'paused';
+  meta_ad_id?: string | null;
+}
+
+export interface UpdateAdRequest {
+  name?: string;
+  status?: 'draft' | 'active' | 'paused' | 'pending_review';
+  metrics_snapshot?: unknown;
+  meta_ad_id?: string;
+  destination_type?: string;
+  selected_creative_id?: string;
+  selected_copy_id?: string;
+}
+
+// Location Types
+export interface AddLocationRequest {
+  locations: Array<{
+    name: string;
+    type: string;
+    coordinates: [number, number];
+    radius?: number;
+    key?: string;
+    bbox?: [number, number, number, number];
+    geometry?: object;
+  }>;
+}
+
+// Meta Types
+export interface MarkPaymentConnectedRequest {
+  campaignId: string;
+}
+
+// Conversation Types
+export interface CreateConversationRequest {
+  campaignId?: string;
+  title?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateConversationRequest {
+  title?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Type Guards
+export function isCreateCampaignRequest(body: unknown): body is CreateCampaignRequest {
+  if (typeof body !== 'object' || body === null) return false;
+  const b = body as Record<string, unknown>;
+  
+  // All fields are optional, but if provided must be correct type
+  if ('name' in b && typeof b.name !== 'string') return false;
+  if ('tempPromptId' in b && typeof b.tempPromptId !== 'string') return false;
+  if ('prompt' in b && typeof b.prompt !== 'string') return false;
+  if ('goalType' in b && !['leads', 'calls', 'website-visits'].includes(b.goalType as string)) return false;
+  
+  return true;
+}
+
+export function isUpdateCampaignRequest(body: unknown): body is UpdateCampaignRequest {
+  if (typeof body !== 'object' || body === null) return false;
+  const b = body as Record<string, unknown>;
+  
+  if ('name' in b && typeof b.name !== 'string') return false;
+  if ('status' in b && !['draft', 'active', 'paused', 'completed'].includes(b.status as string)) return false;
+  if ('currentStep' in b && typeof b.currentStep !== 'number') return false;
+  if ('metadata' in b && (typeof b.metadata !== 'object' || b.metadata === null)) return false;
+  
+  return true;
+}
+
+export function isCreateAdRequest(body: unknown): body is CreateAdRequest {
+  if (typeof body !== 'object' || body === null) return false;
+  const b = body as Record<string, unknown>;
+  
+  // Required fields
+  if (!('campaignId' in b) || typeof b.campaignId !== 'string') return false;
+  if (!('name' in b) || typeof b.name !== 'string') return false;
+  
+  // Optional fields
+  if ('status' in b && !['draft', 'active', 'paused'].includes(b.status as string)) return false;
+  if ('meta_ad_id' in b && b.meta_ad_id !== null && typeof b.meta_ad_id !== 'string') return false;
+  
+  return true;
+}
+
+export function isUpdateAdRequest(body: unknown): body is UpdateAdRequest {
+  if (typeof body !== 'object' || body === null) return false;
+  const b = body as Record<string, unknown>;
+  
+  // All optional, but if provided must be correct type
+  if ('name' in b && typeof b.name !== 'string') return false;
+  if ('status' in b && !['draft', 'active', 'paused', 'pending_review'].includes(b.status as string)) return false;
+  if ('meta_ad_id' in b && typeof b.meta_ad_id !== 'string') return false;
+  if ('destination_type' in b && typeof b.destination_type !== 'string') return false;
+  if ('selected_creative_id' in b && typeof b.selected_creative_id !== 'string') return false;
+  if ('selected_copy_id' in b && typeof b.selected_copy_id !== 'string') return false;
+  
+  return true;
+}
+
+export function isAddLocationRequest(body: unknown): body is AddLocationRequest {
+  if (typeof body !== 'object' || body === null) return false;
+  const b = body as Record<string, unknown>;
+  
+  if (!('locations' in b) || !Array.isArray(b.locations)) return false;
+  if (b.locations.length === 0) return false;
+  
+  // Validate each location object
+  return b.locations.every((loc) => {
+    if (typeof loc !== 'object' || loc === null) return false;
+    return (
+      'name' in loc && typeof loc.name === 'string' &&
+      'type' in loc && typeof loc.type === 'string' &&
+      'coordinates' in loc && Array.isArray(loc.coordinates) &&
+      loc.coordinates.length === 2 &&
+      typeof loc.coordinates[0] === 'number' &&
+      typeof loc.coordinates[1] === 'number'
+    );
+  });
+}
+
+export function isMarkPaymentConnectedRequest(body: unknown): body is MarkPaymentConnectedRequest {
+  if (typeof body !== 'object' || body === null) return false;
+  const b = body as Record<string, unknown>;
+  
+  return 'campaignId' in b && typeof b.campaignId === 'string';
+}
+
+export function isCreateConversationRequest(body: unknown): body is CreateConversationRequest {
+  if (typeof body !== 'object' || body === null) return false;
+  const b = body as Record<string, unknown>;
+  
+  // All fields optional
+  if ('campaignId' in b && typeof b.campaignId !== 'string') return false;
+  if ('title' in b && typeof b.title !== 'string') return false;
+  if ('metadata' in b && (typeof b.metadata !== 'object' || b.metadata === null)) return false;
+  
+  return true;
+}
+
+export function isUpdateConversationRequest(body: unknown): body is UpdateConversationRequest {
+  if (typeof body !== 'object' || body === null) return false;
+  const b = body as Record<string, unknown>;
+  
+  if ('title' in b && typeof b.title !== 'string') return false;
+  if ('metadata' in b && (typeof b.metadata !== 'object' || b.metadata === null)) return false;
+  
+  return true;
+}
+

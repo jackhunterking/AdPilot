@@ -1,0 +1,322 @@
+/**
+ * Feature: React Query Service Hooks
+ * Purpose: Cache service responses with React Query for better UX
+ * References:
+ *  - TanStack Query: https://tanstack.com/query/latest
+ *  - Service Provider: lib/services/service-provider.tsx
+ */
+
+"use client";
+
+// Note: Requires @tanstack/react-query to be installed
+// This file is prepared but won't work until the package is installed
+// Run: npm install @tanstack/react-query
+
+// Commenting out to avoid build errors - uncomment after installing package
+/*
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  useCampaignService, 
+  useAdService, 
+  useCreativeService,
+  useCopyService,
+  useTargetingService,
+  useDestinationService,
+  useBudgetService,
+  useAnalyticsService,
+  useMetaService,
+} from '@/lib/services/service-provider';
+
+// ============================================================================
+// Campaign Hooks
+// ============================================================================
+
+export function useCampaigns(userId?: string) {
+  const campaignService = useCampaignService();
+  
+  return useQuery({
+    queryKey: ['campaigns', userId],
+    queryFn: async () => {
+      if (!userId) throw new Error('User ID required');
+      const result = await campaignService.listCampaigns.execute({ userId });
+      if (!result.success) throw new Error(result.error?.message || 'Failed to fetch campaigns');
+      return result.data;
+    },
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+export function useCampaign(campaignId?: string) {
+  const campaignService = useCampaignService();
+  
+  return useQuery({
+    queryKey: ['campaign', campaignId],
+    queryFn: async () => {
+      if (!campaignId) throw new Error('Campaign ID required');
+      const result = await campaignService.getCampaign.execute(campaignId);
+      if (!result.success) throw new Error(result.error?.message || 'Failed to fetch campaign');
+      return result.data;
+    },
+    enabled: !!campaignId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateCampaign() {
+  const campaignService = useCampaignService();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (input: { name?: string; prompt?: string; goalType?: 'leads' | 'calls' | 'website-visits' }) => {
+      const result = await campaignService.createCampaign.execute(input);
+      if (!result.success) throw new Error(result.error?.message || 'Failed to create campaign');
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+    },
+  });
+}
+
+export function useUpdateCampaign() {
+  const campaignService = useCampaignService();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (input: { id: string; name?: string; status?: 'draft' | 'active' | 'paused' | 'completed' }) => {
+      const result = await campaignService.updateCampaign.execute(input);
+      if (!result.success) throw new Error(result.error?.message || 'Failed to update campaign');
+      return result.data;
+    },
+    onSuccess: (_data: unknown, variables: { id: string }) => {
+      queryClient.invalidateQueries({ queryKey: ['campaign', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+    },
+  });
+}
+
+export function useDeleteCampaign() {
+  const campaignService = useCampaignService();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (campaignId: string) => {
+      const result = await campaignService.deleteCampaign.execute(campaignId);
+      if (!result.success) throw new Error(result.error?.message || 'Failed to delete campaign');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+    },
+  });
+}
+
+// ============================================================================
+// Ad Hooks
+// ============================================================================
+
+export function useAds(campaignId?: string) {
+  const adService = useAdService();
+  
+  return useQuery({
+    queryKey: ['ads', campaignId],
+    queryFn: async () => {
+      if (!campaignId) throw new Error('Campaign ID required');
+      const result = await adService.listAds.execute({ campaignId });
+      if (!result.success) throw new Error(result.error?.message || 'Failed to fetch ads');
+      return result.data;
+    },
+    enabled: !!campaignId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+export function useAd(adId?: string) {
+  const adService = useAdService();
+  
+  return useQuery({
+    queryKey: ['ad', adId],
+    queryFn: async () => {
+      if (!adId) throw new Error('Ad ID required');
+      const result = await adService.getAd.execute(adId);
+      if (!result.success) throw new Error(result.error?.message || 'Failed to fetch ad');
+      return result.data;
+    },
+    enabled: !!adId,
+    staleTime: 1 * 60 * 1000, // 1 minute
+  });
+}
+
+export function useCreateAd() {
+  const adService = useAdService();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (input: { name: string; campaignId: string }) => {
+      const result = await adService.createAd.execute(input);
+      if (!result.success) throw new Error(result.error?.message || 'Failed to create ad');
+      return result.data;
+    },
+    onSuccess: (_data: unknown, variables: { name: string; campaignId: string }) => {
+      queryClient.invalidateQueries({ queryKey: ['ads', variables.campaignId] });
+    },
+  });
+}
+
+export function usePublishAd() {
+  const adService = useAdService();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (input: { adId: string; campaignId: string }) => {
+      const result = await adService.publishAd.execute(input.adId);
+      if (!result.success) throw new Error(result.error?.message || 'Failed to publish ad');
+      return result.data;
+    },
+    onSuccess: (_data: unknown, variables: { adId: string; campaignId: string }) => {
+      queryClient.invalidateQueries({ queryKey: ['ad', variables.adId] });
+      queryClient.invalidateQueries({ queryKey: ['ads'] });
+    },
+  });
+}
+
+// ============================================================================
+// Creative Hooks
+// ============================================================================
+
+export function useGenerateVariations() {
+  const creativeService = useCreativeService();
+  
+  return useMutation({
+    mutationFn: async (input: { prompt: string; campaignId: string; count?: number }) => {
+      const result = await creativeService.generateVariations.execute(input);
+      if (!result.success) throw new Error(result.error?.message || 'Failed to generate variations');
+      return result.data;
+    },
+  });
+}
+
+// ============================================================================
+// Copy Hooks
+// ============================================================================
+
+export function useGenerateCopy() {
+  const copyService = useCopyService();
+  
+  return useMutation({
+    mutationFn: async (input: { prompt: string; goal: 'leads' | 'calls' | 'website-visits'; campaignId: string }) => {
+      const result = await copyService.generateCopyVariations.execute(input);
+      if (!result.success) throw new Error(result.error?.message || 'Failed to generate copy');
+      return result.data;
+    },
+  });
+}
+
+// ============================================================================
+// Meta Hooks
+// ============================================================================
+
+export function useMetaConnectionStatus(campaignId?: string) {
+  const metaService = useMetaService();
+  
+  return useQuery({
+    queryKey: ['meta-connection', campaignId],
+    queryFn: async () => {
+      if (!campaignId) throw new Error('Campaign ID required');
+      const result = await metaService.getConnectionStatus.execute({ campaignId });
+      if (!result.success) throw new Error(result.error?.message || 'Failed to fetch connection status');
+      return result.data;
+    },
+    enabled: !!campaignId,
+    staleTime: 30 * 1000, // 30 seconds
+  });
+}
+
+export function useMetaAssets(campaignId?: string, type?: 'all' | 'businesses' | 'pages' | 'adAccounts') {
+  const metaService = useMetaService();
+  
+  return useQuery({
+    queryKey: ['meta-assets', campaignId, type],
+    queryFn: async () => {
+      if (!campaignId) throw new Error('Campaign ID required');
+      const result = await metaService.getAssets.execute({ campaignId, type });
+      if (!result.success) throw new Error(result.error?.message || 'Failed to fetch Meta assets');
+      return result.data;
+    },
+    enabled: !!campaignId,
+    staleTime: 1 * 60 * 1000, // 1 minute
+  });
+}
+
+// ============================================================================
+// Analytics Hooks
+// ============================================================================
+
+export function useCampaignMetrics(campaignId?: string, dateRange?: '7d' | '30d' | 'lifetime') {
+  const analyticsService = useAnalyticsService();
+  
+  return useQuery({
+    queryKey: ['campaign-metrics', campaignId, dateRange],
+    queryFn: async () => {
+      if (!campaignId) throw new Error('Campaign ID required');
+      const result = await analyticsService.getMetrics.execute({ campaignId, dateRange });
+      if (!result.success) throw new Error(result.error?.message || 'Failed to fetch metrics');
+      return result.data;
+    },
+    enabled: !!campaignId,
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 60 * 1000, // Refetch every minute
+  });
+}
+
+export function useDemographicBreakdown(campaignId?: string, type?: 'age' | 'gender' | 'placement') {
+  const analyticsService = useAnalyticsService();
+  
+  return useQuery({
+    queryKey: ['demographic-breakdown', campaignId, type],
+    queryFn: async () => {
+      if (!campaignId || !type) throw new Error('Campaign ID and type required');
+      const result = await analyticsService.getDemographicBreakdown.execute({ campaignId, type });
+      if (!result.success) throw new Error(result.error?.message || 'Failed to fetch breakdown');
+      return result.data;
+    },
+    enabled: !!campaignId && !!type,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+// ============================================================================
+// Budget Hooks
+// ============================================================================
+
+export function useBudgetConfiguration(adId?: string) {
+  const budgetService = useBudgetService();
+  
+  return useQuery({
+    queryKey: ['budget', adId],
+    queryFn: async () => {
+      if (!adId) throw new Error('Ad ID required');
+      const result = await budgetService.getBudget.execute(adId);
+      if (!result.success) throw new Error(result.error?.message || 'Failed to fetch budget');
+      return result.data;
+    },
+    enabled: !!adId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useSetBudget() {
+  const budgetService = useBudgetService();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (input: { adId: string; dailyBudget: number; currency?: string }) => {
+      const result = await budgetService.setBudget.execute(input);
+      if (!result.success) throw new Error(result.error?.message || 'Failed to set budget');
+    },
+    onSuccess: (_data: unknown, variables: { adId: string; dailyBudget: number; currency?: string }) => {
+      queryClient.invalidateQueries({ queryKey: ['budget', variables.adId] });
+    },
+  });
+}
+
