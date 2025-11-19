@@ -849,6 +849,15 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
               const isLiked = likedMessages.has(message.id);
               const isDisliked = dislikedMessages.has(message.id);
               
+              // Debug: Log tool results in messages (for persistence debugging)
+              if (message.role === 'assistant' && message.parts) {
+                const toolResults = message.parts.filter(p => p.type === 'tool-result');
+                if (toolResults.length > 0) {
+                  console.log(`[AIChat] Message ${message.id} has ${toolResults.length} tool results:`, 
+                    toolResults.map(t => (t as { toolName?: string }).toolName || 'unknown'));
+                }
+              }
+              
               // Location confirmations removed - locations display in LocationSelectionCanvas map
               // Database source of truth: ad_target_locations table
               // No need for chat history duplication
@@ -1078,6 +1087,151 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                     </div>
                                   </div>
                                 );
+                              }
+                              
+                              // generateVariations - Creative image generation (from DB)
+                              if (toolName === 'generateVariations') {
+                                const output = (part as unknown as { output?: unknown }).output as { 
+                                  success?: boolean; 
+                                  variations?: string[]; 
+                                  count?: number; 
+                                  cancelled?: boolean 
+                                };
+                                
+                                // Don't show if cancelled
+                                if (output?.cancelled) return null;
+                                
+                                // Show success message if we have generated images
+                                if (output?.success && output?.variations && output.variations.length > 0) {
+                                  return (
+                                    <div key={callId} className="border rounded-lg p-4 my-2 bg-green-500/5 border-green-500/30 max-w-md mx-auto">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                                        <p className="font-medium text-green-600">✨ {output.variations.length} creative variations generated!</p>
+                                      </div>
+                                      <p className="text-sm text-muted-foreground">
+                                        Pick your favorite on the canvas →
+                                      </p>
+                                    </div>
+                                  );
+                                }
+                                
+                                return null;
+                              }
+                              
+                              // editVariation - Edit creative image (from DB)
+                              if (toolName === 'editVariation') {
+                                const output = (part as unknown as { output?: unknown }).output as { 
+                                  success?: boolean; 
+                                  editedImageUrl?: string; 
+                                  variationIndex?: number;
+                                  error?: string;
+                                };
+                                
+                                if (!output?.success || output?.error) return null;
+                                
+                                if (output.editedImageUrl) {
+                                  return (
+                                    <div key={callId} className="border rounded-lg bg-green-500/5 border-green-500/20 p-3 my-2">
+                                      <div className="flex items-center gap-2">
+                                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                        <p className="text-sm font-medium text-green-600">
+                                          Image variation {typeof output.variationIndex === 'number' ? output.variationIndex + 1 : ''} updated
+                                        </p>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                
+                                return null;
+                              }
+                              
+                              // generateCopyVariations - Ad copy generation (from DB)
+                              if (toolName === 'generateCopyVariations') {
+                                const output = (part as unknown as { output?: unknown }).output as { 
+                                  success?: boolean; 
+                                  variations?: Array<{ headline?: string; primaryText?: string; description?: string }>;
+                                  count?: number;
+                                  cancelled?: boolean;
+                                };
+                                
+                                // Don't show if cancelled
+                                if (output?.cancelled) return null;
+                                
+                                // Show success message if we have generated copy
+                                if (output?.success && output?.variations && output.variations.length > 0) {
+                                  return (
+                                    <div key={callId} className="border rounded-lg p-4 my-2 bg-green-500/5 border-green-500/30 max-w-md mx-auto">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <CheckCircle2 className="h-5 w-5 text-green-600" />
+                                        <p className="font-medium text-green-600">✨ {output.variations.length} ad copy variations generated!</p>
+                                      </div>
+                                      <p className="text-sm text-muted-foreground">
+                                        Select your preferred copy on the canvas →
+                                      </p>
+                                    </div>
+                                  );
+                                }
+                                
+                                return null;
+                              }
+                              
+                              // editAdCopy - Edit ad copy (from DB)
+                              if (toolName === 'editAdCopy') {
+                                const output = (part as unknown as { output?: unknown }).output as { 
+                                  success?: boolean;
+                                  headline?: string;
+                                  primaryText?: string;
+                                  description?: string;
+                                  variationIndex?: number;
+                                };
+                                
+                                if (!output?.success) return null;
+                                
+                                const hasChanges = output.headline || output.primaryText || output.description;
+                                
+                                if (hasChanges) {
+                                  return (
+                                    <div key={callId} className="border rounded-lg bg-green-500/5 border-green-500/20 p-3 my-2">
+                                      <div className="flex items-center gap-2">
+                                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                        <p className="text-sm font-medium text-green-600">
+                                          Ad copy updated
+                                        </p>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                
+                                return null;
+                              }
+                              
+                              // createAd - Create new ad (from DB)
+                              if (toolName === 'createAd') {
+                                const output = (part as unknown as { output?: unknown }).output as { 
+                                  success?: boolean; 
+                                  cancelled?: boolean;
+                                  message?: string;
+                                };
+                                
+                                // Don't show if cancelled
+                                if (output?.cancelled) return null;
+                                
+                                // Show success message
+                                if (output?.success) {
+                                  return (
+                                    <div key={callId} className="border rounded-lg bg-green-500/5 border-green-500/20 p-3 my-2">
+                                      <div className="flex items-center gap-2">
+                                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                        <p className="text-sm font-medium text-green-600">
+                                          {output.message || "Ad Builder opened"}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                
+                                return null;
                               }
 
                               // Unknown tool result → let specific handlers (below) or default handle it

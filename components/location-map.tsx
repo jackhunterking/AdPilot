@@ -96,7 +96,7 @@ export function LocationMap({ locations }: { locations: Location[] }) {
     const L = getLeaflet()
     
     if (!isMapReady || !map || !L || locations.length === 0) {
-      console.log('[LocationMap] Skip render:', { isMapReady, hasMap: !!map, hasL: !!L, locationCount: locations.length })
+      // Skip render silently - map not ready or no locations
       return
     }
     

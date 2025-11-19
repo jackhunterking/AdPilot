@@ -83,6 +83,19 @@ function storageToMessage(stored: MessageRow): UIMessage {
     (metadata as { migratedFromData: boolean }).migratedFromData = true;
   }
   
+  // Log tool invocations restoration for debugging
+  const toolInvocations = stored.tool_invocations;
+  if (toolInvocations && Array.isArray(toolInvocations) && toolInvocations.length > 0) {
+    console.log(`[MessageStore] Restored ${toolInvocations.length} tool invocations for message ${stored.id}`);
+  }
+  
+  // Log parts restoration for debugging
+  const toolResultParts = parts.filter(p => (p as { type?: string }).type === 'tool-result');
+  if (toolResultParts.length > 0) {
+    console.log(`[MessageStore] Message ${stored.id} has ${toolResultParts.length} tool-result parts:`, 
+      toolResultParts.map(p => (p as { toolName?: string }).toolName || 'unknown'));
+  }
+  
   return {
     id: stored.id,
     role: stored.role as 'user' | 'assistant' | 'system',
