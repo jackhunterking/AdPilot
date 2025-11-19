@@ -222,7 +222,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
     for (const msg of messages) {
       const parts = (msg as unknown as { parts?: Array<{ type?: string; toolCallId?: string }> }).parts || [];
       for (const part of parts) {
-        if (part.type === 'tool-result' && part.toolCallId === toolCallId) {
+        if (typeof part.type === 'string' && part.type.startsWith('tool-') && part.toolCallId === toolCallId) {
           return true;
         }
       }
@@ -851,9 +851,9 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
               
               // Debug: Log tool results in messages (for persistence debugging)
               if (message.role === 'assistant' && message.parts) {
-                const toolResults = message.parts.filter(p => p.type === 'tool-result');
+                const toolResults = message.parts.filter(p => typeof p.type === 'string' && p.type.startsWith('tool-'));
                 if (toolResults.length > 0) {
-                  console.log(`[AIChat] Message ${message.id} has ${toolResults.length} tool results:`, 
+                  console.log(`[AIChat] Message ${message.id} has ${toolResults.length} tool parts:`, 
                     toolResults.map(t => (t as { toolName?: string }).toolName || 'unknown'));
                 }
               }
@@ -899,22 +899,23 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                             .filter((part) => {
                               const partAny = part as { type: string; toolCallId?: string; output?: { cancelled?: boolean } };
                               
-                              // Hide tool-result parts that indicate cancellation
-                              if (part.type === 'tool-result') {
+                              // Hide tool parts that indicate cancellation
+                              if (typeof part.type === 'string' && part.type.startsWith('tool-') && 'output' in part) {
                                 const output = partAny.output;
                                 if (output && typeof output === 'object' && output.cancelled === true) {
                                   return false; // Don't render cancelled tool results
                                 }
                               }
                               
-                              // Hide tool-call parts if their corresponding result was cancelled
-                              if (part.type === 'tool-call') {
+                              // Hide tool parts if their corresponding result was cancelled
+                              if (typeof part.type === 'string' && part.type.startsWith('tool-') && 'input' in part) {
                                 const toolCallId = partAny.toolCallId;
                                 // Check if there's a cancelled result for this tool call
                                 const hasCancelledResult = message.parts.some(p => 
-                                  p.type === 'tool-result' && 
+                                  typeof p.type === 'string' && p.type.startsWith('tool-') && 
+                                  'output' in p &&
                                   'toolCallId' in p && p.toolCallId === toolCallId &&
-                                  'output' in p && typeof p.output === 'object' && p.output && 'cancelled' in p.output && (p.output as { cancelled?: boolean }).cancelled === true
+                                  typeof p.output === 'object' && p.output && 'cancelled' in p.output && (p.output as { cancelled?: boolean }).cancelled === true
                                 );
                                 if (hasCancelledResult) {
                                   return false; // Don't render tool call if it was cancelled
@@ -930,12 +931,9 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                 // Allow text alongside bare tool-call parts (AI SDK v5 generic tool-call)
                                 const hasRenderedToolOutput = allParts?.some((p: { type?: string; state?: string }) => {
                                   if (!p || typeof p.type !== 'string') return false;
-                                  // Old specific types like tool-xxx with output states
-                                  const isSpecificToolOutput = (p.type as string).startsWith('tool-') &&
-                                    (p as { state?: string }).state === 'output-available';
-                                  // Generic v5 part type
-                                  const isGenericToolResult = p.type === 'tool-result';
-                                  return isSpecificToolOutput || isGenericToolResult;
+                                  // AI SDK v5 tool parts with output or result
+                                  const isToolWithOutput = (p.type as string).startsWith('tool-') && (('output' in p || 'result' in p) || (p as { state?: string }).state === 'output-available');
+                                  return isToolWithOutput;
                                 });
                                 if (message.role === 'assistant' && hasRenderedToolOutput) {
                                   return null;

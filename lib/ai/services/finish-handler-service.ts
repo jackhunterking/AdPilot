@@ -96,7 +96,7 @@ export class FinishHandlerService {
       );
 
       const hasToolResults = parts.some(p => 
-        p.type === 'tool-result' || p.type === 'tool-call'
+        typeof p.type === 'string' && p.type.startsWith('tool-')
       );
 
       // Log filtering for debugging

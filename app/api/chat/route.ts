@@ -1365,7 +1365,7 @@ Example responses:
             );
             
             const hasToolResults = parts.some((p) => 
-              p.type === 'tool-result' || p.type === 'tool-call'
+              typeof p.type === 'string' && p.type.startsWith('tool-')
             );
             
             // Save messages that have either text or tool results
@@ -1376,7 +1376,7 @@ Example responses:
             
             // Log what we're keeping for debugging
             if (hasToolResults && !hasTextContent) {
-              console.log(`[SAVE] ✅ Keeping tool-only message: ${msg.id} with ${parts.filter(p => p.type === 'tool-result').length} tool results`);
+              console.log(`[SAVE] ✅ Keeping tool-only message: ${msg.id} with ${parts.filter(p => typeof p.type === 'string' && p.type.startsWith('tool-')).length} tool parts`);
             }
             
             return true;
