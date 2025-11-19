@@ -108,10 +108,32 @@ function sanitizePart(raw: unknown): { type: string; [k: string]: unknown } | nu
 export function sanitizeParts(parts: unknown): Array<{ type: string; [k: string]: unknown }> {
   const array = Array.isArray(parts) ? parts : [];
   const sanitized: Array<{ type: string; [k: string]: unknown }> = [];
+  
+  console.log('[sanitizeParts] Input:', {
+    isArray: Array.isArray(parts),
+    length: array.length,
+    types: array.map(p => (p as { type?: unknown }).type),
+  });
+  
   for (const raw of array) {
     const safe = sanitizePart(raw);
-    if (safe) sanitized.push(safe);
+    if (safe) {
+      sanitized.push(safe);
+    } else {
+      console.warn('[sanitizeParts] Filtered out part:', {
+        type: (raw as { type?: unknown }).type,
+        hasToolCallId: 'toolCallId' in (raw as object),
+        hasOutput: 'output' in (raw as object),
+        hasResult: 'result' in (raw as object),
+      });
+    }
   }
+  
+  console.log('[sanitizeParts] Output:', {
+    length: sanitized.length,
+    types: sanitized.map(p => p.type),
+  });
+  
   return sanitized;
 }
 

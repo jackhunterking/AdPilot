@@ -46,13 +46,20 @@ function messageToStorage(msg: UIMessage, conversationId: string): Omit<MessageR
   
   const finalContent = content || ' ';  // Minimum: single space
   
+  console.log('[MessageStore] Saving message:', {
+    id: msg.id,
+    role: msg.role,
+    partsCount: (msg.parts as unknown[]).length,
+    partTypes: (msg.parts as Array<{ type: string }>).map(p => p.type),
+  });
+  
   return {
     id: msg.id,
     conversation_id: conversationId,
     role: msg.role,
     content: finalContent,
     parts: (msg.parts as unknown as Json) || [],
-    tool_invocations: [],
+    tool_invocations: null,  // AI SDK v5 doesn't use this field - set to null
     metadata: ((msg as unknown as { metadata?: Record<string, unknown> }).metadata as Json) || {},
   };
 }
@@ -63,8 +70,21 @@ function messageToStorage(msg: UIMessage, conversationId: string): Omit<MessageR
  * Filters incomplete tool invocations for data integrity
  */
 function storageToMessage(stored: MessageRow): UIMessage {
+  console.log('[MessageStore] Loading message from DB:', {
+    id: stored.id,
+    role: stored.role,
+    rawPartsCount: Array.isArray(stored.parts) ? (stored.parts as unknown[]).length : 0,
+  });
+  
   // Sanitize all parts from storage to guarantee invariants
   let parts = sanitizeParts(stored.parts);
+  
+  console.log('[MessageStore] After sanitization:', {
+    id: stored.id,
+    sanitizedPartsCount: parts.length,
+    partTypes: parts.map(p => p.type),
+    toolParts: parts.filter(p => typeof p.type === 'string' && p.type.startsWith('tool-')).length,
+  });
   
   // For assistant messages, just ensure basic validity
   if (stored.role === 'assistant' && parts.length > 0) {
@@ -83,27 +103,24 @@ function storageToMessage(stored: MessageRow): UIMessage {
     (metadata as { migratedFromData: boolean }).migratedFromData = true;
   }
   
-  // Log tool invocations restoration for debugging
-  const toolInvocations = stored.tool_invocations;
-  if (toolInvocations && Array.isArray(toolInvocations) && toolInvocations.length > 0) {
-    console.log(`[MessageStore] Restored ${toolInvocations.length} tool invocations for message ${stored.id}`);
+  // Log tool parts restoration for debugging
+  const toolParts = parts.filter(p => (p as { type?: string }).type?.startsWith('tool-'));
+  if (toolParts.length > 0) {
+    console.log(`[MessageStore] Message ${stored.id} has ${toolParts.length} tool parts:`, 
+      toolParts.map(p => ({
+        type: (p as { type?: string }).type,
+        hasOutput: 'output' in p,
+        hasInput: 'input' in p,
+        state: (p as { state?: string }).state,
+      })));
   }
   
-  // Log parts restoration for debugging
-  const toolResultParts = parts.filter(p => (p as { type?: string }).type === 'tool-result');
-  if (toolResultParts.length > 0) {
-    console.log(`[MessageStore] Message ${stored.id} has ${toolResultParts.length} tool-result parts:`, 
-      toolResultParts.map(p => (p as { toolName?: string }).toolName || 'unknown'));
-  }
-  
+  // AI SDK v5 doesn't use toolInvocations field - remove it
   return {
     id: stored.id,
     role: stored.role as 'user' | 'assistant' | 'system',
     parts: parts,
     metadata, // Include metadata (AI SDK v5 pattern)
-    ...(stored.tool_invocations && (stored.tool_invocations as unknown[]).length > 0 && {
-      toolInvocations: stored.tool_invocations as unknown
-    })
   } as UIMessage;
 }
 
