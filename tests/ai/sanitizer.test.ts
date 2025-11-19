@@ -23,7 +23,7 @@ describe('sanitizeParts', () => {
     expect(sanitizeParts(parts)).toEqual([]);
   });
 
-  it('keeps tool parts with toolCallId and output/input/state', () => {
+  it('keeps tool parts with toolCallId and output/input+state', () => {
     const parts = [
       { type: 'tool-addLocations', toolCallId: 'abc', output: { success: true } },
       { type: 'tool-generateVariations', toolCallId: 'def', input: { prompt: 'test' }, state: 'input-available' },
@@ -33,6 +33,20 @@ describe('sanitizeParts', () => {
     expect(sanitizeParts(parts)[0]).toHaveProperty('type', 'tool-addLocations');
     expect(sanitizeParts(parts)[1]).toHaveProperty('type', 'tool-generateVariations');
     expect(sanitizeParts(parts)[2]).toHaveProperty('type', 'tool-result');
+  });
+
+  it('filters tool parts with input but no state', () => {
+    const parts = [
+      { type: 'tool-incomplete', toolCallId: 'abc', input: { data: 'test' } }, // No state
+    ];
+    expect(sanitizeParts(parts).length).toBe(0);
+  });
+
+  it('filters tool parts with state but no input or output', () => {
+    const parts = [
+      { type: 'tool-incomplete', toolCallId: 'abc', state: 'pending' }, // No input or output
+    ];
+    expect(sanitizeParts(parts).length).toBe(0);
   });
 
   it('keeps complete tool-* with output or result', () => {

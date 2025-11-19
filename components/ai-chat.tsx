@@ -76,6 +76,7 @@ import { useCampaignContext } from "@/lib/context/campaign-context";
 import { toZeroBasedIndex } from "@/lib/utils/variation";
 import { useLocationMode } from "@/components/chat/journeys/location/use-location-mode";
 import { createLocationMetadata } from "@/components/chat/journeys/location/location-metadata";
+import { extractToolName } from "@/lib/utils/tool-parts";
 
 // Type definitions
 interface MessagePart {
@@ -854,7 +855,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                 const toolResults = message.parts.filter(p => typeof p.type === 'string' && p.type.startsWith('tool-'));
                 if (toolResults.length > 0) {
                   console.log(`[AIChat] Message ${message.id} has ${toolResults.length} tool parts:`, 
-                    toolResults.map(t => (t as { toolName?: string }).toolName || 'unknown'));
+                    toolResults.map(t => extractToolName(t as { type: string; toolName?: string })));
                 }
               }
               
@@ -961,7 +962,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                             case "tool-call": {
                               // AI SDK v5 generic tool invocation part
                               const callId = (part as unknown as { toolCallId?: string }).toolCallId || `${message.id}-${i}`;
-                              const toolName = (part as unknown as { toolName?: string; name?: string }).toolName || (part as unknown as { name?: string }).name || '';
+                              const toolName = extractToolName(part as { type: string; toolName?: string });
                               const rawInput = (part as unknown as { input?: unknown; args?: unknown; arguments?: unknown }).input ??
                                                (part as unknown as { args?: unknown }).args ??
                                                (part as unknown as { arguments?: unknown }).arguments;
@@ -983,7 +984,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                             case "tool-result": {
                               // AI SDK v5 generic tool result part
                               const callId = (part as unknown as { toolCallId?: string }).toolCallId || `${message.id}-${i}`;
-                              const toolName = (part as unknown as { toolName?: string; name?: string }).toolName || (part as unknown as { name?: string }).name || '';
+                              const toolName = extractToolName(part as { type: string; toolName?: string });
 
                               // Location confirmations now render from metadata (see above)
                               // No need for tool-result rendering for addLocations/locationTargeting

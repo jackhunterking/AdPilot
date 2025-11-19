@@ -84,13 +84,14 @@ function sanitizePart(raw: unknown): { type: string; [k: string]: unknown } | nu
   const hasOutputOrResult = (raw as { output?: unknown; result?: unknown }).output !== undefined || (raw as { output?: unknown; result?: unknown }).result !== undefined;
   const hasInput = (raw as { input?: unknown }).input !== undefined;
   const state = (raw as { state?: unknown }).state;
+  const hasValidState = typeof state === 'string' && state.length > 0;
 
-  // Keep tool parts that have:
-  // 1. output/result (completed tools), OR
-  // 2. input with state (tools in progress/available), OR  
-  // 3. Any state indicating tool activity
-  // AI SDK v5 uses tool-{toolName} types dynamically through multiple states
-  if (!(hasOutputOrResult || hasInput || state)) return null;
+  // Keep tool parts that are complete OR in a valid known state
+  // AI SDK v5 tool parts must have meaningful data to be persisted
+  const isComplete = hasOutputOrResult;
+  const isInProgress = hasInput && hasValidState;
+
+  if (!(isComplete || isInProgress)) return null;
 
   const part: { type: string; toolCallId: string; [k: string]: unknown } = {
     type: r.type as string,
