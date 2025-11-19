@@ -17,6 +17,11 @@ import { createLocationMetadata } from './location-metadata';
 import { useLocation } from '@/lib/context/location-context';
 import type { Journey, ToolPart, JourneyState } from '@/lib/journeys/types/journey-contracts';
 
+interface GeoJSONGeometry {
+  type: string;
+  coordinates: number[] | number[][] | number[][][] | number[][][][];
+}
+
 interface LocationToolInput {
   locations: Array<{
     name: string;
@@ -87,22 +92,22 @@ export function LocationJourney(): Journey<LocationState> {
         // ✅ Wrap in try-catch to prevent journey crashes
         try {
           if (output.success && output.locations && output.locations.length > 0) {
-            // Add IDs and integrate into context
+            // Add IDs and integrate into context with proper type casting
             const locationsWithIds = output.locations.map(loc => ({
-              ...loc,
-              id: `${loc.name}-${loc.mode}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+              id: `${loc.name}-${loc.mode}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+              name: loc.name,
+              coordinates: loc.coordinates,
+              radius: loc.radius,
+              type: loc.type as "radius" | "city" | "region" | "country",
+              mode: loc.mode as "include" | "exclude",
+              bbox: loc.bbox,
+              geometry: loc.geometry as GeoJSONGeometry | undefined,
             }));
             
-            // ✅ Journey handles its own side effects
-            addLocations(locationsWithIds, true)
-              .then(() => {
-                console.log('[LocationJourney] ✅ Integrated locations into context:', locationsWithIds.length);
-                updateStatus('completed');
-              })
-              .catch(err => {
-                console.error('[LocationJourney] ❌ Failed to integrate locations:', err);
-                updateStatus('error');
-              });
+            // ✅ Journey handles its own side effects (fire and forget)
+            addLocations(locationsWithIds, true);
+            console.log('[LocationJourney] ✅ Integrated locations into context:', locationsWithIds.length);
+            updateStatus('completed');
           }
         } catch (error) {
           console.error('[LocationJourney] ❌ Critical error during integration:', error);
