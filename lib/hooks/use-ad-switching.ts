@@ -193,7 +193,7 @@ export function useAdSwitching() {
             await onDeleteCallback()
           } else {
             try {
-              await fetch(`/api/campaigns/${campaignId}/ads/${adId}`, {
+              await fetch(`/api/v1/ads/${adId}`, {
                 method: 'DELETE',
               })
             } catch (error) {

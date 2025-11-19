@@ -77,7 +77,7 @@ export function LeadsTable({ campaignId, onRefresh }: LeadsTableProps) {
         params.set('dateTo', filterConfig.dateTo)
       }
 
-      const response = await fetch(`/api/meta/leads?${params.toString()}`, {
+      const response = await fetch(`/api/v1/leads?${params.toString()}`, {
         cache: 'no-store',
       })
 
@@ -146,7 +146,7 @@ export function LeadsTable({ campaignId, onRefresh }: LeadsTableProps) {
       params.set('dateTo', filterConfig.dateTo)
     }
 
-    const url = `/api/meta/leads/export?${params.toString()}`
+    const url = `/api/v1/leads/export?${params.toString()}`
     window.open(url, '_blank')
   }
 

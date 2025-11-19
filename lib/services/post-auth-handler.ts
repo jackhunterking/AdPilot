@@ -53,7 +53,7 @@ export class PostAuthHandler {
     
     try {
       // 2. Create campaign via API (waits for response)
-      const response = await fetch('/api/campaigns', {
+      const response = await fetch('/api/v1/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

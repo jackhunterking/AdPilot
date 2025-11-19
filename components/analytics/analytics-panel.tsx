@@ -142,7 +142,7 @@ export function AnalyticsPanel() {
       if (forceRefresh) {
         params.set('refresh', 'true')
       }
-      const response = await fetch(`/api/meta/metrics?${params.toString()}`, { cache: 'no-store' })
+      const response = await fetch(`/api/v1/meta/metrics?${params.toString()}`, { cache: 'no-store' })
       if (!response.ok) {
         const text = await response.text()
         throw new Error(text || 'Failed to load metrics')

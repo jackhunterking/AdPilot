@@ -75,9 +75,9 @@ export function AdCopySelectionCanvas() {
       try {
         const activeVariations = getActiveVariations()
         const response = await fetch(
-          `/api/campaigns/${campaign.id}/ads/${currentAd.id}/snapshot`,
+          `/api/v1/ads/${currentAd.id}/save`,
           {
-            method: 'PATCH',
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               copy: {

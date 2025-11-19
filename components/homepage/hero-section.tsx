@@ -174,7 +174,7 @@ export function HeroSection({ onAuthRequired }: HeroSectionProps) {
         if (campaign) {
           try {
             // Fetch ads to get the draft ad ID that was auto-created
-            const adsResponse = await fetch(`/api/campaigns/${campaign.id}/ads`)
+            const adsResponse = await fetch(`/api/v1/ads?campaignId=${campaign.id}`)
             if (adsResponse.ok) {
               const { ads } = await adsResponse.json()
               const draftAd = ads.find((ad: { status: string }) => ad.status === 'draft')

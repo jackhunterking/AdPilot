@@ -32,7 +32,7 @@ export function LeadManager({ campaignId, goal }: LeadManagerProps) {
     if (!campaignId) return
     setLoadingConfig(true)
     try {
-      const response = await fetch(`/api/meta/leads/webhook?campaignId=${encodeURIComponent(campaignId)}`, { 
+      const response = await fetch(`/api/v1/meta/leads/webhook?campaignId=${encodeURIComponent(campaignId)}`, { 
         cache: 'no-store' 
       })
       if (response.ok) {

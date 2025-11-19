@@ -53,7 +53,7 @@ export function AdApprovalPanel({
     setProcessing(adId)
     try {
       const response = await fetch(
-        `/api/campaigns/${campaignId}/ads/${adId}/approve`,
+        `/api/v1/ads/${adId}/approve`,
         { method: 'POST' }
       )
       
@@ -80,7 +80,7 @@ export function AdApprovalPanel({
     setProcessing(adId)
     try {
       const response = await fetch(
-        `/api/campaigns/${campaignId}/ads/${adId}/reject`,
+        `/api/v1/ads/${adId}/reject`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

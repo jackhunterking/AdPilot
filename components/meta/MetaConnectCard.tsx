@@ -95,7 +95,7 @@ export function MetaConnectCard() {
             accountId: summary.adAccount.id,
           })
           const statusRes = await fetch(
-            `/api/meta/adaccount/status?campaignId=${encodeURIComponent(campaign.id)}&accountId=${encodeURIComponent(summary.adAccount.id)}`,
+            `/api/v1/meta/status?campaignId=${encodeURIComponent(campaign.id)}&accountId=${encodeURIComponent(summary.adAccount.id)}`,
             { cache: 'no-store' }
           )
           if (statusRes.ok) {
@@ -141,7 +141,7 @@ export function MetaConnectCard() {
     const run = async () => {
       if (!enabled || !campaign?.id || !summary?.adAccount?.id) return
       try {
-        const res = await fetch(`/api/meta/payments/capability?campaignId=${encodeURIComponent(campaign.id)}`, { cache: 'no-store' })
+        const res = await fetch(`/api/v1/meta/payment?campaignId=${encodeURIComponent(campaign.id)}`, { cache: 'no-store' })
         if (!res.ok) return
         const json = await res.json() as { hasFinance?: boolean; hasManage?: boolean; hasFunding?: boolean }
         setCapability({
@@ -221,7 +221,7 @@ export function MetaConnectCard() {
             metaStorage.setConnection(campaign.id, messageData.connectionData)
             
             // CRITICAL: Persist to database for server-side publishing access
-            fetch('/api/meta/connection/persist', {
+            fetch('/api/v1/meta/assets', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

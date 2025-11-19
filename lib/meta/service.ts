@@ -851,4 +851,74 @@ export async function computeAndPersistAdminSnapshot(campaignId: string): Promis
   if (error) throw error
 }
 
+/**
+ * Feature: Compute admin snapshot without persisting
+ * Purpose: Used during OAuth callback to compute admin roles before connection is persisted
+ * References:
+ *  - Facebook Business Manager API: https://developers.facebook.com/docs/marketing-api/businessmanager
+ */
+export async function computeAdminSnapshot(args: {
+  token: string;
+  businessId: string;
+  adAccountId: string;
+}): Promise<{
+  admin_connected: boolean;
+  admin_business_role: string | null;
+  admin_ad_account_role: string | null;
+  admin_business_users_json: unknown;
+  admin_ad_account_users_json: unknown;
+  admin_ad_account_raw_json: unknown;
+  admin_checked_at: string;
+}> {
+  let fbUserId: string | null = null;
+  let businessUsersRaw: Array<{ id?: string; role?: string }> = [];
+  let adAccountUsersRaw: Array<{ id?: string; role?: string }> = [];
+  let businessRole: string | null = null;
+  let adAccountRole: string | null = null;
+  let adAccountRaw: Record<string, unknown> | null = null;
+
+  try {
+    fbUserId = await fetchUserId({ token: args.token });
+
+    // Business users/roles
+    businessUsersRaw = await fetchBusinessUsersWithRoles(args.token, args.businessId);
+    const bRow = businessUsersRaw.find((u) => u.id === fbUserId) || null;
+    businessRole = bRow?.role ?? null;
+
+    // Ad account users with tasks
+    adAccountUsersRaw = await fetchAdAccountUsers(
+      args.token,
+      args.adAccountId,
+      args.businessId
+    );
+    const aRow = adAccountUsersRaw.find((u) => u.id === fbUserId) || null;
+    adAccountRole = aRow?.role ?? null;
+
+    // Optional: include ad account raw details
+    try {
+      const v = await validateAdAccount({ token: args.token, actId: args.adAccountId });
+      adAccountRaw = v.rawData;
+    } catch {
+      // ignore optional enrichment failures
+    }
+  } catch (e) {
+    console.error('[MetaService] computeAdminSnapshot error:', e)
+  }
+
+  // Compute admin_connected using same logic
+  const adOk = hasAdminOrFinance(adAccountRole);
+  const bizOk = businessRole == null ? true : hasAdminOrFinance(businessRole);
+  const adminConnected = adOk && bizOk;
+
+  return {
+    admin_connected: adminConnected,
+    admin_business_role: businessRole,
+    admin_ad_account_role: adAccountRole,
+    admin_business_users_json: businessUsersRaw,
+    admin_ad_account_users_json: adAccountUsersRaw,
+    admin_ad_account_raw_json: adAccountRaw ?? null,
+    admin_checked_at: new Date().toISOString(),
+  };
+}
+
 

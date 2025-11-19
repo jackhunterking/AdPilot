@@ -48,7 +48,7 @@ export function WorkspaceGrid() {
 
   const fetchCampaigns = useCallback(async () => {
     try {
-      const response = await fetch('/api/campaigns', {
+      const response = await fetch('/api/v1/campaigns', {
         cache: 'no-store',
       })
       
@@ -157,7 +157,7 @@ export function WorkspaceGrid() {
       setDeleteDialogOpen(false)
       setCampaignToDelete(null)
 
-      const response = await fetch(`/api/campaigns/${campaignId}`, {
+      const response = await fetch(`/api/v1/campaigns/${campaignId}`, {
         method: 'DELETE',
         cache: 'no-store',
       })

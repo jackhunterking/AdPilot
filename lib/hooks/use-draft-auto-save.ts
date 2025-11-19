@@ -155,11 +155,11 @@ export function useDraftAutoSave(
         }
         
         console.log('[DraftAutoSave] Sections to save:', Object.keys(sections))
-        console.log('[DraftAutoSave] Making PATCH request to:', `/api/campaigns/${campaignId}/ads/${adId}/snapshot`);
+        console.log('[DraftAutoSave] Making POST request to:', `/api/v1/ads/${adId}/save`);
         console.log('[DraftAutoSave] Request body:', JSON.stringify(sections, null, 2));
         
-        const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/snapshot`, {
-          method: 'PATCH',
+        const response = await fetch(`/api/v1/ads/${adId}/save`, {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(sections),
         })

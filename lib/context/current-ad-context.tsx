@@ -12,6 +12,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import { useSearchParams } from 'next/navigation'
 import { logger } from "@/lib/utils/logger"
 import { useCampaignContext } from './campaign-context'
+import { useAdService } from '@/lib/services/service-provider'
 
 // Ad structure from database (normalized schema)
 interface Ad {
@@ -105,6 +106,7 @@ const CurrentAdContext = createContext<CurrentAdContextType | undefined>(undefin
 export function CurrentAdProvider({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams()
   const { campaign } = useCampaignContext()
+  const adService = useAdService()
   const [currentAdId, setCurrentAdId] = useState<string | null>(null)
   const [currentAd, setCurrentAd] = useState<Ad | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -117,7 +119,7 @@ export function CurrentAdProvider({ children }: { children: ReactNode }) {
     setCurrentAdId(adId)
   }, [searchParams])
 
-  // Load ad when adId changes
+  // Load ad when adId changes - delegated to service
   const loadAd = useCallback(async (adId: string) => {
     if (!campaign?.id) return
 
@@ -125,24 +127,27 @@ export function CurrentAdProvider({ children }: { children: ReactNode }) {
     setError(null)
 
     try {
-      logger.debug('CurrentAdContext', `Loading ad ${adId} for campaign ${campaign.id}`)
+      logger.debug('CurrentAdContext', `Loading ad ${adId} via service`)
       
-      const response = await fetch(`/api/campaigns/${campaign.id}/ads/${adId}`)
+      // Use ad service instead of direct fetch
+      const result = await adService.getAd.execute(adId)
       
-      if (!response.ok) {
-        throw new Error(`Failed to load ad: ${response.statusText}`)
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to load ad')
       }
-
-      const data = await response.json()
       
-      logger.debug('CurrentAdContext', 'Ad loaded successfully', {
-        adId: data.ad.id,
-        selectedCreativeId: data.ad.selected_creative_id,
-        selectedCopyId: data.ad.selected_copy_id
+      if (!result.data) {
+        throw new Error('Ad data is missing from response')
+      }
+      
+      logger.debug('CurrentAdContext', 'Ad loaded successfully via service', {
+        adId: result.data.id,
+        name: result.data.name,
+        status: result.data.status
       })
       
       // Force new object reference to ensure React detects change
-      setCurrentAd({...data.ad})
+      setCurrentAd({...result.data} as Ad)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load ad'
       logger.error('CurrentAdContext', `Error loading ad: ${errorMessage}`)
@@ -151,7 +156,7 @@ export function CurrentAdProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false)
     }
-  }, [campaign?.id])
+  }, [campaign?.id, adService])
 
   // Load ad when currentAdId or campaign changes
   useEffect(() => {
@@ -170,7 +175,7 @@ export function CurrentAdProvider({ children }: { children: ReactNode }) {
     }
   }, [currentAdId, loadAd])
 
-  // Update ad snapshot (partial update with merge)
+  // Update ad snapshot (partial update with merge) - use v1 API
   const updateAdSnapshot = useCallback(async (snapshot: Partial<SetupSnapshot>) => {
     if (!currentAdId || !campaign?.id) {
       console.error('[updateAdSnapshot] Missing ad or campaign ID');
@@ -187,35 +192,36 @@ export function CurrentAdProvider({ children }: { children: ReactNode }) {
     });
 
     try {
-      logger.debug('CurrentAdContext', 'Updating ad snapshot', {
+      logger.debug('CurrentAdContext', 'Updating ad snapshot via v1 API', {
         adId: currentAdId,
         sections: Object.keys(snapshot)
       })
 
-      const response = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAdId}/snapshot`, {
-        method: 'PATCH',
+      // Use v1 API route for saving snapshots
+      const response = await fetch(`/api/v1/ads/${currentAdId}/save`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(snapshot)
       })
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[updateAdSnapshot] HTTP error:', response.status, errorText);
-        throw new Error(`Failed to update snapshot: ${response.statusText}`)
+        const errorData = await response.json().catch(() => ({ error: { message: 'Failed to update' } }))
+        throw new Error(errorData.error?.message || `Failed to update snapshot`)
       }
 
-      const data = await response.json()
+      const result = await response.json()
       
       console.log('[updateAdSnapshot] ✅ Database write successful');
-      console.log('[updateAdSnapshot] Saved location count:', data.setup_snapshot?.location?.locations?.length || 0);
+      console.log('[updateAdSnapshot] Saved location count:', result.data?.setup_snapshot?.location?.locations?.length || 0);
       
       // Update local state with new snapshot
-      setCurrentAd(prev => prev ? { ...prev, setup_snapshot: data.setup_snapshot } : null)
+      setCurrentAd(prev => prev ? { ...prev, setup_snapshot: result.data?.setup_snapshot } : null)
       
       // Clear unsaved changes flag after successful save
       setHasUnsavedChanges(false)
       
-      logger.debug('CurrentAdContext', 'Snapshot updated successfully')
+      logger.debug('CurrentAdContext', 'Snapshot updated successfully via v1 API')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update snapshot'
       console.error('[updateAdSnapshot] ❌ Database write failed:', errorMessage, err);

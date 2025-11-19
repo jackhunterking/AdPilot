@@ -216,7 +216,7 @@ export function WorkspaceHeader({
               })
               
               // Verify payment status via API (non-blocking, pass ad account ID)
-              fetch(`/api/meta/payments/capability?campaignId=${encodeURIComponent(campaign.id)}&adAccountId=${encodeURIComponent(adAccountId)}`, {
+              fetch(`/api/v1/meta/payment?campaignId=${encodeURIComponent(campaign.id)}&adAccountId=${encodeURIComponent(adAccountId)}`, {
                 cache: 'no-store'
               })
                 .then(async (res) => {

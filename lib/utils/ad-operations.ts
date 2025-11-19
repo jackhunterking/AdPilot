@@ -22,7 +22,7 @@ export async function verifyAdExists(
     console.log(`[${traceId}] Verifying ad exists:`, { campaignId, adId })
     
     const response = await fetch(
-      `/api/campaigns/${campaignId}/ads/${adId}`,
+      `/api/v1/ads/${adId}`,
       { cache: "no-store" }
     )
     
@@ -69,7 +69,7 @@ export async function verifyAdDeleted(
     console.log(`[${traceId}] Verifying ad is deleted:`, { campaignId, adId })
     
     const response = await fetch(
-      `/api/campaigns/${campaignId}/ads/${adId}`,
+      `/api/v1/ads/${adId}`,
       { cache: "no-store" }
     )
     

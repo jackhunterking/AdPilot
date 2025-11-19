@@ -77,7 +77,7 @@ export function ResultsPanel({ isEnabled }: ResultsPanelProps) {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/meta/metrics?campaignId=${encodeURIComponent(campaignId)}&dateRange=${targetRange}`, {
+      const res = await fetch(`/api/v1/meta/metrics?campaignId=${encodeURIComponent(campaignId)}&dateRange=${targetRange}`, {
         cache: "no-store",
       })
       const json = await res.json()
@@ -98,10 +98,11 @@ export function ResultsPanel({ isEnabled }: ResultsPanelProps) {
     if (!campaignId) return
     setError(null)
     try {
-      const res = await fetch(`/api/meta/metrics/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ campaignId, range }),
+      // TODO: Migrate to v1 API - metrics refresh endpoint not yet implemented
+      // For now, just refetch metrics with no-cache
+      const res = await fetch(`/api/v1/meta/metrics?campaignId=${encodeURIComponent(campaignId)}&dateRange=${range}`, {
+        method: "GET",
+        cache: "no-store"
       })
       const json = await res.json()
       if (!res.ok) {

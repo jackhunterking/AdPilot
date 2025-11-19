@@ -38,7 +38,7 @@ export function usePublishAd(): UsePublishAdReturn {
 
     try {
       const response = await fetch(
-        `/api/campaigns/${campaignId}/ads/${adId}/publish`,
+        `/api/v1/ads/${adId}/publish`,
         {
           method: 'POST',
           headers: {

@@ -68,7 +68,7 @@ export class PublishService {
     try {
       console.log('[PublishService] Publishing ad:', input.adId);
 
-      const response = await fetch(`/api/campaigns/${input.campaignId}/ads/${input.adId}/publish`, {
+      const response = await fetch(`/api/v1/ads/${input.adId}/publish`, {
         method: 'POST',
       });
 
@@ -123,7 +123,7 @@ export class PublishService {
    */
   async pauseAd(campaignId: string, adId: string, token?: string): Promise<ServiceResult<void>> {
     try {
-      const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/pause`, {
+      const response = await fetch(`/api/v1/ads/${adId}/pause`, {
         method: 'POST',
         headers: token ? { 'Content-Type': 'application/json' } : undefined,
         body: token ? JSON.stringify({ token }) : undefined,
@@ -159,7 +159,7 @@ export class PublishService {
    */
   async resumeAd(campaignId: string, adId: string, token?: string): Promise<ServiceResult<void>> {
     try {
-      const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}/resume`, {
+      const response = await fetch(`/api/v1/ads/${adId}/resume`, {
         method: 'POST',
         headers: token ? { 'Content-Type': 'application/json' } : undefined,
         body: token ? JSON.stringify({ token }) : undefined,

@@ -255,7 +255,7 @@ class MetaServiceClient implements MetaService {
       try {
         // The OAuth callback is typically handled by the API route
         // This method processes the result after redirect
-        const response = await fetch('/api/meta/oauth/callback', {
+        const response = await fetch('/api/v1/meta/auth/callback', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -292,28 +292,38 @@ class MetaServiceClient implements MetaService {
   refreshToken = {
     async execute(campaignId: string): Promise<ServiceResult<{ token: string; expiresIn: number }>> {
       try {
-        const response = await fetch('/api/meta/oauth/refresh', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ campaignId }),
-        });
-        
-        const result: unknown = await response.json();
-        
-        if (!response.ok) {
-          const errorResult = result as { success: false; error: { code: string; message: string } };
-          return {
-            success: false,
-            error: errorResult.error,
-          };
-        }
-        
-        const successResult = result as { success: true; data: { token: string; expiresIn: number } };
+        // TODO: Migrate to v1 API - OAuth refresh endpoint not yet implemented
+        // For now, return an error indicating refresh is not available
         return {
-          success: true,
-          data: { token: successResult.data.token, expiresIn: successResult.data.expiresIn },
+          success: false,
+          error: {
+            code: 'not_implemented',
+            message: 'Token refresh not yet implemented in v1 API',
+          },
         };
+        
+        // const response = await fetch('/api/v1/meta/oauth/refresh', {
+        //   method: 'POST',
+        //   headers: { 'Content-Type': 'application/json' },
+        //   credentials: 'include',
+        //   body: JSON.stringify({ campaignId }),
+        // });
+        // 
+        // const result: unknown = await response.json();
+        // 
+        // if (!response.ok) {
+        //   const errorResult = result as { success: false; error: { code: string; message: string } };
+        //   return {
+        //     success: false,
+        //     error: errorResult.error,
+        //   };
+        // }
+        // 
+        // const successResult = result as { success: true; data: { token: string; expiresIn: number } };
+        // return {
+        //   success: true,
+        //   data: { token: successResult.data.token, expiresIn: successResult.data.expiresIn },
+        // };
       } catch (error) {
         return {
           success: false,
@@ -329,27 +339,37 @@ class MetaServiceClient implements MetaService {
   disconnect = {
     async execute(campaignId: string): Promise<ServiceResult<void>> {
       try {
-        const response = await fetch('/api/meta/oauth/disconnect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ campaignId }),
-        });
-        
-        const result: unknown = await response.json();
-        
-        if (!response.ok) {
-          const errorResult = result as { success: false; error: { code: string; message: string } };
-          return {
-            success: false,
-            error: errorResult.error,
-          };
-        }
-        
+        // TODO: Migrate to v1 API - OAuth disconnect endpoint not yet implemented
+        // For now, return an error indicating disconnect is not available
         return {
-          success: true,
-          data: undefined,
+          success: false,
+          error: {
+            code: 'not_implemented',
+            message: 'Disconnect not yet implemented in v1 API',
+          },
         };
+        
+        // const response = await fetch('/api/v1/meta/oauth/disconnect', {
+        //   method: 'POST',
+        //   headers: { 'Content-Type': 'application/json' },
+        //   credentials: 'include',
+        //   body: JSON.stringify({ campaignId }),
+        // });
+        // 
+        // const result: unknown = await response.json();
+        // 
+        // if (!response.ok) {
+        //   const errorResult = result as { success: false; error: { code: string; message: string } };
+        //   return {
+        //     success: false,
+        //     error: errorResult.error,
+        //   };
+        // }
+        // 
+        // return {
+        //   success: true,
+        //   data: undefined,
+        // };
       } catch (error) {
         return {
           success: false,

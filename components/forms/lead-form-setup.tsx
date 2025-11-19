@@ -214,7 +214,7 @@ export function LeadFormSetup({ onFormSelected }: LeadFormSetupProps) {
       if (!connection.selected_page_id) return
 
       try {
-        const url = new URL('/api/meta/page-picture', window.location.origin)
+        const url = new URL('/api/v1/meta/page-picture', window.location.origin)
         url.searchParams.set('campaignId', campaign.id)
         url.searchParams.set('pageId', connection.selected_page_id)
         if (connection.selected_page_access_token) {

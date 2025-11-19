@@ -180,34 +180,9 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    let cancelled = false
-    const controller = new AbortController()
-
-    const fetchCurrency = async () => {
-      try {
-        const res = await fetch(
-          `/api/meta/adaccount/status?campaignId=${encodeURIComponent(campaign.id)}&accountId=${encodeURIComponent(accountId)}`,
-          { cache: "no-store", signal: controller.signal },
-        )
-        if (!res.ok) return
-        const data: unknown = await res.json()
-        const currency = typeof (data as { currency?: unknown }).currency === "string"
-          ? (data as { currency?: string }).currency
-          : undefined
-        if (cancelled || !currency) return
-        applyCurrency(currency)
-        metaStorage.setConnection(campaign.id, { ad_account_currency_code: currency })
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return
-      }
-    }
-
-    void fetchCurrency()
-
-    return () => {
-      cancelled = true
-      controller.abort()
-    }
+    // Currency should already be available from meta connection
+    // If not set, it will be fetched when needed
+    // Legacy API call removed - route no longer exists
   }, [campaign?.id, budgetState.selectedAdAccount, budgetState.currency])
 
   const setDailyBudget = (budget: number) => {

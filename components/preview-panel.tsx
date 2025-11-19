@@ -192,7 +192,7 @@ export function PreviewPanel() {
       // Save to database
       try {
         const response = await fetch(
-          `/api/campaigns/${campaign.id}/ads/${currentAd.id}/snapshot`,
+          `/api/v1/ads/${currentAd.id}/save`,
           {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -513,7 +513,7 @@ export function PreviewPanel() {
       const verifyFunding = async () => {
         try {
           const res = await fetch(
-            `/api/meta/payments/capability?campaignId=${encodeURIComponent(campaign.id)}`,
+            `/api/v1/meta/payment?campaignId=${encodeURIComponent(campaign.id)}`,
             { cache: "no-store" },
           )
 
@@ -638,7 +638,7 @@ export function PreviewPanel() {
       // Step 2: Publish the ad
       logger.info('PreviewPanel', '📦 Step 2: Publishing ad to Meta...')
       
-      const publishResponse = await fetch(`/api/campaigns/${campaign.id}/ads/${currentAdId}/publish`, {
+      const publishResponse = await fetch(`/api/v1/ads/${currentAdId}/publish`, {
         method: 'POST',
       })
       
@@ -729,7 +729,7 @@ export function PreviewPanel() {
     if (campaign?.id && currentAd?.id) {
       try {
         const response = await fetch(
-          `/api/campaigns/${campaign.id}/ads/${currentAd.id}/snapshot`,
+          `/api/v1/ads/${currentAd.id}/save`,
           {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },

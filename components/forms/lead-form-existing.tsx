@@ -72,7 +72,7 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
       setIsLoading(true)
       setError(null)
       try {
-        const url = new URL('/api/meta/forms', window.location.origin)
+        const url = new URL('/api/v1/meta/forms', window.location.origin)
         url.searchParams.set('campaignId', campaign.id)
         if (connection?.selected_page_id) {
           url.searchParams.set('pageId', connection.selected_page_id)
@@ -155,7 +155,7 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
 
     try {
       // Fetch form details
-      const url = new URL(`/api/meta/instant-forms/${encodeURIComponent(id)}`, window.location.origin)
+      const url = new URL(`/api/v1/meta/instant-forms/${encodeURIComponent(id)}`, window.location.origin)
       url.searchParams.set('campaignId', campaign.id)
       if (connection?.selected_page_id) {
         url.searchParams.set('pageId', connection.selected_page_id)
@@ -185,7 +185,7 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
       let profilePicture: string | undefined = pageProfilePicture
       if (connection?.selected_page_id && !profilePicture) {
         try {
-          const pictureUrl = new URL('/api/meta/page-picture', window.location.origin)
+          const pictureUrl = new URL('/api/v1/meta/page-picture', window.location.origin)
           pictureUrl.searchParams.set('campaignId', campaign.id)
           pictureUrl.searchParams.set('pageId', connection.selected_page_id)
           if (connection.selected_page_access_token) {

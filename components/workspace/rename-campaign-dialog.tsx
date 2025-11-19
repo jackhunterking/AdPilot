@@ -60,7 +60,7 @@ export function RenameCampaignDialog({
     setError(null)
 
     try {
-      const response = await fetch(`/api/campaigns/${campaign.id}`, {
+      const response = await fetch(`/api/v1/campaigns/${campaign.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

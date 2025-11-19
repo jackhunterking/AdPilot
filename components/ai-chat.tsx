@@ -591,8 +591,8 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
           setGenerationMessage("Saving creative to ad...");
           
           try {
-            await fetch(`/api/campaigns/${campaignId}/ads/${targetAdId}/snapshot`, {
-              method: 'PATCH',
+            await fetch(`/api/v1/ads/${targetAdId}/save`, {
+              method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 creative: {
@@ -1254,9 +1254,14 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                       onConfirm={async () => {
                                         try {
                                           // Create draft ad
-                                          const response = await fetch(`/api/campaigns/${campaignId}/ads/draft`, {
+                                          const response = await fetch(`/api/v1/ads`, {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                              campaignId,
+                                              name: 'Untitled Ad',
+                                              status: 'draft'
+                                            })
                                           });
                                           
                                           if (!response.ok) {
@@ -1264,7 +1269,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                           }
                                           
                                           const data = await response.json();
-                                          const newAdId = data.ad.id;
+                                          const newAdId = data.data?.ad?.id;
                                           
                                           // Navigate to Ad Builder
                                           router.push(`/${campaignId}?view=build&adId=${newAdId}&step=creative`);

@@ -117,27 +117,10 @@ export function GoalProvider({ children }: { children: ReactNode }) {
     oldGoal: GoalType,
     newGoal: GoalType
   ) => {
-    try {
-      // Update conversation metadata with new goal
-      await fetch('/api/conversations/update-goal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId, goalType: newGoal })
-      })
-      
-      // Inject system message to notify AI
-      const systemMessage = `[SYSTEM NOTIFICATION] The campaign goal has been changed from "${oldGoal}" to "${newGoal}". All future creative suggestions, image generations, and recommendations should now align with the ${newGoal} goal.`
-      
-      await fetch('/api/conversations/inject-system-message', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId, message: systemMessage })
-      })
-      
-      logger.info('GoalContext', `Notified AI of goal change: ${oldGoal} → ${newGoal}`)
-    } catch (error) {
-      logger.error('GoalContext', 'Failed to notify AI of goal change', error)
-    }
+    // Legacy: These routes no longer exist after cleanup
+    // Goal changes are tracked through campaign state updates
+    // AI context is rebuilt on each message via metadata
+    logger.info('GoalContext', `Goal changed: ${oldGoal} → ${newGoal} (tracked via campaign state)`)
   }, [])
 
   // Detect goal changes and notify AI

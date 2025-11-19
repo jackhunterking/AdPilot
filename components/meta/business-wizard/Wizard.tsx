@@ -37,7 +37,7 @@ export default function BusinessWizard() {
     ;(async () => {
       setLoading(true)
       try {
-        const data = await getJSON<{ data: Biz[] }>(`/api/meta/businesses`)
+        const data = await getJSON<{ data: Biz[] }>(`/api/v1/meta/businesses`)
         setBusinesses(data.data || [])
       } finally {
         setLoading(false)
@@ -48,9 +48,9 @@ export default function BusinessWizard() {
   useEffect(() => {
     if (!bizId) return
     ;(async () => {
-      const data = await getJSON<{ data: Page[] }>(`/api/meta/pages?businessId=${encodeURIComponent(bizId)}`)
+      const data = await getJSON<{ data: Page[] }>(`/api/v1/meta/pages?businessId=${encodeURIComponent(bizId)}`)
       setPages(data.data || [])
-      const aa = await getJSON<{ data: AdAccount[] }>(`/api/meta/ad-accounts?businessId=${encodeURIComponent(bizId)}`)
+      const aa = await getJSON<{ data: AdAccount[] }>(`/api/v1/meta/ad-accounts?businessId=${encodeURIComponent(bizId)}`)
       setAdAccounts(aa.data || [])
     })()
   }, [bizId])
@@ -73,7 +73,7 @@ export default function BusinessWizard() {
         adAccountName: adAccounts.find(a => a.id === adAccountId || '')?.name,
         currency: selectedAdAccount?.currency,
       }
-      const res = await fetch('/api/meta/business-connections', {
+      const res = await fetch('/api/v1/meta/business-connections', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

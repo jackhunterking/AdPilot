@@ -149,11 +149,11 @@ export function useSaveAd() {
         sections: Object.keys(sections)
       })
       
-      // Save via snapshot API (writes to normalized tables)
+      // Save via v1 snapshot API (writes to normalized tables)
       const response = await fetch(
-        `/api/campaigns/${campaignId}/ads/${adId}/snapshot`,
+        `/api/v1/ads/${adId}/save`,
         {
-          method: 'PATCH',
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(sections)
         }

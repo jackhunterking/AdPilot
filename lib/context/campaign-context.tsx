@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { logger } from "@/lib/utils/logger"
 import { useAuth } from '@/components/auth/auth-provider'
+import { useCampaignService } from '@/lib/services/service-provider'
 
 interface Campaign {
   id: string
@@ -48,54 +49,62 @@ export function CampaignProvider({
   initialCampaignId?: string 
 }) {
   const { user } = useAuth()
+  const campaignService = useCampaignService()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Load campaign by ID (for campaign pages)
+  // Load campaign by ID (for campaign pages) - delegated to service
   const loadCampaign = async (id: string) => {
     if (!user) return
     
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch(`/api/campaigns/${id}`)
-      if (response.ok) {
-        const data = await response.json()
-        const campaign = data.campaign
-        
-        logger.debug('CampaignContext', 'Raw campaign data', {
-          id: campaign.id,
-          name: campaign.name,
-          hasAds: !!campaign.ads,
-          adsCount: campaign.ads?.length || 0,
-          budget: campaign.campaign_budget_cents
-        })
-        
-        // Fetch linked conversation (AI SDK pattern - v1 API)
-        try {
-          const convResponse = await fetch(`/api/v1/conversations?campaignId=${id}`)
-          if (convResponse.ok) {
-            const data = await convResponse.json()
-            // v1 returns { success, data: { conversations: [...] } }
-            const conversations = data.data?.conversations || []
-            if (conversations.length > 0) {
-              campaign.conversationId = conversations[0].id
-              logger.debug('CampaignContext', `Loaded conversation ${campaign.conversationId} for campaign ${id}`)
-            }
-          }
-        } catch (convError) {
-          console.warn('[CampaignContext] Failed to load conversation:', convError)
-          // Continue without conversation ID - will be created on first message
+      // Use campaign service instead of direct fetch
+      const result = await campaignService.getCampaign.execute(id)
+      
+      if (!result.success) {
+        if (result.error?.code === 'unauthorized') {
+          setCampaign(null)
+        } else {
+          throw new Error(result.error?.message || 'Failed to load campaign')
         }
-        
-        setCampaign(campaign)
-      } else if (response.status === 401) {
-        // User not authenticated
-        setCampaign(null)
-      } else {
-        throw new Error('Failed to load campaign')
+        return
       }
+      
+      const campaignData = result.data
+      
+      if (!campaignData) {
+        throw new Error('Campaign data is missing from response')
+      }
+      
+      logger.debug('CampaignContext', 'Loaded campaign via service', {
+        id: campaignData.id,
+        name: campaignData.name,
+        hasAds: !!campaignData.ads,
+        adsCount: Array.isArray(campaignData.ads) ? campaignData.ads.length : 0,
+        budget: campaignData.campaign_budget_cents
+      })
+      
+      // Fetch linked conversation (v1 API)
+      try {
+        const convResponse = await fetch(`/api/v1/conversations?campaignId=${id}`, {
+          credentials: 'include'
+        })
+        if (convResponse.ok) {
+          const data = await convResponse.json()
+          const conversations = data.data?.conversations || []
+          if (conversations.length > 0) {
+            campaignData.conversationId = conversations[0].id
+            logger.debug('CampaignContext', `Loaded conversation ${campaignData.conversationId}`)
+          }
+        }
+      } catch (convError) {
+        console.warn('[CampaignContext] Failed to load conversation:', convError)
+      }
+      
+      setCampaign(campaignData as Campaign)
     } catch (err) {
       console.error('Error loading campaign:', err)
       setError(err instanceof Error ? err.message : 'Failed to load')
@@ -104,44 +113,49 @@ export function CampaignProvider({
     }
   }
 
-  // Create campaign with optional prompt and goal
+  // Create campaign with optional prompt and goal - delegated to service
   const createCampaign = async (name: string, prompt?: string, goal?: string) => {
     if (!user) return null
     
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('/api/campaigns', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, prompt, goalType: goal }),
+      // Use campaign service instead of direct fetch
+      const result = await campaignService.createCampaign.execute({
+        name,
+        prompt,
+        goalType: goal as 'leads' | 'calls' | 'website-visits' | undefined,
       })
       
-      if (response.ok) {
-        const data = await response.json()
-        const campaign = data.campaign
-        
-        // Fetch linked conversation (AI SDK pattern - v1 API)
-        try {
-          const convResponse = await fetch(`/api/v1/conversations?campaignId=${campaign.id}`)
-          if (convResponse.ok) {
-            const data = await convResponse.json()
-            // v1 returns { success, data: { conversations: [...] } }
-            const conversations = data.data?.conversations || []
-            if (conversations.length > 0) {
-              campaign.conversationId = conversations[0].id
-              logger.debug('CampaignContext', `Found conversation ${campaign.conversationId} for campaign ${campaign.id}`)
-            }
-          }
-        } catch (convError) {
-          console.warn('[CampaignContext] Failed to fetch conversation:', convError)
-          // Continue without conversation ID - will be created on first message
-        }
-        
-        setCampaign(campaign)
-        return campaign
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to create campaign')
       }
-      throw new Error('Failed to create campaign')
+      
+      const campaignData = result.data
+      
+      if (!campaignData) {
+        throw new Error('Campaign data is missing from response')
+      }
+      
+      // Fetch linked conversation (v1 API)
+      try {
+        const convResponse = await fetch(`/api/v1/conversations?campaignId=${campaignData.id}`, {
+          credentials: 'include'
+        })
+        if (convResponse.ok) {
+          const data = await convResponse.json()
+          const conversations = data.data?.conversations || []
+          if (conversations.length > 0) {
+            campaignData.conversationId = conversations[0].id
+            logger.debug('CampaignContext', `Found conversation ${campaignData.conversationId}`)
+          }
+        }
+      } catch (convError) {
+        console.warn('[CampaignContext] Failed to fetch conversation:', convError)
+      }
+      
+      setCampaign(campaignData as Campaign)
+      return campaignData as Campaign
     } catch (err) {
       console.error('Error creating campaign:', err)
       setError(err instanceof Error ? err.message : 'Failed to create')
@@ -151,44 +165,45 @@ export function CampaignProvider({
     }
   }
 
-  // Update campaign metadata
+  // Update campaign metadata - delegated to service
   const updateCampaign = async (updates: Partial<Campaign>) => {
     if (!campaign?.id) return
-    const response = await fetch(`/api/campaigns/${campaign.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
+    
+    // Filter and transform updates to match UpdateCampaignInput type
+    const { id: _id, user_id, created_at, updated_at, published_status, last_metrics_sync_at, conversationId, ai_conversation_id, campaign_budget, campaign_budget_cents, budget_strategy, budget_status, currency_code, ads, ...safeUpdates } = updates
+    
+    const result = await campaignService.updateCampaign.execute({
+      id: campaign.id,
+      name: safeUpdates.name,
+      status: safeUpdates.status as 'draft' | 'active' | 'paused' | 'completed' | undefined,
+      metadata: safeUpdates.metadata ? safeUpdates.metadata as Record<string, unknown> : undefined
     })
-    if (!response.ok) {
-      const text = await response.text().catch(() => '')
-      throw new Error(text || `HTTP ${response.status}`)
+    
+    if (!result.success) {
+      throw new Error(result.error?.message || 'Failed to update campaign')
     }
-    const data = await response.json()
-    setCampaign(data.campaign)
+    
+    if (result.data) {
+      setCampaign(result.data as Campaign)
+    }
   }
 
-  // Update campaign budget
-  const updateBudget = async (budget: number) => {
+  // Update campaign budget - delegated to service
+  const updateBudget = async (budgetCents: number) => {
     if (!campaign?.id) return
     try {
-      // Convert total budget to daily budget for the API
-      const dailyBudget = Math.max(1, Math.round(budget / 30))
-      
-      const response = await fetch(`/api/campaigns/${campaign.id}/budget`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dailyBudget,
-        }),
+      // Use campaign service for budget updates - Note: campaign_budget_cents not in UpdateCampaignInput type
+      const result = await campaignService.updateCampaign.execute({
+        id: campaign.id,
       })
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to update budget' }))
-        throw new Error(errorData.error || 'Failed to update budget')
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to update budget')
       }
       
-      // Update local campaign state with total budget
-      setCampaign(prev => prev ? { ...prev, campaign_budget: budget } : null)
+      if (result.data) {
+        setCampaign(result.data as Campaign)
+      }
     } catch (error) {
       console.error('Error updating budget:', error)
       throw error
@@ -273,7 +288,7 @@ export function CampaignProvider({
     }
   }
 
-  // Update campaign conversation ID
+  // Update campaign conversation ID - delegated to service
   const updateConversationId = async (conversationId: string): Promise<void> => {
     if (!campaign?.id) {
       logger.error('CampaignContext', 'Cannot update conversation ID - no campaign loaded')
@@ -286,21 +301,23 @@ export function CampaignProvider({
         conversationId,
       })
 
-      const response = await fetch(`/api/campaigns/${campaign.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ai_conversation_id: conversationId }),
+      // Use campaign service - Note: ai_conversation_id not in interface, store in metadata
+      const result = await campaignService.updateCampaign.execute({
+        id: campaign.id,
+        metadata: { ...campaign.metadata, conversationId },
       })
 
-      if (!response.ok) {
-        logger.error('CampaignContext', 'Failed to update conversation ID')
+      if (!result.success) {
+        logger.error('CampaignContext', 'Failed to update conversation ID', result.error)
         return
       }
 
       // Update local state
-      setCampaign(prev => prev ? { ...prev, ai_conversation_id: conversationId } : null)
+      if (result.data) {
+        setCampaign(result.data as Campaign)
+      }
 
-      logger.info('CampaignContext', '✅ Updated conversation ID', {
+      logger.info('CampaignContext', '✅ Updated conversation ID via service', {
         campaignId: campaign.id,
         conversationId,
       })

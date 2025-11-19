@@ -151,7 +151,7 @@ export class SaveService {
    */
   async createDraftAd(campaignId: string): Promise<ServiceResult<{ adId: string; name: string }>> {
     try {
-      const response = await fetch(`/api/campaigns/${campaignId}/ads/draft`, {
+      const response = await fetch(`/api/v1/ads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -202,7 +202,7 @@ export class SaveService {
    */
   async deleteDraftAd(campaignId: string, adId: string): Promise<ServiceResult<void>> {
     try {
-      const response = await fetch(`/api/campaigns/${campaignId}/ads/${adId}`, {
+      const response = await fetch(`/api/v1/ads/${adId}`, {
         method: 'DELETE',
       });
 

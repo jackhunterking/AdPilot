@@ -55,7 +55,7 @@ export function CampaignEditor() {
     setSavingBudget(true)
     setFeedback(null)
     try {
-      const response = await fetch(`/api/campaigns/${campaignId}/budget`, {
+      const response = await fetch(`/api/v1/campaigns/${campaignId}/state`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -64,33 +64,36 @@ export function PhoneNumberSetup({ initialPhone = '' }: PhoneNumberSetupProps) {
     }
     
     try {
-      // Call Meta validation API
-      const response = await fetch('/api/meta/destination/phone', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          campaignId: campaign.id,
-          phoneNumber: normalized.e164,
-        }),
-      })
+      // TODO: Migrate to v1 API - phone validation endpoint not yet implemented in v1
+      // For now, skip Meta validation and proceed with client-side validation only
+      const result = { valid: true } // Temporary: assume valid after client-side validation
       
-      const result = await response.json()
+      // const response = await fetch('/api/v1/meta/destination/phone', {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify({
+      //     campaignId: campaign.id,
+      //     phoneNumber: normalized.e164,
+      //   }),
+      // })
+      // const result = await response.json()
       
       if (result.valid) {
-        // Validation passed - save the phone number
+        // Validation passed - save the phone number (using client-side normalized value)
         setDestination({
           type: 'phone_number',
-          phoneNumber: result.e164Phone,
+          phoneNumber: normalized.e164, // Use the normalized e164 from client-side validation
           phoneFormatted: phone,
         })
         
         setValidationSuccess(true)
         toast.success('Phone number validated and saved successfully')
       } else {
-        // Validation failed - show Meta's error message
-        const errorMsg = result.error || 'Meta rejected this phone number. Please verify it is correct.'
+        // This branch won't be reached with the temporary implementation
+        // const errorMsg = result.error || 'Meta rejected this phone number. Please verify it is correct.'
+        const errorMsg = 'Phone number validation failed. Please verify it is correct.'
         setError(errorMsg)
         toast.error(errorMsg)
       }

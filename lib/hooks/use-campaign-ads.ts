@@ -93,7 +93,7 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
     try {
       // Add timestamp-based cache busting
       const cacheBuster = Date.now()
-      const res = await fetch(`/api/campaigns/${campaignId}/ads?ts=${cacheBuster}`, {
+      const res = await fetch(`/api/v1/ads?campaignId=${campaignId}&ts=${cacheBuster}`, {
         cache: "no-store"
       })
       
@@ -162,7 +162,7 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
     if (!campaignId) return null
 
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/ads`, {
+      const res = await fetch(`/api/v1/ads?campaignId=${campaignId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(adData)
@@ -191,7 +191,7 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
     if (!campaignId) return false
 
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/ads/${adId}`, {
+      const res = await fetch(`/api/v1/ads/${adId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates)
@@ -226,7 +226,7 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
     logger.debug('useCampaignAds', `[${traceId}] Delete operation started`, { campaignId, adId })
 
     try {
-      const res = await fetch(`/api/campaigns/${campaignId}/ads/${adId}`, {
+      const res = await fetch(`/api/v1/ads/${adId}`, {
         method: "DELETE"
       })
 

@@ -44,7 +44,7 @@ export function WebhookConfigCard({ campaignId, initialConfig }: WebhookConfigCa
     setSavingWebhook(true)
     setWebhookFeedback(null)
     try {
-      const response = await fetch('/api/meta/leads/webhook', {
+      const response = await fetch('/api/v1/meta/leads/webhook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -72,16 +72,22 @@ export function WebhookConfigCard({ campaignId, initialConfig }: WebhookConfigCa
     setTestingWebhook(true)
     setWebhookFeedback(null)
     try {
-      const response = await fetch('/api/meta/leads/test-webhook', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ campaignId }),
-      })
-      if (!response.ok) {
-        const text = await response.text()
-        throw new Error(text || 'Webhook test failed')
-      }
-      setWebhookFeedback('We just sent a sample lead to your webhook.')
+      // TODO: Migrate to v1 API - test webhook endpoint not yet implemented
+      // For now, show a message that testing is not available
+      setWebhookFeedback('Webhook testing is currently unavailable. Your webhook will receive real leads when they come in.')
+      setTestingWebhook(false)
+      return
+      
+      // const response = await fetch('/api/v1/meta/leads/test-webhook', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ campaignId }),
+      // })
+      // if (!response.ok) {
+      //   const text = await response.text()
+      //   throw new Error(text || 'Webhook test failed')
+      // }
+      // setWebhookFeedback('We just sent a sample lead to your webhook.')
     } catch (err) {
       setWebhookFeedback(err instanceof Error ? err.message : 'Webhook test failed')
     } finally {

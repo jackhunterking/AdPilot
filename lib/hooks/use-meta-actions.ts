@@ -47,7 +47,7 @@ export function useMetaActions() {
       return
     }
 
-    const redirectUri = `${window.location.origin}/api/meta/auth/callback?type=system`
+    const redirectUri = `${window.location.origin}/api/v1/meta/auth/callback?type=system`
     const appId = process.env.NEXT_PUBLIC_FB_APP_ID
     const graphVersion = process.env.NEXT_PUBLIC_FB_GRAPH_VERSION || 'v24.0'
     
@@ -199,7 +199,7 @@ export function useMetaActions() {
       })
 
       const verify = await fetch(
-        `/api/meta/payment/status?campaignId=${encodeURIComponent(campaign.id)}&adAccountId=${encodeURIComponent(actId)}`,
+        `/api/v1/meta/payment/status?campaignId=${encodeURIComponent(campaign.id)}&adAccountId=${encodeURIComponent(actId)}`,
         { cache: 'no-store' }
       )
 
