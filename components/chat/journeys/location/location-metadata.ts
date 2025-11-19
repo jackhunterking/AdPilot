@@ -17,12 +17,14 @@ export function createLocationMetadata(
     journeyId: 'location',
     mode,
     input,
+    // ✅ Flatten critical fields to root (API expects them here)
+    locationSetupMode: true,
+    locationMode: mode,
+    locationInput: input,
+    // ✅ Keep context for journey-level data
     context: {
       timestamp: new Date().toISOString(),
       source: 'chat_input',
-      locationSetupMode: true,
-      locationMode: mode,
-      locationInput: input
     }
   };
 }

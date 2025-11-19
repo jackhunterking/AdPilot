@@ -103,8 +103,15 @@ export async function POST(req: Request) {
     activeTab: parsed.activeTab,
     isEditMode: parsed.isEditMode,
     isLocationSetupMode: parsed.isLocationSetupMode,
+    locationInput: parsed.locationInput,
+    locationMode: parsed.locationMode,
     currentStep: parsed.currentStep,
   });
+
+  // ✅ Validation check
+  if (parsed.isLocationSetupMode && !parsed.locationInput) {
+    console.warn('[API] ⚠️ Location setup mode active but no locationInput provided!');
+  }
 
   // 4. Get or create conversation
   let conversationId = id;

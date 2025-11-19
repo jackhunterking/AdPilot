@@ -200,21 +200,40 @@ ${referenceContext}
   private buildLocationSetupMode(locationInput: string): string {
     return `# 🎯 CRITICAL: LOCATION SETUP MODE ACTIVE 🎯
 
-The user provided location: "${locationInput}"
+The user wants to target this location: "${locationInput}"
 
-YOU MUST CALL THE addLocations TOOL NOW.
+**YOU MUST IMMEDIATELY CALL THE addLocations TOOL:**
+
+Example call structure:
+{
+  "locations": [
+    {
+      "name": "${locationInput}",
+      "type": "city",
+      "mode": "include"
+    }
+  ],
+  "explanation": "Adding ${locationInput} to targeting"
+}
+
+**Type Selection Rules:**
+- City/town names → "city"
+- States/provinces → "region"  
+- Countries → "country"
+- "[X] miles around [place]" → "radius" (extract radius number)
+
+**Mode Selection:**
+- User context determines include/exclude
+- Default to "include" if unclear
 
 **CRITICAL RULES:**
-1. Process ONLY: "${locationInput}"
-2. DO NOT suggest multiple locations
-3. DO NOT call any other tools
-4. Call addLocations immediately
+1. ❌ DO NOT call generateVariations or any creative tools
+2. ❌ DO NOT call setupGoal or any other tools
+3. ✅ ONLY call addLocations tool
+4. ❌ DO NOT output conversational text
+5. ✅ Call the tool immediately with the structure above
 
-**Mode Detection:**
-- If user said "exclude" → mode: "exclude"
-- Otherwise → mode: "include"
-
-CALL THE TOOL NOW. DO NOT OUTPUT ANY OTHER TEXT.`;
+CALL addLocations NOW.`;
   }
 
   /**

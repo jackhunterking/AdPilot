@@ -270,7 +270,13 @@ export function useJourneyRouter(
 function legacyRouteToJourney(toolName: string, journeys: JourneyMap): Journey | undefined {
   const lowerTool = toolName.toLowerCase();
 
-  // Location journey
+  // ✅ EXPLICIT LOCATION TOOL ROUTING (highest priority)
+  if (toolName === 'addLocations' || toolName === 'removeLocation' || toolName === 'clearLocations') {
+    console.log('[JourneyRouter] ✅ Explicit location tool routing:', toolName);
+    return journeys.location;
+  }
+
+  // Location journey (existing check as fallback)
   if (lowerTool.includes('location') || toolName === 'addLocations' || toolName === 'removeLocation' || toolName === 'clearLocations') {
     return journeys.location;
   }
