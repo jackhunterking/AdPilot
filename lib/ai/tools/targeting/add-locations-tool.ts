@@ -101,11 +101,15 @@ export const addLocationsTool = tool({
       const validLocations = processed.filter((loc): loc is NonNullable<typeof loc> => loc !== null);
 
       if (validLocations.length === 0) {
-        console.error('[addLocationsTool] All locations failed to geocode');
+        console.error('[addLocationsTool] ❌ All locations failed to geocode');
         return {
           success: false,
           error: 'Failed to geocode any locations',
-          message: 'Unable to find the specified locations. Please try with more specific names.'
+          message: 'Unable to find the specified locations. This could be due to:\n' +
+                   '• Geocoding service temporarily unavailable\n' +
+                   '• Invalid location name (try "City, State, Country")\n' +
+                   '• Network connectivity issue\n' +
+                   'Please try again in a moment.'
         };
       }
 

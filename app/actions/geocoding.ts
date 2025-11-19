@@ -71,6 +71,121 @@ function checkCacheTTL() {
 }
 
 // ============================================================================
+// RATE LIMITING
+// ============================================================================
+
+// Track last request time to respect Nominatim's 1 req/second limit
+let lastRequestTime = 0
+const MIN_REQUEST_INTERVAL_MS = 1100 // Slightly over 1 second to be safe
+
+/**
+ * Ensure minimum delay between requests to Nominatim
+ * Nominatim requires max 1 request per second
+ */
+async function enforceRateLimit(): Promise<void> {
+  const now = Date.now()
+  const timeSinceLastRequest = now - lastRequestTime
+  
+  if (timeSinceLastRequest < MIN_REQUEST_INTERVAL_MS) {
+    const delayNeeded = MIN_REQUEST_INTERVAL_MS - timeSinceLastRequest
+    console.log(`[Geocoding] Rate limit: waiting ${delayNeeded}ms`)
+    await new Promise(resolve => setTimeout(resolve, delayNeeded))
+  }
+  
+  lastRequestTime = Date.now()
+}
+
+// ============================================================================
+// FETCH HELPERS
+// ============================================================================
+
+/**
+ * Fetch with timeout
+ * Prevents hanging requests that can cause silent failures
+ */
+async function fetchWithTimeout(
+  url: string, 
+  options: RequestInit, 
+  timeoutMs: number = 10000
+): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
+    return response
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timeout: Geocoding service took too long to respond')
+    }
+    throw error
+  }
+}
+
+/**
+ * Retry fetch with exponential backoff
+ * Helps with rate limiting and temporary failures
+ */
+async function retryFetch(
+  url: string,
+  options: RequestInit,
+  maxRetries: number = 2
+): Promise<Response> {
+  let lastError: Error | null = null
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      // Add delay between retries (exponential backoff)
+      if (attempt > 0) {
+        const delayMs = Math.min(1000 * Math.pow(2, attempt - 1), 3000) // 1s, 2s, 3s max
+        console.log(`[Geocoding] Retry attempt ${attempt}/${maxRetries} after ${delayMs}ms`)
+        await new Promise(resolve => setTimeout(resolve, delayMs))
+      }
+      
+      const response = await fetchWithTimeout(url, options, 10000)
+      
+      // Success - return immediately
+      if (response.ok) {
+        return response
+      }
+      
+      // Rate limited - retry
+      if (response.status === 429) {
+        console.warn(`[Geocoding] Rate limited (429), will retry...`)
+        lastError = new Error(`Rate limited by geocoding service`)
+        continue
+      }
+      
+      // Server error - retry
+      if (response.status >= 500) {
+        console.warn(`[Geocoding] Server error (${response.status}), will retry...`)
+        lastError = new Error(`Server error: ${response.status}`)
+        continue
+      }
+      
+      // Client error - don't retry
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+      console.error(`[Geocoding] Attempt ${attempt + 1} failed:`, lastError.message)
+      
+      // Don't retry on timeout or network errors after max attempts
+      if (attempt === maxRetries) {
+        throw lastError
+      }
+    }
+  }
+  
+  throw lastError || new Error('All retry attempts failed')
+}
+
+// ============================================================================
 // MAIN GEOCODING FUNCTION
 // ============================================================================
 
@@ -119,13 +234,19 @@ export async function searchLocations(query: string): Promise<GeocodingResult> {
   try {
     console.log('[Geocoding] Searching for:', query)
     
-    const response = await fetch(
+    // ✅ Enforce rate limiting BEFORE request
+    await enforceRateLimit()
+    
+    const response = await retryFetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&addressdetails=1`,
       {
         headers: {
-          'User-Agent': 'AdPilot-LocationTargeting/1.0'
+          'User-Agent': 'AdPilot-LocationTargeting/1.0',
+          'Accept': 'application/json',
+          'Accept-Language': 'en',
         }
-      }
+      },
+      2 // 2 retries
     )
     
     if (!response.ok) {
@@ -179,12 +300,21 @@ export async function searchLocations(query: string): Promise<GeocodingResult> {
     return result
     
   } catch (error) {
-    console.error('[Geocoding] API error:', error)
+    // ✅ Detailed error logging for debugging
+    console.error('[Geocoding] ❌ API error details:', {
+      query,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    })
+    
     const result: GeocodingResult = {
       success: false,
       error: {
         code: 'API_ERROR',
-        message: error instanceof Error ? error.message : 'Geocoding service unavailable'
+        message: error instanceof Error 
+          ? `Geocoding failed: ${error.message}` 
+          : 'Geocoding service unavailable'
       }
     }
     return result
@@ -220,13 +350,19 @@ export async function getLocationBoundary(
   try {
     console.log('[Boundary] Fetching boundary for:', placeName)
     
-    const response = await fetch(
+    // ✅ Enforce rate limiting
+    await enforceRateLimit()
+    
+    const response = await retryFetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(placeName)}&format=geojson&polygon_geojson=1&limit=1`,
       {
         headers: {
-          'User-Agent': 'AdPilot-LocationTargeting/1.0'
+          'User-Agent': 'AdPilot-LocationTargeting/1.0',
+          'Accept': 'application/json',
+          'Accept-Language': 'en',
         }
-      }
+      },
+      2 // 2 retries
     )
     
     if (!response.ok) {
