@@ -1,5 +1,14 @@
 # AdPilot
 
+AI-powered Meta (Facebook/Instagram) advertising platform with seamless Lovable integration.
+
+## 🔗 Related Projects
+
+- **Chrome Extension:** [adpilot-lovable-extension](https://github.com/yourusername/adpilot-lovable-extension) - Install AdPilot directly in Lovable editor
+- **Lovable UI:** Coming soon - Dedicated UI for Lovable integration
+
+---
+
 Small deployment sync note: trigger build for meta-connection UI/API fixes.
 
 ## Meta: Connect as Admin (server-verified)
