@@ -403,38 +403,6 @@ class AdServiceClient implements AdService {
           message: 'Duplicate ad endpoint not yet implemented',
         },
       };
-      
-      /* Commented out until endpoint is created
-      try {
-        const response = await fetch(`/api/v1/ads/${adId}/duplicate`, {
-          method: 'POST',
-          credentials: 'include',
-        });
-        
-        const result: unknown = await response.json();
-        
-        if (!response.ok) {
-          const errorResult = result as { success: false; error: { code: string; message: string } };
-          return {
-            success: false,
-            error: errorResult.error,
-          };
-        }
-        
-        const successResult = result as { success: true; data: { ad: Ad } };
-        return {
-          success: true,
-          data: successResult.data.ad,
-        };
-      } catch (error) {
-        return {
-          success: false,
-          error: {
-            code: 'network_error',
-            message: error instanceof Error ? error.message : 'Failed to duplicate ad',
-          },
-        };
-      }
     }
   };
 }
