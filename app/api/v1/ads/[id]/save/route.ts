@@ -131,60 +131,79 @@ export async function PUT(
     // Parse and validate request body
     const body = await request.json() as SaveAdPayload
     
-    // Validate required fields
-    if (!body.copy || !body.creative || !body.destination) {
-      console.error(`[${traceId}] Missing required fields:`, {
-        hasCopy: !!body.copy,
-        hasCreative: !!body.creative,
-        hasDestination: !!body.destination
-      })
+    // Allow partial saves (draft mode) - validate only what's present
+    // Check that at least ONE section has data
+    const hasAnySections = !!(body.copy || body.creative || body.destination || body.location || body.budget)
+    
+    if (!hasAnySections) {
+      console.error(`[${traceId}] No data provided in request`)
       return NextResponse.json(
-        { success: false, error: 'Missing required fields: copy, creative, or destination' } as SaveAdResponse,
+        { success: false, error: 'No data provided to save' } as SaveAdResponse,
         { status: 400 }
       )
     }
 
-    // Validate copy data
-    if (!body.copy.headline || !body.copy.primaryText) {
-      return NextResponse.json(
-        { success: false, error: 'Copy must include headline and primaryText' } as SaveAdResponse,
-        { status: 400 }
-      )
+    console.log(`[${traceId}] Partial save request:`, {
+      hasCopy: !!body.copy,
+      hasCreative: !!body.creative,
+      hasDestination: !!body.destination,
+      hasLocation: !!body.location,
+      hasBudget: !!body.budget
+    })
+
+    // Validate copy data IF provided
+    if (body.copy) {
+      if (body.copy.variations && body.copy.variations.length > 0) {
+        // Validate each variation has required fields
+        const invalidVariation = body.copy.variations.find((v: { headline?: string; primaryText?: string }) => 
+          !v.headline || !v.primaryText
+        )
+        if (invalidVariation) {
+          return NextResponse.json(
+            { success: false, error: 'Copy variations must include headline and primaryText' } as SaveAdResponse,
+            { status: 400 }
+          )
+        }
+      }
     }
 
-    // Validate creative data
-    if (!body.creative.imageVariations || body.creative.imageVariations.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Creative must include at least one image variation' } as SaveAdResponse,
-        { status: 400 }
-      )
+    // Validate creative data IF provided
+    if (body.creative) {
+      if (!body.creative.imageVariations || body.creative.imageVariations.length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'Creative must include at least one image variation' } as SaveAdResponse,
+          { status: 400 }
+        )
+      }
     }
 
-    // Validate destination data
-    const validDestinationTypes = ['website', 'form', 'call']
-    if (!validDestinationTypes.includes(body.destination.type)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid destination type' } as SaveAdResponse,
-        { status: 400 }
-      )
+    // Validate destination data IF provided
+    if (body.destination) {
+      const validDestinationTypes = ['website', 'form', 'call']
+      if (!validDestinationTypes.includes(body.destination.type)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid destination type' } as SaveAdResponse,
+          { status: 400 }
+        )
+      }
+
+      // Validate type-specific destination fields
+      if (body.destination.type === 'website' && !body.destination.url) {
+        return NextResponse.json(
+          { success: false, error: 'Website destination requires url' } as SaveAdResponse,
+          { status: 400 }
+        )
+      }
+
+      if (body.destination.type === 'call' && !body.destination.phoneNumber) {
+        return NextResponse.json(
+          { success: false, error: 'Call destination requires phoneNumber' } as SaveAdResponse,
+          { status: 400 }
+        )
+      }
     }
 
-    // Validate type-specific destination fields
-    if (body.destination.type === 'website' && !body.destination.url) {
-      return NextResponse.json(
-        { success: false, error: 'Website destination requires url' } as SaveAdResponse,
-        { status: 400 }
-      )
-    }
-
-    if (body.destination.type === 'call' && !body.destination.phoneNumber) {
-      return NextResponse.json(
-        { success: false, error: 'Call destination requires phoneNumber' } as SaveAdResponse,
-        { status: 400 }
-      )
-    }
-
-    console.log(`[${traceId}] Validation passed, saving to normalized tables`)
+    console.log(`[${traceId}] Validation passed, saving provided sections to normalized tables`)
 
     try {
       // 1. Save creative variations
@@ -198,7 +217,7 @@ export async function PUT(
         // Insert all creative variations
         const creativeInserts = body.creative.imageVariations.map((imageUrl: string, idx: number) => ({
           ad_id: adId,
-          creative_format: (body.creative.format as string) || 'feed',
+          creative_format: (body.creative?.format as string) || 'feed',
           image_url: imageUrl,
           creative_style: null,
           variation_label: `Variation ${idx + 1}`,
@@ -240,8 +259,8 @@ export async function PUT(
           headline: variation.headline,
           primary_text: variation.primaryText,
           description: variation.description || null,
-          cta_text: body.destination?.cta || 'Learn More',
-          is_selected: idx === (body.copy.selectedCopyIndex || 0),
+          cta_text: body.copy?.cta || body.destination?.cta || 'Learn More',
+          is_selected: idx === (body.copy?.selectedCopyIndex || 0),
           sort_order: idx
         }))
 
@@ -291,6 +310,78 @@ export async function PUT(
             updated_at: new Date().toISOString()
           })
           .eq('id', adId)
+      }
+
+      // 4. Save locations (if provided)
+      if (body.location && (body.location as { locations?: unknown[] }).locations) {
+        const locations = (body.location as { locations: unknown[] }).locations
+        if (Array.isArray(locations) && locations.length > 0) {
+          // Delete existing locations for this ad
+          await supabaseServer
+            .from('ad_target_locations')
+            .delete()
+            .eq('ad_id', adId)
+
+          // Insert new locations
+          const locationInserts = (locations as Array<{
+            name: string
+            type: string
+            coordinates?: [number, number]
+            radius?: number
+            mode?: string
+            key?: string
+            bbox?: [number, number, number, number]
+            geometry?: object
+          }>).map((loc) => ({
+            ad_id: adId,
+            location_name: loc.name,
+            location_type: loc.type || 'city',
+            latitude: loc.coordinates?.[0] || null,
+            longitude: loc.coordinates?.[1] || null,
+            radius_km: loc.radius || null,
+            targeting_mode: loc.mode || 'include',
+            meta_location_key: loc.key || null,
+            bbox: loc.bbox ? (loc.bbox as Json) : null,
+            geometry: loc.geometry ? (loc.geometry as Json) : null,
+          }))
+
+          const { error: locationError } = await supabaseServer
+            .from('ad_target_locations')
+            .insert(locationInserts)
+
+          if (locationError) {
+            console.error(`[${traceId}] Failed to save locations:`, locationError)
+            throw new Error('Failed to save locations')
+          }
+          
+          console.log(`[${traceId}] Saved ${locations.length} locations`)
+        }
+      }
+
+      // 5. Save budget (if provided)
+      if (body.budget) {
+        const budgetData = body.budget as {
+          dailyBudget?: number
+          currency?: string
+          startTime?: string
+          endTime?: string
+          timezone?: string
+        }
+        
+        if (budgetData.dailyBudget && budgetData.dailyBudget > 0) {
+          await supabaseServer
+            .from('ad_budgets')
+            .upsert({
+              ad_id: adId,
+              daily_budget_cents: Math.round(budgetData.dailyBudget * 100),
+              currency_code: budgetData.currency || 'USD',
+              start_time: budgetData.startTime || null,
+              end_time: budgetData.endTime || null,
+              timezone: budgetData.timezone || 'America/Los_Angeles',
+            }, { onConflict: 'ad_id' })
+
+          console.log(`[${traceId}] Saved budget: ${budgetData.dailyBudget} ${budgetData.currency || 'USD'}`)
+        }
       }
 
       console.log(`[${traceId}] Ad saved successfully to normalized tables`)

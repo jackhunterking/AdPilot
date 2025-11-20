@@ -505,11 +505,12 @@ export interface MetaWebhookEvent {
 // ============================================================================
 
 export interface SaveAdCopyData {
-  primaryText: string
-  headline: string
-  description: string
-  selectedCopyIndex: number
-  variations: Array<{
+  primaryText?: string
+  headline?: string
+  description?: string
+  selectedCopyIndex?: number
+  cta?: string
+  variations?: Array<{
     primaryText: string
     headline: string
     description: string
@@ -544,9 +545,28 @@ export interface SaveAdDestinationData {
 }
 
 export interface SaveAdPayload {
-  copy: SaveAdCopyData
-  creative: SaveAdCreativeData
-  destination: SaveAdDestinationData
+  copy?: SaveAdCopyData
+  creative?: SaveAdCreativeData
+  destination?: SaveAdDestinationData
+  location?: {
+    locations: Array<{
+      name: string
+      type: string
+      coordinates?: [number, number]
+      radius?: number
+      mode?: string
+      key?: string
+      bbox?: [number, number, number, number]
+      geometry?: object
+    }>
+  }
+  budget?: {
+    dailyBudget: number
+    currency?: string
+    startTime?: string
+    endTime?: string
+    timezone?: string
+  }
   metadata?: {
     editContext?: string
     savedFrom?: string
