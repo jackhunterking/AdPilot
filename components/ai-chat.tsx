@@ -850,15 +850,6 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
               const isLiked = likedMessages.has(message.id);
               const isDisliked = dislikedMessages.has(message.id);
               
-              // Debug: Log tool results in messages (for persistence debugging)
-              if (message.role === 'assistant' && message.parts) {
-                const toolResults = message.parts.filter(p => typeof p.type === 'string' && p.type.startsWith('tool-'));
-                if (toolResults.length > 0) {
-                  console.log(`[AIChat] Message ${message.id} has ${toolResults.length} tool parts:`, 
-                    toolResults.map(t => extractToolName(t as { type: string; toolName?: string })));
-                }
-              }
-              
               // Location confirmations removed - locations display in LocationSelectionCanvas map
               // Database source of truth: ad_target_locations table
               // No need for chat history duplication
@@ -1346,19 +1337,10 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                               const isGenerating = generatingImages.has(callId);
                               const input = part.input as { prompt: string; brandName?: string; caption?: string };
                               
-                              console.log('[AI Chat] Handling creative generation tool:', {
-                                type: part.type,
-                                callId,
-                                state: part.state,
-                                currentStep,
-                                isGenerating
-                              });
-                              
                               // 🚨 CRITICAL: Prevent showing tool UI on non-ads steps
                               // Only show confirmation UI if we're on the 'ads' step OR if the tool is already generating
                               // This prevents stale tool calls from previous steps from showing up
                               if (part.state === 'input-available' && !isGenerating && currentStep !== 'ads') {
-                                console.log(`[AIChat] Skipping creative generation UI - current step is '${currentStep}', not 'ads'`);
                                 return null;
                               }
                               
@@ -1438,12 +1420,6 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                             case "tool-editVariation": {
                               const callId = part.toolCallId;
                               const input = part.input as { imageUrl?: string; variationIndex?: number; prompt?: string };
-                              
-                              console.log('[AI Chat] Handling edit variation tool:', {
-                                type: part.type,
-                                callId,
-                                state: part.state
-                              });
                               
                               const hasOutput = typeof (part as { output?: unknown }).output !== 'undefined';
                               const hasResult = typeof (part as { result?: unknown }).result !== 'undefined';
@@ -1538,13 +1514,6 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                               const callId = part.toolCallId;
                               const input = part.input as { variationIndex?: number };
                               
-                              console.log('[AI Chat] Handling regenerate variation tool:', {
-                                type: part.type,
-                                callId,
-                                state: part.state
-                              });
-                              
-                              // DEBUG: Log all states to see execution flow
                               const hasOutput2 = typeof (part as { output?: unknown }).output !== 'undefined';
                               const hasResult2 = typeof (part as { result?: unknown }).result !== 'undefined';
                               
@@ -1660,12 +1629,6 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                           case "tool-editCopy": {
                             const callId = part.toolCallId;
                             const input = part.input as { prompt?: string; current?: { primaryText?: string; headline?: string; description?: string } };
-
-                            console.log('[AI Chat] Handling edit copy tool:', {
-                              type: part.type,
-                              callId,
-                              state: part.state
-                            });
 
                             switch (part.state) {
                               case 'input-streaming':
@@ -1799,12 +1762,15 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
                                       dispatchedEvents.current.add(eventKey);
                                       // Determine mode from first location (all should have same mode in one call)
                                       const locationMode = output.locations[0]?.mode || 'include';
-                                      console.log('[AI Chat] 📡 Emitting locationUpdated event:', {
-                                        callId,
-                                        count: output.locations.length,
-                                        mode: locationMode,
-                                        locations: output.locations.map(l => ({ name: l.name, mode: l.mode }))
-                                      });
+                                      // Only log in development to prevent console flooding
+                                      if (process.env.NODE_ENV === 'development') {
+                                        console.log('[AI Chat] 📡 Emitting locationUpdated event:', {
+                                          callId,
+                                          count: output.locations.length,
+                                          mode: locationMode,
+                                          locations: output.locations.map(l => ({ name: l.name, mode: l.mode }))
+                                        });
+                                      }
                                       setTimeout(() => {
                                         emitBrowserEvent('locationUpdated', {
                                           sessionId: callId,

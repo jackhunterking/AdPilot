@@ -29,6 +29,8 @@ export function useMetaConnection() {
   const [loading, setLoading] = useState(false)
   const [lastChecked, setLastChecked] = useState<Date | null>(null)
   const hasInitialized = useRef(false)
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isFetchingRef = useRef(false)
 
   // Load connection status from database on mount
   useEffect(() => {
@@ -39,7 +41,10 @@ export function useMetaConnection() {
     hasInitialized.current = true
     
     const loadFromDatabase = async () => {
+      if (isFetchingRef.current) return
+      
       try {
+        isFetchingRef.current = true
         setLoading(true)
         logger.debug('useMetaConnection', '🔍 Loading connection from database (PRIMARY)', {
           campaignId: campaign.id,
@@ -132,6 +137,8 @@ export function useMetaConnection() {
         setMetaStatus('disconnected')
         setPaymentStatus('unknown')
         setLoading(false)
+      } finally {
+        isFetchingRef.current = false
       }
     }
     
@@ -142,8 +149,10 @@ export function useMetaConnection() {
   const refreshStatus = useCallback(async () => {
     if (!campaign?.id) return
     if (typeof window === 'undefined') return
+    if (isFetchingRef.current) return
     
     try {
+      isFetchingRef.current = true
       setLoading(true)
       logger.debug('useMetaConnection', '🔄 Manual refresh from database (PRIMARY)', {
         campaignId: campaign.id,
@@ -226,8 +235,21 @@ export function useMetaConnection() {
     } catch (error) {
       logger.error('useMetaConnection', 'Refresh failed', error)
       setLoading(false)
+    } finally {
+      isFetchingRef.current = false
     }
-  }, [campaign?.id, metaStatus, paymentStatus])
+  }, [campaign?.id])
+
+  // Debounced refresh function to prevent rapid-fire calls
+  const debouncedRefreshStatus = useCallback((delay = 300) => {
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current)
+    }
+    
+    refreshTimeoutRef.current = setTimeout(() => {
+      void refreshStatus()
+    }, delay)
+  }, [refreshStatus])
 
   // Listen for connection updated events (backward compatibility with localStorage events)
   useEffect(() => {
@@ -288,8 +310,8 @@ export function useMetaConnection() {
             hasNewData: !!payload.new,
           })
           
-          // Refresh status from database
-          void refreshStatus()
+          // Use debounced refresh to prevent rapid-fire calls
+          debouncedRefreshStatus(300)
         }
       )
       .subscribe()
@@ -304,7 +326,7 @@ export function useMetaConnection() {
       })
       void supabase.removeChannel(subscription)
     }
-  }, [campaign?.id, refreshStatus])
+  }, [campaign?.id, debouncedRefreshStatus])
 
   return {
     metaStatus,

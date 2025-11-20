@@ -63,8 +63,6 @@ export async function getCampaignMetaConnection(
   campaignId: string
 ): Promise<MetaConnectionData | null> {
   try {
-    metaLogger.info(CONTEXT, 'Getting Meta connection from database', { campaignId })
-
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
@@ -87,7 +85,6 @@ export async function getCampaignMetaConnection(
     }
 
     if (!connection) {
-      metaLogger.info(CONTEXT, 'No connection found in database', { campaignId })
       return null
     }
 
