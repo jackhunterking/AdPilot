@@ -3,9 +3,13 @@
  * Purpose: Server-side ad copy generation and editing
  * References:
  *  - Copy Service Contract: lib/services/contracts/copy-service.interface.ts
- *  - OpenAI GPT-4: https://platform.openai.com/docs/guides/text-generation
+ *  - Vercel AI SDK v5: https://sdk.vercel.ai/docs
+ *  - AI SDK generateObject: https://sdk.vercel.ai/docs/reference/ai-sdk-core/generate-object
  */
 
+import { generateObject } from 'ai';
+import { getModel } from '@/lib/ai/gateway-provider';
+import { z } from 'zod';
 import { createServerClient } from '@/lib/supabase/server';
 import type {
   CopyService,
@@ -29,13 +33,90 @@ import type { ServiceResult } from '@/lib/journeys/types/journey-contracts';
  */
 class CopyServiceServer implements CopyService {
   generateCopyVariations = {
-    async execute(_input: GenerateCopyInput): Promise<ServiceResult<GenerateCopyResult>> {
+    async execute(input: GenerateCopyInput): Promise<ServiceResult<GenerateCopyResult>> {
       try {
-        // TODO: Implement OpenAI GPT-4 copy generation
-        // Would call OpenAI API with goal-specific prompts
-        // Then insert into ad_copy_variations table
+        const supabase = await createServerClient();
         
-        throw new Error('Not implemented - Copy generation requires OpenAI API integration');
+        // Get user
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+          return {
+            success: false,
+            error: { code: 'unauthorized', message: 'Not authenticated' }
+          };
+        }
+
+        // Define schema for ad copy (Meta requirements)
+        const copySchema = z.object({
+          variations: z.array(z.object({
+            headline: z.string().max(40).describe('Catchy headline under 40 characters'),
+            primary_text: z.string().max(125).describe('Main ad copy text, max 125 characters'),
+            description: z.string().max(30).describe('Additional description, max 30 characters'),
+            cta_text: z.string().describe('Call to action button text'),
+            cta_type: z.enum(['LEARN_MORE', 'SIGN_UP', 'SHOP_NOW', 'GET_QUOTE', 'CONTACT_US', 'APPLY_NOW']).default('LEARN_MORE'),
+          })).length(3).describe('Generate exactly 3 unique variations'),
+        });
+
+        // Generate using o1-mini (reasoning model for high-quality copy)
+        const { object } = await generateObject({
+          model: getModel('openai/o1-mini'),
+          schema: copySchema,
+          prompt: `Generate 3 unique ad copy variations for a ${input.goalType} campaign.
+
+Product/Service: ${input.prompt}
+Campaign Goal: ${input.goalType}
+Platform: Facebook/Instagram Ads
+
+Requirements:
+- Headline: Maximum 40 characters, attention-grabbing
+- Primary Text: Maximum 125 characters, goal-oriented and persuasive
+- Description: Maximum 30 characters, highlight key benefit
+- CTA: Action-oriented button text
+
+Each variation should:
+1. Have a distinct tone (professional, casual, urgent)
+2. Emphasize different benefits
+3. Target different emotional triggers
+4. Comply with Meta advertising policies`,
+        });
+
+        const variations = [];
+
+        // Insert each variation to database
+        for (let i = 0; i < object.variations.length; i++) {
+          const variation = object.variations[i];
+          
+          const { data, error: dbError } = await supabase
+            .from('ad_copy_variations')
+            .insert({
+              ad_id: input.adId,
+              headline: variation.headline,
+              primary_text: variation.primary_text,
+              description: variation.description,
+              cta_text: variation.cta_text,
+              cta_type: variation.cta_type,
+              sort_order: i,
+              generation_prompt: input.prompt,
+            })
+            .select()
+            .single();
+
+          if (!dbError && data) {
+            variations.push(data);
+          }
+        }
+
+        if (variations.length === 0) {
+          return {
+            success: false,
+            error: { code: 'insert_failed', message: 'Failed to save copy variations' }
+          };
+        }
+
+        return {
+          success: true,
+          data: { variations },
+        };
       } catch (error) {
         return {
           success: false,
@@ -49,12 +130,52 @@ class CopyServiceServer implements CopyService {
   };
 
   editCopy = {
-    async execute(_input: EditCopyInput): Promise<ServiceResult<EditCopyResult>> {
+    async execute(input: EditCopyInput): Promise<ServiceResult<EditCopyResult>> {
       try {
-        // TODO: Implement OpenAI-powered copy editing
-        // Would use GPT-4 to modify copy based on user prompt
+        const supabase = await createServerClient();
         
-        throw new Error('Not implemented - Copy editing requires OpenAI API integration');
+        // Get user
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+          return {
+            success: false,
+            error: { code: 'unauthorized', message: 'Not authenticated' }
+          };
+        }
+
+        // Edit copy using o1-mini reasoning model
+        const { object } = await generateObject({
+          model: getModel('openai/o1-mini'),
+          schema: z.object({
+            headline: z.string().max(40).describe('Edited headline under 40 characters'),
+            primary_text: z.string().max(125).describe('Edited primary text under 125 characters'),
+            description: z.string().max(30).describe('Edited description under 30 characters'),
+            cta_text: z.string().describe('Edited call to action'),
+          }),
+          prompt: `Edit this ad copy based on the following feedback: ${input.feedback}
+
+Current Copy:
+- Headline: ${input.currentCopy.headline}
+- Primary Text: ${input.currentCopy.primary_text}
+- Description: ${input.currentCopy.description || 'None'}
+- CTA: ${input.currentCopy.cta_text}
+
+Apply the requested changes while:
+- Maintaining Meta ad requirements (character limits)
+- Keeping the core message
+- Improving clarity and persuasiveness
+- Ensuring compliance with advertising policies`,
+        });
+
+        return {
+          success: true,
+          data: {
+            headline: object.headline,
+            primary_text: object.primary_text,
+            description: object.description,
+            cta_text: object.cta_text,
+          },
+        };
       } catch (error) {
         return {
           success: false,
@@ -68,10 +189,25 @@ class CopyServiceServer implements CopyService {
   };
 
   refineHeadline = {
-    async execute(_input: RefineCopyInput): Promise<ServiceResult<RefineCopyResult>> {
+    async execute(input: RefineCopyInput): Promise<ServiceResult<RefineCopyResult>> {
       try {
-        // TODO: Implement headline refinement
-        throw new Error('Not implemented - Headline refinement requires OpenAI API integration');
+        // Refine headline using o1-mini
+        const { object } = await generateObject({
+          model: getModel('openai/o1-mini'),
+          schema: z.object({
+            refined: z.string().max(40).describe('Refined headline under 40 characters'),
+          }),
+          prompt: `Refine this ad headline: "${input.currentText}"
+
+Make it more ${input.refinementType || 'engaging and persuasive'}.
+Keep under 40 characters.
+Maintain core message while improving impact.`,
+        });
+
+        return {
+          success: true,
+          data: { refined: object.refined },
+        };
       } catch (error) {
         return {
           success: false,
@@ -85,10 +221,25 @@ class CopyServiceServer implements CopyService {
   };
 
   refinePrimaryText = {
-    async execute(_input: RefineCopyInput): Promise<ServiceResult<RefineCopyResult>> {
+    async execute(input: RefineCopyInput): Promise<ServiceResult<RefineCopyResult>> {
       try {
-        // TODO: Implement primary text refinement
-        throw new Error('Not implemented - Primary text refinement requires OpenAI API integration');
+        // Refine primary text using o1-mini
+        const { object } = await generateObject({
+          model: getModel('openai/o1-mini'),
+          schema: z.object({
+            refined: z.string().max(125).describe('Refined primary text under 125 characters'),
+          }),
+          prompt: `Refine this ad primary text: "${input.currentText}"
+
+Make it more ${input.refinementType || 'persuasive and action-oriented'}.
+Keep under 125 characters.
+Maintain the key message while improving engagement.`,
+        });
+
+        return {
+          success: true,
+          data: { refined: object.refined },
+        };
       } catch (error) {
         return {
           success: false,
@@ -102,10 +253,25 @@ class CopyServiceServer implements CopyService {
   };
 
   refineDescription = {
-    async execute(_input: RefineCopyInput): Promise<ServiceResult<RefineCopyResult>> {
+    async execute(input: RefineCopyInput): Promise<ServiceResult<RefineCopyResult>> {
       try {
-        // TODO: Implement description refinement
-        throw new Error('Not implemented - Description refinement requires OpenAI API integration');
+        // Refine description using o1-mini
+        const { object } = await generateObject({
+          model: getModel('openai/o1-mini'),
+          schema: z.object({
+            refined: z.string().max(30).describe('Refined description under 30 characters'),
+          }),
+          prompt: `Refine this ad description: "${input.currentText}"
+
+Make it more ${input.refinementType || 'concise and impactful'}.
+Keep under 30 characters.
+Highlight the key benefit.`,
+        });
+
+        return {
+          success: true,
+          data: { refined: object.refined },
+        };
       } catch (error) {
         return {
           success: false,

@@ -62,7 +62,14 @@ class BudgetServiceServer implements BudgetService {
       try {
         const { data, error } = await supabaseServer
           .from('ad_budgets')
-          .select('*')
+          .select(`
+            *,
+            ad:ads!inner(
+              campaign:campaigns!inner(
+                connection:campaign_meta_connections(selected_ad_account_id)
+              )
+            )
+          `)
           .eq('ad_id', adId)
           .single();
 
@@ -84,12 +91,15 @@ class BudgetServiceServer implements BudgetService {
           };
         }
 
+        // Extract selected ad account from joined data
+        const selectedAdAccount = (data as any).ad?.campaign?.connection?.selected_ad_account_id || null;
+
         return {
           success: true,
           data: {
             dailyBudget: data.daily_budget_cents / 100,
             currency: data.currency_code,
-            selectedAdAccount: null, // TODO: Link to campaigns table
+            selectedAdAccount,
             schedule: {
               startTime: data.start_date || null,
               endTime: data.end_date || null,

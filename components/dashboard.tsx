@@ -61,9 +61,19 @@ export function Dashboard({
   
   // Migrate legacy localStorage Meta connection to database (one-time)
   useEffect(() => {
-    if (campaignId) {
-      void migrateLegacyMetaConnection(campaignId)
+    if (!campaignId) return
+    
+    const runMigration = async () => {
+      try {
+        console.log('[Dashboard] Triggering Meta connection migration for campaign:', campaignId)
+        const success = await migrateLegacyMetaConnection(campaignId, { force: false, silent: false })
+        console.log('[Dashboard] Migration result:', success ? '✅ Success' : '❌ Failed')
+      } catch (error) {
+        console.error('[Dashboard] Migration exception:', error)
+      }
     }
+    
+    runMigration()
   }, [campaignId])
   
   // Get or create campaign-level conversation ID (persists across ads)

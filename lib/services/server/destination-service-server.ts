@@ -150,17 +150,34 @@ class DestinationServiceServer implements DestinationService {
   validatePhoneNumber = {
     async execute(input: { phoneNumber: string; countryCode: string }): Promise<ServiceResult<{ valid: boolean; formatted?: string; error?: string }>> {
       try {
-        // TODO: Implement proper phone number validation using libphonenumber or similar
-        // For now, basic validation
-        const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-        const valid = phoneRegex.test(input.phoneNumber);
+        // Enhanced phone validation with formatting
+        let phone = input.phoneNumber.trim();
+        
+        // Remove common separators
+        phone = phone.replace(/[\s\-\(\)\.]/g, '');
+        
+        // Add country code if missing
+        if (!phone.startsWith('+')) {
+          phone = `+${input.countryCode}${phone}`;
+        }
+        
+        // E.164 format validation (international standard)
+        // Format: +[country code][number] (max 15 digits)
+        const e164Regex = /^\+[1-9]\d{1,14}$/;
+        const valid = e164Regex.test(phone);
+        
+        // Additional check: minimum 7 digits (country code + area + number)
+        const digitCount = phone.replace(/\D/g, '').length;
+        const hasMinimumDigits = digitCount >= 7;
+        
+        const isValid = valid && hasMinimumDigits;
 
         return {
           success: true,
           data: {
-            valid,
-            formatted: valid ? input.phoneNumber : undefined,
-            error: valid ? undefined : 'Invalid phone number format',
+            valid: isValid,
+            formatted: isValid ? phone : undefined,
+            error: isValid ? undefined : 'Invalid phone number. Must be 7-15 digits with country code.',
           },
         };
       } catch (error) {
@@ -212,12 +229,112 @@ class DestinationServiceServer implements DestinationService {
   };
 
   createMetaForm = {
-    async execute(_input: { campaignId: string; pageId: string; configuration: LeadFormConfiguration }): Promise<ServiceResult<{ formId: string }>> {
+    async execute(input: { campaignId: string; pageId: string; configuration: LeadFormConfiguration }): Promise<ServiceResult<{ formId: string }>> {
       try {
-        // TODO: Implement Meta Form creation
-        // Would call Meta Graph API to create instant form
+        const supabase = await createServerClient();
         
-        throw new Error('Not implemented - Meta Form creation requires Meta API integration');
+        // Get user and verify ownership
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+          return {
+            success: false,
+            error: { code: 'unauthorized', message: 'Not authenticated' }
+          };
+        }
+
+        // Get page access token from campaign_meta_connections
+        const { data: connection } = await supabase
+          .from('campaign_meta_connections')
+          .select('selected_page_access_token, selected_page_id')
+          .eq('campaign_id', input.campaignId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!connection?.selected_page_access_token) {
+          return {
+            success: false,
+            error: { code: 'no_token', message: 'Page access token not found. Please reconnect Meta account.' }
+          };
+        }
+
+        const pageId = input.pageId || connection.selected_page_id;
+        if (!pageId) {
+          return {
+            success: false,
+            error: { code: 'no_page', message: 'Page ID not found' }
+          };
+        }
+
+        // Build Meta lead gen form payload
+        const graphVersion = process.env.NEXT_PUBLIC_FB_GRAPH_VERSION || 'v24.0';
+        const formUrl = `https://graph.facebook.com/${graphVersion}/${pageId}/leadgen_forms`;
+
+        // Transform configuration to Meta API format
+        const questions = input.configuration.fields.map(field => ({
+          type: field.type.toUpperCase(), // EMAIL, PHONE, FULL_NAME, etc.
+          label: field.label,
+          key: field.key || field.type,
+        }));
+
+        const payload = {
+          name: input.configuration.name,
+          privacy_policy_url: input.configuration.privacyPolicyUrl,
+          ...(input.configuration.introHeadline && { 
+            intro_headline: input.configuration.introHeadline 
+          }),
+          ...(input.configuration.introDescription && { 
+            intro_description: input.configuration.introDescription 
+          }),
+          ...(input.configuration.thankYouTitle && { 
+            thank_you_title: input.configuration.thankYouTitle 
+          }),
+          ...(input.configuration.thankYouMessage && { 
+            thank_you_message: input.configuration.thankYouMessage 
+          }),
+          questions,
+          access_token: connection.selected_page_access_token,
+        };
+
+        const response = await fetch(formUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          return {
+            success: false,
+            error: {
+              code: 'meta_api_error',
+              message: error.error?.message || 'Failed to create form on Meta',
+            }
+          };
+        }
+
+        const result = await response.json();
+        
+        // Save form to local database for tracking
+        await supabase
+          .from('instant_forms')
+          .insert({
+            campaign_id: input.campaignId,
+            user_id: user.id,
+            meta_form_id: result.id,
+            name: input.configuration.name,
+            intro_headline: input.configuration.introHeadline || '',
+            intro_description: input.configuration.introDescription || '',
+            privacy_policy_url: input.configuration.privacyPolicyUrl,
+            thank_you_title: input.configuration.thankYouTitle || 'Thank You!',
+            thank_you_message: input.configuration.thankYouMessage || 'We\'ll be in touch soon.',
+          });
+
+        return {
+          success: true,
+          data: {
+            formId: result.id,
+          },
+        };
       } catch (error) {
         return {
           success: false,

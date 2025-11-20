@@ -38,16 +38,86 @@ export interface ValidationError {
 export class PublishService {
   /**
    * Validate ad before publishing
-   * Note: Uses existing validation utilities
+   * Checks all required components are present for Meta publishing
    */
-  async validateAd(_adId: string): Promise<ServiceResult<{ valid: boolean; errors?: ValidationError[] }>> {
+  async validateAd(adId: string): Promise<ServiceResult<{ valid: boolean; errors?: ValidationError[] }>> {
     try {
-      // TODO: Implement proper validation using validateAdForPublish
-      // For now, return success (validation will happen in publish API route)
+      const supabase = await createServerClient();
+
+      // Get ad with all related data
+      const { data: ad, error } = await supabase
+        .from('ads')
+        .select(`
+          *,
+          ad_creatives(id),
+          ad_copy_variations(id),
+          ad_target_locations(id),
+          ad_budgets(id),
+          ad_destinations(id)
+        `)
+        .eq('id', adId)
+        .single();
+
+      if (error || !ad) {
+        return {
+          success: false,
+          error: {
+            code: 'ad_not_found',
+            message: 'Ad not found',
+          },
+        };
+      }
+
+      const errors: ValidationError[] = [];
+
+      // Check selected creative
+      if (!ad.selected_creative_id) {
+        errors.push({
+          field: 'creative',
+          message: 'No image selected. Please select an image variation.',
+        });
+      }
+
+      // Check selected copy
+      if (!ad.selected_copy_id) {
+        errors.push({
+          field: 'copy',
+          message: 'No ad copy selected. Please select a copy variation.',
+        });
+      }
+
+      // Check locations exist
+      const locationCount = (ad.ad_target_locations as any[])?.length || 0;
+      if (locationCount === 0) {
+        errors.push({
+          field: 'location',
+          message: 'No target locations set. Please add at least one location.',
+        });
+      }
+
+      // Check budget exists
+      const budgetCount = (ad.ad_budgets as any[])?.length || 0;
+      if (budgetCount === 0) {
+        errors.push({
+          field: 'budget',
+          message: 'No budget configured. Please set daily budget and schedule.',
+        });
+      }
+
+      // Check destination exists
+      const destinationCount = (ad.ad_destinations as any[])?.length || 0;
+      if (destinationCount === 0) {
+        errors.push({
+          field: 'destination',
+          message: 'No destination configured. Please set up lead form, website, or phone.',
+        });
+      }
+
       return {
         success: true,
         data: {
-          valid: true,
+          valid: errors.length === 0,
+          errors: errors.length > 0 ? errors : undefined,
         },
       };
     } catch (error) {

@@ -105,57 +105,84 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
     loadBudgetFromBackend()
   }, [campaign?.id, currentAd?.id, isInitialized, campaign])
 
-  // Sync budget state with Meta connection summary (localStorage) once initialized
+  // Sync budget state with Meta connection from database (with localStorage fallback)
   useEffect(() => {
     if (!campaign?.id || !isInitialized) return
     if (typeof window === "undefined") return
 
-    try {
-      const summary = metaStorage.getConnectionSummary(campaign.id)
-      const connection = metaStorage.getConnection(campaign.id)
-
-      if (!summary && !connection) {
-        return
-      }
-
-      setBudgetState(prev => {
-        let changed = false
-        const next: BudgetState = { ...prev }
-
-        const adAccountId = summary?.adAccount?.id ?? connection?.selected_ad_account_id ?? null
-        if (adAccountId && prev.selectedAdAccount !== adAccountId) {
-          next.selectedAdAccount = adAccountId
-          changed = true
+    const syncConnection = async () => {
+      try {
+        // Try database first
+        const { getCampaignMetaConnection } = await import('@/lib/services/meta-connection-manager')
+        const dbConnection = await getCampaignMetaConnection(campaign.id)
+        
+        let adAccountId: string | null = null
+        let currencyCode: string | null = null
+        let connectionStatus = 'disconnected'
+        
+        if (dbConnection) {
+          // Database connection found
+          adAccountId = dbConnection.adAccount?.id || null
+          currencyCode = dbConnection.adAccount?.currency || null
+          connectionStatus = dbConnection.connection_status
+          console.log('[BudgetContext] Syncing from database:', {
+            adAccountId,
+            currencyCode,
+            connectionStatus,
+          })
+        } else {
+          // Fallback to localStorage (during migration)
+          const metaStorage = require('@/lib/meta/storage').metaStorage
+          const summary = metaStorage.getConnectionSummary(campaign.id)
+          const connection = metaStorage.getConnection(campaign.id)
+          
+          adAccountId = summary?.adAccount?.id ?? connection?.selected_ad_account_id ?? null
+          currencyCode = summary?.adAccount?.currency ?? connection?.ad_account_currency_code ?? null
+          connectionStatus = summary?.status || connection?.status || 'disconnected'
+          
+          console.log('[BudgetContext] Syncing from localStorage (fallback):', {
+            adAccountId,
+            currencyCode,
+            connectionStatus,
+          })
         }
 
-        const isConnected =
-          Boolean(
-            summary?.status === "connected" ||
-              summary?.status === "selected_assets" ||
-              summary?.status === "payment_linked" ||
-              connection?.ad_account_payment_connected ||
-              adAccountId,
-          )
-
-        if (isConnected && !prev.isConnected) {
-          next.isConnected = true
-          changed = true
+        if (!adAccountId && !currencyCode) {
+          return
         }
 
-        const currencyCandidate = summary?.adAccount?.currency ?? connection?.ad_account_currency_code ?? null
-        if (currencyCandidate) {
-          const normalized = currencyCandidate.trim().toUpperCase()
-          if (normalized.length === 3 && normalized !== prev.currency) {
-            next.currency = normalized
+        setBudgetState(prev => {
+          let changed = false
+          const next: BudgetState = { ...prev }
+
+          if (adAccountId && prev.selectedAdAccount !== adAccountId) {
+            next.selectedAdAccount = adAccountId
             changed = true
           }
-        }
 
-        return changed ? next : prev
-      })
-    } catch (error) {
-      console.error("[BudgetContext] Failed to sync Meta connection summary", error)
+          const isConnected = connectionStatus === "connected" || !!adAccountId
+
+          if (isConnected && !prev.isConnected) {
+            next.isConnected = true
+            changed = true
+          }
+
+          if (currencyCode) {
+            const normalized = currencyCode.trim().toUpperCase()
+            if (normalized.length === 3 && normalized !== prev.currency) {
+              next.currency = normalized
+              changed = true
+            }
+          }
+
+          return changed ? next : prev
+        })
+      } catch (error) {
+        console.error("[BudgetContext] Failed to sync Meta connection", error)
+      }
     }
+    
+    syncConnection()
   }, [campaign?.id, isInitialized])
 
   useEffect(() => {
@@ -170,19 +197,34 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
       setBudgetState(prev => (prev.currency === normalized ? prev : { ...prev, currency: normalized }))
     }
 
-    const connection = metaStorage.getConnection(campaign.id)
-    if (connection?.ad_account_currency_code) {
-      applyCurrency(connection.ad_account_currency_code)
-      return
-    }
+    // Get currency from database (with localStorage fallback)
+    const loadCurrency = async () => {
+      const { getCampaignMetaConnection } = await import('@/lib/services/meta-connection-manager')
+      const dbConnection = await getCampaignMetaConnection(campaign.id)
+      
+      if (dbConnection?.adAccount?.currency) {
+        applyCurrency(dbConnection.adAccount.currency)
+        return
+      }
+      
+      // Fallback to localStorage (during migration)
+      const metaStorage = require('@/lib/meta/storage').metaStorage
+      const connection = metaStorage.getConnection(campaign.id)
+      if (connection?.ad_account_currency_code) {
+        applyCurrency(connection.ad_account_currency_code)
+        return
+      }
 
-    if (budgetState.currency && budgetState.currency !== "USD") {
-      return
-    }
+      if (budgetState.currency && budgetState.currency !== "USD") {
+        return
+      }
 
-    // Currency should already be available from meta connection
-    // If not set, it will be fetched when needed
-    // Legacy API call removed - route no longer exists
+      // Currency should already be available from meta connection
+      // If not set, it will be fetched when needed
+      // Legacy API call removed - route no longer exists
+    }
+    
+    loadCurrency()
   }, [campaign?.id, budgetState.selectedAdAccount, budgetState.currency])
 
   const setDailyBudget = (budget: number) => {

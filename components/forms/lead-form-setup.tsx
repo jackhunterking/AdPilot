@@ -177,22 +177,38 @@ export function LeadFormSetup({ onFormSelected }: LeadFormSetupProps) {
   useEffect(() => {
     if (!campaign?.id) return
     
-    // Check Meta connection from localStorage
-    const metaStorage = require('@/lib/meta/storage').metaStorage
-    const summary = metaStorage.getConnectionSummary(campaign.id)
-    const isMetaConnected = Boolean(
-      summary?.adAccount?.id || 
-      summary?.business?.id ||
-      summary?.status === 'connected' ||
-      summary?.status === 'selected_assets' ||
-      summary?.status === 'payment_linked'
-    )
-    
-    // If Meta is connected and instant forms is selected, auto-advance
-    if (isMetaConnected && destinationState.data?.type === 'instant_form' && !hasSelectedDestination) {
-      console.log('[LeadFormSetup] Auto-advancing to form builder (Meta connected + instant forms selected)')
-      setHasSelectedDestination(true)
+    const checkMetaConnection = async () => {
+      // Check Meta connection from database (with localStorage fallback)
+      const { getCampaignMetaConnection } = await import('@/lib/services/meta-connection-manager')
+      const dbConnection = await getCampaignMetaConnection(campaign.id)
+      
+      let isMetaConnected = false
+      
+      if (dbConnection) {
+        // Database connection found
+        isMetaConnected = dbConnection.connection_status === 'connected' && 
+          (!!dbConnection.business?.id || !!dbConnection.adAccount?.id)
+      } else {
+        // Fallback to localStorage (during migration)
+        const metaStorage = require('@/lib/meta/storage').metaStorage
+        const summary = metaStorage.getConnectionSummary(campaign.id)
+        isMetaConnected = Boolean(
+          summary?.adAccount?.id || 
+          summary?.business?.id ||
+          summary?.status === 'connected' ||
+          summary?.status === 'selected_assets' ||
+          summary?.status === 'payment_linked'
+        )
+      }
+      
+      // If Meta is connected and instant forms is selected, auto-advance
+      if (isMetaConnected && destinationState.data?.type === 'instant_form' && !hasSelectedDestination) {
+        console.log('[LeadFormSetup] Auto-advancing to form builder (Meta connected + instant forms selected)')
+        setHasSelectedDestination(true)
+      }
     }
+    
+    checkMetaConnection()
   }, [campaign?.id, destinationState.data?.type, hasSelectedDestination])
 
   const mockFields = useMemo(() => fields.map(f => ({ ...f })), [fields])
@@ -201,43 +217,75 @@ export function LeadFormSetup({ onFormSelected }: LeadFormSetupProps) {
   useEffect(() => {
     if (!campaign?.id) return
 
-    const connection = metaStorage.getConnection(campaign.id)
-    if (!connection) return
-
-    setPageData({
-      pageId: connection.selected_page_id || undefined,
-      pageName: connection.selected_page_name || undefined,
-    })
-
-    // Fetch page profile picture
-    const fetchPagePicture = async () => {
-      if (!connection.selected_page_id) return
-
-      try {
-        const url = new URL('/api/v1/meta/page-picture', window.location.origin)
-        url.searchParams.set('campaignId', campaign.id)
-        url.searchParams.set('pageId', connection.selected_page_id)
-        if (connection.selected_page_access_token) {
-          url.searchParams.set('pageAccessToken', connection.selected_page_access_token)
+    const loadPageData = async () => {
+      // Try database first
+      const { getCampaignMetaConnection } = await import('@/lib/services/meta-connection-manager')
+      const dbConnection = await getCampaignMetaConnection(campaign.id)
+      
+      let pageId: string | undefined
+      let pageName: string | undefined
+      
+      if (dbConnection?.page) {
+        // Database connection found
+        pageId = dbConnection.page.id
+        pageName = dbConnection.page.name
+      } else {
+        // Fallback to localStorage (during migration)
+        const metaStorage = require('@/lib/meta/storage').metaStorage
+        const connection = metaStorage.getConnection(campaign.id)
+        if (connection) {
+          pageId = connection.selected_page_id || undefined
+          pageName = connection.selected_page_name || undefined
         }
-
-        const res = await fetch(url.toString())
-        const json: unknown = await res.json()
-        if (
-          res.ok &&
-          json &&
-          typeof json === 'object' &&
-          'pictureUrl' in json &&
-          typeof json.pictureUrl === 'string'
-        ) {
-          setPageProfilePicture(json.pictureUrl)
-        }
-      } catch (e) {
-        console.warn('[LeadFormSetup] Failed to fetch page picture:', e)
       }
-    }
+      
+      if (!pageId) return
 
-    fetchPagePicture()
+      setPageData({ pageId, pageName })
+
+      // Fetch page profile picture
+      const fetchPagePicture = async () => {
+        if (!pageId) return
+
+        try {
+          const url = new URL('/api/v1/meta/page-picture', window.location.origin)
+          url.searchParams.set('campaignId', campaign.id)
+          url.searchParams.set('pageId', pageId)
+          
+          // Get page access token from database or localStorage
+          let pageAccessToken: string | undefined
+          if (dbConnection?.page?.access_token) {
+            pageAccessToken = dbConnection.page.access_token
+          } else {
+            const metaStorage = require('@/lib/meta/storage').metaStorage
+            const legacyConnection = metaStorage.getConnection(campaign.id)
+            pageAccessToken = legacyConnection?.selected_page_access_token
+          }
+          
+          if (pageAccessToken) {
+            url.searchParams.set('pageAccessToken', pageAccessToken)
+          }
+
+          const res = await fetch(url.toString())
+          const json: unknown = await res.json()
+          if (
+            res.ok &&
+            json &&
+            typeof json === 'object' &&
+            'pictureUrl' in json &&
+            typeof json.pictureUrl === 'string'
+          ) {
+            setPageProfilePicture(json.pictureUrl)
+          }
+        } catch (e) {
+          console.warn('[LeadFormSetup] Failed to fetch page picture:', e)
+        }
+      }
+
+      fetchPagePicture()
+    }
+    
+    loadPageData()
   }, [campaign?.id])
 
   // Convert builder state to MetaInstantForm for preview

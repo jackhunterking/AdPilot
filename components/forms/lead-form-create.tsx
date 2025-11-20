@@ -133,34 +133,42 @@ export function LeadFormCreate({
       return
     }
 
-    // Get connection from localStorage for fallback
-    const connection = metaStorage.getConnection(campaign.id)
+    // Get connection from database (with localStorage fallback)
+    const { getCampaignMetaConnection } = await import('@/lib/services/meta-connection-manager')
+    const dbConnection = await getCampaignMetaConnection(campaign.id)
+    
+    let pageId: string | undefined
+    let pageAccessToken: string | undefined
+    
+    if (dbConnection?.page) {
+      // Database connection found
+      pageId = dbConnection.page.id
+      pageAccessToken = dbConnection.page.access_token
+    } else {
+      // Fallback to localStorage
+      const metaStorage = require('@/lib/meta/storage').metaStorage
+      const connection = metaStorage.getConnection(campaign.id)
+      pageId = connection?.selected_page_id
+      pageAccessToken = connection?.selected_page_access_token
+    }
 
     console.log('[LeadFormCreate] Starting form creation:', {
       campaignId: campaign.id,
-      hasConnection: !!connection,
-      connectionKeys: connection ? Object.keys(connection) : [],
-      pageId: connection?.selected_page_id,
-      hasPageAccessToken: !!connection?.selected_page_access_token,
-      pageAccessTokenLength: connection?.selected_page_access_token?.length,
+      hasConnection: !!(dbConnection || pageId),
+      pageId,
+      hasPageAccessToken: !!pageAccessToken,
+      pageAccessTokenLength: pageAccessToken?.length,
+      source: dbConnection ? 'database' : 'localStorage',
     })
 
-    // Log the full connection object (with token redacted)
-    if (connection) {
-      const redactedConnection = { ...connection }
-      if (redactedConnection.selected_page_access_token) {
-        const token = redactedConnection.selected_page_access_token
-        redactedConnection.selected_page_access_token =
-          token.length > 10 ? `${token.slice(0, 6)}...${token.slice(-4)}` : '[SHORT_TOKEN]'
-      }
-      if (redactedConnection.long_lived_user_token) {
-        const token = redactedConnection.long_lived_user_token
-        redactedConnection.long_lived_user_token =
-          token.length > 10 ? `${token.slice(0, 6)}...${token.slice(-4)}` : '[SHORT_TOKEN]'
-      }
-      console.log('[LeadFormCreate] Connection details:', redactedConnection)
+    // Log the connection with token redacted for security
+    if (pageAccessToken) {
+      const redactedToken = pageAccessToken.length > 10 
+        ? `${pageAccessToken.slice(0, 6)}...${pageAccessToken.slice(-4)}` 
+        : '[SHORT_TOKEN]'
+      console.log('[LeadFormCreate] Page access token:', redactedToken)
     } else {
-      console.error('[LeadFormCreate] No connection found in localStorage for campaign:', campaign.id)
+      console.error('[LeadFormCreate] No page access token found for campaign:', campaign.id)
     }
 
     setIsSubmitting(true)
@@ -168,8 +176,8 @@ export function LeadFormCreate({
 
     const requestBody = {
       campaignId: campaign.id,
-      pageId: connection?.selected_page_id,
-      pageAccessToken: connection?.selected_page_access_token,
+      pageId,
+      pageAccessToken,
       name: formName,
       introHeadline,
       introDescription,

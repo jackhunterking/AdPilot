@@ -55,6 +55,7 @@ export function SettingsModal({
   const { metaStatus, paymentStatus } = useMetaConnection()
   const metaActions = useMetaActions()
   const [isConnecting, setIsConnecting] = useState(false)
+  const [summary, setSummary] = useState<Awaited<ReturnType<typeof metaActions.getSummary>> | null>(null)
 
   // Get campaign goal (campaign_states table removed)
   const campaignGoal = campaign?.initial_goal
@@ -87,7 +88,18 @@ export function SettingsModal({
 
   const isConnected = metaStatus === 'connected'
   const hasPaymentIssue = paymentStatus === 'missing' || paymentStatus === 'flagged'
-  const summary = metaActions.getSummary()
+
+  // Load connection summary
+  useEffect(() => {
+    if (!campaign?.id) return
+    
+    const loadSummary = async () => {
+      const summaryData = await metaActions.getSummary()
+      setSummary(summaryData)
+    }
+    
+    void loadSummary()
+  }, [campaign?.id, metaActions])
 
   const currencyCode = typeof budgetState.currency === 'string' && budgetState.currency.trim().length === 3
     ? budgetState.currency.trim().toUpperCase()

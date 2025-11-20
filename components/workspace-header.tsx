@@ -71,6 +71,7 @@ export function WorkspaceHeader({
   const { metaStatus: hookMetaStatus, paymentStatus: hookPaymentStatus } = useMetaConnection()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [summary, setSummary] = useState<Awaited<ReturnType<typeof metaActions.getSummary>> | null>(null)
   
   // Use real-time hook status, fallback to props for SSR/initial render
   const metaConnectionStatus = hookMetaStatus || propsMetaStatus
@@ -101,8 +102,18 @@ export function WorkspaceHeader({
     }
   }
 
-  // Get summary for dropdown
-  const summary = metaActions.getSummary()
+  // Load connection summary
+  useEffect(() => {
+    if (!campaign?.id) return
+    
+    const loadSummary = async () => {
+      const summaryData = await metaActions.getSummary()
+      setSummary(summaryData)
+    }
+    
+    void loadSummary()
+  }, [campaign?.id, metaActions])
+
   const isConnected = metaConnectionStatus === 'connected'
   const hasPaymentIssue = paymentStatus === 'missing' || paymentStatus === 'flagged'
   const currencyCode = typeof budgetState.currency === 'string' && budgetState.currency.trim().length === 3

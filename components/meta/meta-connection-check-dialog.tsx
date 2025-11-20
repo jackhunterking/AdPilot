@@ -73,34 +73,54 @@ export function MetaConnectionCheckDialog({ open, onOpenChange, onSuccess }: Met
           return
         }
         
-        console.log('[MetaConnectionCheckDialog] Connection event received, checking connection directly')
+        console.log('[MetaConnectionCheckDialog] Connection event received, checking connection from database')
         
-        // Check localStorage directly to avoid stale closure issues
-        const metaStorage = require('@/lib/meta/storage').metaStorage
-        const summary = metaStorage.getConnectionSummary(campaign.id)
-        const isConnected = Boolean(
-          summary?.adAccount?.id || 
-          summary?.business?.id ||
-          summary?.status === 'connected' ||
-          summary?.status === 'selected_assets' ||
-          summary?.status === 'payment_linked'
-        )
-        
-        console.log('[MetaConnectionCheckDialog] Connection check result:', {
-          isConnected,
-          hasAdAccount: !!summary?.adAccount?.id,
-          hasBusiness: !!summary?.business?.id,
-          status: summary?.status,
-        })
-        
-        if (isConnected) {
-          console.log('[MetaConnectionCheckDialog] Connected! Auto-closing dialog immediately')
-          // Refresh the hook state
-          refreshStatus()
-          // Close dialog and trigger success callback immediately
-          onSuccess()
-          onOpenChange(false)
+        // Check database first (with localStorage fallback)
+        const checkConnection = async () => {
+          const { getCampaignMetaConnection } = await import('@/lib/services/meta-connection-manager')
+          const dbConnection = await getCampaignMetaConnection(campaign.id)
+          
+          let isConnected = false
+          
+          if (dbConnection) {
+            // Database connection found
+            isConnected = dbConnection.connection_status === 'connected' && 
+              (!!dbConnection.business?.id || !!dbConnection.adAccount?.id)
+            console.log('[MetaConnectionCheckDialog] Connection check (database):', {
+              isConnected,
+              hasBusiness: !!dbConnection.business?.id,
+              hasAdAccount: !!dbConnection.adAccount?.id,
+            })
+          } else {
+            // Fallback to localStorage (during migration)
+            const metaStorage = require('@/lib/meta/storage').metaStorage
+            const summary = metaStorage.getConnectionSummary(campaign.id)
+            isConnected = Boolean(
+              summary?.adAccount?.id || 
+              summary?.business?.id ||
+              summary?.status === 'connected' ||
+              summary?.status === 'selected_assets' ||
+              summary?.status === 'payment_linked'
+            )
+            console.log('[MetaConnectionCheckDialog] Connection check (localStorage fallback):', {
+              isConnected,
+              hasAdAccount: !!summary?.adAccount?.id,
+              hasBusiness: !!summary?.business?.id,
+              status: summary?.status,
+            })
+          }
+          
+          if (isConnected) {
+            console.log('[MetaConnectionCheckDialog] Connected! Auto-closing dialog immediately')
+            // Refresh the hook state
+            refreshStatus()
+            // Close dialog and trigger success callback immediately
+            onSuccess()
+            onOpenChange(false)
+          }
         }
+        
+        checkConnection()
       } catch (error) {
         console.error('[MetaConnectionCheckDialog] Error handling event:', error)
       }

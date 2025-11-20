@@ -229,11 +229,72 @@ class TargetingServiceServer implements TargetingService {
   };
 
   lookupMetaLocationKey = {
-    async execute(_input: { locationName: string; type: string }): Promise<ServiceResult<{ key: string }>> {
+    async execute(input: { locationName: string; type: string; campaignId?: string }): Promise<ServiceResult<{ key: string }>> {
       try {
-        // TODO: Implement Meta Location Search API call
-        // https://developers.facebook.com/docs/marketing-api/targeting-specs
-        throw new Error('Not implemented - Meta location key lookup');
+        // Get Meta access token from campaign connection
+        const supabase = await createServerClient();
+        
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+          return {
+            success: false,
+            error: { code: 'unauthorized', message: 'Not authenticated' }
+          };
+        }
+
+        // Get Meta token (from meta_tokens table)
+        const { data: tokenRow } = await supabase
+          .from('meta_tokens')
+          .select('token')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!tokenRow?.token) {
+          return {
+            success: false,
+            error: { code: 'no_token', message: 'Meta token not found. Please connect Meta account first.' }
+          };
+        }
+
+        // Call Meta Targeting Search API
+        const graphVersion = process.env.NEXT_PUBLIC_FB_GRAPH_VERSION || 'v24.0';
+        const searchUrl = `https://graph.facebook.com/${graphVersion}/search`;
+        
+        const params = new URLSearchParams({
+          type: 'adgeolocation',
+          location_types: input.type === 'city' ? 'city' : input.type === 'region' ? 'region' : 'country',
+          q: input.locationName,
+          access_token: tokenRow.token,
+          limit: '1',
+        });
+
+        const response = await fetch(`${searchUrl}?${params.toString()}`);
+        
+        if (!response.ok) {
+          const error = await response.json();
+          return {
+            success: false,
+            error: {
+              code: 'meta_api_error',
+              message: error.error?.message || 'Meta API request failed',
+            }
+          };
+        }
+
+        const result = await response.json();
+        
+        if (!result.data || result.data.length === 0) {
+          return {
+            success: false,
+            error: { code: 'not_found', message: 'No Meta location key found for this location' }
+          };
+        }
+
+        // Return first match key
+        return {
+          success: true,
+          data: { key: result.data[0].key },
+        };
       } catch (error) {
         return {
           success: false,

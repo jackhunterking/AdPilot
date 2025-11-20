@@ -290,45 +290,35 @@ class MetaServiceClient implements MetaService {
   };
 
   refreshToken = {
-    async execute(campaignId: string): Promise<ServiceResult<{ token: string; expiresIn: number }>> {
+    async execute(oldToken: string): Promise<ServiceResult<{ token: string; expiresIn: number }>> {
       try {
-        // TODO: Migrate to v1 API - OAuth refresh endpoint not yet implemented
-        // For now, return an error indicating refresh is not available
-        return {
-          success: false,
-          error: {
-            code: 'not_implemented',
-            message: 'Token refresh not yet implemented in v1 API',
-          },
-        };
+        const response = await fetch('/api/v1/meta/refresh-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ oldToken }),
+        });
         
-        // const response = await fetch('/api/v1/meta/oauth/refresh', {
-        //   method: 'POST',
-        //   headers: { 'Content-Type': 'application/json' },
-        //   credentials: 'include',
-        //   body: JSON.stringify({ campaignId }),
-        // });
-        // 
-        // const result: unknown = await response.json();
-        // 
-        // if (!response.ok) {
-        //   const errorResult = result as { success: false; error: { code: string; message: string } };
-        //   return {
-        //     success: false,
-        //     error: errorResult.error,
-        //   };
-        // }
-        // 
-        // const successResult = result as { success: true; data: { token: string; expiresIn: number } };
-        // return {
-        //   success: true,
-        //   data: { token: successResult.data.token, expiresIn: successResult.data.expiresIn },
-        // };
+        const result: unknown = await response.json();
+        
+        if (!response.ok) {
+          const errorResult = result as { success: false; error: { code: string; message: string } };
+          return {
+            success: false,
+            error: errorResult.error,
+          };
+        }
+        
+        const successResult = result as { success: true; data: { token: string; expiresIn: number } };
+        return {
+          success: true,
+          data: successResult.data,
+        };
       } catch (error) {
         return {
           success: false,
           error: {
-            code: 'refresh_error',
+            code: 'network_error',
             message: error instanceof Error ? error.message : 'Failed to refresh token',
           },
         };
@@ -339,14 +329,26 @@ class MetaServiceClient implements MetaService {
   disconnect = {
     async execute(campaignId: string): Promise<ServiceResult<void>> {
       try {
-        // TODO: Migrate to v1 API - OAuth disconnect endpoint not yet implemented
-        // For now, return an error indicating disconnect is not available
+        const response = await fetch('/api/v1/meta/disconnect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ campaignId }),
+        });
+
+        const result: unknown = await response.json();
+
+        if (!response.ok) {
+          const errorResult = result as { success: false; error: { code: string; message: string } };
+          return {
+            success: false,
+            error: errorResult.error,
+          };
+        }
+
         return {
-          success: false,
-          error: {
-            code: 'not_implemented',
-            message: 'Disconnect not yet implemented in v1 API',
-          },
+          success: true,
+          data: undefined,
         };
         
         // const response = await fetch('/api/v1/meta/oauth/disconnect', {

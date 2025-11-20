@@ -58,15 +58,32 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
         return
       }
 
-      // Get connection from localStorage for fallback
-      const connection = metaStorage.getConnection(campaign.id)
+      // Get connection from database (with localStorage fallback)
+      const { getCampaignMetaConnection } = await import('@/lib/services/meta-connection-manager')
+      const dbConnection = await getCampaignMetaConnection(campaign.id)
+      
+      let pageId: string | undefined
+      let pageAccessToken: string | undefined
+      
+      if (dbConnection?.page) {
+        // Database connection found
+        pageId = dbConnection.page.id
+        pageAccessToken = dbConnection.page.access_token
+      } else {
+        // Fallback to localStorage (during migration)
+        const metaStorage = require('@/lib/meta/storage').metaStorage
+        const connection = metaStorage.getConnection(campaign.id)
+        pageId = connection?.selected_page_id
+        pageAccessToken = connection?.selected_page_access_token
+      }
 
       console.log('[LeadFormExisting] Fetching forms:', {
         campaignId: campaign.id,
-        hasConnection: !!connection,
-        pageId: connection?.selected_page_id,
-        hasPageAccessToken: !!connection?.selected_page_access_token,
-        pageAccessTokenLength: connection?.selected_page_access_token?.length,
+        hasConnection: !!(dbConnection || pageId),
+        pageId,
+        hasPageAccessToken: !!pageAccessToken,
+        pageAccessTokenLength: pageAccessToken?.length,
+        source: dbConnection ? 'database' : 'localStorage',
       })
 
       setIsLoading(true)
@@ -74,17 +91,18 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
       try {
         const url = new URL('/api/v1/meta/forms', window.location.origin)
         url.searchParams.set('campaignId', campaign.id)
-        if (connection?.selected_page_id) {
-          url.searchParams.set('pageId', connection.selected_page_id)
+        if (pageId) {
+          url.searchParams.set('pageId', pageId)
         }
-        if (connection?.selected_page_access_token) {
-          url.searchParams.set('pageAccessToken', connection.selected_page_access_token)
+        if (pageAccessToken) {
+          url.searchParams.set('pageAccessToken', pageAccessToken)
         }
 
         console.log('[LeadFormExisting] Request URL (token redacted):', {
           url: url.toString().replace(/pageAccessToken=[^&]+/, 'pageAccessToken=[REDACTED]'),
           hasPageId: url.searchParams.has('pageId'),
           hasPageAccessToken: url.searchParams.has('pageAccessToken'),
+          source: dbConnection ? 'database' : 'localStorage',
         })
 
         const res = await fetch(url.toString())
@@ -142,26 +160,45 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
     setIsLoadingPreview(true)
     setPreviewFormId(id)
 
-    // Get connection from localStorage for fallback
-    const connection = metaStorage.getConnection(campaign.id)
+    // Get connection from database (with localStorage fallback)
+    const { getCampaignMetaConnection } = await import('@/lib/services/meta-connection-manager')
+    const dbConnection = await getCampaignMetaConnection(campaign.id)
+    
+    let pageId: string | undefined
+    let pageAccessToken: string | undefined
+    let pageName: string | undefined
+    
+    if (dbConnection?.page) {
+      pageId = dbConnection.page.id
+      pageAccessToken = dbConnection.page.access_token
+      pageName = dbConnection.page.name || undefined
+    } else {
+      // Fallback to localStorage
+      const metaStorage = require('@/lib/meta/storage').metaStorage
+      const connection = metaStorage.getConnection(campaign.id)
+      pageId = connection?.selected_page_id
+      pageAccessToken = connection?.selected_page_access_token
+      pageName = connection?.selected_page_name
+    }
 
     console.log('[LeadFormExisting] Requesting preview:', {
       formId: id,
       campaignId: campaign.id,
-      hasConnection: !!connection,
-      pageId: connection?.selected_page_id,
-      hasPageAccessToken: !!connection?.selected_page_access_token,
+      hasConnection: !!(dbConnection || pageId),
+      pageId,
+      hasPageAccessToken: !!pageAccessToken,
+      source: dbConnection ? 'database' : 'localStorage',
     })
 
     try {
       // Fetch form details
       const url = new URL(`/api/v1/meta/instant-forms/${encodeURIComponent(id)}`, window.location.origin)
       url.searchParams.set('campaignId', campaign.id)
-      if (connection?.selected_page_id) {
-        url.searchParams.set('pageId', connection.selected_page_id)
+      if (pageId) {
+        url.searchParams.set('pageId', pageId)
       }
-      if (connection?.selected_page_access_token) {
-        url.searchParams.set('pageAccessToken', connection.selected_page_access_token)
+      if (pageAccessToken) {
+        url.searchParams.set('pageAccessToken', pageAccessToken)
       }
 
       console.log('[LeadFormExisting] Preview request URL (token redacted):', {
@@ -183,13 +220,13 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
       
       // Fetch page profile picture if we have page data
       let profilePicture: string | undefined = pageProfilePicture
-      if (connection?.selected_page_id && !profilePicture) {
+      if (pageId && !profilePicture) {
         try {
           const pictureUrl = new URL('/api/v1/meta/page-picture', window.location.origin)
           pictureUrl.searchParams.set('campaignId', campaign.id)
-          pictureUrl.searchParams.set('pageId', connection.selected_page_id)
-          if (connection.selected_page_access_token) {
-            pictureUrl.searchParams.set('pageAccessToken', connection.selected_page_access_token)
+          pictureUrl.searchParams.set('pageId', pageId)
+          if (pageAccessToken) {
+            pictureUrl.searchParams.set('pageAccessToken', pageAccessToken)
           }
 
           const pictureRes = await fetch(pictureUrl.toString())
@@ -211,8 +248,8 @@ export function LeadFormExisting({ onPreview, onConfirm, onRequestCreate, select
 
       // Use mapper to convert Graph API response to our format
       const metaForm = mapGraphAPIFormToMetaForm(json as GraphAPILeadgenForm, {
-        pageId: connection?.selected_page_id,
-        pageName: connection?.selected_page_name || undefined,
+        pageId: pageId,
+        pageName: pageName,
         pageProfilePicture: profilePicture,
       })
 

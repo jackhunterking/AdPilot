@@ -238,12 +238,50 @@ class MetaServiceServer implements MetaService {
   };
 
   refreshToken = {
-    async execute(_oldToken: string): Promise<ServiceResult<{ token: string; expiresIn: number }>> {
+    async execute(oldToken: string): Promise<ServiceResult<{ token: string; expiresIn: number }>> {
       try {
-        // TODO: Implement token refresh via Meta API
-        // This would exchange short-lived for long-lived token
+        const appId = process.env.NEXT_PUBLIC_FB_APP_ID;
+        const appSecret = process.env.FB_APP_SECRET;
+        const graphVersion = process.env.NEXT_PUBLIC_FB_GRAPH_VERSION || 'v24.0';
+
+        if (!appId || !appSecret) {
+          return {
+            success: false,
+            error: { code: 'config_error', message: 'Meta app credentials not configured' }
+          };
+        }
+
+        // Exchange short-lived token for long-lived token (60 days)
+        const tokenUrl = `https://graph.facebook.com/${graphVersion}/oauth/access_token`;
+        const params = new URLSearchParams({
+          grant_type: 'fb_exchange_token',
+          client_id: appId,
+          client_secret: appSecret,
+          fb_exchange_token: oldToken,
+        });
+
+        const response = await fetch(`${tokenUrl}?${params.toString()}`);
         
-        throw new Error('Not implemented - Token refresh');
+        if (!response.ok) {
+          const error = await response.json();
+          return {
+            success: false,
+            error: {
+              code: 'meta_api_error',
+              message: error.error?.message || 'Token refresh failed',
+            }
+          };
+        }
+
+        const result = await response.json();
+        
+        return {
+          success: true,
+          data: {
+            token: result.access_token,
+            expiresIn: result.expires_in || 5184000, // 60 days default
+          },
+        };
       } catch (error) {
         return {
           success: false,

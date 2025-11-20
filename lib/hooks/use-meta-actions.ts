@@ -25,11 +25,43 @@ export function useMetaActions() {
   const [isConnecting, setIsConnecting] = useState(false)
 
   /**
-   * Get current connection summary from localStorage
+   * Get current connection summary from database (with localStorage fallback)
    */
-  const getSummary = useCallback((): SelectionSummaryDTO | null => {
+  const getSummary = useCallback(async (): Promise<SelectionSummaryDTO | null> => {
     if (!campaign?.id) return null
-    return metaStorage.getConnectionSummary(campaign.id)
+    
+    try {
+      // PRIMARY: Try database first
+      const dbConnection = await import('@/lib/services/meta-connection-manager').then(
+        m => m.getCampaignMetaConnection(campaign.id)
+      )
+      
+      if (dbConnection) {
+        // Convert to SelectionSummaryDTO format
+        return {
+          business: dbConnection.business,
+          page: dbConnection.page ? {
+            id: dbConnection.page.id,
+            name: dbConnection.page.name,
+          } : undefined,
+          instagram: dbConnection.instagram,
+          adAccount: dbConnection.adAccount,
+          paymentConnected: dbConnection.payment_connected,
+          adminConnected: dbConnection.admin_connected,
+          adminBusinessRole: null, // Not stored in new format
+          adminAdAccountRole: null, // Not stored in new format
+          userAppConnected: !!dbConnection.tokens.user_app_token,
+          status: dbConnection.connection_status,
+        }
+      }
+      
+      // FALLBACK: Try localStorage (during migration)
+      return metaStorage.getConnectionSummary(campaign.id)
+    } catch (error) {
+      console.error('[useMetaActions] Failed to get summary', error)
+      // Fallback to localStorage on error
+      return metaStorage.getConnectionSummary(campaign.id)
+    }
   }, [campaign?.id])
 
   /**
@@ -211,10 +243,27 @@ export function useMetaActions() {
           metaLogger.info('useMetaActions', 'Payment verified as connected')
           setPaymentStatus('success')
 
-          // Update localStorage
-          metaStorage.markPaymentConnected(campaign.id)
+          // Update database (PRIMARY)
+          try {
+            const { updateCampaignMetaConnection } = await import('@/lib/services/meta-connection-manager')
+            const dbSuccess = await updateCampaignMetaConnection(campaign.id, {
+              payment_connected: true,
+            } as any) // Type assertion for partial update
+            
+            if (dbSuccess) {
+              metaLogger.info('useMetaActions', '✅ Payment status updated in database')
+            } else {
+              metaLogger.warn('useMetaActions', '⚠️ Database update failed, updating localStorage as fallback')
+              // FALLBACK: Update localStorage
+              metaStorage.markPaymentConnected(campaign.id)
+            }
+          } catch (error) {
+            metaLogger.error('useMetaActions', 'Exception updating payment in database', error as Error)
+            // FALLBACK: Update localStorage
+            metaStorage.markPaymentConnected(campaign.id)
+          }
           
-          // Emit payment verified event AFTER localStorage is updated
+          // Emit payment verified event
           emitMetaPaymentUpdate(campaign.id, 'verified')
           
           return true

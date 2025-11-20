@@ -2,17 +2,25 @@
 
 /**
  * Feature: Meta Connection Status Hook
- * Purpose: Real-time Meta connection and payment status tracking with localStorage auto-detection
+ * Purpose: Real-time Meta connection and payment status tracking from database
  * References:
+ *  - Supabase Realtime: https://supabase.com/docs/guides/realtime/postgres-changes
  *  - AI SDK Core: https://ai-sdk.dev/docs/introduction
+ * 
+ * REFACTORED: Migrated from localStorage (metaStorage) to database-first approach
+ * - Reads from campaign_meta_connections + meta_tokens tables
+ * - Real-time updates via Supabase subscriptions
+ * - Backward compatible with localStorage fallback during transition
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useCampaignContext } from '@/lib/context/campaign-context'
-import { metaStorage } from '@/lib/meta/storage'
+import { getCampaignMetaConnection } from '@/lib/services/meta-connection-manager'
+import { metaStorage } from '@/lib/meta/storage' // LEGACY: Fallback only during migration
 import { META_EVENTS, type MetaConnectionChangeEvent, type MetaPaymentUpdateEvent, type MetaDisconnectionEvent, type MetaConnectionUpdatedEvent } from '@/lib/utils/meta-events'
 import type { MetaConnectionStatus, PaymentStatus } from '@/lib/types/meta-integration'
 import { logger } from '@/lib/utils/logger'
+import { supabase } from '@/lib/supabase/client'
 
 export function useMetaConnection() {
   const { campaign } = useCampaignContext()
@@ -22,7 +30,7 @@ export function useMetaConnection() {
   const [lastChecked, setLastChecked] = useState<Date | null>(null)
   const hasInitialized = useRef(false)
 
-  // Check localStorage ONCE on mount for immediate status update
+  // Load connection status from database on mount
   useEffect(() => {
     if (!campaign?.id) return
     if (typeof window === 'undefined') return
@@ -30,20 +38,158 @@ export function useMetaConnection() {
     
     hasInitialized.current = true
     
+    const loadFromDatabase = async () => {
+      try {
+        setLoading(true)
+        logger.debug('useMetaConnection', '🔍 Loading connection from database (PRIMARY)', {
+          campaignId: campaign.id,
+        })
+        
+        // PRIMARY: Try database first
+        const dbConnection = await getCampaignMetaConnection(campaign.id)
+        
+        if (dbConnection) {
+          logger.debug('useMetaConnection', '✅ Found connection in database', {
+            campaignId: campaign.id,
+            hasBusiness: !!dbConnection.business?.id,
+            hasAdAccount: !!dbConnection.adAccount?.id,
+            hasToken: !!dbConnection.tokens.long_lived_user_token,
+            connectionStatus: dbConnection.connection_status,
+            paymentConnected: dbConnection.payment_connected,
+          })
+          
+          // Set status from database
+          const isConnected = dbConnection.connection_status === 'connected' && 
+            (!!dbConnection.business?.id || !!dbConnection.adAccount?.id)
+          
+          setMetaStatus(isConnected ? 'connected' : 'disconnected')
+          setPaymentStatus(
+            isConnected 
+              ? (dbConnection.payment_connected ? 'verified' : 'missing')
+              : 'unknown'
+          )
+          setLastChecked(new Date())
+          setLoading(false)
+          return
+        }
+        
+        // FALLBACK: Try localStorage (during migration period)
+        logger.debug('useMetaConnection', '⚠️ No database connection, checking localStorage (FALLBACK)', {
+          campaignId: campaign.id,
+        })
+        
+        const summary = metaStorage.getConnectionSummary(campaign.id)
+        const connection = metaStorage.getConnection(campaign.id)
+        
+        if (summary || connection) {
+          logger.debug('useMetaConnection', '📦 Found connection in localStorage (LEGACY)', {
+            campaignId: campaign.id,
+            hasSummary: !!summary,
+            hasConnection: !!connection,
+            summaryStatus: summary?.status,
+            paymentConnected: summary?.paymentConnected,
+          })
+          
+          // Auto-detect from localStorage (legacy)
+          const hasAssets = Boolean(
+            summary?.adAccount?.id || 
+            connection?.selected_ad_account_id ||
+            summary?.business?.id ||
+            connection?.selected_business_id
+          )
+          
+          const isConnected = Boolean(
+            summary?.status === 'connected' ||
+            summary?.status === 'selected_assets' ||
+            summary?.status === 'payment_linked' ||
+            hasAssets
+          )
+          
+          const hasPayment = Boolean(
+            summary?.paymentConnected ||
+            connection?.ad_account_payment_connected
+          )
+          
+          setMetaStatus(isConnected ? 'connected' : 'disconnected')
+          setPaymentStatus(
+            isConnected 
+              ? (hasPayment ? 'verified' : 'missing')
+              : 'unknown'
+          )
+          setLastChecked(new Date())
+        } else {
+          // No connection data anywhere
+          logger.debug('useMetaConnection', 'ℹ️ No connection data found (database or localStorage)', {
+            campaignId: campaign.id,
+          })
+          setMetaStatus('disconnected')
+          setPaymentStatus('unknown')
+        }
+        
+        setLoading(false)
+      } catch (error) {
+        logger.error('useMetaConnection', 'Failed to load connection status', error)
+        setMetaStatus('disconnected')
+        setPaymentStatus('unknown')
+        setLoading(false)
+      }
+    }
+    
+    loadFromDatabase()
+  }, [campaign?.id])
+
+  // Manual refresh function for explicit status updates (called by components when needed)
+  const refreshStatus = useCallback(async () => {
+    if (!campaign?.id) return
+    if (typeof window === 'undefined') return
+    
     try {
+      setLoading(true)
+      logger.debug('useMetaConnection', '🔄 Manual refresh from database (PRIMARY)', {
+        campaignId: campaign.id,
+      })
+      
+      // PRIMARY: Try database first
+      const dbConnection = await getCampaignMetaConnection(campaign.id)
+      
+      if (dbConnection) {
+        logger.debug('useMetaConnection', '✅ Refreshed from database', {
+          campaignId: campaign.id,
+          hasBusiness: !!dbConnection.business?.id,
+          hasAdAccount: !!dbConnection.adAccount?.id,
+          connectionStatus: dbConnection.connection_status,
+          paymentConnected: dbConnection.payment_connected,
+        })
+        
+        const isConnected = dbConnection.connection_status === 'connected' && 
+          (!!dbConnection.business?.id || !!dbConnection.adAccount?.id)
+        
+        setMetaStatus(isConnected ? 'connected' : 'disconnected')
+        setPaymentStatus(
+          isConnected 
+            ? (dbConnection.payment_connected ? 'verified' : 'missing')
+            : 'unknown'
+        )
+        setLastChecked(new Date())
+        setLoading(false)
+        return
+      }
+      
+      // FALLBACK: Try localStorage (during migration)
+      logger.debug('useMetaConnection', '⚠️ No database connection, checking localStorage (FALLBACK)')
+      
       const summary = metaStorage.getConnectionSummary(campaign.id)
       const connection = metaStorage.getConnection(campaign.id)
       
-      logger.debug('useMetaConnection', 'Reading localStorage on mount (ONCE)', {
-        campaignId: campaign.id,
-        hasSummary: !!summary,
-        hasConnection: !!connection,
-        summaryStatus: summary?.status,
-        paymentConnected: summary?.paymentConnected,
-      })
-      
       if (summary || connection) {
-        // Auto-detect from localStorage
+        logger.debug('useMetaConnection', '📦 Read from localStorage (LEGACY)', {
+          hasSummary: !!summary,
+          hasConnection: !!connection,
+          summaryStatus: summary?.status,
+          hasAdAccount: !!summary?.adAccount?.id,
+          paymentConnected: summary?.paymentConnected,
+        })
+        
         const hasAssets = Boolean(
           summary?.adAccount?.id || 
           connection?.selected_ad_account_id ||
@@ -63,107 +209,27 @@ export function useMetaConnection() {
           connection?.ad_account_payment_connected
         )
         
-        // Set connection status explicitly
-        if (isConnected) {
-          setMetaStatus('connected')
-          logger.debug('useMetaConnection', 'Set metaStatus to: connected')
-        } else {
-          setMetaStatus('disconnected')
-          logger.debug('useMetaConnection', 'Set metaStatus to: disconnected')
-        }
-        
-        // Set payment status explicitly based on connection state
-        if (isConnected) {
-          if (hasPayment) {
-            setPaymentStatus('verified')
-            logger.debug('useMetaConnection', 'Set paymentStatus to: verified')
-          } else {
-            setPaymentStatus('missing')
-            logger.debug('useMetaConnection', 'Set paymentStatus to: missing (connected but no payment)')
-          }
-        } else {
-          setPaymentStatus('unknown')
-          logger.debug('useMetaConnection', 'Set paymentStatus to: unknown (no connection)')
-        }
-        
-        setLastChecked(new Date())
-      } else {
-        // No connection data at all
-        setMetaStatus('disconnected')
-        setPaymentStatus('unknown')
-        logger.debug('useMetaConnection', 'No connection data found, set to disconnected/unknown')
-      }
-    } catch (error) {
-      logger.error('useMetaConnection', 'localStorage check failed', error)
-    }
-  }, [campaign?.id])
-
-  // Manual refresh function for explicit status updates (called by components when needed)
-  const refreshStatus = useCallback(() => {
-    if (!campaign?.id) return
-    if (typeof window === 'undefined') return
-    
-    logger.debug('useMetaConnection', 'Manual refresh from localStorage', {
-      campaignId: campaign.id,
-    })
-    
-    try {
-      const summary = metaStorage.getConnectionSummary(campaign.id)
-      const connection = metaStorage.getConnection(campaign.id)
-      
-      logger.debug('useMetaConnection', 'Read from localStorage', {
-        hasSummary: !!summary,
-        hasConnection: !!connection,
-        summaryStatus: summary?.status,
-        hasAdAccount: !!summary?.adAccount?.id,
-        paymentConnected: summary?.paymentConnected,
-      })
-      
-      // Same logic as initial mount - SINGLE SOURCE OF TRUTH
-      const hasAssets = Boolean(
-        summary?.adAccount?.id || 
-        connection?.selected_ad_account_id ||
-        summary?.business?.id ||
-        connection?.selected_business_id
-      )
-      
-      const isConnected = Boolean(
-        summary?.status === 'connected' ||
-        summary?.status === 'selected_assets' ||
-        summary?.status === 'payment_linked' ||
-        hasAssets
-      )
-      
-      const hasPayment = Boolean(
-        summary?.paymentConnected ||
-        connection?.ad_account_payment_connected
-      )
-      
-      // Set statuses explicitly
-      if (isConnected) {
-        setMetaStatus('connected')
-        setPaymentStatus(hasPayment ? 'verified' : 'missing')
-        logger.debug('useMetaConnection', 'Set to connected', {
-          paymentStatus: hasPayment ? 'verified' : 'missing',
-        })
+        setMetaStatus(isConnected ? 'connected' : 'disconnected')
+        setPaymentStatus(isConnected ? (hasPayment ? 'verified' : 'missing') : 'unknown')
       } else {
         setMetaStatus('disconnected')
         setPaymentStatus('unknown')
-        logger.debug('useMetaConnection', 'Set to disconnected')
       }
       
       setLastChecked(new Date())
+      setLoading(false)
       
-      logger.debug('useMetaConnection', 'Refreshed from localStorage - FINAL STATE', {
-        metaStatus: isConnected ? 'connected' : 'disconnected',
-        paymentStatus: isConnected ? (hasPayment ? 'verified' : 'missing') : 'unknown',
+      logger.debug('useMetaConnection', 'Refresh complete - FINAL STATE', {
+        metaStatus,
+        paymentStatus,
       })
     } catch (error) {
       logger.error('useMetaConnection', 'Refresh failed', error)
+      setLoading(false)
     }
-  }, [campaign?.id])
+  }, [campaign?.id, metaStatus, paymentStatus])
 
-  // Listen for connection updated events (fired when localStorage changes)
+  // Listen for connection updated events (backward compatibility with localStorage events)
   useEffect(() => {
     if (!campaign?.id) return
     if (typeof window === 'undefined') return
@@ -174,13 +240,13 @@ export function useMetaConnection() {
       
       // Only refresh if this event is for our campaign
       if (eventCampaignId && eventCampaignId === campaign.id) {
-        logger.debug('useMetaConnection', 'Received CONNECTION_UPDATED event', {
+        logger.debug('useMetaConnection', 'Received CONNECTION_UPDATED event (LEGACY)', {
           campaignId: campaign.id,
           eventTimestamp: customEvent.detail?.timestamp,
         })
         
-        // Refresh status from localStorage
-        refreshStatus()
+        // Refresh status (will check database first, then localStorage)
+        void refreshStatus()
       }
     }
     
@@ -192,9 +258,51 @@ export function useMetaConnection() {
     
     return () => {
       window.removeEventListener(META_EVENTS.CONNECTION_UPDATED, handleConnectionUpdated)
-      logger.debug('useMetaConnection', 'Event listener removed for CONNECTION_UPDATED', {
+    }
+  }, [campaign?.id, refreshStatus])
+
+  // Real-time database subscription for campaign_meta_connections changes
+  useEffect(() => {
+    if (!campaign?.id) return
+    if (typeof window === 'undefined') return
+    
+    logger.debug('useMetaConnection', '🔔 Setting up real-time database subscription', {
+      campaignId: campaign.id,
+    })
+    
+    // Subscribe to changes in campaign_meta_connections table
+    const subscription = supabase
+      .channel(`meta_connection_${campaign.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // All events (INSERT, UPDATE, DELETE)
+          schema: 'public',
+          table: 'campaign_meta_connections',
+          filter: `campaign_id=eq.${campaign.id}`,
+        },
+        (payload) => {
+          logger.debug('useMetaConnection', '🔔 Database change detected', {
+            campaignId: campaign.id,
+            event: payload.eventType,
+            hasNewData: !!payload.new,
+          })
+          
+          // Refresh status from database
+          void refreshStatus()
+        }
+      )
+      .subscribe()
+    
+    logger.debug('useMetaConnection', '✅ Real-time subscription active', {
+      campaignId: campaign.id,
+    })
+    
+    return () => {
+      logger.debug('useMetaConnection', '🔕 Unsubscribing from real-time updates', {
         campaignId: campaign.id,
       })
+      void supabase.removeChannel(subscription)
     }
   }, [campaign?.id, refreshStatus])
 

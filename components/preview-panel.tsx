@@ -84,25 +84,29 @@ export function PreviewPanel() {
     // Check budget state
     const budgetConnected = budgetState.isConnected === true
     
-    // Check localStorage as fallback (for immediate UI updates before server sync)
-    let localStorageConnected = false
+    // Check database first, then localStorage fallback (for immediate UI updates before server sync)
+    // Note: This is a computed value, not async - consider using a separate state + useEffect for database check
+    let storageConnected = false
     if (campaign?.id && typeof window !== 'undefined') {
       try {
+        // Try localStorage for now (sync check)
+        // TODO: Replace with database query in separate useEffect for async loading
+        const metaStorage = require('@/lib/meta/storage').metaStorage
         const connectionData = metaStorage.getConnection(campaign.id)
         if (connectionData) {
           const summary = metaStorage.getConnectionSummary(campaign.id)
-          localStorageConnected = Boolean(
+          storageConnected = Boolean(
             summary?.status === 'connected' || 
             summary?.status === 'selected_assets' ||
             (summary?.adAccount?.id && summary?.business?.id)
           )
         }
       } catch {
-        // Ignore localStorage errors
+        // Ignore storage errors
       }
     }
     
-    return budgetConnected || localStorageConnected
+    return budgetConnected || storageConnected
   }, [campaign?.id, budgetState.isConnected])
 
   // Listen for step changes
@@ -489,65 +493,103 @@ export function PreviewPanel() {
       return
     }
 
-    try {
-      const summary = metaStorage.getConnectionSummary(campaign.id)
-      const connection = metaStorage.getConnection(campaign.id)
+    const checkPaymentStatus = async () => {
+      try {
+        // Check database first
+        const { getCampaignMetaConnection, updateCampaignMetaConnection } = await import('@/lib/services/meta-connection-manager')
+        const dbConnection = await getCampaignMetaConnection(campaign.id)
+        
+        let paymentConnected = false
+        let adAccountId: string | null = null
+        
+        if (dbConnection) {
+          // Database connection found
+          paymentConnected = dbConnection.payment_connected
+          adAccountId = dbConnection.adAccount?.id || null
+          console.log('[PreviewPanel] Payment check (database):', {
+            paymentConnected,
+            adAccountId,
+          })
+        } else {
+          // Fallback to localStorage (during migration)
+          const metaStorage = require('@/lib/meta/storage').metaStorage
+          const summary = metaStorage.getConnectionSummary(campaign.id)
+          const connection = metaStorage.getConnection(campaign.id)
+          
+          paymentConnected = summary?.paymentConnected || connection?.ad_account_payment_connected || false
+          adAccountId = summary?.adAccount?.id ?? connection?.selected_ad_account_id ?? null
+          
+          console.log('[PreviewPanel] Payment check (localStorage fallback):', {
+            paymentConnected,
+            adAccountId,
+          })
+        }
 
-      if (summary?.paymentConnected || connection?.ad_account_payment_connected) {
-        setHasPaymentMethod(true)
-        return
-      }
+        if (paymentConnected) {
+          setHasPaymentMethod(true)
+          return
+        }
 
-      const adAccountId =
-        summary?.adAccount?.id ??
-        connection?.selected_ad_account_id ??
-        budgetState.selectedAdAccount
+        const finalAdAccountId = adAccountId ?? budgetState.selectedAdAccount
 
-      if (!adAccountId) {
-        setHasPaymentMethod(false)
-        return
-      }
+        if (!finalAdAccountId) {
+          setHasPaymentMethod(false)
+          return
+        }
 
-      let cancelled = false
+        let cancelled = false
 
-      const verifyFunding = async () => {
-        try {
-          const res = await fetch(
-            `/api/v1/meta/payment?campaignId=${encodeURIComponent(campaign.id)}`,
-            { cache: "no-store" },
-          )
+        const verifyFunding = async () => {
+          try {
+            const res = await fetch(
+              `/api/v1/meta/payment?campaignId=${encodeURIComponent(campaign.id)}`,
+              { cache: "no-store" },
+            )
 
-          if (!res.ok) {
-            return
-          }
+            if (!res.ok) {
+              return
+            }
 
-          const data: unknown = await res.json()
-          const hasFunding = Boolean((data as { hasFunding?: unknown }).hasFunding)
+            const data: unknown = await res.json()
+            const hasFunding = Boolean((data as { hasFunding?: unknown }).hasFunding)
 
-          if (cancelled) return
+            if (cancelled) return
 
-          if (hasFunding) {
-            metaStorage.markPaymentConnected(campaign.id)
-            setHasPaymentMethod(true)
-          } else {
-            setHasPaymentMethod(false)
-          }
-        } catch (error) {
-          if (!cancelled) {
-            console.error("[PreviewPanel] Failed to verify payment capability", error)
-            setHasPaymentMethod(false)
+            if (hasFunding) {
+              // Update database (PRIMARY)
+              const dbUpdateSuccess = await updateCampaignMetaConnection(campaign.id, {
+                payment_connected: true,
+              } as any)
+              
+              if (!dbUpdateSuccess) {
+                // Fallback to localStorage
+                const metaStorage = require('@/lib/meta/storage').metaStorage
+                metaStorage.markPaymentConnected(campaign.id)
+              }
+              setHasPaymentMethod(true)
+            } else {
+              setHasPaymentMethod(false)
+            }
+          } catch (error) {
+            if (!cancelled) {
+              console.error("[PreviewPanel] Failed to verify payment capability", error)
+              setHasPaymentMethod(false)
+            }
           }
         }
-      }
 
-      void verifyFunding()
+        void verifyFunding()
 
-      return () => {
-        cancelled = true
+        return () => {
+          cancelled = true
+        }
+      } catch (error) {
+        console.error("[PreviewPanel] Failed to check payment status", error)
+        setHasPaymentMethod(false)
       }
-    } catch (error) {
-      console.error("[PreviewPanel] Payment verification error", error)
     }
+    
+    checkPaymentStatus()
   }, [campaign?.id, budgetState.selectedAdAccount])
 
   // Check if all steps are complete (using local state for immediate response)
@@ -1577,7 +1619,10 @@ export function PreviewPanel() {
         dailyBudget={budgetState.dailyBudget > 0 ? `$${budgetState.dailyBudget}` : undefined}
         locationCount={locationState.locations.length}
         adAccountName={(() => {
+          // TODO: Load from database in separate useEffect and store in state
+          // For now, use localStorage as sync fallback (can't use async in render)
           if (!campaign?.id) return undefined
+          const metaStorage = require('@/lib/meta/storage').metaStorage
           const summary = metaStorage.getConnectionSummary(campaign.id)
           return summary?.adAccount?.name || summary?.adAccount?.id
         })()}
