@@ -181,7 +181,10 @@ export const messageStore = {
     conversationId: string,
     messages: UIMessage[]
   ): Promise<void> {
+    console.log(`[MessageStore] saveMessages called with ${messages.length} messages for conversation ${conversationId}`);
+    
     if (messages.length === 0) {
+      console.log('[MessageStore] No messages to save, skipping');
       return;
     }
 
@@ -189,6 +192,7 @@ export const messageStore = {
       // Validate all messages have IDs
       const invalidMessages = messages.filter(m => !m.id);
       if (invalidMessages.length > 0) {
+        console.error('[MessageStore] ❌ Invalid messages without IDs:', invalidMessages.length);
         throw new Error(`Found ${invalidMessages.length} messages without IDs`);
       }
 
@@ -202,12 +206,19 @@ export const messageStore = {
 
       const existingIds = new Set(existing?.map(m => m.id) || []);
       
+      console.log(`[MessageStore] Deduplication: ${messages.length} messages, ${existingIds.size} already exist`);
+      
       // Filter out messages that already exist
       const newMessages = messages.filter(m => !existingIds.has(m.id));
 
       if (newMessages.length === 0) {
+        console.log('[MessageStore] All messages already exist in DB, skipping insert');
         return;
       }
+
+      console.log(`[MessageStore] Inserting ${newMessages.length} new messages`);
+      console.log(`[MessageStore] New message IDs:`, newMessages.map(m => m.id));
+      console.log(`[MessageStore] New message roles:`, newMessages.map(m => m.role));
 
       // Convert to storage format
       const messagesToInsert = newMessages.map(msg => 
@@ -219,13 +230,21 @@ export const messageStore = {
         .insert(messagesToInsert);
 
       if (error) {
-        console.error('[MessageStore] Batch save error:', error);
+        console.error('[MessageStore] ❌ Batch save error:', {
+          conversationId,
+          messageCount: newMessages.length,
+          error: error.message,
+          code: error.code,
+        });
         throw new Error(`Failed to save messages: ${error.message}`);
       }
 
-      console.log(`[MessageStore] Saved ${newMessages.length} new messages to conversation ${conversationId}`);
+      console.log(`[MessageStore] ✅ Successfully saved ${newMessages.length} new messages to conversation ${conversationId}`);
     } catch (error) {
-      console.error('[MessageStore] Batch save exception:', error);
+      console.error('[MessageStore] ❌ Batch save exception:', {
+        conversationId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
       throw error;
     }
   },

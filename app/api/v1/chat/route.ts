@@ -30,7 +30,7 @@ import { systemPromptService } from '@/lib/ai/services/system-prompt-service';
 import { toolRegistryService } from '@/lib/ai/services/tool-registry-service';
 import { metadataService } from '@/lib/ai/services/metadata-service';
 import { contextBuilderService } from '@/lib/ai/services/context-builder-service';
-import { finishHandlerService } from '@/lib/ai/services/finish-handler-service';
+import { autoSummarizeIfNeeded } from '@/lib/ai/summarization';
 
 export const maxDuration = 30;
 
@@ -243,23 +243,14 @@ export async function POST(req: Request) {
         console.error('[STREAM] Unknown error:', error);
       }
     },
-
-    // Finish handling using service  
-    onFinish: async (finishResult) => {
-      // AI SDK v5 onFinish provides the result object with response
-      const finalMessages = validatedMessages;
-      const responseMessage = finishResult.response as unknown as UIMessage;
-      
-      await finishHandlerService.handle({
-        conversationId,
-        messages: finalMessages,
-        responseMessage,
-        conversation,
-      });
-    },
   });
 
-  // 12. Return streaming response
+  // 🔥 FIX #1: Add consumeStream() to ensure onFinish runs even on client disconnect
+  // Per docs: https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-message-persistence#handling-client-disconnects
+  // This ensures the stream continues processing independently of the client connection
+  result.consumeStream();
+
+  // 12. Return streaming response with proper onFinish
   return result.toUIMessageStreamResponse({
     originalMessages: validatedMessages,
     sendSources: true,
@@ -268,5 +259,38 @@ export async function POST(req: Request) {
       prefix: 'msg',
       size: 16,
     }),
+    
+    // 🔥 FIX #2: Move onFinish HERE (correct location per AI SDK v5 docs)
+    // This receives the COMPLETE message array including the new assistant response
+    // Reference: https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-message-persistence
+    onFinish: async ({ messages: completeMessages }) => {
+      console.log(`[API] ✅ onFinish called with ${completeMessages.length} messages`);
+      console.log(`[API] Message roles:`, completeMessages.map(m => ({ id: m.id, role: m.role })));
+      
+      if (!conversationId) {
+        console.warn('[API] ⚠️ No conversation ID, skipping save');
+        return;
+      }
+      
+      try {
+        // Save all messages (user + assistant response)
+        await messageStore.saveMessages(conversationId, completeMessages);
+        console.log(`[API] ✅ Successfully saved messages to database`);
+
+        // Auto-generate title if needed
+        if (conversation && !conversation.title && completeMessages.length > 0) {
+          await conversationManager.autoGenerateTitle(conversationId);
+          console.log(`[API] ✅ Generated conversation title`);
+        }
+
+        // Auto-summarize if threshold reached (non-blocking)
+        autoSummarizeIfNeeded(conversationId).catch(error => {
+          console.error('[API] ⚠️ Auto-summarization failed:', error);
+        });
+      } catch (error) {
+        console.error('[API] ❌ Failed to save messages:', error);
+        // Don't throw - persistence failure shouldn't break the stream
+      }
+    },
   });
 }
