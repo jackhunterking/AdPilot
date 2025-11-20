@@ -210,13 +210,7 @@ export function CampaignProvider({
     }
   }
 
-  // DEPRECATED: saveCampaignState removed - campaign_states table no longer exists
-  // Use specific ad endpoints instead:
-  //   - POST /api/ads/[id]/creative for creative data
-  //   - POST /api/ads/[id]/copy for copy data
-  //   - POST /api/ads/[id]/locations for location data
-  //   - PUT /api/ads/[id]/destination for destination data
-  //   - PUT /api/ads/[id]/budget for budget data
+  // Campaign state management handled through ad-specific endpoints in /api/v1/ads/*
 
   // Clear campaign (for logout, etc.)
   const clearCampaign = () => {

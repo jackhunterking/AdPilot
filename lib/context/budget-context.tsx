@@ -219,9 +219,7 @@ export function BudgetProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      // Currency should already be available from meta connection
-      // If not set, it will be fetched when needed
-      // Legacy API call removed - route no longer exists
+      // Currency fetched from meta connection via /api/v1/meta/status
     }
     
     loadCurrency()

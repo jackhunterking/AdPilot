@@ -129,5 +129,5 @@ export function validateDataHierarchy(data: {
   }
 }
 
-// Deprecated update functions removed - use /api/campaigns/[id]/ads/[adId]/snapshot PATCH endpoint
+// Ad state updates handled through /api/v1/ads/* endpoints
 

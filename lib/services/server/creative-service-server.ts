@@ -13,6 +13,7 @@ import { getModel } from '@/lib/ai/gateway-provider';
 import { createServerClient } from '@/lib/supabase/server';
 import type {
   CreativeService,
+  ImageVariation,
   GenerateVariationsInput,
   GenerateVariationsResult,
   EditVariationInput,
@@ -66,6 +67,7 @@ class CreativeServiceServer implements CreativeService {
         // Process each generated image (up to 3 variations)
         for (let i = 0; i < Math.min(imageFiles.length, 3); i++) {
           const file = imageFiles[i];
+          if (!file) continue; // Type guard
           const extension = file.mediaType?.split('/')[1] || 'png';
           const fileName = `creative-${input.adId}-${Date.now()}-${i}.${extension}`;
           
@@ -91,11 +93,11 @@ class CreativeServiceServer implements CreativeService {
           const { data: creative, error: dbError } = await supabase
             .from('ad_creatives')
             .insert({
-              ad_id: input.adId,
+              ad_id: input.adId || undefined,
               creative_format: 'image',
               image_url: publicUrl,
               sort_order: i,
-              creative_style: input.style || null,
+              creative_style: null, // Style not in interface
               variation_label: String.fromCharCode(65 + i), // A, B, C
             })
             .select()
@@ -113,10 +115,18 @@ class CreativeServiceServer implements CreativeService {
           };
         }
 
+        // Map database schema to service interface
+        const mappedVariations: ImageVariation[] = variations.map((v, idx) => ({
+          url: v.image_url,
+          index: idx,
+          format: 'square' as const,
+          dimensions: { width: 1080, height: 1080 },
+        }));
+
         return {
           success: true,
           data: {
-            variations,
+            variations: mappedVariations,
             baseImageUrl: variations[0]?.image_url,
           },
         };
@@ -147,7 +157,7 @@ class CreativeServiceServer implements CreativeService {
         }
 
         // Fetch original image
-        const imageResponse = await fetch(input.originalImageUrl);
+        const imageResponse = await fetch(input.imageUrl);
         const imageBuffer = await imageResponse.arrayBuffer();
         const imageUint8Array = new Uint8Array(imageBuffer);
 
@@ -161,7 +171,7 @@ class CreativeServiceServer implements CreativeService {
             {
               role: 'user',
               content: [
-                { type: 'text', text: input.editPrompt || 'Edit this image based on requirements' },
+                { type: 'text', text: input.prompt || 'Edit this image based on requirements' },
                 {
                   type: 'file',
                   mediaType: 'image/png',
@@ -182,6 +192,12 @@ class CreativeServiceServer implements CreativeService {
         }
 
         const file = imageFiles[0];
+        if (!file) {
+          return {
+            success: false,
+            error: { code: 'no_images', message: 'No image file generated' }
+          };
+        }
         const extension = file.mediaType?.split('/')[1] || 'png';
         const fileName = `creative-edited-${input.adId}-${Date.now()}.${extension}`;
         
@@ -208,6 +224,7 @@ class CreativeServiceServer implements CreativeService {
           success: true,
           data: {
             imageUrl: publicUrl,
+            variationIndex: input.variationIndex,
           },
         };
       } catch (error) {
@@ -242,7 +259,7 @@ class CreativeServiceServer implements CreativeService {
           providerOptions: {
             google: { responseModalities: ['TEXT', 'IMAGE'] },
           },
-          prompt: input.prompt || 'Regenerate professional advertising image',
+          prompt: input.originalPrompt || 'Regenerate professional advertising image',
         });
 
         const imageFiles = result.files?.filter(f => f.mediaType?.startsWith('image/')) || [];
@@ -255,6 +272,12 @@ class CreativeServiceServer implements CreativeService {
         }
 
         const file = imageFiles[0];
+        if (!file) {
+          return {
+            success: false,
+            error: { code: 'no_images', message: 'No image file generated' }
+          };
+        }
         const extension = file.mediaType?.split('/')[1] || 'png';
         const fileName = `creative-regen-${input.adId}-${Date.now()}.${extension}`;
         
@@ -281,6 +304,7 @@ class CreativeServiceServer implements CreativeService {
           success: true,
           data: {
             imageUrl: publicUrl,
+            variationIndex: input.variationIndex,
           },
         };
       } catch (error) {
@@ -346,12 +370,12 @@ class CreativeServiceServer implements CreativeService {
           };
         }
 
-        // Delete creative with ownership verification via ad → campaign (RLS enforced)
+        // Delete creative by ad_id and variation index (ownership verified by RLS)
         const { error } = await supabase
           .from('ad_creatives')
           .delete()
-          .eq('id', input.creativeId)
-          .eq('ad_id', input.adId);
+          .eq('ad_id', input.adId)
+          .eq('sort_order', input.variationIndex);
 
         if (error) {
           return {

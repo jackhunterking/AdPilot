@@ -9,6 +9,10 @@
 
 import { supabaseServer } from '@/lib/supabase/server';
 import { getConnectionWithToken } from '@/lib/meta/service';
+import { fetchUserBusinesses } from '@/lib/meta/business';
+import { fetchBusinessOwnedPages } from '@/lib/meta/pages';
+import { fetchBusinessOwnedAdAccounts } from '@/lib/meta/ad-accounts';
+import { getPaymentCapability } from '@/lib/meta/payments';
 import type {
   MetaService,
   MetaConnectionStatus,
@@ -81,18 +85,45 @@ class MetaServiceServer implements MetaService {
   };
 
   getAssets = {
-    async execute(_input: GetAssetsInput): Promise<ServiceResult<MetaAssets>> {
+    async execute(input: GetAssetsInput): Promise<ServiceResult<MetaAssets>> {
       try {
-        // This method would call Meta API to fetch businesses, pages, ad accounts
-        // For now, return empty arrays - implementation requires Meta API client
-        // TODO: Implement full Meta API asset fetching
+        // Get user token from campaign connection
+        const connection = await getConnectionWithToken({ campaignId: input.campaignId });
+        if (!connection || !connection.long_lived_user_token) {
+          return {
+            success: false,
+            error: {
+              code: 'no_connection',
+              message: 'No Meta connection found or token missing',
+            },
+          };
+        }
+
+        const token = connection.long_lived_user_token;
+
+        // Fetch businesses user administers
+        const businesses = await fetchUserBusinesses({ token });
+
+        // If businessId provided, fetch pages and ad accounts for that business
+        let pages: Array<{ id: string; name?: string }> = [];
+        let adAccounts: Array<{ id: string; name?: string; currency?: string }> = [];
+
+        if (input.businessId) {
+          const [pagesData, adAccountsData] = await Promise.all([
+            fetchBusinessOwnedPages({ token, businessId: input.businessId }),
+            fetchBusinessOwnedAdAccounts({ token, businessId: input.businessId }),
+          ]);
+
+          pages = pagesData.map((p) => ({ id: p.id, name: p.name }));
+          adAccounts = adAccountsData.map((a) => ({ id: a.id, name: a.name, currency: a.currency }));
+        }
         
         return {
           success: true,
           data: {
-            businesses: [],
-            pages: [],
-            adAccounts: [],
+            businesses: businesses.map((b) => ({ id: b.id, name: b.name })),
+            pages,
+            adAccounts,
           },
         };
       } catch (error) {
@@ -147,15 +178,26 @@ class MetaServiceServer implements MetaService {
   verifyPayment = {
     async execute(input: VerifyPaymentInput): Promise<ServiceResult<{ connected: boolean }>> {
       try {
-        // TODO: Implement actual payment verification via Meta API
-        // For now, return basic check from database
-        const connection = await getConnectionWithToken({ campaignId: input.campaignId });
+        // Get payment capability from Meta API
+        const capability = await getPaymentCapability(input.campaignId);
+        
+        // User can manage payment if they have finance permission and MANAGE task
+        const canManagePayment = capability.hasFinance && capability.hasManage;
+        
+        // Check if funding is already present
+        const connected = capability.hasFunding && canManagePayment;
+        
+        // Update database with payment status
+        if (capability.adAccountId) {
+          await supabaseServer
+            .from('campaign_meta_connections')
+            .update({ ad_account_payment_connected: connected })
+            .eq('campaign_id', input.campaignId);
+        }
         
         return {
           success: true,
-          data: {
-            connected: connection?.ad_account_payment_connected || false,
-          },
+          data: { connected },
         };
       } catch (error) {
         return {
@@ -172,15 +214,23 @@ class MetaServiceServer implements MetaService {
   verifyAdmin = {
     async execute(input: VerifyAdminInput): Promise<ServiceResult<{ hasAccess: boolean }>> {
       try {
-        // TODO: Implement actual admin verification via Meta API
-        // For now, return basic check from database
-        const connection = await getConnectionWithToken({ campaignId: input.campaignId });
+        // Get payment capability (includes admin role check)
+        const capability = await getPaymentCapability(input.campaignId);
+        
+        // User has admin access if they have finance permission (ADMIN role or FINANCE_EDITOR)
+        const hasAccess = capability.hasFinance;
+        
+        // Update database with admin status
+        if (capability.businessId) {
+          await supabaseServer
+            .from('campaign_meta_connections')
+            .update({ admin_connected: hasAccess })
+            .eq('campaign_id', input.campaignId);
+        }
         
         return {
           success: true,
-          data: {
-            hasAccess: connection?.admin_connected || false,
-          },
+          data: { hasAccess },
         };
       } catch (error) {
         return {
@@ -197,10 +247,31 @@ class MetaServiceServer implements MetaService {
   initiateOAuth = {
     async execute(input: { redirectUri: string }): Promise<ServiceResult<{ authUrl: string }>> {
       try {
-        // TODO: Implement OAuth initiation
-        // This would generate FB.login URL with proper scopes
-        
-        const authUrl = `https://www.facebook.com/v24.0/dialog/oauth?client_id=${process.env.NEXT_PUBLIC_FB_APP_ID}&redirect_uri=${encodeURIComponent(input.redirectUri)}&scope=ads_management,pages_show_list,business_management`;
+        const appId = process.env.NEXT_PUBLIC_FB_APP_ID;
+        const graphVersion = process.env.NEXT_PUBLIC_FB_GRAPH_VERSION || 'v24.0';
+
+        if (!appId) {
+          return {
+            success: false,
+            error: {
+              code: 'config_error',
+              message: 'Facebook App ID not configured',
+            },
+          };
+        }
+
+        // Scopes required for Meta Ads management
+        const scopes = [
+          'ads_management',
+          'ads_read',
+          'business_management',
+          'pages_show_list',
+          'pages_manage_ads',
+          'pages_read_engagement',
+          'leads_retrieval',
+        ].join(',');
+
+        const authUrl = `https://www.facebook.com/${graphVersion}/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(input.redirectUri)}&scope=${scopes}&response_type=code`;
         
         return {
           success: true,
@@ -219,12 +290,84 @@ class MetaServiceServer implements MetaService {
   };
 
   handleOAuthCallback = {
-    async execute(_input: { code: string; state: string }): Promise<ServiceResult<{ userId: string; token: string }>> {
+    async execute(input: { code: string; state: string }): Promise<ServiceResult<{ userId: string; token: string }>> {
       try {
-        // TODO: Implement OAuth callback handling
-        // This would exchange code for access token via Meta API
+        const appId = process.env.NEXT_PUBLIC_FB_APP_ID;
+        const appSecret = process.env.FB_APP_SECRET;
+        const graphVersion = process.env.NEXT_PUBLIC_FB_GRAPH_VERSION || 'v24.0';
+
+        if (!appId || !appSecret) {
+          return {
+            success: false,
+            error: {
+              code: 'config_error',
+              message: 'Meta app credentials not configured',
+            },
+          };
+        }
+
+        // Exchange authorization code for access token
+        const tokenUrl = `https://graph.facebook.com/${graphVersion}/oauth/access_token`;
+        const params = new URLSearchParams({
+          client_id: appId,
+          client_secret: appSecret,
+          code: input.code,
+          redirect_uri: input.state, // state contains redirect_uri
+        });
+
+        const response = await fetch(`${tokenUrl}?${params.toString()}`);
         
-        throw new Error('Not implemented - OAuth callback handling');
+        if (!response.ok) {
+          const error = await response.json();
+          return {
+            success: false,
+            error: {
+              code: 'oauth_exchange_failed',
+              message: error.error?.message || 'Failed to exchange code for token',
+            },
+          };
+        }
+
+        const result = await response.json();
+        const shortToken = result.access_token;
+
+        // Exchange short-lived token for long-lived token (60 days)
+        const longTokenResult = await this.refreshToken.execute(shortToken);
+        
+        if (!longTokenResult.success || !longTokenResult.data) {
+          return {
+            success: false,
+            error: {
+              code: 'token_exchange_failed',
+              message: 'Failed to get long-lived token',
+            },
+          };
+        }
+
+        // Get user ID from token
+        const meResponse = await fetch(`https://graph.facebook.com/${graphVersion}/me`, {
+          headers: { Authorization: `Bearer ${longTokenResult.data.token}` },
+        });
+
+        if (!meResponse.ok) {
+          return {
+            success: false,
+            error: {
+              code: 'user_fetch_failed',
+              message: 'Failed to fetch user info',
+            },
+          };
+        }
+
+        const meData = await meResponse.json();
+        
+        return {
+          success: true,
+          data: {
+            userId: meData.id,
+            token: longTokenResult.data.token,
+          },
+        };
       } catch (error) {
         return {
           success: false,

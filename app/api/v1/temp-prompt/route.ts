@@ -1,4 +1,13 @@
+/**
+ * Feature: Temporary Prompts (v1)
+ * Purpose: Store temporary campaign prompts during signup flow (1-hour TTL)
+ * References:
+ *  - API v1 Middleware: app/api/v1/_middleware.ts
+ *  - Supabase: https://supabase.com/docs/reference/javascript/insert
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
+import { errorResponse, successResponse, ApiError, ValidationError } from '@/app/api/v1/_middleware'
 import { supabaseServer } from '@/lib/supabase/server'
 import type { PostgrestError } from '@supabase/supabase-js'
 
@@ -11,18 +20,14 @@ export async function POST(request: NextRequest) {
 
     // Guard: ensure required envs are present in runtime (extra safety)
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('[TEMP-PROMPT] Missing Supabase server envs', { correlationId })
-      return NextResponse.json(
-        { error: 'Server is misconfigured. Please try again later.' },
-        { status: 500 }
+      console.error('[TEMP-PROMPT v1] Missing Supabase server envs', { correlationId })
+      return errorResponse(
+        new ApiError('Server is misconfigured. Please try again later.', 'server_misconfigured', 500)
       )
     }
 
     if (!promptText || typeof promptText !== 'string') {
-      return NextResponse.json(
-        { error: 'Prompt text is required' },
-        { status: 400 }
-      )
+      return errorResponse(new ValidationError('Prompt text is required'))
     }
 
     const { data, error } = await supabaseServer
@@ -36,26 +41,20 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       const { message, details, hint, code } = error as PostgrestError
-      console.error('[TEMP-PROMPT] Failed to store prompt', {
+      console.error('[TEMP-PROMPT v1] Failed to store prompt', {
         correlationId,
         message,
         details,
         hint,
         code,
       })
-      return NextResponse.json(
-        { error: 'Failed to store prompt' },
-        { status: 500 }
-      )
+      return errorResponse(new ApiError('Failed to store prompt', 'database_error', 500))
     }
 
-    return NextResponse.json({ tempId: data.id })
+    return successResponse({ tempId: data.id })
   } catch (error) {
-    console.error('[TEMP-PROMPT] Unexpected error in POST', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    console.error('[TEMP-PROMPT v1] Unexpected error in POST', error)
+    return errorResponse(error instanceof Error ? error : new ApiError('Internal server error', 'internal_error', 500))
   }
 }
 
@@ -65,10 +64,7 @@ export async function GET(request: NextRequest) {
     const tempId = searchParams.get('id')
 
     if (!tempId) {
-      return NextResponse.json(
-        { error: 'Temp ID is required' },
-        { status: 400 }
-      )
+      return errorResponse(new ValidationError('Temp ID is required'))
     }
 
     const { data, error } = await supabaseServer
@@ -79,31 +75,22 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (error || !data) {
-      return NextResponse.json(
-        { error: 'Prompt not found or already used' },
-        { status: 404 }
-      )
+      return errorResponse(new ApiError('Prompt not found or already used', 'not_found', 404))
     }
 
     // Check if expired
     const expiresAt = new Date(data.expires_at)
     if (expiresAt < new Date()) {
-      return NextResponse.json(
-        { error: 'Prompt has expired' },
-        { status: 410 }
-      )
+      return errorResponse(new ApiError('Prompt has expired', 'expired', 410))
     }
 
-    return NextResponse.json({ 
+    return successResponse({ 
       promptText: data.prompt_text,
       goalType: data.goal_type 
     })
   } catch (error) {
-    console.error('[TEMP-PROMPT] Unexpected error in GET', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    console.error('[TEMP-PROMPT v1] Unexpected error in GET', error)
+    return errorResponse(error instanceof Error ? error : new ApiError('Internal server error', 'internal_error', 500))
   }
 }
 

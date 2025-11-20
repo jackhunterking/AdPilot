@@ -38,7 +38,7 @@ export interface ApiError {
 // ============================================================================
 
 export type Campaign = Database['public']['Tables']['campaigns']['Row']
-// DEPRECATED: campaign_states table removed in backend refactoring
+// Campaign state managed through ads table and ad-specific endpoints
 // export type CampaignState = Database['public']['Tables']['campaign_states']['Row']
 
 export interface CreateCampaignRequest {

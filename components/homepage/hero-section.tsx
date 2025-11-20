@@ -145,7 +145,7 @@ export function HeroSection({ onAuthRequired }: HeroSectionProps) {
       if (!user) {
         // Journey 1: User is not logged in - store prompt temporarily with goal
         console.log('[JOURNEY-1] Unauthenticated user entered prompt, storing temp_prompt and opening auth modal')
-        const response = await fetch('/api/temp-prompt', {
+        const response = await fetch('/api/v1/temp-prompt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ promptText, goalType: selectedGoal }),

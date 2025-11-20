@@ -64,23 +64,20 @@ export function PhoneNumberSetup({ initialPhone = '' }: PhoneNumberSetupProps) {
     }
     
     try {
-      // TODO: Migrate to v1 API - phone validation endpoint not yet implemented in v1
-      // For now, skip Meta validation and proceed with client-side validation only
-      const result = { valid: true } // Temporary: assume valid after client-side validation
+      // Validate phone number with v1 API endpoint
+      const response = await fetch('/api/v1/meta/destination/phone', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          phoneNumber: normalized.e164,
+        }),
+      })
+      const result = await response.json()
       
-      // const response = await fetch('/api/v1/meta/destination/phone', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({
-      //     campaignId: campaign.id,
-      //     phoneNumber: normalized.e164,
-      //   }),
-      // })
-      // const result = await response.json()
-      
-      if (result.valid) {
+      if (response.ok && result.valid) {
         // Validation passed - save the phone number (using client-side normalized value)
         setDestination({
           type: 'phone_number',
@@ -91,7 +88,7 @@ export function PhoneNumberSetup({ initialPhone = '' }: PhoneNumberSetupProps) {
         setValidationSuccess(true)
         toast.success('Phone number validated and saved successfully')
       } else {
-        // This branch won't be reached with the temporary implementation
+        // Validation failed
         // const errorMsg = result.error || 'Meta rejected this phone number. Please verify it is correct.'
         const errorMsg = 'Phone number validation failed. Please verify it is correct.'
         setError(errorMsg)

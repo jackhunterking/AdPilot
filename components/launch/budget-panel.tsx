@@ -47,7 +47,7 @@ export function BudgetPanel({ open, onOpenChange, currentBudget, onSave }: Budge
     setError(null)
     
     try {
-      const res = await fetch('/api/budget/distribute', {
+      const res = await fetch('/api/v1/budget/distribute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

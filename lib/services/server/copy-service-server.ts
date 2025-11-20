@@ -61,10 +61,10 @@ class CopyServiceServer implements CopyService {
         const { object } = await generateObject({
           model: getModel('openai/o1-mini'),
           schema: copySchema,
-          prompt: `Generate 3 unique ad copy variations for a ${input.goalType} campaign.
+          prompt: `Generate 3 unique ad copy variations for a ${input.goal} campaign.
 
 Product/Service: ${input.prompt}
-Campaign Goal: ${input.goalType}
+Campaign Goal: ${input.goal}
 Platform: Facebook/Instagram Ads
 
 Requirements:
@@ -85,11 +85,12 @@ Each variation should:
         // Insert each variation to database
         for (let i = 0; i < object.variations.length; i++) {
           const variation = object.variations[i];
+          if (!variation) continue; // Type guard
           
           const { data, error: dbError } = await supabase
             .from('ad_copy_variations')
             .insert({
-              ad_id: input.adId,
+              ad_id: input.adId || undefined,
               headline: variation.headline,
               primary_text: variation.primary_text,
               description: variation.description,
@@ -113,9 +114,17 @@ Each variation should:
           };
         }
 
+        // Map database schema to service interface
+        const mappedVariations: CopyVariation[] = variations.map(v => ({
+          headline: v.headline,
+          primaryText: v.primary_text,
+          description: v.description || undefined,
+          cta: v.cta_text,
+        }));
+
         return {
           success: true,
-          data: { variations },
+          data: { variations: mappedVariations },
         };
       } catch (error) {
         return {
@@ -152,13 +161,13 @@ Each variation should:
             description: z.string().max(30).describe('Edited description under 30 characters'),
             cta_text: z.string().describe('Edited call to action'),
           }),
-          prompt: `Edit this ad copy based on the following feedback: ${input.feedback}
+          prompt: `Edit this ad copy based on the following instruction: ${input.prompt}
 
 Current Copy:
-- Headline: ${input.currentCopy.headline}
-- Primary Text: ${input.currentCopy.primary_text}
-- Description: ${input.currentCopy.description || 'None'}
-- CTA: ${input.currentCopy.cta_text}
+- Headline: ${input.current.headline}
+- Primary Text: ${input.current.primaryText}
+- Description: ${input.current.description || 'None'}
+- CTA: ${input.current.cta}
 
 Apply the requested changes while:
 - Maintaining Meta ad requirements (character limits)
@@ -170,10 +179,13 @@ Apply the requested changes while:
         return {
           success: true,
           data: {
-            headline: object.headline,
-            primary_text: object.primary_text,
-            description: object.description,
-            cta_text: object.cta_text,
+            updated: {
+              headline: object.headline,
+              primaryText: object.primary_text,
+              description: object.description,
+              cta: object.cta_text,
+            },
+            variationIndex: input.variationIndex,
           },
         };
       } catch (error) {
@@ -197,16 +209,19 @@ Apply the requested changes while:
           schema: z.object({
             refined: z.string().max(40).describe('Refined headline under 40 characters'),
           }),
-          prompt: `Refine this ad headline: "${input.currentText}"
+          prompt: `Refine this ad headline: "${input.current}"
 
-Make it more ${input.refinementType || 'engaging and persuasive'}.
+Instruction: ${input.prompt}
 Keep under 40 characters.
 Maintain core message while improving impact.`,
         });
 
         return {
           success: true,
-          data: { refined: object.refined },
+          data: {
+            updated: object.refined,
+            field: input.field,
+          },
         };
       } catch (error) {
         return {
@@ -229,16 +244,19 @@ Maintain core message while improving impact.`,
           schema: z.object({
             refined: z.string().max(125).describe('Refined primary text under 125 characters'),
           }),
-          prompt: `Refine this ad primary text: "${input.currentText}"
+          prompt: `Refine this ad primary text: "${input.current}"
 
-Make it more ${input.refinementType || 'persuasive and action-oriented'}.
+Instruction: ${input.prompt}
 Keep under 125 characters.
 Maintain the key message while improving engagement.`,
         });
 
         return {
           success: true,
-          data: { refined: object.refined },
+          data: {
+            updated: object.refined,
+            field: input.field,
+          },
         };
       } catch (error) {
         return {
@@ -261,16 +279,19 @@ Maintain the key message while improving engagement.`,
           schema: z.object({
             refined: z.string().max(30).describe('Refined description under 30 characters'),
           }),
-          prompt: `Refine this ad description: "${input.currentText}"
+          prompt: `Refine this ad description: "${input.current}"
 
-Make it more ${input.refinementType || 'concise and impactful'}.
+Instruction: ${input.prompt}
 Keep under 30 characters.
 Highlight the key benefit.`,
         });
 
         return {
           success: true,
-          data: { refined: object.refined },
+          data: {
+            updated: object.refined,
+            field: input.field,
+          },
         };
       } catch (error) {
         return {

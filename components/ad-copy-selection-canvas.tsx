@@ -225,17 +225,11 @@ export function AdCopySelectionCanvas() {
         return
       }
 
-      console.log('[AdCopyCanvas] Auto-generation disabled - use AI chat to generate copy')
+      console.log('[AdCopyCanvas] Copy generation handled via AI chat (generateCopyVariations tool)')
       generationInitiatedRef.current = true
       
-      // DISABLED: Auto-generation via /api/ad-copy/generate endpoint
-      // This endpoint doesn't exist and auto-generation is now handled through AI chat
-      // Users should ask the AI assistant to generate ad copy variations
-      // The AI will use the generateCopyVariations tool which properly integrates with the system
-      
-      // If auto-generation is needed in the future, create the endpoint at:
-      // app/api/ad-copy/generate/route.ts
-      // Or better: trigger AI chat to suggest copy generation automatically
+      // Copy generation is handled through AI chat workflow using the generateCopyVariations tool
+      // This provides a better UX with user preview and selection
       
       return () => { /* cleanup */ }
     }

@@ -6,7 +6,8 @@
  *  - Meta Forms API: https://developers.facebook.com/docs/marketing-api/reference/leadgen-form
  */
 
-import { supabaseServer } from '@/lib/supabase/server';
+import { supabaseServer, createServerClient } from '@/lib/supabase/server';
+import { getConnectionWithToken, fetchPagesWithTokens, getGraphVersion } from '@/lib/meta/service';
 import type {
   DestinationService,
   SetupDestinationInput,
@@ -193,12 +194,72 @@ class DestinationServiceServer implements DestinationService {
   };
 
   listMetaForms = {
-    async execute(_input: GetMetaFormsInput): Promise<ServiceResult<MetaForm[]>> {
+    async execute(input: GetMetaFormsInput): Promise<ServiceResult<MetaForm[]>> {
       try {
-        // TODO: Implement Meta Forms API fetching
-        // Would query Meta Graph API for page's lead gen forms
+        // Get Meta connection for campaign
+        const conn = await getConnectionWithToken({ campaignId: input.campaignId });
         
-        throw new Error('Not implemented - Meta Forms listing requires Meta API integration');
+        if (!conn?.selected_page_id || !conn?.long_lived_user_token) {
+          return {
+            success: false,
+            error: {
+              code: 'no_connection',
+              message: 'No Meta connection found. Please connect Meta first.',
+            },
+          };
+        }
+
+        const pageId = input.pageId || conn.selected_page_id;
+        let pageAccessToken = conn.selected_page_access_token || '';
+
+        // If no stored page access token, derive it
+        if (!pageAccessToken) {
+          const pages = await fetchPagesWithTokens({ token: conn.long_lived_user_token });
+          const match = pages.find(p => p.id === pageId);
+          pageAccessToken = match?.access_token || '';
+        }
+
+        if (!pageAccessToken) {
+          return {
+            success: false,
+            error: {
+              code: 'token_missing',
+              message: 'Page access token not available',
+            },
+          };
+        }
+
+        // Fetch lead gen forms from Meta Graph API
+        const gv = getGraphVersion();
+        const url = `https://graph.facebook.com/${gv}/${encodeURIComponent(pageId)}/leadgen_forms?fields=id,name,created_time`;
+
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${pageAccessToken}` },
+          cache: 'no-store',
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          return {
+            success: false,
+            error: {
+              code: 'meta_api_error',
+              message: error.error?.message || 'Failed to fetch forms from Meta',
+            },
+          };
+        }
+
+        const json = await res.json();
+        const forms = (json.data || []) as Array<{ id: string; name?: string; created_time?: string }>;
+
+        return {
+          success: true,
+          data: forms.map(f => ({
+            id: f.id,
+            name: f.name,
+            createdTime: f.created_time,
+          })),
+        };
       } catch (error) {
         return {
           success: false,
@@ -212,10 +273,72 @@ class DestinationServiceServer implements DestinationService {
   };
 
   getMetaForm = {
-    async execute(_input: { formId: string; campaignId: string }): Promise<ServiceResult<MetaForm>> {
+    async execute(input: { formId: string; campaignId: string }): Promise<ServiceResult<MetaForm>> {
       try {
-        // TODO: Implement Meta Form details fetching
-        throw new Error('Not implemented - Meta Form details requires Meta API integration');
+        // Get Meta connection for campaign
+        const conn = await getConnectionWithToken({ campaignId: input.campaignId });
+        
+        if (!conn?.selected_page_id || !conn?.long_lived_user_token) {
+          return {
+            success: false,
+            error: {
+              code: 'no_connection',
+              message: 'No Meta connection found',
+            },
+          };
+        }
+
+        const pageId = conn.selected_page_id;
+        let pageAccessToken = conn.selected_page_access_token || '';
+
+        // If no stored page access token, derive it
+        if (!pageAccessToken) {
+          const pages = await fetchPagesWithTokens({ token: conn.long_lived_user_token });
+          const match = pages.find(p => p.id === pageId);
+          pageAccessToken = match?.access_token || '';
+        }
+
+        if (!pageAccessToken) {
+          return {
+            success: false,
+            error: {
+              code: 'token_missing',
+              message: 'Page access token not available',
+            },
+          };
+        }
+
+        // Fetch form details from Meta Graph API
+        const gv = getGraphVersion();
+        const url = `https://graph.facebook.com/${gv}/${encodeURIComponent(input.formId)}?fields=id,name,questions{type,key,label},thank_you_page{title,body,button_text,website_url}`;
+
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${pageAccessToken}` },
+          cache: 'no-store',
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          return {
+            success: false,
+            error: {
+              code: 'meta_api_error',
+              message: error.error?.message || 'Failed to fetch form details',
+            },
+          };
+        }
+
+        const form = await res.json();
+
+        return {
+          success: true,
+          data: {
+            id: form.id,
+            name: form.name,
+            questions: form.questions?.data || [],
+            thankYouPage: form.thank_you_page,
+          },
+        };
       } catch (error) {
         return {
           success: false,

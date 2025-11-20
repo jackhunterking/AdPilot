@@ -6,6 +6,7 @@
  *  - API v1: /api/v1/ads/[id]/publish
  */
 
+import { createServerClient } from '@/lib/supabase/server';
 import type { ServiceResult } from '@/lib/journeys/types/journey-contracts';
 // Validation imports - available for future use
 // import { validateAdForPublish, formatValidationError } from '@/lib/utils/ad-validation';
@@ -73,7 +74,7 @@ export class PublishService {
       // Check selected creative
       if (!ad.selected_creative_id) {
         errors.push({
-          field: 'creative',
+          code: 'creative_missing',
           message: 'No image selected. Please select an image variation.',
         });
       }
@@ -81,34 +82,34 @@ export class PublishService {
       // Check selected copy
       if (!ad.selected_copy_id) {
         errors.push({
-          field: 'copy',
+          code: 'copy_missing',
           message: 'No ad copy selected. Please select a copy variation.',
         });
       }
 
       // Check locations exist
-      const locationCount = (ad.ad_target_locations as any[])?.length || 0;
+      const locationCount = (ad.ad_target_locations as unknown[])?.length || 0;
       if (locationCount === 0) {
         errors.push({
-          field: 'location',
+          code: 'location_missing',
           message: 'No target locations set. Please add at least one location.',
         });
       }
 
       // Check budget exists
-      const budgetCount = (ad.ad_budgets as any[])?.length || 0;
-      if (budgetCount === 0) {
+      const budgetArray = Array.isArray(ad.ad_budgets) ? ad.ad_budgets : [];
+      if (budgetArray.length === 0) {
         errors.push({
-          field: 'budget',
+          code: 'budget_missing',
           message: 'No budget configured. Please set daily budget and schedule.',
         });
       }
 
       // Check destination exists
-      const destinationCount = (ad.ad_destinations as any[])?.length || 0;
-      if (destinationCount === 0) {
+      const destinationArray = Array.isArray(ad.ad_destinations) ? ad.ad_destinations : [];
+      if (destinationArray.length === 0) {
         errors.push({
-          field: 'destination',
+          code: 'destination_missing',
           message: 'No destination configured. Please set up lead form, website, or phone.',
         });
       }

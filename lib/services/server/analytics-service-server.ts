@@ -10,7 +10,7 @@
 import { generateObject } from 'ai';
 import { getModel } from '@/lib/ai/gateway-provider';
 import { z } from 'zod';
-import { getCachedMetrics } from '@/lib/meta/insights';
+import { getCachedMetrics, fetchMetricsBreakdown } from '@/lib/meta/insights';
 import { createServerClient } from '@/lib/supabase/server';
 import type {
   AnalyticsService,
@@ -73,12 +73,37 @@ class AnalyticsServiceServer implements AnalyticsService {
   };
 
   getDemographicBreakdown = {
-    async execute(_input: GetBreakdownInput): Promise<ServiceResult<DemographicBreakdown>> {
+    async execute(input: GetBreakdownInput): Promise<ServiceResult<DemographicBreakdown>> {
       try {
-        // TODO: Implement Meta Insights breakdown API call
-        // Would query Meta API for demographic breakdowns
+        // Use existing Meta Insights breakdown implementation
+        // Note: input.type is limited to 'age' | 'gender' | 'placement' but Meta API only supports 'age' | 'gender'
+        const effectiveType = input.type === 'placement' ? 'age' : input.type;
+        const breakdown = await fetchMetricsBreakdown(
+          input.campaignId,
+          effectiveType,
+          input.dateRange || '7d'
+        );
         
-        throw new Error('Not implemented - Demographic breakdown requires Meta Insights API integration');
+        // Map breakdown to DemographicBreakdown structure
+        const data: DemographicBreakdown = {
+          age: effectiveType === 'age' ? breakdown.map((segment) => ({
+            range: segment.label,
+            impressions: segment.results || 0,
+            reach: segment.reach,
+            spend: segment.spend,
+          })) : [],
+          gender: effectiveType === 'gender' ? breakdown.map((segment) => ({
+            type: (segment.label.toLowerCase() === 'male' ? 'male' : segment.label.toLowerCase() === 'female' ? 'female' : 'unknown') as 'male' | 'female' | 'unknown',
+            impressions: segment.results || 0,
+            reach: segment.reach,
+            spend: segment.spend,
+          })) : [],
+        };
+        
+        return {
+          success: true,
+          data,
+        };
       } catch (error) {
         return {
           success: false,
@@ -131,11 +156,9 @@ class AnalyticsServiceServer implements AnalyticsService {
           model: getModel('openai/o1-mini'),
           schema: z.object({
             insights: z.array(z.object({
-              type: z.enum(['positive', 'negative', 'neutral']).describe('Insight sentiment'),
+              type: z.enum(['success', 'suggestion', 'warning']).describe('Insight type: success for good performance, suggestion for improvements, warning for issues'),
               title: z.string().describe('Short insight title'),
               description: z.string().describe('Detailed explanation'),
-              metric: z.string().describe('Which metric this relates to'),
-              recommendation: z.string().optional().describe('Actionable recommendation'),
             })).min(3).max(5).describe('Generate 3-5 actionable insights'),
           }),
           prompt: `Analyze these Facebook/Instagram ad campaign metrics and provide actionable insights:
@@ -153,11 +176,11 @@ Metrics Summary:
 - Date Range: ${metrics.date_start} to ${metrics.date_end}
 
 Generate 3-5 insights with recommendations. Focus on:
-1. Performance vs industry benchmarks
-2. Areas for optimization
-3. What's working well
-4. Budget efficiency
-5. Actionable next steps`,
+1. Performance vs industry benchmarks (use 'success' for good metrics)
+2. Areas for optimization (use 'suggestion')
+3. What's working well (use 'success')
+4. Issues that need attention (use 'warning')
+5. Actionable next steps (use 'suggestion')`,
         });
 
         return {
@@ -238,16 +261,52 @@ Generate 3-5 insights with recommendations. Focus on:
   };
 
   getCostEfficiency = {
-    async execute(_campaignId: string): Promise<ServiceResult<{ score: number; rating: 'excellent' | 'good' | 'fair' | 'poor' }>> {
+    async execute(campaignId: string): Promise<ServiceResult<{ score: number; rating: 'excellent' | 'good' | 'fair' | 'poor' }>> {
       try {
-        // TODO: Implement cost efficiency calculation
-        // Would analyze cost per result vs industry benchmarks
+        // Get metrics from cache
+        const metrics = await getCachedMetrics(campaignId, '7d');
+        
+        if (!metrics || !metrics.cost_per_result) {
+          return {
+            success: true,
+            data: {
+              score: 0,
+              rating: 'fair' as const,
+            },
+          };
+        }
+
+        // Calculate efficiency score based on cost per result
+        // Lower cost per result = higher score
+        // Industry benchmarks (rough estimates):
+        // - Excellent: < $2 per result
+        // - Good: $2-5 per result
+        // - Fair: $5-10 per result
+        // - Poor: > $10 per result
+        
+        const costPerResult = metrics.cost_per_result;
+        let score: number;
+        let rating: 'excellent' | 'good' | 'fair' | 'poor';
+
+        if (costPerResult < 2) {
+          score = 90 + Math.min(10, Math.floor((2 - costPerResult) * 5));
+          rating = 'excellent';
+        } else if (costPerResult < 5) {
+          score = 70 + Math.floor((5 - costPerResult) / 3 * 20);
+          rating = 'good';
+        } else if (costPerResult < 10) {
+          score = 50 + Math.floor((10 - costPerResult) / 5 * 20);
+          rating = 'fair';
+        } else {
+          score = Math.max(0, 50 - Math.floor((costPerResult - 10) * 5));
+          rating = 'poor';
+        }
         
         return {
           success: true,
           data: {
-            score: 0,
-            rating: 'good' as const,
+            score: Math.min(100, Math.max(0, score)),
+            rating,
           },
         };
       } catch (error) {

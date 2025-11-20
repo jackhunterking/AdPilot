@@ -270,22 +270,3 @@ export async function POST(req: Request) {
     }),
   });
 }
-
-/**
- * Refactoring Summary:
- * 
- * BEFORE: 1410 lines (monolithic)
- * AFTER: ~200 lines (85% reduction)
- * 
- * Extracted Services:
- * - systemPromptService: 150 lines (goal-aware prompts)
- * - toolRegistryService: 180 lines (tool loading/locking)
- * - metadataService: 120 lines (metadata parsing)
- * - contextBuilderService: 130 lines (context building)
- * - finishHandlerService: 90 lines (message persistence)
- * 
- * Total Extracted: 670 lines to services
- * Removed Duplication: ~540 lines (context building, validation, etc.)
- * Net Result: Cleaner, testable, maintainable code
- */
-

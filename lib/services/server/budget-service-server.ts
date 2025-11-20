@@ -7,6 +7,7 @@
  */
 
 import { supabaseServer } from '@/lib/supabase/server';
+import { getConnectionWithToken, getGraphVersion } from '@/lib/meta/service';
 import type {
   BudgetService,
   BudgetConfiguration,
@@ -268,12 +269,61 @@ class BudgetServiceServer implements BudgetService {
   };
 
   estimateReach = {
-    async execute(input: { dailyBudget: number; targeting: unknown }): Promise<ServiceResult<{ minReach: number; maxReach: number }>> {
+    async execute(input: { dailyBudget: number; targeting: unknown; campaignId?: string; adAccountId?: string }): Promise<ServiceResult<{ minReach: number; maxReach: number }>> {
       try {
-        // TODO: Implement Meta Reach Estimate API call
-        // Would query Meta's reach estimation endpoint
+        // Try to get Meta API token if campaignId provided
+        let token: string | null = null;
+        let adAccountId: string | null = input.adAccountId || null;
+
+        if (input.campaignId) {
+          const conn = await getConnectionWithToken({ campaignId: input.campaignId });
+          if (conn?.long_lived_user_token && conn?.selected_ad_account_id) {
+            token = conn.long_lived_user_token;
+            adAccountId = conn.selected_ad_account_id;
+          }
+        }
+
+        // If we have token and ad account, query Meta Reach Estimate API
+        if (token && adAccountId) {
+          try {
+            const gv = getGraphVersion();
+            const normalizedAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
+            
+            // Call Meta Reach Estimate API
+            // https://developers.facebook.com/docs/marketing-api/reference/reach-estimate
+            const url = `https://graph.facebook.com/${gv}/${normalizedAccountId}/reachestimate`;
+            const params = new URLSearchParams({
+              optimization_goal: 'REACH',
+              targeting_spec: JSON.stringify(input.targeting || {}),
+              currency: 'USD',
+            });
+
+            const response = await fetch(`${url}?${params.toString()}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              const users = result.users || 0;
+              const reachEstimate = result.reach_estimate || result.estimate_ready ? result.estimate_ready[0] : null;
+              
+              if (reachEstimate) {
+                return {
+                  success: true,
+                  data: {
+                    minReach: reachEstimate.unseen_min || Math.floor(users * 0.8),
+                    maxReach: reachEstimate.unseen_max || Math.ceil(users * 1.2),
+                  },
+                };
+              }
+            }
+          } catch (apiError) {
+            // Fall through to simple formula
+            console.warn('[BudgetService] Meta API reach estimate failed, using fallback:', apiError);
+          }
+        }
         
-        // Simple formula for now (rough estimate)
+        // Fallback: Simple formula (rough estimate)
         const estimatedCPM = 10; // $10 CPM
         const estimatedImpressions = (input.dailyBudget / estimatedCPM) * 1000;
         const reachFactor = 0.7; // Assume 70% unique reach

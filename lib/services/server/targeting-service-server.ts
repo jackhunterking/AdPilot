@@ -7,7 +7,8 @@
  *  - Supabase: https://supabase.com/docs
  */
 
-import { supabaseServer } from '@/lib/supabase/server';
+import { supabaseServer, createServerClient } from '@/lib/supabase/server';
+import { searchLocations, getLocationBoundary } from '@/app/actions/geocoding';
 import type {
   TargetingService,
   Location,
@@ -193,11 +194,30 @@ class TargetingServiceServer implements TargetingService {
   };
 
   geocode = {
-    async execute(_input: GeocodeInput): Promise<ServiceResult<GeocodeResult>> {
+    async execute(input: GeocodeInput): Promise<ServiceResult<GeocodeResult>> {
       try {
-        // TODO: Implement Nominatim API call for geocoding
-        // For now, return stub
-        throw new Error('Not implemented - Nominatim geocoding');
+        // Use existing geocoding implementation from actions
+        const result = await searchLocations(input.query);
+        
+        if (!result.success) {
+          return {
+            success: false,
+            error: {
+              code: result.error?.code || 'geocoding_failed',
+              message: result.error?.message || 'Geocoding failed',
+            },
+          };
+        }
+
+        return {
+          success: true,
+          data: {
+            placeName: result.data?.place_name || '',
+            center: result.data?.center || [0, 0],
+            bbox: result.data?.bbox || null,
+            placeType: result.data?.place_type || [],
+          },
+        };
       } catch (error) {
         return {
           success: false,
@@ -211,11 +231,30 @@ class TargetingServiceServer implements TargetingService {
   };
 
   fetchBoundary = {
-    async execute(_input: FetchBoundaryInput): Promise<ServiceResult<FetchBoundaryResult>> {
+    async execute(input: FetchBoundaryInput): Promise<ServiceResult<FetchBoundaryResult>> {
       try {
-        // TODO: Implement boundary fetching from OSM or similar service
-        // For now, return stub
-        throw new Error('Not implemented - Boundary fetching');
+        // Use existing boundary fetching implementation from actions
+        const result = await fetchLocationBoundary(input.osmType, input.osmId);
+        
+        if (!result.success) {
+          return {
+            success: false,
+            error: {
+              code: result.error?.code || 'boundary_fetch_failed',
+              message: result.error?.message || 'Boundary fetch failed',
+            },
+          };
+        }
+
+        return {
+          success: true,
+          data: {
+            geometry: result.data?.geometry,
+            bbox: result.data?.bbox || null,
+            adminLevel: result.data?.adminLevel || 0,
+            source: result.data?.source || 'osm',
+          },
+        };
       } catch (error) {
         return {
           success: false,
