@@ -125,7 +125,7 @@ Successfully implemented the backend foundation for AdPilot's Lovable integratio
 
 ### 5. Chrome Extension Foundation ✅
 
-**Location:** Separate repository - [adpilot-lovable-extension](https://github.com/yourusername/adpilot-lovable-extension)
+**Location:** Separate repository - [adpilot-lovable-extension](https://github.com/jackhunterking/adpilot-lovable-extension)
 
 **Files Created:**
 - `manifest.json` - Extension config (MV3)
@@ -463,7 +463,7 @@ NEXT_PUBLIC_LOVABLE_UI_URL=https://lovable.adpilot.com
 - Services: `lib/services/lovable/`
 - API: `app/api/v1/lovable/`
 - Database: `supabase/migrations/20251120000000_lovable_integration.sql`
-- Extension: [Separate Repository](https://github.com/yourusername/adpilot-lovable-extension)
+- Extension: [Separate Repository](https://github.com/jackhunterking/adpilot-lovable-extension)
 
 **Architecture Docs:**
 - [API & Architecture Reference](docs/API_AND_ARCHITECTURE_REFERENCE.md)

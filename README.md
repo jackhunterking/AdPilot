@@ -4,7 +4,7 @@ AI-powered Meta (Facebook/Instagram) advertising platform with seamless Lovable 
 
 ## 🔗 Related Projects
 
-- **Chrome Extension:** [adpilot-lovable-extension](https://github.com/yourusername/adpilot-lovable-extension) - Install AdPilot directly in Lovable editor
+- **Chrome Extension:** [adpilot-lovable-extension](https://github.com/jackhunterking/adpilot-lovable-extension) - Install AdPilot directly in Lovable editor
 - **Lovable UI:** Coming soon - Dedicated UI for Lovable integration
 
 ---
