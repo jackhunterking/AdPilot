@@ -548,24 +548,56 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
       
       try {
         // Get current ad ID from URL
-        // generateImage should ONLY be called when an ad already exists (created by createAd tool)
-        const currentAdId = searchParams.get('adId');
+        let currentAdId = searchParams.get('adId');
         
+        // Auto-create draft ad if none exists (fallback safety)
         if (!currentAdId) {
-          console.error('[AIChat] No adId found - generateImage requires existing ad');
-          addToolResult({
-            tool: 'generateImage',
-            toolCallId,
-            output: undefined,
-            errorText: 'No ad draft found. Please create an ad first.',
-          } as ToolResult);
-          setIsGenerating(false);
-          setGeneratingImages(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(toolCallId);
-            return newSet;
-          });
-          return;
+          console.log('[AIChat] No adId in URL, creating draft ad...');
+          
+          try {
+            const response = await fetch(`/api/v1/ads`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                campaignId,
+                name: 'Untitled Ad',
+                status: 'draft'
+              })
+            });
+            
+            if (!response.ok) {
+              throw new Error('Failed to create draft ad');
+            }
+            
+            const data = await response.json();
+            const newAdId = data.data?.ad?.id;
+            
+            if (!newAdId) {
+              throw new Error('No ad ID returned from API');
+            }
+            
+            console.log('[AIChat] ✅ Created draft ad:', newAdId);
+            
+            // Update URL with new ad ID
+            router.push(`/${campaignId}?view=build&adId=${newAdId}&step=creative`);
+            
+            currentAdId = newAdId;
+          } catch (createError) {
+            console.error('[AIChat] Failed to create draft ad:', createError);
+            addToolResult({
+              tool: 'generateImage',
+              toolCallId,
+              output: undefined,
+              errorText: 'Failed to create ad draft. Please try again.',
+            } as ToolResult);
+            setIsGenerating(false);
+            setGeneratingImages(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(toolCallId);
+              return newSet;
+            });
+            return;
+          }
         }
         
         const targetAdId = currentAdId;

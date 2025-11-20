@@ -186,6 +186,8 @@ export async function POST(request: NextRequest) {
           // Create initial draft ad
           let draftAdId: string | undefined
           try {
+            console.log(`[POST /api/campaigns] Creating initial draft ad for campaign ${campaign!.id}`)
+            
             const { data: draftAd, error: draftError } = await supabaseServer
               .from('ads')
               .insert({
@@ -197,17 +199,24 @@ export async function POST(request: NextRequest) {
               .single()
             
             if (draftError) {
-              console.error('Failed to create initial draft ad:', draftError)
+              console.error('[POST /api/campaigns] ❌ Failed to create initial draft ad:', {
+                campaignId: campaign!.id,
+                error: draftError,
+                code: draftError.code,
+                message: draftError.message,
+                details: draftError.details
+              })
               // Don't fail campaign creation, but log the error
             } else {
-              console.log(`Created initial draft ad ${draftAd.id} for campaign ${campaign!.id}`)
+              console.log(`[POST /api/campaigns] ✅ Created initial draft ad ${draftAd.id} for campaign ${campaign!.id}`)
               draftAdId = draftAd.id
             }
           } catch (draftError) {
-            console.error('Error creating initial draft ad:', draftError)
+            console.error('[POST /api/campaigns] ❌ Exception creating initial draft ad:', draftError)
             // Continue - campaign is still valid without initial draft
           }
 
+          console.log(`[POST /api/campaigns] Final response - campaignId: ${campaign!.id}, draftAdId: ${draftAdId || 'NONE'}`)
           return successResponse({ campaign, draftAdId }, undefined, 201)
         }
 
@@ -266,6 +275,8 @@ export async function POST(request: NextRequest) {
     // Create initial draft ad
     let draftAdId: string | undefined
     try {
+      console.log(`[POST /api/campaigns] Creating initial draft ad for campaign ${(manualCampaign as Tables<'campaigns'>).id}`)
+      
       const { data: draftAd, error: draftError } = await supabaseServer
         .from('ads')
         .insert({
@@ -277,17 +288,24 @@ export async function POST(request: NextRequest) {
         .single()
       
       if (draftError) {
-        console.error('Failed to create initial draft ad:', draftError)
+        console.error('[POST /api/campaigns] ❌ Failed to create initial draft ad:', {
+          campaignId: (manualCampaign as Tables<'campaigns'>).id,
+          error: draftError,
+          code: draftError.code,
+          message: draftError.message,
+          details: draftError.details
+        })
         // Don't fail campaign creation, but log the error
       } else {
-        console.log(`Created initial draft ad ${draftAd.id} for campaign ${(manualCampaign as Tables<'campaigns'>).id}`)
+        console.log(`[POST /api/campaigns] ✅ Created initial draft ad ${draftAd.id} for campaign ${(manualCampaign as Tables<'campaigns'>).id}`)
         draftAdId = draftAd.id
       }
     } catch (draftError) {
-      console.error('Error creating initial draft ad:', draftError)
+      console.error('[POST /api/campaigns] ❌ Exception creating initial draft ad:', draftError)
       // Continue - campaign is still valid without initial draft
     }
 
+    console.log(`[POST /api/campaigns] Final response - campaignId: ${(manualCampaign as Tables<'campaigns'>).id}, draftAdId: ${draftAdId || 'NONE'}`)
     return successResponse({ campaign: manualCampaign, draftAdId }, undefined, 201)
   } catch (error) {
     console.error('[POST /api/v1/campaigns] Error:', error)

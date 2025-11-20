@@ -1,6 +1,6 @@
 # AdPilot - Development Guide
 
-**Last Updated:** November 19, 2025  
+**Last Updated:** November 20, 2025  
 **Status:** ✅ Current  
 **Companion to:** API_AND_ARCHITECTURE_REFERENCE.md
 
@@ -17,8 +17,9 @@
 4. [Context Refactoring Guide](#4-context-refactoring-guide)
 5. [Journey Development](#5-journey-development)
 6. [Database Patterns](#6-database-patterns)
-7. [Testing](#7-testing)
-8. [Troubleshooting](#8-troubleshooting)
+7. [Message Persistence & Chat](#7-message-persistence--chat)
+8. [Testing](#8-testing)
+9. [Troubleshooting](#9-troubleshooting)
 
 ## Production Status (Nov 19, 2025)
 
@@ -569,7 +570,282 @@ if (dbConnection) {
 
 ---
 
-# 7. Testing
+# 7. Message Persistence & Chat
+
+## Overview
+
+The AI chat system uses Vercel AI SDK v5 with proper message persistence to Supabase. Messages persist across page refreshes and client disconnects.
+
+**Key Files:**
+- `app/api/v1/chat/route.ts` - Chat API with streaming
+- `lib/services/message-store.ts` - Message persistence layer
+- `components/ai-chat.tsx` - Chat UI component
+- `app/[campaignId]/page.tsx` - Server-side message loading
+
+## Critical Implementation Pattern
+
+### The Fix (November 2025)
+
+**Problem**: Messages disappeared on page refresh because client disconnects aborted streams before messages were saved.
+
+**Solution**: Two critical changes following [AI SDK v5 docs](https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-message-persistence#handling-client-disconnects):
+
+1. **Added `consumeStream()`** - Ensures stream continues on backend even if client disconnects
+2. **Moved `onFinish` callback** - From `streamText` to `toUIMessageStreamResponse` to receive complete message array
+
+### Implementation Code
+
+```typescript
+// app/api/v1/chat/route.ts
+
+const result = streamText({
+  model: getModel(model || 'openai/gpt-4o'),
+  messages: convertToModelMessages(validatedMessages),
+  system: systemPrompt,
+  tools,
+  // onFinish removed from here ❌
+});
+
+// ✅ Critical: Ensures onFinish runs even on client disconnect
+result.consumeStream();
+
+// ✅ Critical: onFinish in correct location with complete message array
+return result.toUIMessageStreamResponse({
+  originalMessages: validatedMessages,
+  sendSources: true,
+  sendReasoning: true,
+  generateMessageId: createIdGenerator({ prefix: 'msg', size: 16 }),
+  
+  onFinish: async ({ messages: completeMessages }) => {
+    // Saves both user messages AND assistant responses
+    await messageStore.saveMessages(conversationId, completeMessages);
+    
+    // Auto-generate title if needed
+    if (conversation && !conversation.title) {
+      await conversationManager.autoGenerateTitle(conversationId);
+    }
+  },
+});
+```
+
+## Database Requirements
+
+### Messages Table Schema
+
+Required columns (verified in `lib/supabase/database.types.ts`):
+- `id` (uuid) - Primary key
+- `conversation_id` (uuid) - FK to conversations.id
+- `role` (text) - 'user' | 'assistant' | 'system'
+- `content` (text) - Searchable text content
+- `parts` (jsonb) - Full message parts array (AI SDK format)
+- `metadata` (jsonb) - Message metadata
+- `seq` (bigserial) - Auto-incrementing order
+- `created_at` (timestamptz) - Timestamp
+
+### Required Indexes
+
+For optimal performance, verify these indexes exist:
+
+```sql
+-- Check existing indexes
+SELECT indexname, indexdef 
+FROM pg_indexes 
+WHERE tablename = 'messages';
+
+-- Create if missing
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_id 
+ON messages(conversation_id);
+
+CREATE INDEX IF NOT EXISTS idx_messages_seq 
+ON messages(seq);
+
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_seq 
+ON messages(conversation_id, seq);
+```
+
+### RLS Policies
+
+Required policies (append-only pattern):
+
+```sql
+-- Enable RLS
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+
+-- SELECT: Users can read their own messages
+CREATE POLICY "Users can select their own messages"
+ON messages FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM conversations
+    WHERE conversations.id = messages.conversation_id
+    AND conversations.user_id = auth.uid()
+  )
+);
+
+-- INSERT: Users can add messages to their conversations
+CREATE POLICY "Users can insert messages to their own conversations"
+ON messages FOR INSERT TO authenticated
+WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM conversations
+    WHERE conversations.id = messages.conversation_id
+    AND conversations.user_id = auth.uid()
+  )
+);
+
+-- NO UPDATE or DELETE policies (append-only)
+```
+
+## How Message Flow Works
+
+### 1. User Sends Message
+```typescript
+// Client (components/ai-chat.tsx)
+const { messages, sendMessage } = useChat({
+  id: conversationId,
+  messages: initialMessages, // Loaded from DB on mount
+  transport,
+});
+
+sendMessage({ text: "Generate creative variations" });
+```
+
+### 2. Server Processes Stream
+```typescript
+// Server (app/api/v1/chat/route.ts)
+const result = streamText({...});
+result.consumeStream(); // Continues even if client disconnects
+return result.toUIMessageStreamResponse({
+  onFinish: async ({ messages }) => {
+    await messageStore.saveMessages(conversationId, messages);
+  }
+});
+```
+
+### 3. Messages Saved to Database
+```typescript
+// lib/services/message-store.ts
+async saveMessages(conversationId: string, messages: UIMessage[]) {
+  // 1. Validate all messages have IDs
+  // 2. Check for existing messages (deduplication)
+  // 3. Insert only new messages
+  // 4. Log success/errors
+}
+```
+
+### 4. Page Reload Loads Messages
+```typescript
+// Server (app/[campaignId]/page.tsx)
+const { data: conversation } = await supabaseServer
+  .from('conversations')
+  .select('id')
+  .eq('campaign_id', campaignId)
+  .single();
+
+const { data: dbMessages } = await supabaseServer
+  .from('messages')
+  .select('*')
+  .eq('conversation_id', conversation.id)
+  .order('seq', { ascending: true });
+
+const messages = dbMessages.map(dbToUIMessage);
+// Pass to <Dashboard messages={messages} />
+```
+
+## Verification
+
+### Quick Test (5 minutes)
+
+1. **Send a message** in any campaign
+2. **Check browser console** for these logs:
+   ```
+   [API] ✅ onFinish called with X messages
+   [MessageStore] ✅ Successfully saved X new messages
+   ```
+3. **Hard refresh** (Cmd+Shift+R / Ctrl+Shift+F5)
+4. **Verify** messages still appear ✅
+
+### Client Disconnect Test
+
+1. **Send a message**
+2. **Immediately refresh** (within 1 second - don't wait for response)
+3. **Wait 5 seconds**
+4. **Refresh again**
+5. **Verify** your message persisted (proves `consumeStream()` works)
+
+### Database Verification
+
+```sql
+-- Check recent messages
+SELECT 
+  id,
+  conversation_id,
+  role,
+  LEFT(content, 50) as preview,
+  seq,
+  created_at
+FROM messages
+ORDER BY created_at DESC
+LIMIT 10;
+
+-- Check for orphaned messages (should return 0)
+SELECT COUNT(*) as orphaned_count
+FROM messages m
+LEFT JOIN conversations c ON m.conversation_id = c.id
+WHERE c.id IS NULL;
+```
+
+## Common Issues
+
+### Issue: Messages disappear on refresh
+**Cause**: `onFinish` not being called  
+**Check**: Browser console for `[API] ✅ onFinish called` log  
+**Fix**: Verify `consumeStream()` is called and `onFinish` is in `toUIMessageStreamResponse`
+
+### Issue: Only user messages persist
+**Cause**: Assistant message not in `completeMessages` array  
+**Check**: `[API] Message roles:` log should show both user and assistant  
+**Fix**: Verify `onFinish` receives `messages` from `toUIMessageStreamResponse` callback
+
+### Issue: Duplicate messages
+**Cause**: Deduplication not working  
+**Check**: `[MessageStore] Deduplication:` log  
+**Fix**: Verify message IDs are unique and exist before insert check works
+
+### Issue: RLS policy blocks inserts
+**Symptom**: "new row violates row-level security policy"  
+**Check**: Verify conversation exists and user_id matches  
+**Fix**: Run RLS policy creation SQL above
+
+## Key Logging
+
+Monitor these logs in production:
+
+```typescript
+// Success indicators
+[API] ✅ onFinish called with X messages
+[MessageStore] Deduplication: X messages, Y already exist
+[MessageStore] ✅ Successfully saved Z new messages
+[SERVER] Loaded X messages
+
+// Warning indicators
+[API] ⚠️ No conversation ID, skipping save
+[MessageStore] All messages already exist in DB, skipping insert
+
+// Error indicators
+[API] ❌ Failed to save messages: <error>
+[MessageStore] ❌ Batch save error: <error>
+```
+
+## References
+
+- [AI SDK v5 - Message Persistence](https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-message-persistence)
+- [AI SDK v5 - Client Disconnects](https://ai-sdk.dev/docs/ai-sdk-ui/chatbot-message-persistence#handling-client-disconnects)
+- [Supabase RLS](https://supabase.com/docs/guides/auth/row-level-security)
+
+---
+
+# 8. Testing
 
 ## Service Testing
 
@@ -938,7 +1214,7 @@ it('should update when database changes', async () => {
 
 ---
 
-# 8. Troubleshooting
+# 9. Troubleshooting
 
 ## Common Errors
 

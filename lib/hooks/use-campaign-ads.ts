@@ -102,26 +102,28 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
         throw new Error(json?.error || `Failed to fetch ads (${res.status})`)
       }
 
-      const data = await res.json()
+      const response = await res.json()
       
       // Validate response structure
-      if (!data || typeof data !== 'object') {
+      if (!response || typeof response !== 'object') {
         throw new Error('Invalid response structure from API')
       }
       
-      if (!Array.isArray(data.ads)) {
-        console.warn(`[${traceId}] Response missing ads array, using empty array`)
-        data.ads = []
+      // API wraps response: { success: true, data: { ads: [...] } }
+      if (!response.data || !Array.isArray(response.data.ads)) {
+        console.warn(`[${traceId}] Response missing ads array, using empty array`, response)
+        setAds([])
+        return
       }
       
       const duration = Date.now() - startTime
       console.log(`[${traceId}] fetchAds success:`, {
         campaignId,
-        adCount: data.ads.length,
+        adCount: response.data.ads.length,
         duration: `${duration}ms`
       })
       
-      setAds(data.ads)
+      setAds(response.data.ads)
       
     } catch (err) {
       const duration = Date.now() - startTime
@@ -173,8 +175,8 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
         throw new Error(json?.error || "Failed to create ad")
       }
 
-      const data = await res.json()
-      const newAd = data.ad as CampaignAd
+      const response = await res.json()
+      const newAd = response.data.ad as CampaignAd
       
       // Add to local state
       setAds(prev => [...prev, newAd])
@@ -202,8 +204,8 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
         throw new Error(json?.error || "Failed to update ad")
       }
 
-      const data = await res.json()
-      const updatedAd = data.ad as CampaignAd
+      const response = await res.json()
+      const updatedAd = response.data.ad as CampaignAd
       
       // Update local state
       setAds(prev => prev.map(ad => ad.id === adId ? updatedAd : ad))
@@ -248,9 +250,9 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
         return { success: false, error: errorMsg }
       }
 
-      const data = await res.json()
+      const response = await res.json()
       logger.debug('useCampaignAds', `[${traceId}] Delete succeeded`, {
-        deletedAd: data.deletedAd?.id
+        deletedAd: response.data.deletedAd?.id
       })
 
       // Remove from local state after confirmed deletion
@@ -265,7 +267,7 @@ export function useCampaignAds(campaignId: string | undefined): UseCampaignAdsRe
       
       return { 
         success: true, 
-        deletedAd: data.deletedAd 
+        deletedAd: response.data.deletedAd 
       }
       
     } catch (err) {
