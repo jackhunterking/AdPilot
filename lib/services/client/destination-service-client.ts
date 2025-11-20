@@ -35,7 +35,7 @@ class DestinationServiceClient implements DestinationService {
     async execute(input: SetupDestinationInput): Promise<ServiceResult<void>> {
       try {
         const response = await fetch(`/api/v1/ads/${input.adId}/save`, {
-          method: 'POST',
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
@@ -148,7 +148,7 @@ class DestinationServiceClient implements DestinationService {
   getMetaForm = {
     async execute(input: { formId: string; campaignId: string }): Promise<ServiceResult<MetaForm>> {
       try {
-        const response = await fetch(`/api/v1/meta/forms/${input.formId}?campaignId=${input.campaignId}`, {
+        const response = await fetch(`/api/v1/meta/instant-forms/${input.formId}?campaignId=${input.campaignId}`, {
           method: 'GET',
           credentials: 'include',
         });

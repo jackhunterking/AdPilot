@@ -215,7 +215,7 @@ class AdServiceClient implements AdService {
     async execute(input: SaveAdSnapshotInput): Promise<ServiceResult<Ad>> {
       try {
         const response = await fetch(`/api/v1/ads/${input.adId}/save`, {
-          method: 'POST',
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify(input.snapshot),
@@ -391,8 +391,21 @@ class AdServiceClient implements AdService {
 
   duplicateAd = {
     async execute(adId: string): Promise<ServiceResult<Ad>> {
+      // TODO: Implement duplicate ad endpoint
+      // Route /api/v1/ads/[id]/duplicate does not exist yet
+      // Options:
+      // 1. Create the route in app/api/v1/ads/[id]/duplicate/route.ts
+      // 2. Implement client-side duplication using getAd + createAd
+      return {
+        success: false,
+        error: {
+          code: 'not_implemented',
+          message: 'Duplicate ad endpoint not yet implemented',
+        },
+      };
+      
+      /* Commented out until endpoint is created
       try {
-        // Assuming duplicate endpoint exists or will be created
         const response = await fetch(`/api/v1/ads/${adId}/duplicate`, {
           method: 'POST',
           credentials: 'include',

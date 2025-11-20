@@ -101,7 +101,8 @@ The service layer now calls real external APIs with proper error handling and fa
 - `GET /api/v1/ads/[id]` - Get ad
 - `PATCH /api/v1/ads/[id]` - Update ad
 - `DELETE /api/v1/ads/[id]` - Delete ad
-- `POST /api/v1/ads/[id]/save` - Save ad snapshot
+- `GET /api/v1/ads/[id]/save` - Get ad snapshot
+- `PUT /api/v1/ads/[id]/save` - Save ad snapshot (⚠️ Note: Use PUT, not POST)
 - `POST /api/v1/ads/[id]/publish` - Publish ad to Meta
 - `POST /api/v1/ads/[id]/pause` - Pause ad
 - `POST /api/v1/ads/[id]/resume` - Resume ad

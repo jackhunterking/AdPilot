@@ -76,7 +76,7 @@ export class SaveService {
       });
 
       const response = await fetch(`/api/v1/ads/${input.adId}/save`, {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           campaignId: input.campaignId,

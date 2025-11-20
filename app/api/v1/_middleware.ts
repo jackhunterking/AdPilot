@@ -105,6 +105,53 @@ export function errorResponse(error: ApiError | Error): NextResponse {
 }
 
 // ============================================
+// HTTP Method Validation
+// ============================================
+
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+
+/**
+ * Validate that a request uses an allowed HTTP method
+ * Returns NextResponse with 405 error if method not allowed
+ * Returns null if method is allowed
+ * 
+ * @example
+ * ```typescript
+ * export async function GET(req: NextRequest, context: Context) {
+ *   const methodError = validateMethod(req, ['GET', 'PUT'])
+ *   if (methodError) return methodError
+ *   // ... continue with request handling
+ * }
+ * ```
+ */
+export function validateMethod(
+  request: NextRequest,
+  allowed: readonly HttpMethod[]
+): NextResponse | null {
+  const method = request.method as HttpMethod
+  
+  if (!allowed.includes(method)) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'method_not_allowed',
+          message: `Method ${method} not allowed. Allowed methods: ${allowed.join(', ')}`,
+        },
+      },
+      {
+        status: 405,
+        headers: {
+          Allow: allowed.join(', '),
+        },
+      }
+    )
+  }
+  
+  return null
+}
+
+// ============================================
 // Auth Helpers
 // ============================================
 

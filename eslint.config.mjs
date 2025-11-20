@@ -28,6 +28,19 @@ const eslintConfig = [
       
       // Enforce proper entity escaping
       'react/no-unescaped-entities': 'error',
+      
+      // Enforce type-safe API wrapper for v1 endpoints
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'CallExpression[callee.name="fetch"][arguments.0.value=/\\/api\\/v1\\//]',
+          message: 'Use type-safe apiV1() wrapper from lib/types/api-v1-contracts.ts instead of raw fetch() for v1 API calls. This prevents HTTP method mismatches.'
+        },
+        {
+          selector: 'CallExpression[callee.name="fetch"][arguments.0.type="TemplateLiteral"][arguments.0.quasis.0.value.raw=/\\/api\\/v1\\//]',
+          message: 'Use type-safe apiV1() wrapper from lib/types/api-v1-contracts.ts instead of raw fetch() for v1 API calls. This prevents HTTP method mismatches.'
+        }
+      ],
     }
   }
 ];

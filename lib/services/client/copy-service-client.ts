@@ -274,7 +274,7 @@ class CopyServiceClient implements CopyService {
       try {
         // Update ad copy_data to mark selected variation
         const response = await fetch(`/api/v1/ads/${input.adId}/save`, {
-          method: 'POST',
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({

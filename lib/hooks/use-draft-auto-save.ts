@@ -144,8 +144,38 @@ export function useDraftAutoSave(
           }
         }
         
+        // Validate that we have at least one section with valid data
         if (Object.keys(sections).length === 0) {
-          return // Nothing to save
+          console.log('[DraftAutoSave] No sections to save, skipping')
+          return
+        }
+        
+        // Check if any section has actual valid data (not just empty structure)
+        const hasValidSection = 
+          (sections.creative && (sections.creative as Record<string, unknown>).imageVariations && 
+           Array.isArray((sections.creative as Record<string, unknown>).imageVariations) && 
+           ((sections.creative as Record<string, unknown>).imageVariations as unknown[]).length > 0) ||
+          (sections.copy && (sections.copy as Record<string, unknown>).variations && 
+           Array.isArray((sections.copy as Record<string, unknown>).variations) && 
+           ((sections.copy as Record<string, unknown>).variations as unknown[]).length > 0) ||
+          (sections.destination && (sections.destination as Record<string, unknown>).type) ||
+          (sections.location && (sections.location as Record<string, unknown>).locations && 
+           Array.isArray((sections.location as Record<string, unknown>).locations) && 
+           ((sections.location as Record<string, unknown>).locations as unknown[]).length > 0) ||
+          (sections.budget && (sections.budget as Record<string, unknown>).dailyBudget && 
+           typeof (sections.budget as Record<string, unknown>).dailyBudget === 'number' && 
+           (sections.budget as Record<string, unknown>).dailyBudget > 0)
+        
+        if (!hasValidSection) {
+          console.log('[DraftAutoSave] No valid data in sections, skipping save', {
+            sectionsPresent: Object.keys(sections),
+            creative: sections.creative ? 'present but invalid' : 'missing',
+            copy: sections.copy ? 'present but invalid' : 'missing',
+            destination: sections.destination ? 'present but invalid' : 'missing',
+            location: sections.location ? 'present but invalid' : 'missing',
+            budget: sections.budget ? 'present but invalid' : 'missing'
+          })
+          return
         }
         
         const currentSignature = JSON.stringify(sections)
@@ -155,11 +185,11 @@ export function useDraftAutoSave(
         }
         
         console.log('[DraftAutoSave] Sections to save:', Object.keys(sections))
-        console.log('[DraftAutoSave] Making POST request to:', `/api/v1/ads/${adId}/save`);
+        console.log('[DraftAutoSave] Making PUT request to:', `/api/v1/ads/${adId}/save`);
         console.log('[DraftAutoSave] Request body:', JSON.stringify(sections, null, 2));
         
         const response = await fetch(`/api/v1/ads/${adId}/save`, {
-          method: 'POST',
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(sections),
         })

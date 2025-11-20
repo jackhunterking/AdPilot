@@ -77,7 +77,7 @@ export function AdCopySelectionCanvas() {
         const response = await fetch(
           `/api/v1/ads/${currentAd.id}/save`,
           {
-            method: 'POST',
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               copy: {

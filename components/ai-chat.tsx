@@ -624,7 +624,7 @@ const AIChat = ({ campaignId, conversationId, currentAdId, messages: initialMess
           
           try {
             await fetch(`/api/v1/ads/${targetAdId}/save`, {
-              method: 'POST',
+              method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 creative: {

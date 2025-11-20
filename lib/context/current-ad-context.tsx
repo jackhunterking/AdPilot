@@ -199,7 +199,7 @@ export function CurrentAdProvider({ children }: { children: ReactNode }) {
 
       // Use v1 API route for saving snapshots
       const response = await fetch(`/api/v1/ads/${currentAdId}/save`, {
-        method: 'POST',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(snapshot)

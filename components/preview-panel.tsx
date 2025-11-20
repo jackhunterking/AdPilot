@@ -198,7 +198,7 @@ export function PreviewPanel() {
         const response = await fetch(
           `/api/v1/ads/${currentAd.id}/save`,
           {
-            method: 'PATCH',
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(sections)
           }
@@ -773,7 +773,7 @@ export function PreviewPanel() {
         const response = await fetch(
           `/api/v1/ads/${currentAd.id}/save`,
           {
-            method: 'PATCH',
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               creative: {

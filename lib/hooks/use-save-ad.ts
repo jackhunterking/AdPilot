@@ -153,7 +153,7 @@ export function useSaveAd() {
       const response = await fetch(
         `/api/v1/ads/${adId}/save`,
         {
-          method: 'POST',
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(sections)
         }

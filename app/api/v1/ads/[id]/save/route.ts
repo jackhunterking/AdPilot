@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server"
-import { requireAuth, requireAdOwnership, errorResponse, successResponse, NotFoundError, ValidationError } from '@/app/api/v1/_middleware'
+import { requireAuth, requireAdOwnership, errorResponse, successResponse, NotFoundError, ValidationError, validateMethod } from '@/app/api/v1/_middleware'
 import { supabaseServer } from "@/lib/supabase/server"
 import { adDataService } from '@/lib/services/ad-data-service'
 import type { SaveAdPayload, SaveAdResponse } from "@/lib/types/workspace"
@@ -29,6 +29,10 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  // Validate HTTP method
+  const methodError = validateMethod(request, ['GET', 'PUT'])
+  if (methodError) return methodError
+  
   try {
     const user = await requireAuth(request)
     const { id: adId } = await context.params
@@ -109,6 +113,10 @@ export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  // Validate HTTP method
+  const methodError = validateMethod(request, ['GET', 'PUT'])
+  if (methodError) return methodError
+  
   const traceId = `save_ad_${Date.now()}`
   
   try {
