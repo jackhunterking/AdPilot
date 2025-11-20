@@ -45,9 +45,10 @@ export function CampaignGrid() {
       })
       
       if (response.ok) {
-        const { campaigns: data } = await response.json()
+        const responseData = await response.json()
+        const campaigns = responseData.data?.campaigns || []
         // Filter out any null/invalid campaigns
-        const campaignList = (data || []).filter((c: Campaign | null) => c && c.id)
+        const campaignList = campaigns.filter((c: Campaign | null) => c && c.id)
         // Show only first 6 for homepage preview
         setCampaigns(campaignList.slice(0, 6))
       } else if (response.status === 401) {
