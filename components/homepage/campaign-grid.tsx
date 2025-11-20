@@ -40,7 +40,7 @@ export function CampaignGrid() {
   const fetchCampaigns = useCallback(async () => {
     try {
       // Fetch up to 6 campaigns for homepage preview
-      const response = await fetch('/api/campaigns?limit=6', {
+      const response = await fetch('/api/v1/campaigns?limit=6', {
         cache: 'no-store',
       })
       
@@ -121,7 +121,7 @@ export function CampaignGrid() {
       setDeleteDialogOpen(false)
       setCampaignToDelete(null)
 
-      const response = await fetch(`/api/campaigns/${campaignId}`, {
+      const response = await fetch(`/api/v1/campaigns/${campaignId}`, {
         method: 'DELETE',
         cache: 'no-store',
       })
